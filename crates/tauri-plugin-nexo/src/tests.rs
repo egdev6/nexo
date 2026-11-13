@@ -2137,3 +2137,138 @@ async fn verifier_t3_shutdown_fences_queued_finalize() {
         "shutdown must fence queued finalization"
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn verifier_c1_recheck_finalize_without_shutdown() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 91,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 91,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    assert_eq!(host.events(), ["decide:User"]);
+    host.pump();
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "finalize"]);
+    handle.shutdown_and_wait().await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn verifier_c1_recheck_shutdown_fences_queued_recovery() {
+    let (host, connector, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 92,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    host.fail_dispatch.store(true, Ordering::SeqCst);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 92,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    assert_eq!(host.events(), ["decide:User", "dispatch-error"]);
+    assert_eq!(
+        host.jobs.lock().unwrap().len(),
+        1,
+        "tray restoration must be queued"
+    );
+    handle.shutdown_and_wait().await;
+    host.pump();
+    tokio::time::advance(Duration::from_secs(30)).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "dispatch-error"]);
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn verifier_c1_recheck_finalize_failure_retries_after_1_2_4_seconds() {
+    let (host, connector, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 93,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    host.fail_dispatch.store(true, Ordering::SeqCst);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 93,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "dispatch-error", "create"]);
+    for (i, seconds) in [1, 2, 4].into_iter().enumerate() {
+        tokio::time::advance(Duration::from_secs(seconds) - Duration::from_millis(1)).await;
+        settle().await;
+        assert_eq!(*connector.attempts.lock().unwrap(), i + 1);
+        tokio::time::advance(Duration::from_millis(1)).await;
+        settle().await;
+        assert_eq!(*connector.attempts.lock().unwrap(), i + 2);
+    }
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "dispatch-error", "create"]);
+    handle.shutdown_and_wait().await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn verifier_c1_recheck_shutdown_during_dispatch_failure() {
+    let (host, connector, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 94,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    let exiting = handle.clone();
+    *host.on_dispatch_failure.lock().unwrap() = Some(Box::new(move || exiting.shutdown()));
+    host.fail_dispatch.store(true, Ordering::SeqCst);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 94,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    handle.shutdown_and_wait().await;
+    host.pump();
+    tokio::time::advance(Duration::from_secs(30)).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "dispatch-error"]);
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+}
