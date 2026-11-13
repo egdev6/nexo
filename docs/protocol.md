@@ -1,6 +1,7 @@
-# Nexo IPC protocol — version 1 (draft)
+# Nexo IPC protocol — version 1
 
-> Status: **draft, pending maintainer approval** (issue #1). Nothing here is implemented yet.
+> Status: **approved** (issue #1). Message types live in the `nexo-protocol` crate; transport, hub
+> and plugin are implemented in issues #3 and #4.
 
 This document defines how the Nexo hub and an app built with `tauri-plugin-nexo` talk to each
 other on the same Windows machine. The hub and the plugin both depend on this contract, and on
@@ -301,13 +302,12 @@ behind.
   matches the installed app.
 - Neither side executes or evaluates anything it receives. Labels are displayed as plain text.
 
-## 10. Open questions for review
+## 10. Design decisions
 
-1. **Name of the heartbeat messages.** The issue lists `heartbeat`; this draft adds the reply
-   `heartbeat_ack` so that the app can detect a hung hub. OK?
-2. **`action` message.** Not in the issue's list, but without it menu clicks cannot reach the app.
-   OK to add?
-3. **`register` without integration level** (see §4.1). OK to drop it?
-4. **Default interval of 5 s and 3 missed beats** (≈15 s to recover the icon if the hub hangs; a
-   crash is detected instantly through end-of-file). Good enough?
-5. **`quit` timeout of 10 s** and the hub never killing apps. OK?
+Approved by the maintainer when this version was reviewed:
+
+1. `heartbeat` gets a `heartbeat_ack` reply so that the app can detect a hung hub.
+2. The `action` message carries menu clicks from the hub to the app.
+3. `register` carries no integration level: only apps with the plugin connect.
+4. Default heartbeat interval of 5 s; 3 missed beats mean the peer is lost.
+5. `quit` waits 10 s for `quit_result`, and the hub never kills an app on its own.

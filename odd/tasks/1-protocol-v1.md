@@ -15,8 +15,8 @@ Source of scope: https://github.com/egdev6/nexo/issues/1 (original body, roadmap
 
 ## Tasks
 
-- T1 (S1, S4, S5, S6) Draft `docs/protocol.md` — inline — commit: see L4; status: draft written, awaiting maintainer approval
-- T2 (S2, S3) `crates/nexo-protocol` types + round-trip and unknown-version tests — inline, test-first — commit: pending; blocked on T1 approval
+- T1 (S1, S4, S5, S6) Draft `docs/protocol.md` — inline — commit: see L4; status: done (approved L5)
+- T2 (S2, S3) `crates/nexo-protocol` types + round-trip and unknown-version tests — inline, test-first — commit: pending
 - T3 (S1-S7) Close: check acceptance criteria, PR — inline — commit: pending
 
 ## Log
@@ -25,3 +25,4 @@ Source of scope: https://github.com/egdev6/nexo/issues/1 (original body, roadmap
 - L2: Issue #1 assigned to egdev6 and verified; branch feat/1-protocol-v1.
 - L3: Evidence: Quorb and Antena use Tauri 2 with `tray-icon`, `tauri-plugin-single-instance`, `tauri-plugin-updater` (GitHub `latest.json`), NSIS installer.
 - L4: T1 draft committed as "docs: draft IPC protocol v1 between hub and apps" on feat/1-protocol-v1; review questions listed in docs/protocol.md §10.
+- L5 (user, 2026-11-13): "si" — approves the draft as is, including the five decisions in §10 (heartbeat_ack, action, register without level, 5 s × 3 beats, 10 s quit with no kill).
