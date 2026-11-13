@@ -1,0 +1,11 @@
+[package]
+name = "tauri-plugin-nexo"
+version = "0.1.0"
+description = "Tauri plugin skeleton for Nexo"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+nexo-protocol = { path = "../nexo-protocol" }
+tauri = { version = "2", default-features = false }
