@@ -1,0 +1,52 @@
+{
+  "account": "egdev6",
+  "repository": "egdev6/nexo",
+  "requiredScopes": [
+    "repo",
+    "workflow"
+  ],
+  "labels": {
+    "bug": {
+      "color": "d73a4a",
+      "description": "Something isn't working",
+      "managed": false
+    },
+    "enhancement": {
+      "color": "a2eeef",
+      "description": "New feature or request",
+      "managed": false
+    },
+    "status:needs-review": {
+      "color": "FBCA04",
+      "description": "Waiting for maintainer triage",
+      "managed": true
+    },
+    "status:approved": {
+      "color": "0E8A16",
+      "description": "Approved by the maintainer and ready to work on",
+      "managed": true
+    },
+    "status:in-progress": {
+      "color": "1D76DB",
+      "description": "Work is in progress",
+      "managed": true
+    }
+  },
+  "templates": {
+    "issueForms": [
+      "bug_report",
+      "feature_request"
+    ],
+    "issueFormLabels": {
+      "bug_report": [
+        "bug"
+      ],
+      "feature_request": [
+        "enhancement"
+      ]
+    },
+    "issueWorkflow": true,
+    "pullRequest": true,
+    "mode": "ensure"
+  }
+}
