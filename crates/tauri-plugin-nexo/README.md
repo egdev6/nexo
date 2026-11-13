@@ -108,6 +108,30 @@ stop, sending `bye` when possible. No `bye` is guaranteed on a broken connection
 fallback and cannot guarantee the asynchronous work completes before process exit. Neither method
 is a tray-hide or temporary-disconnect operation.
 
+## Manual testing with a simulated hub
+
+On Windows, the interactive fixture uses the **production per-user pipe**, so stop any real hub
+first. It refuses to start if another hub owns that pipe; do not run it alongside a real hub.
+The pipe is restricted to the current user. Run these steps in a Windows terminal:
+
+1. Start `cargo run -p tauri-plugin-nexo --example sim_hub --` and leave its stdin open.
+2. Start the host app (for example, Antena). At unified startup its personal tray icon should not
+   appear; the hub console prints its registration and menu. Close/minimize the app normally.
+3. Enter `u` twice: the app's icon appears, then disappears. Enter `s` to show, unminimize and
+   focus the window. Enter `a open` to exercise Antena's `open` menu action (use an advertised ID
+   for another host).
+4. Enter `q`: inspect the printed `quit_result` and `bye`; Antena accepts and exits. Restart the
+   app before continuing. A host that refuses quit stays open and prints its reason in the result.
+5. Enter `d`: the connection drops and the app icon recovers immediately, then hides again when
+   the running simulator accepts the retry (backoff is up to 10 seconds). To see a sustained loss,
+   enter `x`, check the icon returns, and restart `sim_hub`; the icon hides after reconnection.
+6. Stop the simulator with `x`. With no real hub or simulator running, start the app and check its
+   normal standalone icon. Alternatively, start `sim_hub --standalone` to test a **connected** app
+   whose initial unified setting is false; it keeps its icon while registering and sending its menu.
+
+Each JSON frame is logged with `<-` (app to hub) or `->` (hub to app). `u`, `s`, `q`, `a <id>`,
+`d` and `x` are also printed as help at startup. EOF on stdin exits the fixture.
+
 ## Connection behavior and verification
 
 - Missing pipe: create the normal icon immediately, then retry in the background. The first

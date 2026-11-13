@@ -223,7 +223,9 @@ impl Drop for LocalString {
     }
 }
 
-fn current_user_sid() -> io::Result<String> {
+/// Return the Windows user SID used for production hub discovery.
+#[doc(hidden)]
+pub fn current_user_sid() -> io::Result<String> {
     unsafe {
         let mut raw_token: HANDLE = ptr::null_mut();
         if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw_token) == 0 {
