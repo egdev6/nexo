@@ -8,9 +8,9 @@ mod tests;
 mod windows;
 
 #[cfg(windows)]
-pub use client::Handle;
+pub use client::{Handle, QuitDecision, QuitResponder};
 #[cfg(windows)]
-pub use nexo_protocol::{AppInfo, MenuItem};
+pub use nexo_protocol::{AppInfo, MenuItem, QuitReason};
 #[cfg(windows)]
 pub use windows::{Options, configured, handle};
 

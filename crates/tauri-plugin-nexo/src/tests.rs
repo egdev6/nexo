@@ -9,14 +9,16 @@ use std::{
 };
 
 use nexo_protocol::{
-    AppInfo, Capability, MAX_LINE_BYTES, MAX_MENU_ITEMS, MenuItem, Message, RejectCode,
+    AppInfo, Capability, MAX_LINE_BYTES, MAX_MENU_ITEMS, MenuItem, Message, QuitReason, RejectCode,
     VersionRange, decode, encode,
 };
 use tokio::io::{
     AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf, WriteHalf,
 };
 
-use crate::client::{self, Config, Connect, Connection, Host, Icon, Job};
+use crate::client::{
+    self, Config, Connect, Connection, Host, Icon, Job, QuitDecision, QuitResponder,
+};
 
 #[derive(Default)]
 struct FakeHost {
@@ -26,6 +28,11 @@ struct FakeHost {
     fail_create: AtomicBool,
     fail_show: Arc<AtomicBool>,
     fail_dispatch: AtomicBool,
+    on_dispatch_failure: Mutex<Option<Job>>,
+    enable_show: AtomicBool,
+    enable_quit: AtomicBool,
+    auto_quit: Mutex<Option<QuitDecision>>,
+    responses: Mutex<Vec<QuitResponder>>,
     #[cfg(windows)]
     ready: tokio::sync::Notify,
 }
@@ -51,6 +58,10 @@ impl Host for FakeHost {
     fn dispatch(&self, job: Job) -> Result<(), String> {
         if self.fail_dispatch.swap(false, Ordering::SeqCst) {
             self.events.lock().unwrap().push("dispatch-error".into());
+            let hook = self.on_dispatch_failure.lock().unwrap().take();
+            if let Some(hook) = hook {
+                hook();
+            }
             return Err("transient dispatch error".into());
         }
         self.jobs.lock().unwrap().push_back(job);
@@ -78,6 +89,32 @@ impl Host for FakeHost {
             .lock()
             .unwrap()
             .push(format!("action:{item_id}"));
+    }
+    fn supports_show(&self) -> bool {
+        self.enable_show.load(Ordering::SeqCst)
+    }
+    fn supports_quit(&self) -> bool {
+        self.enable_quit.load(Ordering::SeqCst)
+    }
+    fn show(&self) {
+        self.events
+            .lock()
+            .unwrap()
+            .extend(["show".into(), "unminimize".into(), "focus".into()]);
+    }
+    fn decide_quit(&self, reason: QuitReason, response: QuitResponder) {
+        self.events
+            .lock()
+            .unwrap()
+            .push(format!("decide:{reason:?}"));
+        if let Some(decision) = self.auto_quit.lock().unwrap().clone() {
+            response.respond(decision);
+        } else {
+            self.responses.lock().unwrap().push(response);
+        }
+    }
+    fn finalize_quit(&self) {
+        self.events.lock().unwrap().push("finalize".into());
     }
 }
 impl FakeHost {
@@ -170,6 +207,16 @@ impl Hub {
         self.handshake_with_interval(unified, menu, 5_000).await;
     }
     async fn handshake_with_interval(&mut self, unified: bool, menu: &[MenuItem], interval: u32) {
+        self.handshake_with_capabilities(unified, menu, interval, vec![Capability::Menu])
+            .await;
+    }
+    async fn handshake_with_capabilities(
+        &mut self,
+        unified: bool,
+        menu: &[MenuItem],
+        interval: u32,
+        capabilities: Vec<Capability>,
+    ) {
         assert_eq!(
             self.receive().await,
             Message::Hello {
@@ -186,7 +233,7 @@ impl Hub {
             self.receive().await,
             Message::Register {
                 app: app(),
-                capabilities: vec![Capability::Menu],
+                capabilities,
             }
         );
         self.send(Message::Registered).await;
@@ -228,6 +275,717 @@ async fn settle() {
     for _ in 0..16 {
         tokio::task::yield_now().await;
     }
+}
+
+async fn assert_capabilities(show: bool, quit: bool, capabilities: Vec<Capability>) {
+    let host = Arc::new(FakeHost::default());
+    host.enable_show.store(show, Ordering::SeqCst);
+    host.enable_quit.store(quit, Ordering::SeqCst);
+    let connector = Arc::new(ScriptedConnector::default());
+    let mut hub = connector.add();
+    let handle = start(&host, &connector);
+    assert!(matches!(hub.receive().await, Message::Hello { .. }));
+    hub.send(Message::Welcome {
+        protocol: 1,
+        unified: true,
+        heartbeat_interval_ms: 5000,
+    })
+    .await;
+    assert_eq!(
+        hub.receive().await,
+        Message::Register {
+            app: app(),
+            capabilities
+        }
+    );
+    hub.send(Message::Registered).await;
+    assert_eq!(
+        hub.receive().await,
+        Message::Menu {
+            items: vec![item("capture")]
+        }
+    );
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_show_capability_only_when_configured() {
+    assert_capabilities(true, false, vec![Capability::Show, Capability::Menu]).await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_capability_only_when_configured() {
+    assert_capabilities(false, true, vec![Capability::Quit, Capability::Menu]).await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_both_configured_capabilities_are_advertised() {
+    assert_capabilities(
+        true,
+        true,
+        vec![Capability::Show, Capability::Quit, Capability::Menu],
+    )
+    .await;
+}
+
+async fn t3_session(
+    show: bool,
+    quit: bool,
+) -> (Arc<FakeHost>, Arc<ScriptedConnector>, client::Handle, Hub) {
+    let host = Arc::new(FakeHost::default());
+    host.enable_show.store(show, Ordering::SeqCst);
+    host.enable_quit.store(quit, Ordering::SeqCst);
+    let connector = Arc::new(ScriptedConnector::default());
+    let mut hub = connector.add();
+    let handle = start(&host, &connector);
+    let mut caps = Vec::new();
+    if show {
+        caps.push(Capability::Show);
+    }
+    if quit {
+        caps.push(Capability::Quit);
+    }
+    caps.push(Capability::Menu);
+    hub.handshake_with_capabilities(true, &[item("capture")], 60_000, caps)
+        .await;
+    (host, connector, handle, hub)
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_show_invokes_host_window_flow() {
+    let (host, _, handle, mut hub) = t3_session(true, false).await;
+    hub.send(Message::Show).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["show", "unminimize", "focus"]);
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_accept_sends_result_then_bye_then_finalizes() {
+    let (host, _, _handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 7,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 7,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(host.events(), ["decide:User"]);
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "finalize"]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_finalize_dispatch_failure_restores_tray_and_reconnects() {
+    enable_test_logger();
+    let (host, connector, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 23,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    host.fail_dispatch.store(true, Ordering::SeqCst);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 23,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "dispatch-error", "create"]);
+    assert!(
+        LOGS.lock()
+            .unwrap()
+            .iter()
+            .any(|message| message == "quit finalization dispatch: transient dispatch error")
+    );
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+    let mut replacement = connector.add();
+    tokio::time::advance(Duration::from_millis(999)).await;
+    settle().await;
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+    tokio::time::advance(Duration::from_millis(1)).await;
+    replacement
+        .handshake_with_capabilities(
+            true,
+            &[item("capture")],
+            60_000,
+            vec![Capability::Quit, Capability::Menu],
+        )
+        .await;
+    settle().await;
+    host.pump();
+    assert_eq!(*connector.attempts.lock().unwrap(), 2);
+    assert_eq!(
+        host.events(),
+        ["decide:User", "dispatch-error", "create", "visible:false"]
+    );
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_finalize_dispatch_failure_reuses_hidden_icon() {
+    let host = Arc::new(FakeHost::default());
+    host.enable_quit.store(true, Ordering::SeqCst);
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    let connector = Arc::new(ScriptedConnector::default());
+    let mut hub = connector.add();
+    let handle = start(&host, &connector);
+    hub.handshake_with_capabilities(
+        false,
+        &[item("capture")],
+        60_000,
+        vec![Capability::Quit, Capability::Menu],
+    )
+    .await;
+    settle().await;
+    host.pump();
+    hub.send(Message::Unified { value: true }).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["create", "visible:false"]);
+    hub.send(Message::Quit {
+        id: 25,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    host.fail_dispatch.store(true, Ordering::SeqCst);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 25,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    host.pump();
+    assert_eq!(
+        host.events(),
+        [
+            "create",
+            "visible:false",
+            "decide:User",
+            "dispatch-error",
+            "visible:true"
+        ]
+    );
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_finalize_dispatch_failure_respects_concurrent_shutdown() {
+    let (host, connector, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 24,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    let exiting = handle.clone();
+    *host.on_dispatch_failure.lock().unwrap() = Some(Box::new(move || exiting.shutdown()));
+    host.fail_dispatch.store(true, Ordering::SeqCst);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 24,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    assert_eq!(host.events(), ["decide:User", "dispatch-error"]);
+    handle.shutdown_and_wait().await;
+    settle().await;
+    host.pump();
+    tokio::time::advance(Duration::from_secs(30)).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "dispatch-error"]);
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_accepted_quit_never_finalizes_when_frames_cannot_be_written() {
+    use tokio::io::AsyncReadExt;
+    let host = Arc::new(FakeHost::default());
+    host.enable_quit.store(true, Ordering::SeqCst);
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    let connector = Arc::new(ScriptedConnector::default());
+    let mut hub = connector.add_with_capacity(128);
+    let handle = start(&host, &connector);
+    hub.handshake_with_capabilities(
+        true,
+        &[item("capture")],
+        60_000,
+        vec![Capability::Quit, Capability::Menu],
+    )
+    .await;
+    let mut large = item("large");
+    large.label = "x".repeat(60_000);
+    handle.replace_menu(vec![large]).unwrap();
+    settle().await;
+    hub.send(Message::Quit {
+        id: 17,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    tokio::time::advance(Duration::from_secs(10)).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "create"]);
+    let mut remaining = Vec::new();
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        hub.reader.read_to_end(&mut remaining),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(!remaining.is_empty() && !remaining.contains(&b'\n'));
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_refused_stays_running_and_reports_reason() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Refuse("Unsaved changes".into()));
+    hub.send(Message::Quit {
+        id: 8,
+        reason: QuitReason::Update,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 8,
+            accepted: false,
+            reason: Some("Unsaved changes".into())
+        }
+    );
+    hub.send(Message::Unified { value: false }).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:Update", "create"]);
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_timeout_refuses_at_nine_seconds_and_ignores_late_acceptance() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    hub.send(Message::Quit {
+        id: 9,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    tokio::time::advance(Duration::from_millis(8_998)).await;
+    let mut before = String::new();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), hub.reader.read_line(&mut before))
+            .await
+            .is_err(),
+        "no reply or EOF before 9 seconds"
+    );
+    tokio::time::advance(Duration::from_millis(1)).await;
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 9,
+            accepted: false,
+            reason: Some("Quit decision timed out".into())
+        }
+    );
+    host.responses
+        .lock()
+        .unwrap()
+        .pop()
+        .unwrap()
+        .respond(QuitDecision::Accept);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    hub.send(Message::Unified { value: false }).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "create"]);
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_decision_just_before_cutoff_is_accepted() {
+    let (host, _, _handle, mut hub) = t3_session(false, true).await;
+    hub.send(Message::Quit {
+        id: 21,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    let response = host.responses.lock().unwrap().pop().unwrap();
+    tokio::time::advance(Duration::from_millis(8_999)).await;
+    response.respond(QuitDecision::Accept);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 21,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "finalize"]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_decision_at_cutoff_is_refused() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    hub.send(Message::Quit {
+        id: 22,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    let response = host.responses.lock().unwrap().pop().unwrap();
+    tokio::time::advance(Duration::from_secs(9)).await;
+    response.respond(QuitDecision::Accept);
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 22,
+            accepted: false,
+            reason: Some("Quit decision timed out".into())
+        }
+    );
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_quit_timeout_closes_session_if_reply_cannot_be_written() {
+    use tokio::io::AsyncReadExt;
+    let host = Arc::new(FakeHost::default());
+    host.enable_quit.store(true, Ordering::SeqCst);
+    let connector = Arc::new(ScriptedConnector::default());
+    let mut hub = connector.add_with_capacity(128);
+    let handle = start(&host, &connector);
+    hub.handshake_with_capabilities(
+        true,
+        &[item("capture")],
+        60_000,
+        vec![Capability::Quit, Capability::Menu],
+    )
+    .await;
+    hub.send(Message::Quit {
+        id: 11,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    let mut large = item("large");
+    large.label = "x".repeat(60_000);
+    handle.replace_menu(vec![large]).unwrap();
+    settle().await;
+    tokio::time::advance(Duration::from_secs(9)).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    tokio::time::advance(Duration::from_secs(1)).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "create"]);
+    host.responses
+        .lock()
+        .unwrap()
+        .pop()
+        .unwrap()
+        .respond(QuitDecision::Accept);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User", "create"]);
+    let mut remaining = Vec::new();
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        hub.reader.read_to_end(&mut remaining),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(!remaining.is_empty() && !remaining.contains(&b'\n'));
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_duplicate_quit_request_is_dispatched_only_once() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    let request = Message::Quit {
+        id: 10,
+        reason: QuitReason::User,
+    };
+    hub.send(request.clone()).await;
+    hub.send(request).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    assert_eq!(host.responses.lock().unwrap().len(), 1);
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_completed_quit_id_is_not_dispatched_again() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Refuse("Unsaved changes".into()));
+    let request = Message::Quit {
+        id: 18,
+        reason: QuitReason::User,
+    };
+    hub.send(request.clone()).await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 18,
+            accepted: false,
+            reason: Some("Unsaved changes".into())
+        }
+    );
+    hub.send(request).await;
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["decide:User"]);
+    let mut line = String::new();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), hub.reader.read_line(&mut line))
+            .await
+            .is_err()
+    );
+    hub.send(Message::Quit {
+        id: 19,
+        reason: QuitReason::Update,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 19,
+            accepted: false,
+            reason: Some("Unsaved changes".into())
+        }
+    );
+    assert_eq!(host.events(), ["decide:User", "decide:Update"]);
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_stale_show_from_lost_session_is_not_dispatched() {
+    let (host, connector, handle, mut hub) = t3_session(true, false).await;
+    hub.send(Message::Show).await;
+    settle().await;
+    drop(hub);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["create"]);
+    let mut replacement = connector.add();
+    tokio::time::advance(Duration::from_secs(1)).await;
+    replacement
+        .handshake_with_capabilities(
+            true,
+            &[item("capture")],
+            60_000,
+            vec![Capability::Show, Capability::Menu],
+        )
+        .await;
+    settle().await;
+    host.pump();
+    replacement.send(Message::Show).await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        host.events(),
+        ["create", "visible:false", "show", "unminimize", "focus"]
+    );
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_stale_quit_from_lost_session_is_not_dispatched() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    hub.send(Message::Quit {
+        id: 14,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    drop(hub);
+    settle().await;
+    host.pump();
+    assert_eq!(host.events(), ["create"]);
+    assert!(host.responses.lock().unwrap().is_empty());
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_old_session_decision_cannot_affect_reused_id_in_new_session() {
+    let (host, connector, handle, mut hub) = t3_session(false, true).await;
+    hub.send(Message::Quit {
+        id: 20,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    let old = host.responses.lock().unwrap().pop().unwrap();
+    drop(hub);
+    settle().await;
+    host.pump();
+    let mut next = connector.add();
+    tokio::time::advance(Duration::from_secs(1)).await;
+    next.handshake_with_capabilities(
+        true,
+        &[item("capture")],
+        60_000,
+        vec![Capability::Quit, Capability::Menu],
+    )
+    .await;
+    settle().await;
+    host.pump();
+    next.send(Message::Quit {
+        id: 20,
+        reason: QuitReason::Update,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    old.respond(QuitDecision::Accept);
+    settle().await;
+    host.pump();
+    assert!(!host.events().iter().any(|event| event == "finalize"));
+    host.responses
+        .lock()
+        .unwrap()
+        .pop()
+        .unwrap()
+        .respond(QuitDecision::Refuse("Unsaved changes".into()));
+    assert_eq!(
+        next.receive().await,
+        Message::QuitResult {
+            id: 20,
+            accepted: false,
+            reason: Some("Unsaved changes".into())
+        }
+    );
+    assert!(!host.events().iter().any(|event| event == "finalize"));
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_timed_out_queued_quit_callback_is_not_dispatched() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    hub.send(Message::Quit {
+        id: 15,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    tokio::time::advance(Duration::from_secs(9)).await;
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 15,
+            accepted: false,
+            reason: Some("Quit decision timed out".into())
+        }
+    );
+    host.pump();
+    assert!(host.events().is_empty());
+    assert!(host.responses.lock().unwrap().is_empty());
+    handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_stale_show_after_shutdown_is_not_dispatched() {
+    let (host, _, handle, mut hub) = t3_session(true, false).await;
+    hub.send(Message::Show).await;
+    settle().await;
+    handle.shutdown();
+    host.pump();
+    assert!(host.events().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_coordinated_shutdown_waits_for_bye_and_stops_retries() {
+    let (host, connector, handle, mut hub) = t3_session(false, false).await;
+    handle.shutdown_and_wait().await;
+    assert_eq!(hub.receive().await, Message::Bye);
+    let mut remaining = String::new();
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(1), hub.reader.read_line(&mut remaining))
+            .await
+            .unwrap()
+            .unwrap(),
+        0
+    );
+    tokio::time::advance(Duration::from_secs(30)).await;
+    settle().await;
+    host.pump();
+    assert!(host.events().is_empty());
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn t3_coordinated_shutdown_cancels_standalone_retry() {
+    let host = Arc::new(FakeHost::default());
+    let connector = Arc::new(ScriptedConnector::default());
+    let handle = start(&host, &connector);
+    settle().await;
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
+    handle.shutdown_and_wait().await;
+    tokio::time::advance(Duration::from_secs(30)).await;
+    settle().await;
+    host.pump();
+    assert!(host.events().is_empty());
+    assert_eq!(*connector.attempts.lock().unwrap(), 1);
 }
 
 #[test]
@@ -984,6 +1742,13 @@ async fn no_menu_configuration_advertises_no_unimplemented_capability() {
 struct TestLogger;
 static TEST_LOGGER: TestLogger = TestLogger;
 static LOGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+fn enable_test_logger() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        log::set_logger(&TEST_LOGGER).unwrap();
+        log::set_max_level(log::LevelFilter::Trace);
+    });
+}
 impl log::Log for TestLogger {
     fn enabled(&self, _: &log::Metadata<'_>) -> bool {
         true
@@ -996,11 +1761,7 @@ impl log::Log for TestLogger {
 
 #[tokio::test(start_paused = true)]
 async fn invalid_registration_is_logged_falls_back_and_retries() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        log::set_logger(&TEST_LOGGER).unwrap();
-        log::set_max_level(log::LevelFilter::Trace);
-    });
+    enable_test_logger();
     let host = Arc::new(FakeHost::default());
     let connector = Arc::new(ScriptedConnector::default());
     let mut hub = connector.add();
@@ -1042,6 +1803,86 @@ fn unique_pipe() -> String {
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     )
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn t3_windows_scripted_show_refused_and_accepted_quit() {
+    use tokio::net::windows::named_pipe::ServerOptions;
+    let endpoint = unique_pipe();
+    let server = ServerOptions::new()
+        .first_pipe_instance(true)
+        .create(&endpoint)
+        .unwrap();
+    let host = Arc::new(FakeHost::default());
+    host.enable_show.store(true, Ordering::SeqCst);
+    host.enable_quit.store(true, Ordering::SeqCst);
+    let _handle = client::start(
+        Config {
+            app: app(),
+            menu: Some(vec![item("capture")]),
+        },
+        host.clone(),
+        crate::windows::test_connector(endpoint),
+    );
+    tokio::time::timeout(Duration::from_secs(5), server.connect())
+        .await
+        .unwrap()
+        .unwrap();
+    let mut hub = Hub::new(server);
+    hub.handshake_with_capabilities(
+        true,
+        &[item("capture")],
+        60_000,
+        vec![Capability::Show, Capability::Quit, Capability::Menu],
+    )
+    .await;
+    hub.send(Message::Show).await;
+    host.wait_events(3).await;
+    assert_eq!(host.events(), ["show", "unminimize", "focus"]);
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Refuse("Unsaved changes".into()));
+    hub.send(Message::Quit {
+        id: 12,
+        reason: QuitReason::Update,
+    })
+    .await;
+    host.wait_events(4).await;
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 12,
+            accepted: false,
+            reason: Some("Unsaved changes".into())
+        }
+    );
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 13,
+        reason: QuitReason::User,
+    })
+    .await;
+    host.wait_events(5).await;
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 13,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    host.wait_events(6).await;
+    assert_eq!(
+        host.events(),
+        [
+            "show",
+            "unminimize",
+            "focus",
+            "decide:Update",
+            "decide:User",
+            "finalize"
+        ]
+    );
 }
 
 #[cfg(windows)]
@@ -1264,4 +2105,35 @@ async fn verifier_recheck_stale_show_retry_fenced_by_unified_return() {
         1
     );
     handle.shutdown();
+}
+
+#[tokio::test(start_paused = true)]
+async fn verifier_t3_shutdown_fences_queued_finalize() {
+    let (host, _, handle, mut hub) = t3_session(false, true).await;
+    *host.auto_quit.lock().unwrap() = Some(QuitDecision::Accept);
+    hub.send(Message::Quit {
+        id: 71,
+        reason: QuitReason::User,
+    })
+    .await;
+    settle().await;
+    host.pump();
+    assert_eq!(
+        hub.receive().await,
+        Message::QuitResult {
+            id: 71,
+            accepted: true,
+            reason: None
+        }
+    );
+    assert_eq!(hub.receive().await, Message::Bye);
+    settle().await; // Finalize has been queued, but the UI has not run it.
+    assert_eq!(host.events(), ["decide:User"]);
+    handle.shutdown_and_wait().await;
+    host.pump();
+    assert_eq!(
+        host.events(),
+        ["decide:User"],
+        "shutdown must fence queued finalization"
+    );
 }

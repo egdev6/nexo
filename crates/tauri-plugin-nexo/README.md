@@ -7,14 +7,17 @@ tray icon. The original `init::<R>()` remains an unconfigured no-op for existing
 
 Give the plugin a **lazy factory** for the app's normal, initially visible icon. Do not also create
 that icon during app startup: when the hub accepts a unified app, the factory is not called at all.
-The factory and menu callback run on Tauri's main thread. This example forwards menu actions to a
-host event; the host remains responsible for performing them.
+The factory and configured host callbacks run on Tauri's main thread. This example forwards menu
+actions to a host event; the host remains responsible for performing them.
 
 ```rust
-use tauri::{Emitter, Runtime, tray::TrayIconBuilder};
-use tauri_plugin_nexo::{AppInfo, MenuItem, Options, configured};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use tauri::{Emitter, Manager, Runtime, tray::TrayIconBuilder};
+use tauri_plugin_nexo::{AppInfo, MenuItem, Options, QuitDecision, configured};
 
 fn nexo_plugin<R: Runtime>() -> Result<tauri::plugin::TauriPlugin<R>, &'static str> {
+    // Replace this with the host's actual unsaved-changes state.
+    let unsaved = Arc::new(AtomicBool::new(false));
     let options = Options::new(
         AppInfo {
             id: "sample-app".into(), // stable catalog id: lowercase [a-z0-9-]
@@ -34,7 +37,25 @@ fn nexo_plugin<R: Runtime>() -> Result<tauri::plugin::TauriPlugin<R>, &'static s
             checked: Some(false),
         }],
         |app, id| { let _ = app.emit("nexo-menu-action", id.to_owned()); },
-    )?;
+    )?
+    .show(|app| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
+    })
+    .quit(
+        move |_app, _reason, reply| {
+            let decision = if unsaved.load(Ordering::SeqCst) {
+                QuitDecision::Refuse("Unsaved changes".into())
+            } else {
+                QuitDecision::Accept
+            };
+            reply.respond(decision);
+        },
+        |app| app.exit(0),
+    );
     Ok(configured(options))
 }
 ```
@@ -60,11 +81,32 @@ Open and Quit entries. Only known current item IDs reach the supplied action cal
 `.menu(...)` entirely if the app does not implement menu actions; no menu capability is advertised
 in that case.
 
-The client does not currently advertise or handle `show` or `quit`: those host actions, refusal and
-final-exit coordination are T3, not implemented here. On normal Tauri exit or plugin removal the
-client is signalled to stop and sends `bye` when possible. A host coordinating its own final exit
-can call `handle.shutdown()`; it invalidates queued UI work immediately and stops the session
-asynchronously. Do not use it merely to hide the tray or temporarily disconnect.
+## Show, quit and coordinated exit
+
+`.show(...)` and `.quit(decide, finalize)` are optional: each capability is advertised only when
+configured. The show callback must use the host's normal flow to show, unminimize and focus its
+main window. Menu actions, show and quit callbacks queued by a lost session are discarded.
+
+The quit decision callback receives the protocol reason and a single-use `QuitResponder`. It must
+only decide: respond with `QuitDecision::Accept` or `QuitDecision::Refuse(reason)`, and do not exit
+from this callback. Return promptly; a responder may instead be retained for an asynchronous host
+decision. A refusal sends the reason and leaves the app running. After acceptance, the plugin
+writes the correlated result and `bye`, then calls the separate finalize callback. A failed write
+closes the session without calling finalize. A successful write does not guarantee the hub received
+it. If dispatching the finalize callback fails after both frames were written, the plugin logs the
+failure, restores the normal standalone tray through the UI path and reconnects with the usual
+backoff. The hub may already have seen acceptance and `bye`; finalize is never called off-thread.
+
+If no decision arrives within 9 seconds of the request, the plugin sends a refusal with reason
+`Quit decision timed out`, allowing up to one further second for the write. Late decisions are
+ignored; failure to write safely closes the session. The app is not unconditionally exited.
+
+For a host-initiated exit, await `handle.shutdown_and_wait()` **before** invoking the host's normal
+exit flow. It fences queued UI work and waits for connection, writer, heartbeat and retry work to
+stop, sending `bye` when possible. No `bye` is guaranteed on a broken connection or a partial write.
+`handle.shutdown()` remains a nonblocking signal; Tauri exit/drop hooks use it as a best-effort
+fallback and cannot guarantee the asynchronous work completes before process exit. Neither method
+is a tray-hide or temporary-disconnect operation.
 
 ## Connection behavior and verification
 

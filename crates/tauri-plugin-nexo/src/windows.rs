@@ -1,6 +1,6 @@
 use std::{io, ptr, sync::Arc};
 
-use nexo_protocol::{AppInfo, MenuItem, pipe_name};
+use nexo_protocol::{AppInfo, MenuItem, QuitReason, pipe_name};
 use tauri::{
     AppHandle, Manager, RunEvent, Runtime,
     plugin::{Builder, TauriPlugin},
@@ -16,10 +16,13 @@ use windows_sys::Win32::{
     System::Threading::{GetCurrentProcess, OpenProcessToken},
 };
 
-use crate::client::{self, Config, Connect, Connection, Handle, Host, Icon, Job};
+use crate::client::{self, Config, Connect, Connection, Handle, Host, Icon, Job, QuitResponder};
 
 type Factory<R> = Arc<dyn Fn(&AppHandle<R>) -> tauri::Result<TrayIcon<R>> + Send + Sync>;
 type Action<R> = Arc<dyn Fn(&AppHandle<R>, &str) + Send + Sync>;
+type Show<R> = Arc<dyn Fn(&AppHandle<R>) + Send + Sync>;
+type QuitDecisionCallback<R> = Arc<dyn Fn(&AppHandle<R>, QuitReason, QuitResponder) + Send + Sync>;
+type QuitFinalizeCallback<R> = Arc<dyn Fn(&AppHandle<R>) + Send + Sync>;
 
 /// Host-owned tray and optional menu integration for Windows.
 pub struct Options<R: Runtime> {
@@ -27,6 +30,8 @@ pub struct Options<R: Runtime> {
     factory: Factory<R>,
     menu: Option<Vec<MenuItem>>,
     action: Option<Action<R>>,
+    show: Option<Show<R>>,
+    quit: Option<(QuitDecisionCallback<R>, QuitFinalizeCallback<R>)>,
 }
 
 impl<R: Runtime> Options<R> {
@@ -41,7 +46,25 @@ impl<R: Runtime> Options<R> {
             factory: Arc::new(factory),
             menu: None,
             action: None,
+            show: None,
+            quit: None,
         }
+    }
+
+    /// Enable `show`; the callback must show, unminimize and focus the host's main window.
+    pub fn show(mut self, callback: impl Fn(&AppHandle<R>) + Send + Sync + 'static) -> Self {
+        self.show = Some(Arc::new(callback));
+        self
+    }
+
+    /// Enable `quit` using a nonblocking decision callback and a separate final-exit callback.
+    pub fn quit(
+        mut self,
+        decide: impl Fn(&AppHandle<R>, QuitReason, QuitResponder) + Send + Sync + 'static,
+        finalize: impl Fn(&AppHandle<R>) + Send + Sync + 'static,
+    ) -> Self {
+        self.quit = Some((Arc::new(decide), Arc::new(finalize)));
+        self
     }
 
     /// Enable the menu capability with a replacement list and an action callback.
@@ -72,6 +95,8 @@ pub fn configured<R: Runtime>(options: Options<R>) -> TauriPlugin<R> {
                 app: app.clone(),
                 factory: options.factory,
                 action: options.action,
+                show: options.show,
+                quit: options.quit,
             });
             let client = client::start(
                 Config {
@@ -106,6 +131,8 @@ struct TauriHost<R: Runtime> {
     app: AppHandle<R>,
     factory: Factory<R>,
     action: Option<Action<R>>,
+    show: Option<Show<R>>,
+    quit: Option<(QuitDecisionCallback<R>, QuitFinalizeCallback<R>)>,
 }
 struct TauriIcon<R: Runtime>(TrayIcon<R>);
 impl<R: Runtime> Icon for TauriIcon<R> {
@@ -129,6 +156,27 @@ impl<R: Runtime> Host for TauriHost<R> {
     fn action(&self, item_id: String) {
         if let Some(action) = &self.action {
             action(&self.app, &item_id);
+        }
+    }
+    fn supports_show(&self) -> bool {
+        self.show.is_some()
+    }
+    fn supports_quit(&self) -> bool {
+        self.quit.is_some()
+    }
+    fn show(&self) {
+        if let Some(show) = &self.show {
+            show(&self.app);
+        }
+    }
+    fn decide_quit(&self, reason: QuitReason, response: QuitResponder) {
+        if let Some((decide, _)) = &self.quit {
+            decide(&self.app, reason, response);
+        }
+    }
+    fn finalize_quit(&self) {
+        if let Some((_, finalize)) = &self.quit {
+            finalize(&self.app);
         }
     }
 }
