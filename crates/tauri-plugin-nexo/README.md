@@ -148,3 +148,7 @@ Each JSON frame is logged with `<-` (app to hub) or `->` (hub to app). `u`, `s`,
 Run `cargo test -p tauri-plugin-nexo --locked` for deterministic client tests. Run that package's
 tests on native Windows as well to exercise isolated scripted named pipes. These tests do not open
 an actual tray or verify a real app window. Real Windows tray/window checks remain T4.
+
+On Windows MSVC, the plugin embeds a Common Controls v6 manifest in its own test and example
+executables. Workspace feature unification can make these import v6-only functions through Tauri.
+This package's linker arguments do not propagate to host apps, which supply their own manifest.
