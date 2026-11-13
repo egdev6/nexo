@@ -1,6 +1,10 @@
 [workspace]
 resolver = "3"
-members = ["crates/nexo-protocol"]
+members = [
+    "crates/nexo-protocol",
+    "crates/tauri-plugin-nexo",
+    "apps/hub/src-tauri",
+]
 
 [workspace.package]
 edition = "2024"
