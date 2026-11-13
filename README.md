@@ -10,7 +10,7 @@ Nexo brings compatible apps together in a single hub.
 
 ## Development
 
-Install Rust stable and Node.js 22 or newer. Running the hub requires Windows with WebView2.
+Install Rust stable and Node.js 22.12 or newer within the 22.x line, or 24 or newer (Vite needs 22.12+, and Vitest does not support Node 23). Running the hub requires Windows with WebView2.
 
 From the repository root, run the Rust checks and tests:
 
