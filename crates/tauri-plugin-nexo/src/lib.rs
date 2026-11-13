@@ -1,6 +1,20 @@
 use tauri::{Runtime, plugin::Builder, plugin::TauriPlugin};
 
-/// Plugin behavior will arrive in issue #3.
+#[cfg(any(windows, test))]
+mod client;
+#[cfg(test)]
+mod tests;
+#[cfg(windows)]
+mod windows;
+
+#[cfg(windows)]
+pub use client::Handle;
+#[cfg(windows)]
+pub use nexo_protocol::{AppInfo, MenuItem};
+#[cfg(windows)]
+pub use windows::{Options, configured, handle};
+
+/// Preserve the original, unconfigured no-op plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("nexo").build()
 }
