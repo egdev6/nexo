@@ -1,0 +1,27 @@
+{
+  "title": "Nexo · Panel de bandeja",
+  "brief": "Tres exploraciones de un panel de escritorio Windows anclado al borde derecho y abierto desde la bandeja, con aplicaciones, actualizaciones, catálogo y novedades secundarias.",
+  "artboards": [
+    {
+      "file": "01-lista.html",
+      "title": "Lista directa",
+      "tradeoff": "Todos los estados y acciones conviven en una lista; una biblioteca grande requiere más desplazamiento.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-pestanas.html",
+      "title": "Secciones y detalle",
+      "tradeoff": "Las pestañas y el detalle plegable reducen el ruido; algunas opciones requieren un paso más.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-lanzador.html",
+      "title": "Lanzador y primer uso",
+      "tradeoff": "El acceso rápido domina y se muestra la altura natural del primer uso; las fichas grandes consumen espacio vertical.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

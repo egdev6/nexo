@@ -1,0 +1,27 @@
+{
+  "title": "Nexo · Ventana principal del hub",
+  "brief": "Tres exploraciones estáticas en español para un hub de escritorio Windows de aplicaciones egdev: biblioteca, estados, instalación, actualizaciones y novedades secundarias.",
+  "artboards": [
+    {
+      "file": "01-biblioteca.html",
+      "title": "Biblioteca en tarjetas",
+      "tradeoff": "Cada aplicación tiene contexto y acciones a la vista; la cuadrícula consume más espacio al crecer la biblioteca.",
+      "width": 1100,
+      "height": 720
+    },
+    {
+      "file": "02-inventario.html",
+      "title": "Inventario y detalle",
+      "tradeoff": "La tabla facilita comparar estados e integraciones; el panel seleccionado necesita más espacio y atención.",
+      "width": 1100,
+      "height": 720
+    },
+    {
+      "file": "03-lanzador.html",
+      "title": "Lanzador enfocado",
+      "tradeoff": "Prioriza la aplicación seleccionada y el acceso rápido; las aplicaciones del catálogo reciben menos espacio.",
+      "width": 1100,
+      "height": 720
+    }
+  ]
+}

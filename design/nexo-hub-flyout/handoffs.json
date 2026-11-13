@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "chosen": "02-pestanas.html",
+  "handoffs": {
+    "02-pestanas.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-13T23:56:10.998Z",
+      "startedAt": "2026-11-13T23:56:32.094Z",
+      "implementedAt": null,
+      "note": "Creando rama feat/hub-flyout y seguimiento ODD; implementación en apps/hub (React + ventana Tauri anclada a la derecha)."
+    }
+  }
+}
