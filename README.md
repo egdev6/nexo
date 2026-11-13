@@ -6,7 +6,7 @@ Nexo brings compatible apps together in a single hub.
 
 - `apps/hub/` — Tauri and React hub.
 - `crates/nexo-protocol/` — shared protocol types.
-- `crates/tauri-plugin-nexo/` — plugin skeleton for compatible apps.
+- `crates/tauri-plugin-nexo/` — [Windows tray client](crates/tauri-plugin-nexo/README.md) for compatible apps.
 
 ## Development
 
