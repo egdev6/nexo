@@ -1,7 +1,7 @@
 # Monorepo with the Tauri 2 + React hub and CI (#2)
 
 Sets up the Cargo workspace with the hub app, the plugin skeleton and CI, so the hub and the plugin grow together.
-Source of scope: https://github.com/egdev6/nexo/issues/2 (original body, roadmap proposal nexo-roadmap-v1). Branch feat/2-monorepo-hub is stacked on feat/1-protocol-v1 (PR #12) because it reuses its root `Cargo.toml` and `crates/nexo-protocol`.
+Source of scope: https://github.com/egdev6/nexo/issues/2 (original body, roadmap proposal nexo-roadmap-v1). Branch feat/2-monorepo-hub was stacked on feat/1-protocol-v1 (PR #12) and rebased onto main after #12 was squash-merged.
 
 ## Specs
 
@@ -19,8 +19,8 @@ Source of scope: https://github.com/egdev6/nexo/issues/2 (original body, roadmap
 
 - T1 (S1, S2, S4, S5, S6, S9) Scaffold workspace, hub app and plugin skeleton — gentle-ai-worker (context backstop) — commit: 3b66f0f (slice 1) — done
 - T2 (S3, S8) CI workflow — gentle-ai-worker, same unit — commit: 573aab3 (slice 2) — done
-- T3 (S7) Manual run on Windows — maintainer — pending
-- T4 Close: verdicts, PR — inline — pending
+- T3 (S7) Manual run on Windows — maintainer — done (L11)
+- T4 Close: verdicts, PR — inline — done; PR opened by parent
 
 ## Log
 
@@ -34,3 +34,5 @@ Source of scope: https://github.com/egdev6/nexo/issues/2 (original body, roadmap
 - L8: Slices: slice 1 = workspace + hub + plugin skeleton (3b66f0f), slice 2 = CI + README (573aab3). Risk: item 5 (adds CI workflow and dependencies) → independent verify.
 - L9: Native review lineage review-94ec25fda739ae36 on the CI slice (base 3b66f0f, 3 files, 128 lines; full candidate exceeded the lens context budget because of lockfiles and icons): approved by review-risk and review-reliability, acknowledgement completed (authority burned).
 - L10: gentle-ai-verify mwf1dy8n-2-1w9c: no blockers. Covered S1, S4, S5, S9; S2, S3, S6, S7, S8 need Windows / Actions. Should-fix applied: README Node requirement (Vite ^20.19 || >=22.12, Vitest ^20 || ^22 || >=24). Its proposed string-matching probe test was not adopted (brittle, not requested by any spec).
+- L11 (user, 2026-11-13): screenshot of the "Nexo" window running on Windows, then "push, lo otro funcionó correcto" — tray icon, "Salir" and single instance verified by the maintainer on Windows. S2 and S7 covered.
+- L12: #12 squash-merged; branch rebased onto origin/main (4 commits, no protocol files in the diff); `cargo test --workspace --locked` 34 passed and `npm test` 1 passed after rebase. Remaining unverified until the PR runs: S3, S6 (CI build) and S8 (CI runs on the PR; branch protection is deferred by the bootstrap flow).
