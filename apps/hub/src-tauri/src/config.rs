@@ -302,18 +302,19 @@ impl Store {
     }
 
     pub fn patch(&self, patch: Patch) -> Result<Settings, String> {
+        self.patch_with(patch, |_, _| Ok(()))
+            .map(|(settings, ())| settings)
+    }
+
+    fn patch_with<T>(
+        &self,
+        patch: Patch,
+        change_local: impl FnOnce(&mut Map<String, Value>, &Settings) -> Result<T, String>,
+    ) -> Result<(Settings, T), String> {
         let mut map = match self.document() {
             Ok(map) => map,
             Err(FileState::Missing) => Map::new(),
-            Err(state) => {
-                return Err(match state {
-                    FileState::Corrupt => "nexo.config.save.corrupt",
-                    FileState::Unreadable => "nexo.config.save.unreadable",
-                    FileState::Future => "nexo.config.save.future",
-                    FileState::Missing | FileState::Ready => unreachable!(),
-                }
-                .into());
-            }
+            Err(state) => return Err(save_state_error(state)),
         };
         if let Some(sources) = patch.sources.as_ref() {
             let previous = settings_from(&map).sources;
@@ -409,8 +410,35 @@ impl Store {
             }
         }
         map.insert("version".into(), json!(VERSION));
+        let result = change_local(&mut map, &settings)?;
+        let settings = settings_from(&map);
         self.write_document(&map)?;
-        Ok(settings)
+        Ok((settings, result))
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn mutate_local_apps<T>(
+        &self,
+        change: impl FnOnce(&mut Vec<Value>, &Settings) -> Result<T, String>,
+    ) -> Result<T, String> {
+        self.patch_with(Patch::default(), |map, settings| {
+            let entries = map
+                .entry("localApps")
+                .or_insert_with(|| json!([]))
+                .as_array_mut()
+                .ok_or("nexo.local.refused")?;
+            change(entries, settings)
+        })
+        .map(|(_, result)| result)
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn local_settings(&self) -> Result<Settings, String> {
+        match self.document() {
+            Ok(map) => Ok(settings_from(&map)),
+            Err(FileState::Missing) => Ok(Settings::default()),
+            Err(state) => Err(save_state_error(state)),
+        }
     }
 
     fn write_document(&self, map: &Map<String, Value>) -> Result<(), String> {
@@ -468,8 +496,40 @@ impl Store {
     }
 }
 
+fn save_state_error(state: FileState) -> String {
+    match state {
+        FileState::Corrupt => "nexo.config.save.corrupt",
+        FileState::Unreadable => "nexo.config.save.unreadable",
+        FileState::Future => "nexo.config.save.future",
+        FileState::Missing | FileState::Ready => unreachable!(),
+    }
+    .into()
+}
+
 #[derive(Default)]
 pub struct ConfigLock(Mutex<()>);
+
+#[cfg(any(windows, test))]
+impl ConfigLock {
+    pub(crate) fn with_store<T>(
+        &self,
+        store: &Store,
+        action: impl FnOnce(&Store) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let _guard = self.0.lock().map_err(|error| error.to_string())?;
+        action(store)
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn with_locked_store<T>(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    action: impl FnOnce(&Store) -> Result<T, String>,
+) -> Result<T, String> {
+    app.state::<ConfigLock>()
+        .with_store(&store(app, window)?, action)
+}
 
 fn store_locale(store: &Store) -> crate::i18n::Locale {
     crate::i18n::Locale::from_language(&store.read().settings.language)

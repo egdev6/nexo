@@ -5,6 +5,8 @@ mod config;
 mod i18n;
 #[cfg(any(windows, test))]
 mod ipc;
+#[cfg(any(windows, test))]
+mod local_apps;
 pub mod local_catalog;
 mod position;
 #[cfg(any(windows, test))]
@@ -229,6 +231,11 @@ pub fn run() {
             apps::installed_apps,
             apps::open_official_app,
             apps::close_connected_app,
+            local_apps::windows::local_app_add,
+            local_apps::windows::local_app_update,
+            local_apps::windows::local_app_remove,
+            local_apps::windows::local_app_repair,
+            local_apps::windows::local_app_open,
             runtime::hub_only_exit
         ]);
     #[cfg(not(windows))]

@@ -1,7 +1,7 @@
 use nexo_catalog::Catalog;
 
 #[cfg(windows)]
-mod windows;
+pub(crate) mod windows;
 
 #[cfg(windows)]
 #[tauri::command]
@@ -571,6 +571,19 @@ mod tests {
             ),
             Err("spawn failed".into())
         );
+        assert!(launcher.launched.borrow().is_empty());
+    }
+
+    #[test]
+    fn official_open_still_refuses_a_local_executable_path_as_an_id() {
+        let registry = fake(Ok(vec![entry("physical-a")]));
+        let launcher = FakeLauncher::default();
+        assert_eq!(
+            open_official(&catalog(), &registry, &launcher, "C:\\Apps\\App.exe"),
+            Err("nexo.appNotOfficial".into())
+        );
+        assert_eq!(registry.scans.get(), 0);
+        assert!(launcher.resolved.borrow().is_empty());
         assert!(launcher.launched.borrow().is_empty());
     }
 
