@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 declare const process: { env: Record<string, string | undefined> };
 
 export default defineConfig({
+  // Per-writer cache isolation for parallel test runs; defaults to Vite's standard location.
+  cacheDir: process.env.VITE_CACHE_DIR ?? 'node_modules/.vite',
   plugins: [react()],
   clearScreen: false,
   server: {

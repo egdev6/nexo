@@ -20,12 +20,3 @@ export async function hideFlyout(): Promise<void> {
     console.error('No se pudo ocultar el panel de Nexo.', error);
   }
 }
-
-export async function resizeFlyout(contentHeight: number): Promise<void> {
-  if (!isTauri() || !Number.isFinite(contentHeight) || contentHeight <= 0) return;
-  try {
-    await invoke('resize_flyout', { contentHeight });
-  } catch (error) {
-    console.error('No se pudo ajustar el panel de Nexo.', error);
-  }
-}

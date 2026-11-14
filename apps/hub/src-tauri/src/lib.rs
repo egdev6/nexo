@@ -26,7 +26,7 @@ struct FocusState {
     tray_focus_loss: Mutex<Option<Instant>>,
 }
 
-fn place_flyout(window: &WebviewWindow, content_height: f64) -> tauri::Result<()> {
+fn place_flyout(window: &WebviewWindow) -> tauri::Result<()> {
     let Some(monitor) = window.primary_monitor()? else {
         return Ok(());
     };
@@ -37,7 +37,7 @@ fn place_flyout(window: &WebviewWindow, content_height: f64) -> tauri::Result<()
         width: work.size.width,
         height: work.size.height,
     };
-    let bounds = flyout_bounds(&area, monitor.scale_factor(), content_height);
+    let bounds = flyout_bounds(&area, monitor.scale_factor());
     let size = PhysicalSize::new(bounds.width, bounds.height);
     let position = PhysicalPosition::new(bounds.x, bounds.y);
     if window.inner_size()? != size {
@@ -49,23 +49,12 @@ fn place_flyout(window: &WebviewWindow, content_height: f64) -> tauri::Result<()
     Ok(())
 }
 
-#[tauri::command]
-fn resize_flyout(window: WebviewWindow, content_height: f64) -> Result<(), String> {
-    if window.label() != "main" || !content_height.is_finite() || content_height <= 0.0 {
-        return Err("invalid flyout height".into());
-    }
-    place_flyout(&window, content_height).map_err(|error| error.to_string())
-}
-
 fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         if let Ok(mut lost) = app.state::<FocusState>().tray_focus_loss.lock() {
             *lost = None;
         }
-        if let Some(monitor) = window.primary_monitor()? {
-            let height = f64::from(window.inner_size()?.height) / monitor.scale_factor();
-            place_flyout(&window, height)?;
-        }
+        place_flyout(&window)?;
         window.show()?;
         window.set_focus()?;
     }
@@ -100,7 +89,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(FocusState::default())
         .manage(BackdropState::default())
-        .invoke_handler(tauri::generate_handler![resize_flyout, backdrop_available])
+        .invoke_handler(tauri::generate_handler![backdrop_available])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");

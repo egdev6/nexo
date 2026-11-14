@@ -14,7 +14,7 @@ pub struct FlyoutBounds {
     pub height: u32,
 }
 
-pub fn flyout_bounds(area: &WorkArea, scale: f64, content_height: f64) -> FlyoutBounds {
+pub fn flyout_bounds(area: &WorkArea, scale: f64) -> FlyoutBounds {
     let scale = if scale.is_finite() && scale > 0.0 {
         scale
     } else {
@@ -25,15 +25,8 @@ pub fn flyout_bounds(area: &WorkArea, scale: f64, content_height: f64) -> Flyout
     let margin_y = margin.min(area.height.saturating_sub(1) / 2);
     let available_width = area.width.saturating_sub(margin_x * 2).max(1);
     let available_height = area.height.saturating_sub(margin_y * 2).max(1);
-    let content_height = if content_height.is_finite() {
-        content_height.clamp(1.0, 820.0)
-    } else {
-        820.0
-    };
     let width = ((600.0 * scale).round() as u32).max(1).min(available_width);
-    let height = ((content_height * scale).round() as u32)
-        .max(1)
-        .min(available_height);
+    let height = available_height;
     let x = i64::from(area.x) + i64::from(area.width) - i64::from(margin_x) - i64::from(width);
     let y = i64::from(area.y) + i64::from(area.height) - i64::from(margin_y) - i64::from(height);
     FlyoutBounds {
@@ -49,7 +42,7 @@ mod tests {
     use super::{FlyoutBounds, WorkArea, flyout_bounds};
 
     #[test]
-    fn caps_height_and_anchors_to_work_area() {
+    fn fills_work_area_height_independent_of_content() {
         let area = WorkArea {
             x: 0,
             y: 0,
@@ -57,21 +50,12 @@ mod tests {
             height: 1040,
         };
         assert_eq!(
-            flyout_bounds(&area, 1.0, 1200.0),
+            flyout_bounds(&area, 1.0),
             FlyoutBounds {
                 x: 1307,
-                y: 207,
+                y: 13,
                 width: 600,
-                height: 820
-            }
-        );
-        assert_eq!(
-            flyout_bounds(&area, 1.0, 350.0),
-            FlyoutBounds {
-                x: 1307,
-                y: 677,
-                width: 600,
-                height: 350
+                height: 1014
             }
         );
     }
@@ -85,12 +69,12 @@ mod tests {
             height: 1320,
         };
         assert_eq!(
-            flyout_bounds(&area, 1.5, 600.0),
+            flyout_bounds(&area, 1.5),
             FlyoutBounds {
                 x: -919,
-                y: 441,
+                y: 59,
                 width: 900,
-                height: 900
+                height: 1282
             }
         );
     }
@@ -104,7 +88,7 @@ mod tests {
             height: 300,
         };
         assert_eq!(
-            flyout_bounds(&area, 1.0, 820.0),
+            flyout_bounds(&area, 1.0),
             FlyoutBounds {
                 x: 113,
                 y: -37,

@@ -2,149 +2,177 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
-import { backdropAvailable, hideFlyout, resizeFlyout } from './window';
+import type { CatalogViewProps, FirstRunProps, NewsPopupProps, SettingsViewProps } from './model';
+import { backdropAvailable, hideFlyout } from './window';
 
+// Test the shell's public wiring independently of the other area writers.
+vi.mock('./catalog', () => ({
+  CatalogView: ({ apps }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}</div>,
+}));
+vi.mock('./first-run', () => ({
+  FirstRun: ({ onChoose }: FirstRunProps) => <section aria-label="Idioma"><button onClick={() => onChoose('es')}>Español</button><button onClick={() => onChoose('en')}>English</button></section>,
+}));
+vi.mock('./news', () => ({
+  NewsPopup: ({ items, open, onClose, dontShow, onDontShowChange }: NewsPopupProps) => open ? <div role="dialog" aria-label="Novedades">
+    <p>{items.map(item => item.title).join(' / ')}</p>
+    <label><input type="checkbox" checked={dontShow} onChange={event => onDontShowChange(event.target.checked)} />No mostrar al abrir</label>
+    <button onClick={onClose}>Cerrar novedades</button>
+  </div> : null,
+}));
+vi.mock('./settings', () => ({
+  SettingsView: ({ settings, onChange, onClose }: SettingsViewProps) => <section aria-label="Ajustes">
+    <p>Idioma: {settings.language}</p>
+    <button onClick={() => onChange({ ...settings, accent: '#3b82f6', compact: true, opacity: 63, blur: 12 })}>Cambiar apariencia</button>
+    <button onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>Alternar novedades</button>
+    <button onClick={onClose}>Volver</button>
+  </section>,
+}));
 vi.mock('./window', () => ({
   backdropAvailable: vi.fn().mockResolvedValue(false),
   hideFlyout: vi.fn().mockResolvedValue(undefined),
-  resizeFlyout: vi.fn().mockResolvedValue(undefined),
 }));
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
+afterEach(cleanup);
 beforeEach(() => vi.clearAllMocks());
 
-it('renders the Nexo main landmark', () => {
+function enter(language: 'Español' | 'English' = 'Español') {
+  const choice = screen.queryByRole('button', { name: language });
+  if (choice) fireEvent.click(choice);
+}
+function closeNews() {
+  const close = screen.queryByRole('button', { name: 'Cerrar novedades' });
+  if (close) fireEvent.click(close);
+}
+
+it('starts with language choice and then shows the installed list, retaining the choice', () => {
   render(<App />);
-  expect(within(screen.getByRole('main')).getByRole('heading', { name: 'Nexo' })).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Idioma' })).toBeTruthy();
+  expect(screen.queryByText('Instaladas')).toBeNull();
+  enter('English');
+  expect(screen.getByText('Instaladas')).toBeTruthy();
+  closeNews();
+  fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
+  expect(screen.getByText('Idioma: en')).toBeTruthy();
 });
 
-it('switches tabs and associates the selected tab with its panel', () => {
-  render(<App />);
-  const apps = screen.getByRole('tab', { name: 'Mis apps' });
+it('uses only two tabs, associates panels and passes apps to CatalogView', () => {
+  render(<App />); enter(); closeNews();
+  const tabs = screen.getAllByRole('tab');
+  expect(tabs.map(tab => tab.textContent)).toEqual(['Mis apps', 'Catálogo']);
+  expect(screen.queryByRole('tab', { name: 'Novedades' })).toBeNull();
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
-  expect(apps.getAttribute('aria-selected')).toBe('true');
+  fireEvent.mouseDown(catalog, { button: 0 });
   fireEvent.click(catalog);
   expect(catalog.getAttribute('aria-selected')).toBe('true');
-  expect(apps.getAttribute('aria-selected')).toBe('false');
   const panel = screen.getByRole('tabpanel');
   expect(panel.getAttribute('aria-labelledby')).toBe(catalog.id);
-  expect(within(panel).getByRole('heading', { name: 'Catálogo egdev' })).toBeTruthy();
+  expect(within(panel).getByText(/Catálogo de prueba: Antena, Quorb, OBS Studio, Pizarra, Cadencia/)).toBeTruthy();
 });
 
-it('navigates and wraps tabs with arrow keys, Home and End', () => {
-  render(<App />);
+it('preserves keyboard selection and wraparound for the two tabs', async () => {
+  render(<App />); enter(); closeNews();
   const apps = screen.getByRole('tab', { name: 'Mis apps' });
-  apps.focus();
-  fireEvent.keyDown(apps, { key: 'ArrowLeft' });
-  const news = screen.getByRole('tab', { name: 'Novedades' });
-  expect(document.activeElement).toBe(news);
-  expect(news.getAttribute('aria-selected')).toBe('true');
-  fireEvent.keyDown(news, { key: 'ArrowRight' });
-  expect(document.activeElement).toBe(apps);
-  fireEvent.keyDown(apps, { key: 'End' });
-  expect(document.activeElement).toBe(news);
-  fireEvent.keyDown(news, { key: 'Home' });
-  expect(document.activeElement).toBe(apps);
+  const catalog = screen.getByRole('tab', { name: 'Catálogo' });
+  apps.focus(); fireEvent.keyDown(apps, { key: 'ArrowLeft' });
+  await waitFor(() => expect(document.activeElement).toBe(catalog));
+  expect(catalog.getAttribute('aria-selected')).toBe('true');
+  fireEvent.keyDown(catalog, { key: 'Home' });
+  await waitFor(() => expect(document.activeElement).toBe(apps));
 });
 
-it('expands and collapses an app row with aria-expanded', () => {
-  render(<App />);
+it('opens settings with the gear and returns to the selected tab', () => {
+  render(<App />); enter(); closeNews();
+  const catalog = screen.getByRole('tab', { name: 'Catálogo' });
+  fireEvent.mouseDown(catalog, { button: 0 });
+  fireEvent.click(catalog);
+  fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
+  expect(screen.getByRole('region', { name: 'Ajustes' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+  expect(screen.getByRole('tab', { name: 'Catálogo' }).getAttribute('aria-selected')).toBe('true');
+});
+
+it('shows sample news in the panel on opening and honours the opt-out on reopening', () => {
+  render(<App />); enter();
+  const main = screen.getByRole('main');
+  expect(within(main).getByRole('dialog', { name: 'Novedades' })).toBeTruthy();
+  expect(screen.getByText(/Pizarra.*Cadencia/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'No mostrar al abrir' }));
+  closeNews();
+  fireEvent.focus(window);
+  expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Alternar novedades' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+  fireEvent.focus(window);
+  expect(screen.getByRole('dialog', { name: 'Novedades' })).toBeTruthy();
+});
+
+it('does not open news when the list is empty', () => {
+  render(<App news={[]} />); enter();
+  expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
+  fireEvent.focus(window);
+  expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
+});
+
+it('applies live appearance settings to the panel root', () => {
+  render(<App />); enter(); closeNews();
+  const main = screen.getByRole('main');
+  expect(main.style.getPropertyValue('--hub-accent')).toBe('#ff0036');
+  expect(main.style.getPropertyValue('--hub-density')).toBe('1');
+  expect(main.style.getPropertyValue('--hub-opacity')).toBe('0.85');
+  expect(main.style.getPropertyValue('--hub-blur')).toBe('24px');
+  fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar apariencia' }));
+  expect(main.style.getPropertyValue('--hub-accent')).toBe('#3b82f6');
+  expect(main.style.getPropertyValue('--hub-density')).toBe('0.8');
+  expect(main.style.getPropertyValue('--hub-opacity')).toBe('0.63');
+  expect(main.style.getPropertyValue('--hub-blur')).toBe('12px');
+});
+
+it('preserves expandable rows, statuses and illustrative actions', () => {
+  render(<App />); enter(); closeNews();
+  expect(screen.getByText('En ejecución')).toBeTruthy();
+  expect(screen.getByText('Actualización disponible')).toBeTruthy();
+  expect(screen.getByText(/Al día.*No está abierta/)).toBeTruthy();
+  expect(screen.getByText(/App local.*Solo apertura/)).toBeTruthy();
   const row = screen.getByRole('button', { name: /Antena.*En ejecución/ });
   expect(row.getAttribute('aria-expanded')).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Actualizar Antena' }));
   expect(screen.getByText('Instalada: 1.4.0')).toBeTruthy();
   fireEvent.click(row);
   expect(row.getAttribute('aria-expanded')).toBe('false');
   expect(screen.queryByText('Instalada: 1.4.0')).toBeNull();
   fireEvent.click(row);
-  expect(row.getAttribute('aria-expanded')).toBe('true');
   expect(screen.getByText('Disponible: 1.5.0')).toBeTruthy();
+  expect(screen.getByText(/acciones.*ilustrativas/i)).toBeTruthy();
 });
 
-it('shows running, update, stopped, local and not-installed statuses', () => {
-  render(<App />);
-  expect(screen.getByText('En ejecución')).toBeTruthy();
-  expect(screen.getByText('Actualización disponible')).toBeTruthy();
-  expect(screen.getByText(/Al día.*No está abierta.*Actualizaciones/)).toBeTruthy();
-  expect(screen.getByText(/App local.*Solo apertura/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('tab', { name: 'Catálogo' }));
-  expect(screen.getAllByText(/No instalada.*Catálogo oficial/)).toHaveLength(2);
-});
-
-it('shows the Novedades list with both sample announcements', () => {
-  render(<App />);
-  fireEvent.click(screen.getByRole('tab', { name: 'Novedades' }));
-  const panel = screen.getByRole('tabpanel');
-  expect(within(panel).getByRole('heading', { name: 'Novedades del catálogo' })).toBeTruthy();
-  expect(within(panel).getByText('Pizarra')).toBeTruthy();
-  expect(within(panel).getByText('Cadencia')).toBeTruthy();
-  expect(within(panel).getByText('Nuevo')).toBeTruthy();
-  expect(within(panel).getByText('Destacada')).toBeTruthy();
-});
-
-it('explains an empty installed list and offers the catalog', () => {
-  render(<App apps={[]} />);
+it('preserves the empty installed state and catalog navigation', () => {
+  render(<App apps={[]} news={[]} />); enter();
   expect(screen.getByText('No hay aplicaciones instaladas.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Ver catálogo' }));
   expect(screen.getByRole('tab', { name: 'Catálogo' }).getAttribute('aria-selected')).toBe('true');
-  expect(screen.getByText('No hay aplicaciones en el catálogo.')).toBeTruthy();
 });
 
-it('does not pretend sample actions installed or updated an app', () => {
-  render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: 'Actualizar Antena' }));
-  expect(screen.getByText('Instalada: 1.4.0')).toBeTruthy();
-  expect(screen.getByText('Actualización disponible')).toBeTruthy();
-  fireEvent.click(screen.getByRole('tab', { name: 'Catálogo' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Instalar Pizarra' }));
-  expect(screen.getAllByText(/No instalada.*Catálogo oficial/)).toHaveLength(2);
-  expect(screen.getByText(/acciones de apps y ajustes son ilustrativas/i)).toBeTruthy();
-});
-
-it('requests window hiding on Escape', () => {
-  render(<App />);
+it('hides on close and Escape, except while the news dialog owns Escape', () => {
+  render(<App />); enter();
   fireEvent.keyDown(document, { key: 'Escape' });
-  expect(hideFlyout).toHaveBeenCalledTimes(1);
+  expect(hideFlyout).not.toHaveBeenCalled();
+  closeNews();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
+  expect(hideFlyout).toHaveBeenCalledTimes(2);
 });
 
-it('uses the translucent surface only when the native backdrop is available', async () => {
+it('keeps the opaque fallback and enables native backdrop only when available', async () => {
   vi.mocked(backdropAvailable).mockResolvedValueOnce(true);
-  render(<App />);
+  const { unmount } = render(<App />);
   const panel = screen.getByRole('main');
   expect(panel.classList.contains('has-native-backdrop')).toBe(false);
   await waitFor(() => expect(panel.classList.contains('has-native-backdrop')).toBe(true));
-});
-
-it('keeps the opaque fallback when the native backdrop is unavailable', async () => {
+  unmount();
   vi.mocked(backdropAvailable).mockResolvedValueOnce(false);
   render(<App />);
-  await waitFor(() => expect(backdropAvailable).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(backdropAvailable).toHaveBeenCalledTimes(2));
   expect(screen.getByRole('main').classList.contains('has-native-backdrop')).toBe(false);
-});
-
-it('requests a content-driven height again after the content changes', () => {
-  let contentHeight = 320;
-  let triggerResize = () => {};
-  class MockResizeObserver {
-    constructor(callback: ResizeObserverCallback) {
-      triggerResize = () => callback([], this as unknown as ResizeObserver);
-    }
-    observe() {}
-    disconnect() {}
-  }
-  vi.stubGlobal('ResizeObserver', MockResizeObserver);
-  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
-    if (this.classList.contains('panel-head')) return 100;
-    if (this.classList.contains('scroll-content')) return contentHeight;
-    return 0;
-  });
-  render(<App />);
-  expect(resizeFlyout).toHaveBeenLastCalledWith(422);
-  contentHeight = 180;
-  fireEvent.click(screen.getByRole('button', { name: /Antena.*En ejecución/ }));
-  triggerResize();
-  expect(resizeFlyout).toHaveBeenLastCalledWith(282);
 });

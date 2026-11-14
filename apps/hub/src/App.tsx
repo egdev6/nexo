@@ -1,136 +1,85 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
-import { sampleApps } from './sample';
-import type { HubApp } from './sample';
-import { backdropAvailable, hideFlyout, resizeFlyout } from './window';
+import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, StatusDot, Tabs } from '@egdev/ui';
+import { CatalogView } from './catalog';
+import { FirstRun } from './first-run';
+import type { HubApp, HubSettings, NewsItem } from './model';
+import { NewsPopup } from './news';
+import { defaultSettings, sampleApps, sampleNews } from './sample';
+import { SettingsView } from './settings';
+import { backdropAvailable, hideFlyout } from './window';
 import './style.css';
 
-type Tab = 'apps' | 'catalog' | 'news';
-const tabs: { id: Tab; label: string }[] = [
-  { id: 'apps', label: 'Mis apps' },
-  { id: 'catalog', label: 'Catálogo' },
-  { id: 'news', label: 'Novedades' },
-];
+type Tab = 'apps' | 'catalog';
 
-// TODO #4/#5: connect these illustrative controls to real hub and catalog operations.
+// TODO #4/#5: these controls illustrate actions; they do not change installed apps.
 function sampleAction() {}
 
 function Action({ label, app, primary = false }: { label: string; app: HubApp; primary?: boolean }) {
-  return (
-    <button className={primary ? 'action primary' : 'action'} type="button" aria-label={`${label} ${app.name}`} onClick={sampleAction}>
-      {label}
-    </button>
-  );
+  return <Button variant={primary ? 'primary' : 'neutral'} size="sm" type="button" aria-label={`${label} ${app.name}`} onClick={sampleAction}>{label}</Button>;
 }
 
 function AppIcon({ app }: { app: HubApp }) {
   return <span aria-hidden="true" className={`app-icon ${app.id === 'antena' ? 'brand-icon' : ''}`}>{app.name[0]}</span>;
 }
 
-function StatusBadge({ app }: { app: HubApp }) {
-  if (!app.installed) return <span className="secondary">No instalada · Catálogo oficial</span>;
+function Status({ app }: { app: HubApp }) {
   if (app.integration === 'local') return <span className="secondary">App local · Solo apertura</span>;
   if (!app.running) return <span className="secondary">Al día · No está abierta · Actualizaciones</span>;
-  return (
-    <span className="status-line">
-      <span className="status-running"><span className="dot" aria-hidden="true" />En ejecución</span>
-      {app.update && <> · <span className="status-warning">Actualización disponible</span></>}
-    </span>
-  );
+  return <span className="status-line"><span className="status-running"><StatusDot state="running" /> En ejecución</span>
+    {app.update && <> · <span className="status-warning">Actualización disponible</span></>}
+  </span>;
 }
 
 function AppRow({ app }: { app: HubApp }) {
-  const [expanded, setExpanded] = useState(app.id === 'antena');
-  const detailId = `detail-${app.id}`;
-  return (
-    <article className="app-card">
-      <div className="app-row">
-        <button className="row-toggle" type="button" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded(!expanded)}>
-          <AppIcon app={app} />
-          <span className="app-info"><strong>{app.name}</strong>{' '}<StatusBadge app={app} /></span>
-          <span className="chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
-        </button>
-        {app.id !== 'antena' && <Action label={app.installed ? 'Abrir' : 'Instalar'} app={app} />}
+  return <Collapsible className="app-card" defaultOpen={app.id === 'antena'}>
+    <div className="app-row">
+      <CollapsibleTrigger>
+        <span className="row-label"><AppIcon app={app} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span>
+      </CollapsibleTrigger>
+      {app.id !== 'antena' && <Action label="Abrir" app={app} />}
+    </div>
+    <CollapsibleContent>
+      {app.update && <div className="detail-grid">
+        <div><div className="status-warning">Disponible: {app.update}</div><div className="version">Instalada: {app.version}</div></div>
+        <Action label="Actualizar" app={app} primary />
+      </div>}
+      <p className="meta">{app.description}</p>
+      <div className="actions">
+        <Action label={app.id === 'antena' ? 'Abrir panel' : 'Abrir'} app={app} />
+        {app.running && app.integration === 'complete' && <Action label="Cerrar" app={app} />}
       </div>
-      <div id={detailId} className="detail" hidden={!expanded}>
-        {expanded && <>
-          {app.update && <div className="detail-grid">
-            <div><div className="status-warning">Disponible: {app.update}</div><div className="version">Instalada: {app.version}</div></div>
-            <Action label="Actualizar" app={app} primary />
-          </div>}
-          <p className="meta">{app.description}</p>
-          <div className="actions">
-            {app.installed ? <>
-              <Action label={app.id === 'antena' ? 'Abrir panel' : 'Abrir'} app={app} />
-              {app.running && app.integration === 'complete' && <Action label="Cerrar" app={app} />}
-            </> : <Action label="Instalar" app={app} />}
-          </div>
-        </>}
-      </div>
-    </article>
-  );
+    </CollapsibleContent>
+  </Collapsible>;
 }
 
-function Tabs({ active, select }: { active: Tab; select: (tab: Tab) => void }) {
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  function navigate(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next = index;
-    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-    else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    select(tabs[next].id);
-    refs.current[next]?.focus();
-  }
-  return <div className="tabs" role="tablist" aria-label="Secciones de Nexo">
-    {tabs.map((tab, index) => <button key={tab.id} ref={node => { refs.current[index] = node; }}
-      className="tab" type="button" role="tab" id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`}
-      aria-selected={active === tab.id} tabIndex={active === tab.id ? 0 : -1}
-      onClick={() => select(tab.id)} onKeyDown={event => navigate(event, index)}>{tab.label}</button>)}
-  </div>;
-}
-
-function SectionLabel({ title, count }: { title: string; count: string }) {
-  return <div className="section-label"><h2>{title}</h2><span>{count}</span></div>;
-}
-
-function InstalledPanel({ apps, select }: { apps: HubApp[]; select: (tab: Tab) => void }) {
+function InstalledPanel({ apps, selectCatalog }: { apps: HubApp[]; selectCatalog: () => void }) {
   const installed = apps.filter(app => app.installed);
   const available = apps.filter(app => !app.installed);
   return <>
-    <SectionLabel title="Instaladas" count={`${installed.length} ${installed.length === 1 ? 'aplicación' : 'aplicaciones'}`} />
-    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} />) : <div className="empty-state"><p>No hay aplicaciones instaladas.</p><button className="action" type="button" onClick={() => select('catalog')}>Ver catálogo</button></div>}
+    <div className="section-label"><h2>Instaladas</h2><span>{installed.length} {installed.length === 1 ? 'aplicación' : 'aplicaciones'}</span></div>
+    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} />) : <div className="empty-state"><p>No hay aplicaciones instaladas.</p><Button variant="neutral" size="sm" onClick={selectCatalog}>Ver catálogo</Button></div>}
     {available.length > 0 && <section className="catalog-preview" aria-labelledby="preview-title">
       <div className="section-label"><h2 id="preview-title">También en el catálogo</h2><span>Sin instalar</span></div>
       {available.map(app => <div className="preview-row" key={app.id}><div className="app-info"><strong>{app.name}</strong><span className="secondary">Catálogo egdev</span></div><Action label="Instalar" app={app} /></div>)}
     </section>}
-    {apps.some(app => app.id === 'pizarra' && app.news) && <p className="news-line"><span className="tag">Nuevo</span> Pizarra en Novedades</p>}
+    {available.some(app => app.id === 'pizarra') && <p className="news-line"><Badge tone="brand">Nuevo</Badge> Pizarra en Novedades</p>}
+    <p className="foot">Muestra de diseño · las acciones de apps son ilustrativas.</p>
   </>;
 }
 
-function CatalogPanel({ apps }: { apps: HubApp[] }) {
-  const available = apps.filter(app => !app.installed);
-  return <><SectionLabel title="Catálogo egdev" count={`${available.length} sin instalar`} />
-    {available.length ? available.map(app => <AppRow key={app.id} app={app} />) : <p className="empty-state">No hay aplicaciones en el catálogo.</p>}
-  </>;
+interface FlyoutProps {
+  apps?: HubApp[];
+  news?: NewsItem[];
 }
 
-function NewsPanel({ apps }: { apps: HubApp[] }) {
-  const news = apps.filter(app => app.news);
-  return <><SectionLabel title="Novedades del catálogo" count="egdev" />
-    {news.length ? news.map(app => <article className="app-card news-row" key={app.id}>
-      <span className="tag">{app.news}</span><div className="app-info"><strong>{app.name}</strong><span className="secondary">{app.description}</span></div><Action label="Instalar" app={app} />
-    </article>) : <p className="empty-state">No hay novedades por ahora.</p>}
-  </>;
-}
-
-export function FlyoutPanel({ apps = sampleApps }: { apps?: HubApp[] }) {
+export function FlyoutPanel({ apps = sampleApps, news = sampleNews }: FlyoutProps) {
   const [active, setActive] = useState<Tab>('apps');
+  const [settings, setSettings] = useState<HubSettings>(defaultSettings);
+  const [firstRun, setFirstRun] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(false);
   const [hasBackdrop, setHasBackdrop] = useState(false);
-  const headerRef = useRef<HTMLElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const installedCount = apps.filter(app => app.installed).length;
 
   useEffect(() => {
@@ -139,44 +88,55 @@ export function FlyoutPanel({ apps = sampleApps }: { apps?: HubApp[] }) {
     return () => { mounted = false; };
   }, []);
 
+  // A tray reopen focuses the same webview rather than remounting the React tree.
+  useEffect(() => {
+    function onFocus() {
+      if (!firstRun && settings.showNewsOnOpen && news.length > 0) setNewsOpen(true);
+    }
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [firstRun, settings.showNewsOnOpen, news.length]);
+
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') { event.preventDefault(); void hideFlyout(); }
+      if (event.key === 'Escape' && !event.defaultPrevented && !newsOpen) {
+        event.preventDefault();
+        void hideFlyout();
+      }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [newsOpen]);
 
-  useLayoutEffect(() => {
-    const header = headerRef.current;
-    const content = contentRef.current;
-    if (!header || !content || typeof ResizeObserver === 'undefined') return;
-    const resize = () => { void resizeFlyout(Math.ceil(header.offsetHeight + content.offsetHeight + 2)); };
-    const observer = new ResizeObserver(resize);
-    observer.observe(header);
-    observer.observe(content);
-    resize();
-    return () => observer.disconnect();
-  }, [active, apps]);
+  const panelStyle = {
+    '--hub-accent': settings.accent,
+    '--hub-density': settings.compact ? '0.8' : '1',
+    '--hub-opacity': String(settings.opacity / 100),
+    '--hub-blur': `${settings.blur}px`,
+  } as CSSProperties;
 
-  return <main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title">
-    <header className="panel-head" ref={headerRef}>
-      <div className="heading"><span className="n-mark" aria-hidden="true">N</span><h1 id="panel-title">Nexo</h1>
-        <p>· {installedCount} {installedCount === 1 ? 'instalada' : 'instaladas'}</p>
-        <div className="head-actions"><button className="icon-button" type="button" aria-label="Ajustes (muestra)" title="Ajustes" onClick={sampleAction}>⚙</button>
-          <button className="icon-button" type="button" aria-label="Cerrar panel" title="Cerrar panel" onClick={() => void hideFlyout()}>×</button></div>
+  return <main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
+    <header className="panel-head"><div className="heading"><span className="n-mark" aria-hidden="true">N</span><h1 id="panel-title">Nexo</h1>
+      <p>· {installedCount} {installedCount === 1 ? 'instalada' : 'instaladas'}</p>
+      <div className="head-actions">
+        {!firstRun && !showSettings && <IconButton label="Ajustes" title="Ajustes" variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
+        <IconButton label="Cerrar panel" title="Cerrar panel" variant="secondary" icon={<Icon name="close" />} onClick={() => void hideFlyout()} />
       </div>
-      <Tabs active={active} select={setActive} />
-    </header>
-    <div className="scroll" tabIndex={0} aria-label="Contenido de Nexo"><div className="scroll-content" ref={contentRef}>
-      {tabs.map(tab => <section key={tab.id} id={`panel-${tab.id}`} role="tabpanel" aria-labelledby={`tab-${tab.id}`} hidden={active !== tab.id}>
-        {active === tab.id && (tab.id === 'apps' ? <InstalledPanel apps={apps} select={setActive} /> : tab.id === 'catalog' ? <CatalogPanel apps={apps} /> : <NewsPanel apps={apps} />)}
-      </section>)}
-      <p className="foot">Muestra de diseño · las acciones de apps y ajustes son ilustrativas.</p>
-    </div></div>
+    </div></header>
+    {firstRun ? <div className="area-scroll"><FirstRun onChoose={language => {
+      setSettings(current => ({ ...current, language }));
+      setFirstRun(false);
+      setNewsOpen(settings.showNewsOnOpen && news.length > 0);
+    }} /></div> : showSettings ? <div className="area-scroll"><SettingsView settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} /></div> :
+      <Tabs className="main-tabs" variant="segmented" label="Secciones de Nexo" value={active} onValueChange={value => setActive(value as Tab)} items={[
+        { value: 'apps', label: 'Mis apps', content: <InstalledPanel apps={apps} selectCatalog={() => setActive('catalog')} /> },
+        { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} /> },
+      ]} />}
+    <NewsPopup items={news} open={!firstRun && newsOpen} onClose={() => setNewsOpen(false)} dontShow={!settings.showNewsOnOpen}
+      onDontShowChange={dontShow => setSettings(current => ({ ...current, showNewsOnOpen: !dontShow }))} />
   </main>;
 }
 
-export default function App({ apps }: { apps?: HubApp[] }) {
-  return <FlyoutPanel apps={apps} />;
+export default function App(props: FlyoutProps) {
+  return <FlyoutPanel {...props} />;
 }
