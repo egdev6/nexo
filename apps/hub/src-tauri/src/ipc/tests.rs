@@ -1342,3 +1342,268 @@ async fn unsupported_range_is_rejected_and_closed() {
     let mut rest = String::new();
     assert_eq!(client.reader.read_line(&mut rest).await.unwrap(), 0);
 }
+
+fn vp_runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .unwrap()
+}
+
+struct VpLaunch {
+    attempted: tokio::sync::oneshot::Receiver<()>,
+    started: tokio::sync::oneshot::Receiver<()>,
+    release: std::sync::mpsc::Sender<()>,
+    done: tokio::sync::oneshot::Receiver<std::thread::Result<Result<(), String>>>,
+}
+
+fn vp_launch(hub: Hub, id: &'static str, outcome: Option<Result<(), String>>) -> VpLaunch {
+    let (attempted_tx, attempted) = tokio::sync::oneshot::channel();
+    let (started_tx, started) = tokio::sync::oneshot::channel();
+    let (release, release_rx) = std::sync::mpsc::channel();
+    let (done_tx, done) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        let _ = attempted_tx.send(());
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            hub.while_disconnected(id, || {
+                let _ = started_tx.send(());
+                release_rx
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("fake launch release");
+                outcome.expect("fake launch panic")
+            })
+        }));
+        let _ = done_tx.send(result);
+    });
+    VpLaunch {
+        attempted,
+        started,
+        release,
+        done,
+    }
+}
+
+async fn vp_wait<T>(receiver: tokio::sync::oneshot::Receiver<T>) -> T {
+    tokio::time::timeout(Duration::from_secs(5), receiver)
+        .await
+        .expect("operation timed out")
+        .expect("operation sender dropped")
+}
+
+#[test]
+fn vp_failed_launch_wakes_the_waiting_same_id_registration() {
+    vp_runtime().block_on(async {
+        let hub = Hub::new();
+        let launch = vp_launch(hub.clone(), "target", Some(Err("fake failure".into())));
+        vp_wait(launch.started).await;
+        let mut client = Client::connect(&hub);
+        client.hello().await;
+        client.send(registration("target", "1.0.0")).await;
+        let mut line = String::new();
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(50),
+                client.reader.read_line(&mut line)
+            )
+            .await
+            .is_err()
+        );
+        assert!(hub.snapshot().apps.is_empty());
+        launch.release.send(()).unwrap();
+        assert_eq!(
+            vp_wait(launch.done).await.unwrap(),
+            Err("fake failure".into())
+        );
+        assert_eq!(client.receive().await, Message::Registered);
+        client.send(Message::Heartbeat { seq: 1 }).await;
+        assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 1 });
+        assert_eq!(hub.snapshot().apps[0].app.id, "target");
+    });
+}
+
+#[test]
+fn vp_panicking_launch_releases_claim_gate_and_quit_all() {
+    vp_runtime().block_on(async {
+        let hub = Hub::new();
+        let mut client = Client::connect(&hub);
+        client.hello().await;
+        client.register("alpha").await;
+        let launch = vp_launch(hub.clone(), "target", None);
+        vp_wait(launch.started).await;
+        let quitter = hub.clone();
+        let quit = tokio::spawn(async move { quitter.quit_all().await });
+        let mut line = String::new();
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(50),
+                client.reader.read_line(&mut line)
+            )
+            .await
+            .is_err()
+        );
+        launch.release.send(()).unwrap();
+        assert!(vp_wait(launch.done).await.is_err());
+        let Message::Quit { id, .. } = client.receive().await else {
+            panic!("expected quit after the panicking launch");
+        };
+        client
+            .send(Message::QuitResult {
+                id,
+                accepted: false,
+                reason: Some("busy".into()),
+            })
+            .await;
+        let results = tokio::time::timeout(Duration::from_secs(5), quit)
+            .await
+            .expect("quit_all timed out")
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].1, QuitOutcome::Refused(Some("busy".into())));
+        let retry = vp_launch(hub.clone(), "target", Some(Ok(())));
+        vp_wait(retry.started).await;
+        retry.release.send(()).unwrap();
+        assert_eq!(vp_wait(retry.done).await.unwrap(), Ok(()));
+    });
+}
+
+#[test]
+fn vp_shutdown_during_launch_waits_then_fences_registration_and_launch() {
+    vp_runtime().block_on(async {
+        let hub = Hub::new();
+        let mut client = Client::connect(&hub);
+        client.hello().await;
+        client.register("alpha").await;
+        let launch = vp_launch(hub.clone(), "target", Some(Ok(())));
+        vp_wait(launch.started).await;
+        let (attempted_tx, attempted) = tokio::sync::oneshot::channel();
+        let (done_tx, mut done) = tokio::sync::oneshot::channel();
+        let shutdown_hub = hub.clone();
+        std::thread::spawn(move || {
+            let _ = attempted_tx.send(());
+            shutdown_hub.shutdown();
+            let _ = done_tx.send(());
+        });
+        vp_wait(attempted).await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut done)
+                .await
+                .is_err()
+        );
+        client.send(Message::Heartbeat { seq: 2 }).await;
+        assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 2 });
+        launch.release.send(()).unwrap();
+        assert_eq!(vp_wait(launch.done).await.unwrap(), Ok(()));
+        vp_wait(done).await;
+        client.closed().await;
+        assert!(hub.snapshot().apps.is_empty());
+        let mut newcomer = Client::connect(&hub);
+        newcomer.closed().await;
+        let rejected = vp_launch(hub, "target", Some(Ok(())));
+        assert_eq!(
+            vp_wait(rejected.done).await.unwrap(),
+            Err("nexo.appConnectionChanged".into())
+        );
+        assert!(rejected.started.await.is_err());
+    });
+}
+
+#[test]
+fn vp_launch_is_refused_while_quit_all_is_fenced() {
+    vp_runtime().block_on(async {
+        let hub = Hub::new();
+        let mut client = Client::connect(&hub);
+        client.hello().await;
+        client.register("alpha").await;
+        let quitter = hub.clone();
+        let quit = tokio::spawn(async move { quitter.quit_all().await });
+        let Message::Quit { id, .. } = client.receive().await else {
+            panic!("expected quit");
+        };
+        let rejected = vp_launch(hub.clone(), "target", Some(Ok(())));
+        assert_eq!(
+            vp_wait(rejected.done).await.unwrap(),
+            Err("nexo.appConnectionChanged".into())
+        );
+        assert!(rejected.started.await.is_err());
+        client
+            .send(Message::QuitResult {
+                id,
+                accepted: false,
+                reason: Some("busy".into()),
+            })
+            .await;
+        let results = tokio::time::timeout(Duration::from_secs(5), quit)
+            .await
+            .expect("quit_all timed out")
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].1, QuitOutcome::Refused(Some("busy".into())));
+        let retry = vp_launch(hub, "target", Some(Ok(())));
+        vp_wait(retry.started).await;
+        retry.release.send(()).unwrap();
+        assert_eq!(vp_wait(retry.done).await.unwrap(), Ok(()));
+    });
+}
+
+#[test]
+fn vp_waiting_registration_that_disconnects_leaves_no_ghost() {
+    vp_runtime().block_on(async {
+        let hub = Hub::new();
+        let launch = vp_launch(hub.clone(), "target", Some(Ok(())));
+        vp_wait(launch.started).await;
+        let (stream, server) = tokio::io::duplex(128 * 1024);
+        let worker = hub.clone();
+        let serve = tokio::spawn(async move { worker.serve(server).await });
+        let (reader, writer) = tokio::io::split(stream);
+        let mut client = Client {
+            reader: BufReader::new(reader),
+            writer,
+        };
+        client.hello().await;
+        client.send(registration("target", "1.0.0")).await;
+        let mut line = String::new();
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(50),
+                client.reader.read_line(&mut line)
+            )
+            .await
+            .is_err()
+        );
+        drop(client);
+        launch.release.send(()).unwrap();
+        assert_eq!(vp_wait(launch.done).await.unwrap(), Ok(()));
+        tokio::time::timeout(Duration::from_secs(5), serve)
+            .await
+            .expect("disconnected session did not finish")
+            .unwrap();
+        assert!(hub.snapshot().apps.is_empty());
+        let mut retry = Client::connect(&hub);
+        retry.hello().await;
+        retry.register("target").await;
+        retry.send(Message::Heartbeat { seq: 3 }).await;
+        assert_eq!(retry.receive().await, Message::HeartbeatAck { seq: 3 });
+    });
+}
+
+#[test]
+fn vp_concurrent_same_id_launches_serialize() {
+    vp_runtime().block_on(async {
+        let hub = Hub::new();
+        let first = vp_launch(hub.clone(), "target", Some(Ok(())));
+        vp_wait(first.started).await;
+        let mut second = vp_launch(hub, "target", Some(Ok(())));
+        vp_wait(second.attempted).await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut second.started)
+                .await
+                .is_err(),
+            "same-id launches overlapped"
+        );
+        first.release.send(()).unwrap();
+        assert_eq!(vp_wait(first.done).await.unwrap(), Ok(()));
+        vp_wait(second.started).await;
+        second.release.send(()).unwrap();
+        assert_eq!(vp_wait(second.done).await.unwrap(), Ok(()));
+    });
+}
