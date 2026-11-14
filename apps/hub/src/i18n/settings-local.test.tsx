@@ -1,0 +1,275 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import ts from 'typescript';
+import localManagement from '../settings/local-management.tsx?raw';
+import { SettingsView } from '../settings';
+import { LocaleProvider } from './use-locale';
+import { defaultSettings } from '../sample';
+import type { CatalogSource, Language } from '../model';
+
+const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
+
+type App = { id: string; name: string; executable: string; icon: string | null };
+const official: CatalogSource = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
+const source: CatalogSource = { id: 'source-1', label: 'Trabajo', kind: 'local', location: 'C:\\catalog.json' };
+const initialApp: App = { id: 'manual-1', name: 'Editor', executable: 'C:\\Editor.exe', icon: null };
+let apps: App[];
+let sources: CatalogSource[];
+let fail: Record<string, string>;
+let cancel: string | null;
+let duplicate: boolean;
+let catalogVisible: boolean;
+
+beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeEach(() => {
+  apps = [structuredClone(initialApp)]; sources = [official, source]; fail = {}; cancel = null; duplicate = false; catalogVisible = true;
+  bridge.invoke.mockReset();
+  bridge.invoke.mockImplementation(async (command: string, args?: { id?: string; name?: string; sourceId?: string | null }) => {
+    if (fail[command]) { if (command === 'local_catalog_refresh') catalogVisible = false; throw fail[command]; }
+    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, sources: structuredClone(sources) } };
+    if (command === 'local_apps_list') return [
+      ...apps.map(app => ({ id: `manual:${app.id}`, name: app.name, source: 'local', state: 'missingExecutable', origin: { kind: 'manual', id: app.id } })),
+      ...(catalogVisible && sources.some(item => item.id === 'source-1') ? [{ id: 'catalog:1', name: 'Catálogo App', source: 'local', state: 'unbound', origin: { kind: 'catalog', sourceId: 'source-1', sourceLabel: 'Trabajo', appId: 'catalog-app' } }] : []),
+    ];
+    if (cancel === command) { cancel = null; return null; }
+    if (command === 'local_app_add') {
+      const app = { id: 'manual-2', name: 'Paint', executable: 'C:\\Paint.exe', icon: null };
+      apps = [...apps, app]; return { app, duplicate };
+    }
+    if (command === 'local_app_update') {
+      const name = args?.name?.trim() ?? '';
+      if (!name || /[\x00-\x1f]/.test(name)) throw 'nexo.local.invalidName';
+      const app = { ...apps.find(item => item.id === args?.id)!, name };
+      apps = apps.map(item => item.id === app.id ? app : item); return { app, duplicate };
+    }
+    if (command === 'local_app_pick_icon') {
+      const app = { ...apps.find(item => item.id === args?.id)!, icon: 'owned.png' };
+      apps = apps.map(item => item.id === app.id ? app : item); return { app, duplicate };
+    }
+    if (command === 'local_app_remove') { apps = apps.filter(item => item.id !== args?.id); return; }
+    if (command === 'local_catalog_set') {
+      if (args?.sourceId) sources = sources.map(item => item.id === args.sourceId ? { ...item, location: 'C:\\replacement.json' } : item);
+      else sources = [...sources, { id: 'source-2', label: 'Local', kind: 'local', location: 'C:\\new.json' }];
+      return { sourceId: args?.sourceId ?? 'source-2', entries: [] };
+    }
+    if (command === 'local_catalog_refresh') { catalogVisible = true; return { sourceId: args?.sourceId, entries: [] }; }
+    if (command === 'local_catalog_clear') { sources = sources.filter(item => item.id !== args?.sourceId); return; }
+    throw new Error(`Unexpected command ${command}`);
+  });
+});
+afterEach(() => { cleanup(); vi.clearAllMocks(); });
+
+function setup(locale: Language = 'es') {
+  const result = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} sources={[official, source]} /></LocaleProvider>);
+  const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Fuentes del catálogo' : 'Catalog sources' });
+  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  return result;
+}
+
+it('does not hard-code visible copy or accessible labels in the local settings view', () => {
+  const source = ts.createSourceFile('local-management.tsx', localManagement, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const found: string[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isJsxText(node) && /[A-Za-zÁ-ú]/.test(node.text.trim())) found.push(node.text.trim());
+    if (ts.isJsxAttribute(node) && ['aria-label', 'title', 'label', 'placeholder'].includes(node.name.getText(source)) && node.initializer && ts.isStringLiteral(node.initializer)) found.push(node.initializer.text);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  expect(found).toEqual([]);
+});
+
+it.each(['toString', '__proto__'])('treats source ID %s as opaque when displaying and recovering a source error', async id => {
+  sources = [official, { ...source, id }];
+  fail.local_catalog_refresh = 'nexo.local.catalogInvalid';
+  setup();
+  expect((await screen.findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
+  expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_refresh', { sourceId: id });
+  delete fail.local_catalog_refresh;
+  fireEvent.click(screen.getByRole('button', { name: 'Actualizar fuente Trabajo' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+});
+
+it('places a failed source selection beside its source controls', async () => {
+  setup(); await screen.findByText('Editor');
+  fail.local_catalog_set = 'nexo.local.catalogInvalid';
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
+  const area = screen.getByRole('region', { name: 'Fuentes del catálogo' });
+  expect((await within(area).findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+});
+
+it('offers localized English controls and keyboard cancellation of an inline edit', async () => {
+  setup('en'); await screen.findByText('Editor');
+  expect(screen.getByRole('button', { name: 'Add app' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Change icon of Editor' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Rename Editor' }));
+  const input = screen.getByRole('textbox', { name: 'Name of Editor' });
+  expect(document.activeElement).toBe(input);
+  fireEvent.change(input, { target: { value: 'Changed' } });
+  fireEvent.keyDown(input, { key: 'Escape' });
+  expect(screen.queryByRole('textbox', { name: 'Name of Editor' })).toBeNull();
+  expect(screen.getByText('Editor')).toBeTruthy();
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_update', expect.anything());
+});
+
+it('lists manual and catalog entries with their state, but only manual entries are editable', async () => {
+  setup();
+  const section = await screen.findByRole('region', { name: 'Apps locales' });
+  expect(within(section).getByText('Editor')).toBeTruthy();
+  expect(within(section).getByText('Ejecutable ausente o inaccesible')).toBeTruthy();
+  expect(within(section).getByText('Catálogo App')).toBeTruthy();
+  expect(within(section).getByText('Catálogo local: Trabajo')).toBeTruthy();
+  expect(within(section).getByText('Ejecutable sin seleccionar')).toBeTruthy();
+  expect(within(section).queryByRole('button', { name: 'Renombrar Catálogo App' })).toBeNull();
+  expect(within(section).queryByRole('button', { name: 'Eliminar Catálogo App' })).toBeNull();
+  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+});
+
+it('adds through the native picker, leaves cancellation unchanged, warns about duplicates and survives reopening', async () => {
+  setup(); await screen.findByText('Editor');
+  cancel = 'local_app_add';
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir app' }));
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_add'));
+  expect(screen.queryByText('Paint')).toBeNull();
+  duplicate = true;
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Añadir app' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir app' }));
+  expect(await screen.findByText('Paint')).toBeTruthy();
+  expect(screen.getByText('Puede existir otra app con el mismo nombre o ejecutable.')).toBeTruthy();
+  cleanup(); setup();
+  expect(await screen.findByText('Paint')).toBeTruthy();
+  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'local_app_add')).toEqual([['local_app_add'], ['local_app_add']]);
+});
+
+it('renames inline, retains the previous entry on validation or save failure, and permits editing a missing app', async () => {
+  setup(); await screen.findByText('Editor');
+  fireEvent.click(screen.getByRole('button', { name: 'Renombrar Editor' }));
+  const input = screen.getByRole('textbox', { name: 'Nombre de Editor' });
+  fireEvent.change(input, { target: { value: '   ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar nombre de Editor' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Introduce un nombre válido.');
+  expect(screen.getByText('Editor')).toBeTruthy();
+  fail.local_app_update = 'nexo.config.save.corrupt';
+  fireEvent.change(input, { target: { value: 'Nuevo' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar nombre de Editor' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('El archivo de ajustes está dañado.');
+  expect(screen.getByText('Editor')).toBeTruthy();
+  delete fail.local_app_update;
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar nombre de Editor' }));
+  expect(await screen.findByText('Nuevo')).toBeTruthy();
+  expect(screen.queryByText('Editor')).toBeNull();
+  expect(bridge.invoke).toHaveBeenLastCalledWith('local_apps_list');
+  expect(bridge.invoke).toHaveBeenCalledWith('local_app_update', { id: 'manual-1', name: 'Nuevo' });
+});
+
+it('changes the icon only through the native picker and preserves cancellation and failures', async () => {
+  setup(); await screen.findByText('Editor');
+  cancel = 'local_app_pick_icon';
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar icono de Editor' }));
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_pick_icon', { id: 'manual-1' }));
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Cambiar icono de Editor' }) as HTMLButtonElement).disabled).toBe(false));
+  expect(apps[0].icon).toBeNull();
+  fail.local_app_pick_icon = 'nexo.local.invalidIcon';
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar icono de Editor' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('El icono seleccionado no es válido.');
+  expect(apps[0].icon).toBeNull();
+  delete fail.local_app_pick_icon;
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar icono de Editor' }));
+  await waitFor(() => expect(apps[0].icon).toBe('owned.png'));
+  expect(screen.getByText('Editor')).toBeTruthy();
+});
+
+it('requires confirmation to remove an app and leaves it intact on cancel or failed save', async () => {
+  setup(); await screen.findByText('Editor');
+  fireEvent.click(screen.getByRole('button', { name: 'Eliminar Editor' }));
+  let confirm = screen.getByRole('group', { name: 'Confirmar eliminación de Editor' });
+  expect(within(confirm).getByText('Se eliminará la entrada; el archivo y los procesos no se modificarán.')).toBeTruthy();
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
+  fireEvent.click(screen.getByRole('button', { name: 'Eliminar Editor' }));
+  confirm = screen.getByRole('group', { name: 'Confirmar eliminación de Editor' });
+  fail.local_app_remove = 'nexo.config.save.unreadable';
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar app' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('No se puede leer el archivo de ajustes.');
+  expect(screen.getByText('Editor')).toBeTruthy();
+  delete fail.local_app_remove;
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar app' }));
+  await waitFor(() => expect(screen.queryByText('Editor')).toBeNull());
+  expect(bridge.invoke).toHaveBeenCalledWith('local_app_remove', { id: 'manual-1' });
+  expect(bridge.invoke.mock.calls.some(([name]) => /kill|terminate|delete_file/.test(name))).toBe(false);
+});
+
+it('selects or replaces a local catalog via native picker while preserving existing sources on cancel or rejection', async () => {
+  setup(); await screen.findByText('Editor');
+  cancel = 'local_catalog_set';
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_set', { sourceId: null }));
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Añadir fuente local' }) as HTMLButtonElement).disabled).toBe(false));
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+  fail.local_catalog_set = 'nexo.local.catalogInvalid';
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+  delete fail.local_catalog_set;
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
+  expect(await screen.findByRole('button', { name: 'Cambiar archivo de Local' })).toBeTruthy();
+  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
+  cancel = 'local_catalog_set';
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar archivo de Trabajo' }));
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_set', { sourceId: 'source-1' }));
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Cambiar archivo de Trabajo' }) as HTMLButtonElement).disabled).toBe(false));
+  expect(sources.find(item => item.id === 'source-1')?.location).toBe('C:\\catalog.json');
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar archivo de Trabajo' }));
+  await waitFor(() => expect(sources.find(item => item.id === 'source-1')?.location).toBe('C:\\replacement.json'));
+  cleanup(); setup();
+  expect(await screen.findByRole('button', { name: 'Cambiar archivo de Local' })).toBeTruthy();
+});
+
+it.each([
+  ['es', 'nexo.local.catalogUnreadable', 'No se pudo leer la fuente local.'],
+  ['es', 'nexo.local.catalogInvalid', 'El catálogo local no es válido.'],
+  ['es', 'nexo.local.catalogLaunchOnly', 'El catálogo local solo puede contener apps de apertura.'],
+  ['en', 'nexo.local.catalogUnreadable', 'Could not read the local source.'],
+  ['en', 'nexo.local.catalogInvalid', 'The local catalog is invalid.'],
+  ['en', 'nexo.local.catalogLaunchOnly', 'The local catalog can only contain launch-only apps.'],
+] as const)('maps refresh error %s %s and permits recovery', async (locale, code, message) => {
+  setup(locale); await screen.findByText('Editor');
+  fail.local_catalog_refresh = code;
+  const label = locale === 'es' ? 'Actualizar fuente Trabajo' : 'Refresh source Trabajo';
+  fireEvent.click(screen.getByRole('button', { name: label }));
+  expect((await screen.findByRole('alert')).textContent).toBe(message);
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+  await waitFor(() => expect(screen.queryByText('Catálogo App')).toBeNull());
+  delete fail.local_catalog_refresh;
+  fireEvent.click(screen.getByRole('button', { name: label }));
+  expect(await screen.findByText('Catálogo App')).toBeTruthy();
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_refresh', { sourceId: 'source-1' });
+});
+
+it('confirms source removal, preserving the official source and manual apps on cancel, failure and success', async () => {
+  setup(); await screen.findByText('Editor');
+  fireEvent.click(screen.getByRole('button', { name: 'Eliminar fuente Trabajo' }));
+  let confirm = screen.getByRole('group', { name: 'Confirmar eliminación de la fuente Trabajo' });
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_catalog_clear', expect.anything());
+  fireEvent.click(screen.getByRole('button', { name: 'Eliminar fuente Trabajo' }));
+  confirm = screen.getByRole('group', { name: 'Confirmar eliminación de la fuente Trabajo' });
+  expect(within(confirm).getByText('Se quitará la fuente y sus vínculos, no los archivos.')).toBeTruthy();
+  fail.local_catalog_clear = 'nexo.config.save.future';
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar fuente' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Los ajustes pertenecen a una versión más reciente y son de solo lectura.');
+  expect(screen.getByText('Trabajo')).toBeTruthy();
+  delete fail.local_catalog_clear;
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar fuente' }));
+  await waitFor(() => expect(screen.queryByText('Trabajo')).toBeNull());
+  await waitFor(() => expect(screen.queryByText('Catálogo App')).toBeNull());
+  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
+  expect(screen.getByText('Editor')).toBeTruthy();
+  expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_clear', { sourceId: 'source-1' });
+  expect(bridge.invoke.mock.calls.some(([name]) => /kill|terminate|delete_file/.test(name))).toBe(false);
+});

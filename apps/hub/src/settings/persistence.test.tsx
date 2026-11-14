@@ -33,6 +33,8 @@ beforeEach(() => {
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
     if (command === 'get_settings') return load ?? { settings: stored, state };
+    if (command === 'local_apps_list') return [];
+    if (command === 'local_catalog_refresh') return { sourceId: 'local-1', entries: [] };
     if (command === 'get_flyout_state') return { visible, sequence: visible ? 1 : 0, cycle: visible ? 1 : 0, at: Date.now() };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
@@ -102,7 +104,7 @@ it('restores appearance, skips onboarding and renders configured sources', async
   await openSettings(); tab('Fuentes del catálogo');
   expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
   expect(screen.getByText('Trabajo')).toBeTruthy();
-  expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(true);
+  await waitFor(() => expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(false));
 });
 
 it('persists the popup opt-out and shares it with settings after a restart', async () => {
