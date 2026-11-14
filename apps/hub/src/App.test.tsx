@@ -2,14 +2,19 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { CatalogViewProps, FirstRunProps, NewsPopupProps, SettingsViewProps } from './model';
 import { backdropAvailable, hideFlyout } from './window';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import type { RegistrySnapshot } from './shell/registry';
 
 // Test the shell's public wiring independently of the other area writers.
+vi.mock('@tauri-apps/api/core', () => ({
+  isTauri: vi.fn(() => false),
+  invoke: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('./catalog', () => ({
-  CatalogView: ({ apps }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}</div>,
+  CatalogView: ({ apps, state, onRetry }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}{state && <span>Estado catálogo: {state}</span>}{onRetry && <button onClick={onRetry}>Reintentar catálogo</button>}</div>,
 }));
 vi.mock('./first-run', () => ({
   FirstRun: ({ onChoose }: FirstRunProps) => <section aria-label="Idioma"><button onClick={() => onChoose('es')}>Español</button><button onClick={() => onChoose('en')}>English</button></section>,
@@ -39,7 +44,13 @@ vi.mock('./window', () => ({
 }));
 
 afterEach(cleanup);
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(isTauri).mockReturnValue(false);
+  vi.mocked(invoke).mockResolvedValue(null);
+  vi.mocked(subscribeRegistry).mockResolvedValue(() => {});
+  vi.mocked(exitHubOnly).mockResolvedValue(undefined);
+});
 
 function enter(language: 'Español' | 'English' = 'Español') {
   const choice = screen.queryByRole('button', { name: language });
@@ -49,6 +60,17 @@ function closeNews() {
   const close = screen.queryByRole('button', { name: 'Cerrar novedades' });
   if (close) fireEvent.click(close);
 }
+
+it('loads the native catalog without treating samples or unknown installation as real', async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  render(<App />); enter();
+  expect(screen.getByText('Estado de instalación no disponible todavía.')).toBeTruthy();
+  expect(screen.queryByText('Antena')).toBeNull();
+  expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Ver catálogo' }));
+  await waitFor(() => expect(screen.getByText('Estado catálogo: error')).toBeTruthy());
+  expect(invoke).toHaveBeenCalledWith('read_catalog_cache');
+});
 
 it('starts with language choice and then shows the installed list, retaining the choice', () => {
   render(<App />);
@@ -133,6 +155,37 @@ it('applies live appearance settings to the panel root', () => {
   expect(main.style.getPropertyValue('--hub-density')).toBe('0.8');
   expect(main.style.getPropertyValue('--hub-opacity')).toBe('0.63');
   expect(main.style.getPropertyValue('--hub-blur')).toBe('12px');
+});
+
+it('labels an installed official launch-only app as official and disables illustrative actions', () => {
+  render(<App apps={[{ id: 'example', name: 'Example', installed: true, running: false, integration: 'local', source: 'official', statusKnown: true, description: 'Example' }]} news={[]} />); enter();
+  expect(screen.getByText(/Catálogo egdev.*Solo apertura/)).toBeTruthy();
+  expect(screen.queryByText(/App local.*Solo apertura/)).toBeNull();
+  expect((screen.getByRole('button', { name: 'Abrir Example' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('keeps live registry updates and unknown installation state through catalog error and retry', async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
+  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
+  render(<App />); enter();
+  await waitFor(() => expect(publish).toBeTypeOf('function'));
+  act(() => publish!({ revision: 1, apps: [{
+    app: { id: 'external', name: 'App conectada', version: '1.0.0' }, capabilities: [],
+    unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [],
+  }] }));
+  expect(screen.getByText('App conectada')).toBeTruthy();
+  expect(screen.getByText('Estado de instalación no disponible todavía.')).toBeTruthy();
+  const catalog = screen.getByRole('tab', { name: 'Catálogo' });
+  fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
+  await waitFor(() => expect(screen.getByText('Estado catálogo: error')).toBeTruthy());
+  expect(invoke).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar catálogo' }));
+  await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
+  const apps = screen.getByRole('tab', { name: 'Mis apps' });
+  fireEvent.mouseDown(apps, { button: 0 }); fireEvent.click(apps);
+  expect(screen.getByText('App conectada')).toBeTruthy();
+  expect(screen.queryByText('No hay aplicaciones instaladas.')).toBeNull();
 });
 
 it('renders live connections and menus without duplicating sample identities', async () => {

@@ -1,3 +1,4 @@
+mod catalog_cache;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;
@@ -101,11 +102,17 @@ pub fn run() {
         .manage(runtime::Routes::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
+            catalog_cache::read_catalog_cache,
+            catalog_cache::write_catalog_cache,
             runtime::registry_snapshot,
             runtime::hub_only_exit
         ]);
     #[cfg(not(windows))]
-    let builder = builder.invoke_handler(tauri::generate_handler![backdrop_available]);
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        backdrop_available,
+        catalog_cache::read_catalog_cache,
+        catalog_cache::write_catalog_cache
+    ]);
     builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {

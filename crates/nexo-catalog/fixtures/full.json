@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "apps": [
+    {
+      "id": "example-app",
+      "name": "Example App",
+      "tagline": "An example for testing",
+      "description": "A fictional catalog entry.",
+      "tags": ["Example", "Desktop"],
+      "iconUrl": "https://example.com/icon.png",
+      "artUrl": "https://example.com/art.png",
+      "installerUrl": "https://example.com/installer.exe",
+      "latestJsonUrl": "https://example.com/latest.json",
+      "integrationLevel": "full",
+      "releasedAt": "2025-01-02T03:04:05Z",
+      "featured": true,
+      "version": "1.2.3-beta.1+build.5",
+      "links": {
+        "github": "https://github.com/example/example",
+        "youtube": "https://youtube.com/@example"
+      },
+      "news": [
+        {
+          "id": "release",
+          "title": "Example release",
+          "text": "A fictional release announcement.",
+          "publishedAt": "2025-01-02T03:04:05Z",
+          "kind": "new"
+        }
+      ]
+    }
+  ]
+}

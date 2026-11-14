@@ -53,3 +53,45 @@ it.each([{ entries: [] }, { entries: [apps[2]] }])('shows the empty catalog with
   expect(screen.queryByRole('article')).toBeNull();
   expect(screen.queryByRole('button', { name: /Instalar/ })).toBeNull();
 });
+
+it('shows a loading message rather than an empty result', () => {
+  render(<CatalogView apps={[]} state="loading" />);
+  expect(screen.getByRole('status').textContent).toMatch(/cargando/i);
+  expect(screen.queryByText('No hay aplicaciones disponibles en el catálogo.')).toBeNull();
+});
+
+it.each(['offline', 'error'] as const)('shows %s and retries while preserving available cached cards', state => {
+  const retry = vi.fn();
+  render(<CatalogView apps={[apps[0]]} state={state} onRetry={retry} />);
+  expect(screen.getByRole('alert').textContent).toMatch(state === 'offline' ? /sin conexión/i : /error/i);
+  expect(screen.getByRole('article', { name: 'Pizarra' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
+it('shows an error without pretending an uncached catalog is empty', () => {
+  render(<CatalogView apps={[]} state="error" reason="unconfigured" onRetry={() => {}} />);
+  expect(screen.getByRole('alert').textContent).toMatch(/fuente oficial.*no está configurada/i);
+  expect(screen.queryByText('No hay aplicaciones disponibles en el catálogo.')).toBeNull();
+});
+
+it('does not enable illustrative installation when official installation state is unknown', () => {
+  render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: false }]} state="ready" />);
+  expect(screen.queryByRole('button', { name: /Instalar Pizarra/ })).toBeNull();
+  expect(screen.getByText(/instalación.*no disponible/i)).toBeTruthy();
+});
+
+it('does not offer a fake official install action even when the app is known to be uninstalled', () => {
+  render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: true }]} state="ready" />);
+  expect(screen.queryByRole('button', { name: /Instalar Pizarra/ })).toBeNull();
+  expect(screen.getByText(/instalación.*no disponible/i)).toBeTruthy();
+});
+
+it('renders validated official artwork and real discovery links without an install action', () => {
+  const app: HubApp = { ...apps[0], source: 'official', statusKnown: false, artUrl: 'https://example.com/art.png' };
+  render(<CatalogView apps={[app]} state="ready" />);
+  const card = screen.getByRole('article', { name: 'Pizarra' });
+  expect(card.querySelector('img')?.getAttribute('src')).toBe('https://example.com/art.png');
+  expect(within(card).getByRole('link', { name: 'Código en GitHub de Pizarra' }).getAttribute('href')).toBe(app.links?.github);
+  expect(within(card).queryByRole('button', { name: /Instalar/ })).toBeNull();
+});

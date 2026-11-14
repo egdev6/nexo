@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, Tabs } from '@egdev/ui';
+import { isTauri } from '@tauri-apps/api/core';
 import { CatalogView } from './catalog';
+import { diskCache, loadCatalog, OFFICIAL_CATALOG_URL, webFetcher, type CatalogState } from './catalog/loader';
+import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
 import type { HubApp, HubSettings, NewsItem } from './model';
 import { NewsPopup } from './news';
@@ -24,7 +27,7 @@ function AppIcon({ app }: { app: HubApp }) {
 }
 
 function Status({ app }: { app: HubApp }) {
-  if (app.integration === 'local') return <span className="secondary">App local · Estado desconocido</span>;
+  if (app.integration === 'local') return <span className="secondary">{app.source === 'official' ? 'Catálogo egdev · Solo apertura' : 'App local · Estado desconocido'}</span>;
   return <span className="secondary">Estado desconocido{app.update && <> · <span className="status-warning">Actualización disponible (muestra)</span></>}</span>;
 }
 
@@ -68,31 +71,34 @@ function AppRow({ app }: { app: HubApp }) {
   </Collapsible>;
 }
 
-function InstalledPanel({ apps, connected, selectCatalog }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void }) {
+function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean }) {
   const ids = new Set(connected.map(entry => entry.app.id));
-  const installed = apps.filter(app => app.installed && !ids.has(app.id));
-  const available = apps.filter(app => !app.installed && !ids.has(app.id));
+  const installed = apps.filter(app => app.statusKnown !== false && app.installed && !ids.has(app.id));
+  const available = apps.filter(app => app.statusKnown !== false && !app.installed && !ids.has(app.id));
   return <>
     {connected.length > 0 && <section aria-labelledby="connected-title"><div className="section-label"><h2 id="connected-title">Conectadas</h2><span>{connected.length}</span></div>
       {connected.map(app => <ConnectedRow key={app.app.id} app={app} />)}
     </section>}
-    <div className="section-label"><h2>Instaladas</h2><span>{installed.length} {installed.length === 1 ? 'aplicación' : 'aplicaciones'} · muestra</span></div>
-    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} />) : <div className="empty-state"><p>No hay aplicaciones instaladas.</p><Button variant="neutral" size="sm" onClick={selectCatalog}>Ver catálogo</Button></div>}
+    <div className="section-label"><h2>Instaladas</h2>{installedStateKnown && <span>{installed.length} {installed.length === 1 ? 'aplicación' : 'aplicaciones'}{installed.some(app => app.source !== 'official') && ' · muestra'}</span>}</div>
+    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} />) : <div className="empty-state"><p>{installedStateKnown ? 'No hay aplicaciones instaladas.' : 'Estado de instalación no disponible todavía.'}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>Ver catálogo</Button></div>}
     {available.length > 0 && <section className="catalog-preview" aria-labelledby="preview-title">
       <div className="section-label"><h2 id="preview-title">También en el catálogo</h2><span>Sin instalar</span></div>
       {available.map(app => <div className="preview-row" key={app.id}><div className="app-info"><strong>{app.name}</strong><span className="secondary">Catálogo egdev</span></div><Action label="Instalar" app={app} /></div>)}
     </section>}
     {available.some(app => app.id === 'pizarra') && <p className="news-line"><Badge tone="brand">Nuevo</Badge> Pizarra en Novedades</p>}
-    <p className="foot">Muestra de diseño · las acciones de apps son ilustrativas.</p>
+    <p className="foot">{installedStateKnown ? 'Muestra de diseño · las acciones de apps son ilustrativas.' : 'La gestión de aplicaciones aún no está disponible.'}</p>
   </>;
 }
 
 interface FlyoutProps {
   apps?: HubApp[];
   news?: NewsItem[];
+  catalogState?: CatalogState;
+  onCatalogRetry?: () => void;
+  installedStateKnown?: boolean;
 }
 
-export function FlyoutPanel({ apps = sampleApps, news = sampleNews }: FlyoutProps) {
+export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true }: FlyoutProps) {
   const [active, setActive] = useState<Tab>('apps');
   const [settings, setSettings] = useState<HubSettings>(defaultSettings);
   const [firstRun, setFirstRun] = useState(true);
@@ -101,7 +107,9 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews }: FlyoutProp
   const [hasBackdrop, setHasBackdrop] = useState(false);
   const [registry, setRegistry] = useState<RegistrySnapshot>({ revision: 0, apps: [] });
   const [registryFailed, setRegistryFailed] = useState(false);
-  const installedCount = apps.filter(app => app.installed).length;
+  const installed = apps.filter(app => app.statusKnown !== false && app.installed);
+  const installedCount = installed.length;
+  const sampleInstalled = installed.some(app => app.source !== 'official');
 
   useEffect(() => {
     let mounted = true;
@@ -151,7 +159,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews }: FlyoutProp
 
   return <main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
     <header className="panel-head"><div className="heading"><span className="n-mark" aria-hidden="true">N</span><h1 id="panel-title">Nexo</h1>
-      <p>· {installedCount} {installedCount === 1 ? 'instalada' : 'instaladas'} (muestra)</p>
+      <p>· {installedStateKnown ? `${installedCount} ${installedCount === 1 ? 'instalada' : 'instaladas'}${sampleInstalled ? ' (muestra)' : ''}` : 'instalación sin comprobar'}</p>
       <div className="head-actions">
         {!firstRun && !showSettings && <IconButton label="Ajustes" title="Ajustes" variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
         <IconButton label="Cerrar panel" title="Cerrar panel" variant="secondary" icon={<Icon name="close" />} onClick={() => void hideFlyout()} />
@@ -167,8 +175,8 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews }: FlyoutProp
       setNewsOpen(settings.showNewsOnOpen && news.length > 0);
     }} /></div> : showSettings ? <div className="area-scroll"><SettingsView settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" label="Secciones de Nexo" value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: 'Mis apps', content: <InstalledPanel apps={apps} connected={registry.apps} selectCatalog={() => setActive('catalog')} /> },
-        { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} /> },
+        { value: 'apps', label: 'Mis apps', content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} selectCatalog={() => setActive('catalog')} /> },
+        { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} /> },
       ]} />}
     <NewsPopup items={news} open={!firstRun && newsOpen} onClose={() => setNewsOpen(false)} dontShow={!settings.showNewsOnOpen}
       onDontShowChange={dontShow => setSettings(current => ({ ...current, showNewsOnOpen: !dontShow }))} />
@@ -176,5 +184,24 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews }: FlyoutProp
 }
 
 export default function App(props: FlyoutProps) {
-  return <FlyoutPanel {...props} />;
+  const native = isTauri();
+  const liveCatalog = native && props.apps === undefined;
+  const [catalogState, setCatalogState] = useState<CatalogState>({ status: 'loading' });
+  const requestId = useRef(0);
+
+  function retry() {
+    const id = ++requestId.current;
+    setCatalogState(current => ({ ...current, status: 'loading' }));
+    void loadCatalog(OFFICIAL_CATALOG_URL, diskCache, webFetcher).then(result => {
+      if (id === requestId.current) setCatalogState(result);
+    });
+  }
+  useEffect(() => {
+    if (liveCatalog) retry();
+    return () => { requestId.current++; };
+  }, [liveCatalog]);
+
+  if (!liveCatalog) return <FlyoutPanel {...props} news={props.news ?? (native ? [] : sampleNews)} />;
+  const projected = catalogState.catalog ? projectCatalog(catalogState.catalog) : { apps: [], news: [] };
+  return <FlyoutPanel {...props} apps={projected.apps} news={projected.news} catalogState={catalogState} onCatalogRetry={retry} installedStateKnown={false} />;
 }
