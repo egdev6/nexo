@@ -10,6 +10,7 @@ use crate::install_service::{
     InstallResult, InstallService, InstallWorkspace, Installer, Monitor, Operation, ProgressPhase,
     ProgressReporter, ProgressSink,
 };
+use crate::install_signature::VerifyError;
 use crate::install_workspace::{PrepareError, PrepareFailure};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use nexo_catalog::CatalogApp;
@@ -783,12 +784,8 @@ async fn prepare_and_spawn_errors_preserve_explicit_cleanup_failure() {
             cleanup_failed,
         });
         assert_eq!(
-            service(&state).install_app("minimal", "en").await,
-            if cleanup_failed {
-                InstallResult::CleanupFailed
-            } else {
-                InstallResult::DownloadFailed
-            }
+            serde_json::to_value(service(&state).install_app("minimal", "en").await).unwrap(),
+            json!({"status": if cleanup_failed { "cleanupFailed" } else { "storageFailed" }})
         );
         assert!(!state.events().contains(&"launch".into()));
         assert_eq!(state.active.load(Ordering::SeqCst), 0);
@@ -812,6 +809,160 @@ async fn prepare_and_spawn_errors_preserve_explicit_cleanup_failure() {
             state.active.load(Ordering::SeqCst),
             usize::from(cleanup_failure)
         );
+    }
+}
+
+#[tokio::test]
+async fn prepare_failures_return_stable_specific_statuses_and_never_spawn() {
+    use install_download::Failure;
+    let cases = [
+        (
+            PrepareFailure::Download(Failure::InitialUrl),
+            "urlNotAllowed",
+        ),
+        (
+            PrepareFailure::Download(Failure::RedirectUrl),
+            "hostNotAllowed",
+        ),
+        (
+            PrepareFailure::Download(Failure::RedirectLimit),
+            "redirectLimit",
+        ),
+        (PrepareFailure::Download(Failure::Network), "networkFailed"),
+        (
+            PrepareFailure::Download(Failure::ConnectTimeout),
+            "connectTimedOut",
+        ),
+        (
+            PrepareFailure::Download(Failure::DownloadTimeout),
+            "downloadTimedOut",
+        ),
+        (PrepareFailure::Download(Failure::SizeLimit), "tooLarge"),
+        (
+            PrepareFailure::Download(Failure::LengthMismatch),
+            "lengthMismatch",
+        ),
+        (PrepareFailure::Download(Failure::Storage), "storageFailed"),
+        (
+            PrepareFailure::Verify(VerifyError::MissingKey),
+            "keyMissing",
+        ),
+        (
+            PrepareFailure::Verify(VerifyError::MalformedKey),
+            "keyInvalid",
+        ),
+        (
+            PrepareFailure::Verify(VerifyError::MalformedSignature),
+            "signatureMalformed",
+        ),
+        (
+            PrepareFailure::Verify(VerifyError::LegacySignature),
+            "signatureUnsupported",
+        ),
+        (
+            PrepareFailure::Verify(VerifyError::VerificationFailed),
+            "signatureInvalid",
+        ),
+        (
+            PrepareFailure::Verify(VerifyError::ReadFailed),
+            "storageFailed",
+        ),
+        (PrepareFailure::UnsupportedInstaller, "assetNotAllowed"),
+        (PrepareFailure::Storage, "storageFailed"),
+    ];
+    for (cause, status) in cases {
+        for cleanup_failed in [false, true] {
+            let state = State::new(1, 1);
+            *state.prepare_error.lock().unwrap() = Some(PrepareError {
+                cause,
+                cleanup_failed,
+            });
+            let result = service(&state).install_app("minimal", "en").await;
+            assert_eq!(
+                serde_json::to_value(result).unwrap(),
+                json!({"status": if cleanup_failed { "cleanupFailed" } else { status }}),
+                "{cause:?}"
+            );
+            assert!(!state.events().contains(&"launch".into()));
+            assert_eq!(state.active.load(Ordering::SeqCst), 0);
+        }
+    }
+}
+
+#[tokio::test]
+async fn cleanup_failure_after_process_exit_is_returned_even_after_success() {
+    for outcome in [Ok(()), Err(LaunchError::Exit(42))] {
+        let state = State::new(1, 1);
+        state.cleanup_failure.store(true, Ordering::SeqCst);
+        *state.outcome.lock().unwrap() = outcome;
+        let result = service(&state).install_app("minimal", "en").await;
+        assert_eq!(
+            serde_json::to_value(result).unwrap(),
+            json!({"status":"cleanupFailed"})
+        );
+        let events = state.events();
+        assert!(
+            events.iter().position(|event| event == "exited")
+                < events.iter().position(|event| event == "cleanup")
+        );
+        assert_eq!(state.active.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn late_cleanup_failure_after_timeout_or_wait_error_is_emitted() {
+    for (outcome, expected) in [
+        (LaunchError::Timeout, InstallResult::Timeout),
+        (LaunchError::Wait, InstallResult::MonitorFailed),
+    ] {
+        for cleanup_failure in [false, true] {
+            let state = State::new(1, 0);
+            state
+                .cleanup_failure
+                .store(cleanup_failure, Ordering::SeqCst);
+            *state.outcome.lock().unwrap() = Err(outcome);
+            let sink = Arc::new(Events::default());
+            let service = service(&state);
+            assert_eq!(
+                service
+                    .install_app_with_progress("minimal", "en", sink.clone())
+                    .await,
+                expected
+            );
+            state.until("monitor").await;
+            assert_eq!(state.active.load(Ordering::SeqCst), 1);
+            assert!(!state.events().contains(&"cleanup".into()));
+            state.exited.add_permits(1);
+            state.until("cleanup").await;
+            for _ in 0..1000 {
+                if sink.0.lock().unwrap().iter().any(|event| {
+                    serde_json::to_value(event).unwrap().get("cleanupFailed") == Some(&json!(true))
+                }) {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+            let warnings: Vec<_> = sink
+                .0
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|event| serde_json::to_value(event).unwrap())
+                .filter(|event| event.get("cleanupFailed") == Some(&json!(true)))
+                .collect();
+            if cleanup_failure {
+                assert_eq!(
+                    warnings,
+                    [json!({"id":"minimal", "phase":"installing", "cleanupFailed":true})]
+                );
+            } else {
+                assert!(warnings.is_empty());
+            }
+            assert_eq!(
+                state.active.load(Ordering::SeqCst),
+                usize::from(cleanup_failure)
+            );
+        }
     }
 }
 

@@ -24,6 +24,7 @@ function InstallAction({ app, reason, installs, focused }: { app: HubApp; reason
       {progress.phase === 'downloading' && <div className="catalog-progress"><ProgressBar size="lg" value={percent ?? NaN} label={t(locale, 'install.downloadFor', { name: app.name })} />
         {percent !== undefined && <span>{t(locale, 'install.percent', { percent: formatNumber(locale, percent) })}</span>}</div>}
       {cancelError && <div role="alert" className="catalog-install-error">{t(locale, `install.error.${cancelError}`)}</div>}
+      {entry.cleanupFailed && cancelError !== 'cleanupFailed' && <div role="alert" className="catalog-install-error">{t(locale, 'install.error.cleanupFailed')}</div>}
       {!afterSpawn && <Button type="button" size="sm" variant="neutral" disabled={cancelling} aria-label={t(locale, 'install.cancelFor', { name: app.name })} onClick={() => installs?.cancel(app.id)}>{t(locale, 'install.cancel')}</Button>}
     </div>;
   }
@@ -31,6 +32,7 @@ function InstallAction({ app, reason, installs, focused }: { app: HubApp; reason
   const message = error ? t(locale, `install.error.${error.status}`, error.status === 'installerFailed' ? { code: error.code } : undefined) : undefined;
   return <div className="catalog-install">
     {message && <div role="alert" className="catalog-install-error">{message}</div>}
+    {entry?.status === 'error' && entry.cleanupFailed && error?.status !== 'cleanupFailed' && <div role="alert" className="catalog-install-error">{t(locale, 'install.error.cleanupFailed')}</div>}
     {reason && <div id={id} className="catalog-install-reason">{t(locale, reason)}</div>}
     {(!focused || !reason) && <Button type="button" size="sm" variant="primary" disabled={!!reason || !installs} aria-describedby={reason ? id : undefined}
       aria-label={t(locale, error ? 'install.retryFor' : 'install.installFor', { name: app.name })} onClick={() => installs?.start(app.id)}>{t(locale, error ? 'common.retry' : 'common.install')}</Button>}
@@ -81,7 +83,7 @@ export function CatalogView({ apps, state = 'ready', stale = false, reason, inst
   const target = targetAppId ? apps.find(app => app.id === targetAppId && app.source === 'official') : undefined;
   const available = apps.filter(app => {
     const entry = app.source === 'official' ? installs?.entries.get(app.id) : undefined;
-    return entry?.status !== 'installed' && (entry?.status === 'running' || app === target || (app.integration === 'catalog' && (!app.installed || app.statusKnown === false)));
+    return entry?.status !== 'installed' && (entry?.status === 'running' || (entry?.status === 'error' && (entry.cleanupFailed || entry.error.status === 'cleanupFailed')) || app === target || (app.integration === 'catalog' && (!app.installed || app.statusKnown === false)));
   });
   const failed = state === 'offline' || state === 'error';
   const unknown = available.some(app => app.statusKnown === false);

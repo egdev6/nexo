@@ -1,11 +1,12 @@
 //! Composition of the native installation boundaries.
 use crate::install_approval::{ApprovalDecision, ApprovalRequest, InstallApproval};
 use crate::install_download::{
-    Artifact, Body, Network, NetworkError, Progress, Response, ResponseKind,
+    Artifact, Body, Failure, Network, NetworkError, Progress, Response, ResponseKind,
 };
 use crate::install_feed::{CatalogFeed, FreshCatalog};
 use crate::install_launcher::LaunchError;
-use crate::install_workspace::PrepareError;
+use crate::install_signature::VerifyError;
+use crate::install_workspace::{PrepareError, PrepareFailure};
 use nexo_catalog::CatalogApp;
 use std::{
     collections::HashMap,
@@ -36,7 +37,21 @@ pub(crate) enum InstallResult {
     NotAvailable,
     DetectionUnknown,
     ReleaseChanged,
-    DownloadFailed,
+    UrlNotAllowed,
+    HostNotAllowed,
+    RedirectLimit,
+    NetworkFailed,
+    ConnectTimedOut,
+    DownloadTimedOut,
+    TooLarge,
+    LengthMismatch,
+    StorageFailed,
+    KeyMissing,
+    KeyInvalid,
+    SignatureMalformed,
+    SignatureUnsupported,
+    SignatureInvalid,
+    AssetNotAllowed,
     CleanupFailed,
     SpawnFailed,
     MonitorFailed,
@@ -64,6 +79,8 @@ pub(crate) struct InstallProgress {
     pub received: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total: Option<u64>,
+    #[serde(rename = "cleanupFailed", skip_serializing_if = "Option::is_none")]
+    pub cleanup_failed: Option<bool>,
 }
 
 pub(crate) trait ProgressSink: Send + Sync {
@@ -105,6 +122,16 @@ impl ProgressReporter {
             phase,
             received: None,
             total: None,
+            cleanup_failed: None,
+        });
+    }
+    fn cleanup_failed(&self) {
+        self.sink.emit(InstallProgress {
+            id: self.id.clone(),
+            phase: ProgressPhase::Installing,
+            received: None,
+            total: None,
+            cleanup_failed: Some(true),
         });
     }
     pub fn download(&self, progress: Progress) {
@@ -131,6 +158,7 @@ impl ProgressReporter {
             phase: ProgressPhase::Downloading,
             received: Some(progress.bytes),
             total: progress.total,
+            cleanup_failed: None,
         });
     }
 }
@@ -470,6 +498,33 @@ where
     }
 }
 
+fn prepare_failure(error: PrepareError) -> InstallResult {
+    if error.cleanup_failed {
+        return InstallResult::CleanupFailed;
+    }
+    match error.cause {
+        PrepareFailure::Download(Failure::InitialUrl) => InstallResult::UrlNotAllowed,
+        PrepareFailure::Download(Failure::RedirectUrl) => InstallResult::HostNotAllowed,
+        PrepareFailure::Download(Failure::RedirectLimit) => InstallResult::RedirectLimit,
+        PrepareFailure::Download(Failure::Network) => InstallResult::NetworkFailed,
+        PrepareFailure::Download(Failure::ConnectTimeout) => InstallResult::ConnectTimedOut,
+        PrepareFailure::Download(Failure::DownloadTimeout) => InstallResult::DownloadTimedOut,
+        PrepareFailure::Download(Failure::SizeLimit) => InstallResult::TooLarge,
+        PrepareFailure::Download(Failure::LengthMismatch) => InstallResult::LengthMismatch,
+        PrepareFailure::Download(Failure::Storage)
+        | PrepareFailure::Verify(VerifyError::ReadFailed)
+        | PrepareFailure::Storage => InstallResult::StorageFailed,
+        PrepareFailure::Verify(VerifyError::MissingKey) => InstallResult::KeyMissing,
+        PrepareFailure::Verify(VerifyError::MalformedKey) => InstallResult::KeyInvalid,
+        PrepareFailure::Verify(VerifyError::MalformedSignature) => {
+            InstallResult::SignatureMalformed
+        }
+        PrepareFailure::Verify(VerifyError::LegacySignature) => InstallResult::SignatureUnsupported,
+        PrepareFailure::Verify(VerifyError::VerificationFailed) => InstallResult::SignatureInvalid,
+        PrepareFailure::UnsupportedInstaller => InstallResult::AssetNotAllowed,
+    }
+}
+
 fn cleanup<I: Installer>(installer: I, result: InstallResult) -> InstallResult {
     if installer.cleanup().is_err() {
         InstallResult::CleanupFailed
@@ -562,13 +617,7 @@ where
         .await
     {
         Ok(installer) => installer,
-        Err(error) => {
-            return if error.cleanup_failed {
-                InstallResult::CleanupFailed
-            } else {
-                InstallResult::DownloadFailed
-            };
-        }
+        Err(error) => return prepare_failure(error),
     };
     if cancelled(sender, operation) {
         return cleanup(installer, InstallResult::Cancelled);
@@ -618,7 +667,12 @@ where
             let _ = sender.send(result.clone());
         }
         let _ = running.wait_until_exit().await;
-        return cleanup(installer, result);
+        let result = cleanup(installer, result);
+        // The command already returned; use the existing progress channel for the late warning.
+        if result == InstallResult::CleanupFailed {
+            progress.cleanup_failed();
+        }
+        return result;
     }
     let exit = running.wait_until_exit().await;
     let result = match (first, exit) {

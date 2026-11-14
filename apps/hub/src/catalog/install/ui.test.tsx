@@ -162,6 +162,59 @@ it.each([
   expect(refresh).not.toHaveBeenCalledWith('installed');
 });
 
+it.each([
+  ['urlNotAllowed', 'La URL del instalador no está permitida. Actualiza el catálogo.', 'The installer URL is not allowed. Refresh the catalog.'],
+  ['hostNotAllowed', 'La redirección de descarga no está permitida. Actualiza el catálogo.', 'The download redirect is not allowed. Refresh the catalog.'],
+  ['redirectLimit', 'La descarga tuvo demasiadas redirecciones. Reintenta más tarde.', 'The download had too many redirects. Retry later.'],
+  ['networkFailed', 'Falló la descarga. Comprueba la conexión y reintenta.', 'The download failed. Check the connection and retry.'],
+  ['connectTimedOut', 'Se agotó el tiempo de conexión. Comprueba la conexión y reintenta.', 'The connection timed out. Check the connection and retry.'],
+  ['downloadTimedOut', 'Se agotó el tiempo de descarga. Comprueba la conexión y reintenta.', 'The download timed out. Check the connection and retry.'],
+  ['tooLarge', 'El archivo de instalación supera el tamaño permitido. Actualiza el catálogo.', 'The installation file exceeds the allowed size. Refresh the catalog.'],
+  ['lengthMismatch', 'La descarga está incompleta o tiene un tamaño inesperado. Reintenta.', 'The download is incomplete or has an unexpected size. Retry.'],
+  ['storageFailed', 'No se pudieron guardar o leer los archivos temporales. Comprueba el espacio y los permisos.', 'Could not save or read temporary files. Check disk space and permissions.'],
+  ['keyMissing', 'Falta la clave de verificación. Actualiza el catálogo.', 'The verification key is missing. Refresh the catalog.'],
+  ['keyInvalid', 'La clave de verificación no es válida. Actualiza el catálogo.', 'The verification key is invalid. Refresh the catalog.'],
+  ['signatureMalformed', 'La firma del instalador no tiene un formato válido. Actualiza el catálogo.', 'The installer signature has an invalid format. Refresh the catalog.'],
+  ['signatureUnsupported', 'La firma del instalador usa un formato no admitido. Actualiza el catálogo.', 'The installer signature uses an unsupported format. Refresh the catalog.'],
+  ['signatureInvalid', 'No se pudo verificar la firma del instalador. No se ha ejecutado.', 'The installer signature could not be verified. It was not run.'],
+  ['assetNotAllowed', 'Este instalador no es compatible. Actualiza el catálogo.', 'This installer is not supported. Refresh the catalog.'],
+] as const)('shows the specific %s error in both languages', async (status, es, en) => {
+  native.install.mockResolvedValueOnce({ status });
+  const { rerender, refresh } = await show([alfa]);
+  fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
+  expect((await card('Alfa').findByRole('alert')).textContent).toBe(es);
+  expect(refresh).not.toHaveBeenCalled();
+  expect(card('Alfa').getByRole('button', { name: 'Reintentar Alfa' })).toBeTruthy();
+  native.locale = 'en';
+  rerender(<FlyoutPanel apps={[alfa]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  expect(card('Alfa').getByRole('alert').textContent).toBe(en);
+  expect(native.install).toHaveBeenCalledTimes(1);
+});
+
+it.each(['before', 'after'] as const)('reports late cleanup failure arriving %s the timeout response, preserving the original error', async order => {
+  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const { rerender, refresh } = await show([alfa]);
+  fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
+  act(() => native.receive!({ id: 'alfa', phase: 'installing' }));
+  const warning = { id: 'alfa', phase: 'installing' as const, cleanupFailed: true as const };
+  if (order === 'before') act(() => native.receive!(warning));
+  await act(async () => run.resolve({ status: 'timeout' }));
+  if (order === 'after') act(() => native.receive!(warning));
+  expect(card('Alfa').getAllByRole('alert').map(alert => alert.textContent)).toEqual([
+    'El instalador tardó demasiado y puede seguir ejecutándose. Comprueba su estado antes de reintentar.',
+    'No se pudieron limpiar los archivos temporales de instalación.',
+  ]);
+  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  expect(card('Alfa').getAllByRole('alert')).toHaveLength(2);
+  expect((card('Alfa').getByRole('button', { name: 'Reintentar Alfa' }) as HTMLButtonElement).disabled).toBe(true);
+  native.locale = 'en';
+  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  expect(card('Alfa').getAllByRole('alert').map(alert => alert.textContent)).toEqual([
+    'The installer timed out and may still be running. Check its status before retrying.',
+    'Could not clean up temporary installation files.',
+  ]);
+});
+
 it('keeps a targeted installed card visible for News but does not offer installation', () => {
   render(<CatalogView apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]} targetAppId="alfa" />);
   expect(card('Alfa').getByText('La app ya está instalada.')).toBeTruthy();
