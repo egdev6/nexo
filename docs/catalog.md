@@ -1,4 +1,4 @@
-# Official catalog v1 and v2
+# Official catalog v1, v2 and v3
 
 The catalog is a maintainer-curated **allowlist**, not repository discovery: an app appears as an
 official app only when the public catalog contains it. The maintainer reviews public status and
@@ -7,8 +7,9 @@ publish private URLs, tokens, private metadata or examples copied from this priv
 
 ## Format
 
-The envelope is `{ "schemaVersion": 1, "apps": [...] }` or `{ "schemaVersion": 2, "apps": [...] }`.
-Readers accept both versions; v1 continues to reject v2-only fields. A fictional full example and a minimal
+The envelope is `{ "schemaVersion": 1, "apps": [...] }`, `{ "schemaVersion": 2, "apps": [...] }`,
+or `{ "schemaVersion": 3, "apps": [...] }`. Readers accept all three versions; old versions
+continue to reject fields introduced later. A fictional full example and a minimal
 example are in `crates/nexo-catalog/fixtures/`; they are test/development fixtures, **not** the
 live catalog. The structural schema is `crates/nexo-catalog/catalog.schema.json`; Rust
 `nexo_catalog::parse_catalog` and TypeScript `parseCatalog` also perform domain validation.
@@ -31,7 +32,8 @@ Each app has:
 | `news` | yes | App-scoped news entries; may be empty. |
 | `version` | no | SemVer metadata for the published app; not evidence of an installed version or update. |
 | `links` | no | Object with optional HTTPS `github` and `youtube` links. |
-| `detection` | v2 only, optional | `{ "windows": { "displayName": "Example App", "publisher": "Example Publisher", "executableRelativePath": "bin\\\\Example.exe" } }`. All three fields are required nonblank strings. A hint is metadata, not proof of installation. |
+| `updaterPublicKey` | v3 only, optional | The Tauri updater's base64-encoded minisign public key, exactly as in `plugins.updater.pubkey`. Omit when not verified. |
+| `detection` | v2/v3, optional | `{ "windows": { "displayName": "Example App", "publisher": "Example Publisher", "executableRelativePath": "bin\\\\Example.exe" } }`. All three fields are required nonblank strings. A hint is metadata, not proof of installation. |
 
 Each news entry has required `id`, nonblank `title` and `text`, `publishedAt`, and `kind`
 (`new`, `featured`, `update`). IDs are unique within each app; the UI projects a globally
@@ -53,8 +55,24 @@ uninstall entry, not the catalog display name. The executable path is relative t
 only `.exe` paths are accepted, without absolute/UNC/drive paths, traversal, empty components,
 Windows-forbidden characters, controls, or components ending in space or dot. A matching path and
 publisher are not authentication: HKCU and same-user files can be spoofed. Confirm actual installer
-metadata with app owners before publishing a hint. A v1 app or v2 app without a hint has unknown
+metadata with app owners before publishing a hint. A v1 app or v2/v3 app without a hint has unknown
 installation state; never infer it from catalog `version` or IPC.
+
+In v3, `installerUrl` and `latestJsonUrl` must identify a release asset at
+`https://github.com/egdev6/<repo>/releases/download/<tag>/<asset>`. The domain validator
+checks the parsed host, owner and path; rejects credentials, non-default ports, query strings,
+fragments, normalized traversal and escaped separators; and permits no extra path components.
+V1/v2 retain their original HTTPS policy. A v3 key must decode to a minisign public-key file
+with an `untrusted comment:` line and a base64 `Ed` public-key record. This shape check is
+not signature verification, proof of publisher control or authorization to execute anything.
+
+A v3 entry that publishes `updaterPublicKey` also asserts that its `installerUrl` is a per-user
+Tauri NSIS installer (`bundle.windows.nsis.installMode: "currentUser"`) whose asset name ends in
+`_x64-setup.exe`, signed by that key with a prehashed minisign signature at `<installerUrl>.sig`.
+The hub rejects any other asset (for example `.msi`) before downloading. App owners must confirm
+the install mode of the release before adding or updating the key. At install time the hub verifies
+the signature before running anything, runs the installer with `/S` and no elevation, and treats an
+install that is not detected in the current user's uninstall registry as a failure.
 
 `latestJsonUrl` is owned by the app. Before any updater consumes it, the app owner must confirm
 its actual Tauri updater manifest format and verification configuration; the catalog loader does
@@ -68,35 +86,40 @@ are owned by #9, and install/update execution by #7/#8. Catalog `version` is nev
 
 ## Loading, cache and trust
 
-The native hub starts with a fixed source configured in
-`apps/hub/src/catalog/loader.ts`. The official catalog is published from the public repository
+The native hub starts with fixed sources configured in `apps/hub/src/catalog/loader.ts`.
+The official v1/v2 feeds are published from the public repository
 [`egdev6/nexo-catalog`](https://github.com/egdev6/nexo-catalog) on GitHub Pages:
-`https://egdev6.github.io/nexo-catalog/v2/catalog.json` (preferred) and
-`https://egdev6.github.io/nexo-catalog/catalog.json` (v1 fallback). Editing that repository updates every
-install on its next start without a Nexo release, as long as the content stays within a schema version
-the installed hub understands. If both endpoints and caches fail, the hub displays an error with retry
+`https://egdev6.github.io/nexo-catalog/v2/catalog.json` and
+`https://egdev6.github.io/nexo-catalog/catalog.json`. The new preferred v3 endpoint is
+`https://egdev6.github.io/nexo-catalog/v3/catalog.json`; its publication requires separate
+approval and coordination. Editing the catalog updates installs on their next start without a
+Nexo release, as long as the content stays within a schema version the installed hub understands.
+If all endpoints and caches fail, the hub displays an error with retry
 rather than presenting a fixture as official. Browser-only design preview uses labeled sample data. The loader fetches on startup and explicit retry with an eight-second timeout, rejects
-redirects, checks HTTPS, validates the whole response, and saves only valid data to the version-specific cache in Tauri's app-data directory: `catalog.json` for v1 and
-`catalog-v2.json` for v2. A corrupt cache is ignored. On offline/HTTP/parse/
+redirects, checks HTTPS, validates the whole response, and saves only valid data to the version-specific cache in Tauri's app-data directory: `catalog.json` for v1,
+`catalog-v2.json` for v2, and `catalog-v3.json` for v3. A corrupt cache is ignored. On offline/HTTP/parse/
 validation failure a valid previous cache remains visible with a stale warning; without one the
 error/offline state offers retry. A successful empty catalog shows the empty state. Cache write
 failure is surfaced instead of claiming offline persistence. There is no TTL or ETag policy in v1.
-New clients prefer the separately configured v2 endpoint and its cache, falling back to v1 when v2
-is unavailable and has no valid cache. Responses and caches of the wrong version are rejected.
-Never replace the v1 endpoint in place with v2. The webview performs the fetch: GitHub Pages answers
+New clients prefer the separately configured v3 endpoint and its cache, falling back to v2 and
+then v1 when a newer version is unavailable and has no valid cache. Responses and caches of the wrong version are rejected.
+Never replace a versioned endpoint in place with a newer schema. The webview performs the fetch: GitHub Pages answers
 with `Access-Control-Allow-Origin: *` and `Cache-Control: max-age=600`, so changes reach clients within
 about ten minutes. The webview CSP allows fetches and images only from `https://egdev6.github.io`;
 catalog icons are served from the catalog repository for that reason.
 
 HTTPS and validation protect transport and shape, not publisher identity or installer integrity.
-V1 does not add catalog signatures, mandatory installer hashes, keys or rotation. These and
-third-party sources require a separate security design. App updater verification remains the app's
-responsibility. Remote strings are displayed as text; no catalog content is executed or auto-installed.
+The catalog has no signature, mandatory installer hashes or key rotation/revocation mechanism.
+The v3 key is metadata, not evidence that a download is trusted: the hub's installer fetches current
+v3 data natively, asks for native confirmation, and verifies the detached signature with that key
+before any execution. Third-party sources require a separate security design. Remote strings are
+displayed as text; nothing is installed without the user's confirmation, and only signature-verified
+installers are run.
 
 ## Publication and adding an app
 
 1. The catalog lives in the **dedicated public repository** `egdev6/nexo-catalog`, served over HTTPS by
-   GitHub Pages; its `Validate catalog` workflow checks both files against the schema. Do not make the
+   GitHub Pages; its `Validate catalog` workflow checks the published files against the schema. Do not make the
    private Nexo repository public.
 2. For each inclusion, a maintainer reviews the app and verifies that the repository, installer,
    icon/art, updater endpoint and discovery destinations are intentionally public. Verify all URLs

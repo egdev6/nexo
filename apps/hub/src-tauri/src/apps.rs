@@ -43,10 +43,13 @@ pub(crate) async fn close_connected_app(
 
 #[cfg(windows)]
 fn official_catalog(app: tauri::AppHandle) -> Result<Catalog, String> {
-    let text = match crate::catalog_cache::read_catalog_v2_cache(app.clone())? {
+    let text = match crate::catalog_cache::read_catalog_v3_cache(app.clone())? {
         Some(text) => text,
-        None => crate::catalog_cache::read_catalog_cache(app)?
-            .ok_or_else(|| "nexo.appNoCatalog".to_string())?,
+        None => match crate::catalog_cache::read_catalog_v2_cache(app.clone())? {
+            Some(text) => text,
+            None => crate::catalog_cache::read_catalog_cache(app)?
+                .ok_or_else(|| "nexo.appNoCatalog".to_string())?,
+        },
     };
     nexo_catalog::parse_catalog(&text).map_err(|error| error.to_string())
 }
@@ -385,6 +388,41 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
         .collect()
 }
 
+// Keep the entire freshly fetched catalog: #6 treats a match shared by two official
+// entries as unknown. A selected app detached from that catalog must not authorize install.
+fn install_detection(
+    catalog: &Catalog,
+    app: &nexo_catalog::CatalogApp,
+    registry: &impl Registry,
+) -> crate::install_service::Detection {
+    use crate::install_service::Detection;
+    if !catalog.apps.iter().any(|candidate| candidate == app) {
+        return Detection::Unknown;
+    }
+    match matched_apps(catalog, registry)
+        .into_iter()
+        .find(|(observation, _)| observation.id == app.id)
+        .map(|(observation, _)| observation)
+    {
+        Some(observation) => match observation.state {
+            InstallState::Installed => Detection::Installed {
+                version: observation.version,
+            },
+            InstallState::NotInstalled => Detection::NotInstalled,
+            InstallState::Unknown => Detection::Unknown,
+        },
+        None => Detection::Unknown,
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn detect_catalog_app(
+    catalog: &Catalog,
+    app: &nexo_catalog::CatalogApp,
+) -> crate::install_service::Detection {
+    install_detection(catalog, app, &windows::CurrentUserRegistry)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -428,6 +466,36 @@ mod tests {
             entries,
             scans: Cell::new(0),
         }
+    }
+
+    #[test]
+    fn install_detection_uses_the_complete_current_catalog_and_registry_version() {
+        use crate::install_service::Detection;
+        let mut catalog = catalog();
+        let app = catalog.apps[0].clone();
+        let registry = fake(Ok(vec![entry("physical-a")]));
+        assert_eq!(
+            install_detection(&catalog, &app, &registry),
+            Detection::Installed {
+                version: Some("1.4.7".into())
+            }
+        );
+        let mut second = app.clone();
+        second.id = "another-app".into();
+        catalog.apps.push(second);
+        assert_eq!(
+            install_detection(&catalog, &app, &registry),
+            Detection::Unknown
+        );
+        catalog.apps[0].detection = None;
+        assert_eq!(
+            install_detection(&catalog, &app, &registry),
+            Detection::Unknown
+        );
+        assert_eq!(
+            install_detection(&catalog, &catalog.apps[0], &registry),
+            Detection::Unknown
+        );
     }
 
     #[test]

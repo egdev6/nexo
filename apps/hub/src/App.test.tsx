@@ -23,6 +23,7 @@ vi.mock('./catalog/loader', async importOriginal => ({
   ...(await importOriginal<typeof import('./catalog/loader')>()),
   OFFICIAL_CATALOG_URL: undefined,
   OFFICIAL_CATALOG_V2_URL: undefined,
+  OFFICIAL_CATALOG_V3_URL: undefined,
 }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('./catalog', () => ({

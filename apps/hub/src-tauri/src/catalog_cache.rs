@@ -9,6 +9,7 @@ fn cache_name(version: u64) -> Result<&'static str, String> {
     match version {
         1 => Ok("catalog.json"),
         2 => Ok("catalog-v2.json"),
+        3 => Ok("catalog-v3.json"),
         _ => Err("Unsupported catalog cache version".into()),
     }
 }
@@ -82,6 +83,15 @@ pub(crate) fn read_catalog_v2_cache(app: AppHandle) -> Result<Option<String>, St
 }
 
 #[tauri::command]
+pub(crate) fn read_catalog_v3_cache(app: AppHandle) -> Result<Option<String>, String> {
+    let directory = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    read_version(&directory, 3)
+}
+
+#[tauri::command]
 pub(crate) fn write_catalog_cache(app: AppHandle, input: String) -> Result<(), String> {
     let directory = app
         .path()
@@ -131,7 +141,7 @@ mod tests {
     fn rejected_document_never_replaces_valid_cache() {
         let dir = Scratch::new();
         write_cache(&dir.0, VALID).unwrap();
-        for invalid in ["{", "{\"schemaVersion\":3,\"apps\":[]}"] {
+        for invalid in ["{", "{\"schemaVersion\":4,\"apps\":[]}"] {
             assert!(write_cache(&dir.0, invalid).is_err());
             assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
         }
@@ -145,8 +155,22 @@ mod tests {
         write_cache(&dir.0, v2).unwrap();
         assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
         assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
-        assert!(write_cache(&dir.0, "{\"schemaVersion\":3,\"apps\":[]}").is_err());
+        assert!(write_cache(&dir.0, "{\"schemaVersion\":4,\"apps\":[]}").is_err());
         assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
+    }
+
+    #[test]
+    fn v3_cache_is_separate_and_invalid_writes_preserve_all_versions() {
+        let dir = Scratch::new();
+        let v2 = "{\"schemaVersion\":2,\"apps\":[]}";
+        let v3 = "{\"schemaVersion\":3,\"apps\":[]}";
+        write_cache(&dir.0, VALID).unwrap();
+        write_cache(&dir.0, v2).unwrap();
+        write_cache(&dir.0, v3).unwrap();
+        assert!(write_cache(&dir.0, "{\"schemaVersion\":3,\"apps\":[{}]}").is_err());
+        assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
+        assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
+        assert_eq!(read_version(&dir.0, 3).unwrap().as_deref(), Some(v3));
     }
 
     #[test]

@@ -151,6 +151,11 @@ pub fn parse_local_catalog(
     text: &str,
 ) -> Result<LocalCatalogSnapshot, LocalCatalogError> {
     let catalog = nexo_catalog::parse_catalog(text).map_err(|_| LocalCatalogError::Invalid)?;
+    // Local catalogs use the v1/v2 interchange format only; v3 exists for the
+    // official feed's installer trust data, which local sources never carry.
+    if !matches!(catalog.schema_version, 1 | 2) {
+        return Err(LocalCatalogError::Invalid);
+    }
     if catalog
         .apps
         .iter()

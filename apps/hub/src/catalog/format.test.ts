@@ -50,7 +50,7 @@ describe('catalog format v1', () => {
       (d: ReturnType<typeof copy>) => { d.apps[0].news[0].kind = 'unknown'; },
       (d: ReturnType<typeof copy>) => { Object.assign(d.apps[0], { unexpected: true }); },
       (d: ReturnType<typeof copy>) => { delete (d.apps[0] as Partial<typeof d.apps[0]>).name; },
-      (d: ReturnType<typeof copy>) => { d.schemaVersion = 3; },
+      (d: ReturnType<typeof copy>) => { d.schemaVersion = 4; },
     ]) { const doc = copy(); mutate(doc); expect(() => parseCatalog(doc)).toThrow(); }
     expect(() => parseCatalog(null)).toThrow();
   });
@@ -82,6 +82,19 @@ it.each(parity.cases as ParityCase[])('matches shared Rust validation and catalo
   const document = parityDocument(test);
   if (test.valid) expect(parseCatalog(document)).toEqual(document);
   else expect(() => parseCatalog(document)).toThrow();
+});
+
+it('accepts only Tauri-encoded minisign public keys in v3', () => {
+  const doc = copy(); doc.schemaVersion = 3;
+  doc.apps[0].installerUrl = 'https://github.com/egdev6/example/releases/download/v1/setup.exe';
+  doc.apps[0].latestJsonUrl = 'https://github.com/egdev6/example/releases/download/v1/latest.json';
+  const key = btoa(`untrusted comment: minisign public key: 0000000000000000\n${btoa('Ed' + '\x00'.repeat(40))}\n`);
+  Object.assign(doc.apps[0], { updaterPublicKey: key });
+  expect(parseCatalog(doc).apps[0]).toMatchObject({ updaterPublicKey: key });
+  for (const invalid of ['', ' ', 'not-a-key', 'dGVzdA==']) {
+    Object.assign(doc.apps[0], { updaterPublicKey: invalid });
+    expect(() => parseCatalog(doc)).toThrow();
+  }
 });
 
 it('matches the shared Rust reference projection for official metadata and news', () => {

@@ -73,9 +73,18 @@ it('keeps local records and catalog metadata out of News inputs, requests and of
   }
   const projected = projectCatalog(parseCatalog(official));
   expect(JSON.stringify(projected)).not.toContain(secrets[0]);
-  expect(fetcher).toHaveBeenCalledTimes(1);
-  expect(fetcher.mock.calls[0][0]).toBe('https://egdev6.github.io/nexo-catalog/v2/catalog.json');
-  expect(fetcher.mock.calls[0][1]).toMatchObject({ redirect: 'error' });
+  // The loader may try the v3 endpoint before falling back to v2; every request must
+  // target an official endpoint with redirects refused, and none may carry local data.
+  const officialEndpoints = [
+    'https://egdev6.github.io/nexo-catalog/v3/catalog.json',
+    'https://egdev6.github.io/nexo-catalog/v2/catalog.json',
+  ];
+  expect(fetcher).toHaveBeenCalled();
+  for (const [url, options] of fetcher.mock.calls) {
+    expect(officialEndpoints).toContain(url);
+    expect(options).toMatchObject({ redirect: 'error' });
+  }
+  expect(fetcher.mock.calls.map(([url]) => url)).toContain(officialEndpoints[1]);
   expect(officialCache).toBe(officialText);
   const outbound = JSON.stringify({ requests: fetcher.mock.calls, ipc: bridge.invoke.mock.calls, newsInputs: vi.mocked(selectOfficialNews).mock.calls, cache: officialCache });
   for (const secret of secrets) expect(outbound).not.toContain(JSON.stringify(secret).slice(1, -1));

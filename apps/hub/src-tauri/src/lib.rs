@@ -3,6 +3,26 @@ mod apps;
 mod catalog_cache;
 mod config;
 mod i18n;
+pub mod install_approval;
+#[cfg(test)]
+mod install_approval_tests;
+pub mod install_download;
+pub mod install_feed;
+pub mod install_http;
+#[cfg(any(windows, test))]
+mod install_launcher;
+#[cfg(test)]
+mod install_launcher_tests;
+#[cfg(any(windows, test))]
+mod install_service;
+#[cfg(test)]
+mod install_service_tests;
+pub mod install_signature;
+#[cfg(test)]
+mod install_signature_tests;
+pub mod install_workspace;
+#[cfg(test)]
+mod install_workspace_tests;
 #[cfg(any(windows, test))]
 mod ipc;
 #[cfg(any(windows, test))]
@@ -28,6 +48,54 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
+
+#[cfg(windows)]
+struct NativeInstallProgress(AppHandle);
+#[cfg(windows)]
+impl install_service::ProgressSink for NativeInstallProgress {
+    fn emit(&self, progress: install_service::InstallProgress) {
+        if let Err(error) = self.0.emit_to("main", "install-progress", progress) {
+            eprintln!("could not send install progress: {error}");
+        }
+    }
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn install_app(
+    app: AppHandle,
+    window: WebviewWindow,
+    service: State<'_, install_service::NativeService>,
+    id: String,
+) -> Result<install_service::InstallResult, String> {
+    if window.label() != "main" {
+        return Ok(install_service::InstallResult::NotAvailable);
+    }
+    let language = match config::bootstrap_locale(&app) {
+        i18n::Locale::Es => "es",
+        i18n::Locale::En => "en",
+    };
+    Ok(service
+        .install_app_with_progress(
+            &id,
+            language,
+            std::sync::Arc::new(NativeInstallProgress(app)),
+        )
+        .await)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn cancel_install(
+    window: WebviewWindow,
+    service: State<'_, install_service::NativeService>,
+    id: String,
+) -> Result<install_service::CancelResult, String> {
+    if window.label() != "main" {
+        return Ok(install_service::CancelResult::NotRunning);
+    }
+    Ok(service.cancel_install(&id).await)
+}
 
 #[derive(Default)]
 struct BackdropState(AtomicBool);
@@ -213,6 +281,7 @@ pub fn run() {
         );
     #[cfg(windows)]
     let builder = builder
+        .manage(install_service::native().expect("install HTTP client"))
         .manage(ipc::Hub::new())
         .manage(runtime::Routes::default())
         .manage(local_catalog::RefreshFence::default())
@@ -222,6 +291,7 @@ pub fn run() {
             hide_flyout,
             catalog_cache::read_catalog_cache,
             catalog_cache::read_catalog_v2_cache,
+            catalog_cache::read_catalog_v3_cache,
             catalog_cache::write_catalog_cache,
             config::get_settings,
             config::save_settings,
@@ -232,6 +302,8 @@ pub fn run() {
             apps::installed_apps,
             apps::open_official_app,
             apps::close_connected_app,
+            install_app,
+            cancel_install,
             local_apps::windows::local_apps_list,
             local_apps::windows::local_app_add,
             local_apps::windows::local_app_update,
@@ -255,6 +327,7 @@ pub fn run() {
         hide_flyout,
         catalog_cache::read_catalog_cache,
         catalog_cache::read_catalog_v2_cache,
+        catalog_cache::read_catalog_v3_cache,
         catalog_cache::write_catalog_cache,
         config::get_settings,
         config::save_settings,
@@ -287,6 +360,12 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            if install_workspace::PrivateFactory::system()
+                .cleanup_stale()
+                .is_err()
+            {
+                eprintln!("Could not clean stale installer workspaces");
+            }
             // Keep Mica/acrylic as an optional OS-controlled fallback. If neither
             // works, the CSS panel can still be transparent and the desktop sharp;
             // the CSS blur slider does not control either native effect's radius.

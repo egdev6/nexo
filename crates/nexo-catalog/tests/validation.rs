@@ -27,6 +27,29 @@ fn accepts_minimal_full_and_empty_catalogs() {
 }
 
 #[test]
+fn v3_accepts_only_tauri_encoded_minisign_keys() {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    let mut doc = full();
+    doc["schemaVersion"] = json!(3);
+    doc["apps"][0]["installerUrl"] =
+        json!("https://github.com/egdev6/example/releases/download/v1/setup.exe");
+    doc["apps"][0]["latestJsonUrl"] =
+        json!("https://github.com/egdev6/example/releases/download/v1/latest.json");
+    let mut key = [0_u8; 42];
+    key[..2].copy_from_slice(b"Ed");
+    let encoded = STANDARD.encode(format!(
+        "untrusted comment: minisign public key: 0000000000000000\n{}\n",
+        STANDARD.encode(key)
+    ));
+    doc["apps"][0]["updaterPublicKey"] = json!(encoded);
+    assert!(validate(&doc).is_ok());
+    for key in ["", " ", "not-a-key", "dGVzdA=="] {
+        doc["apps"][0]["updaterPublicKey"] = json!(key);
+        assert!(validate(&doc).is_err(), "{key:?}");
+    }
+}
+
+#[test]
 fn v1_hint_rejection_precedes_other_app_errors() {
     let mut doc = full();
     let mut second = doc["apps"][0].clone();
@@ -146,7 +169,7 @@ fn rejects_missing_wrong_types_unknown_fields_and_schema_versions() {
     doc["apps"][0]["unexpected"] = json!(true);
     assert_eq!(validate(&doc).unwrap_err(), CatalogError::Document);
     let mut doc = full();
-    doc["schemaVersion"] = json!(3);
+    doc["schemaVersion"] = json!(4);
     assert_eq!(validate(&doc).unwrap_err(), CatalogError::SchemaVersion);
     assert_eq!(parse_catalog("{").unwrap_err(), CatalogError::Document);
 }
