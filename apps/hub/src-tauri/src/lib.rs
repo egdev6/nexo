@@ -1,5 +1,12 @@
+mod catalog_cache;
 mod config;
+#[cfg(any(windows, test))]
+mod ipc;
 mod position;
+#[cfg(windows)]
+mod runtime;
+#[cfg(any(windows, test))]
+mod tray;
 
 use position::{WorkArea, flyout_bounds};
 use std::sync::{
@@ -87,22 +94,41 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(FocusState::default())
         .manage(BackdropState::default())
         .manage(config::ConfigLock::default())
-        .invoke_handler(tauri::generate_handler![
-            backdrop_available,
-            config::get_settings,
-            config::save_settings,
-            config::recover_settings,
-            config::quit_after_settings
-        ])
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name("Nexo")
                 .build(),
-        )
+        );
+    #[cfg(windows)]
+    let builder = builder
+        .manage(ipc::Hub::new())
+        .manage(runtime::Routes::default())
+        .invoke_handler(tauri::generate_handler![
+            backdrop_available,
+            catalog_cache::read_catalog_cache,
+            catalog_cache::write_catalog_cache,
+            config::get_settings,
+            config::save_settings,
+            config::recover_settings,
+            config::quit_after_settings,
+            runtime::registry_snapshot,
+            runtime::hub_only_exit
+        ]);
+    #[cfg(not(windows))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        backdrop_available,
+        catalog_cache::read_catalog_cache,
+        catalog_cache::write_catalog_cache,
+        config::get_settings,
+        config::save_settings,
+        config::recover_settings,
+        config::quit_after_settings
+    ]);
+    builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");
@@ -144,7 +170,7 @@ pub fn run() {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "missing Nexo icon")
             })?;
 
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("nexo")
                 .icon(icon)
                 .tooltip("Nexo")
                 .menu(&menu)
@@ -175,18 +201,33 @@ pub fn run() {
                     }
                 })
                 .on_menu_event(|app, event| {
-                    if event.id.as_ref() == "quit" {
-                        // The webview flushes pending settings before it invokes quit_after_settings.
+                    let id = event.id.as_ref();
+                    if id == "quit" || id == "hub-only-exit" {
+                        // Flush settings first; Windows then runs the IPC quit policy.
+                        let mode = if id == "quit" { "all" } else { "hub-only" };
                         if let Err(error) = show_flyout(app)
-                            .and_then(|()| app.emit_to("main", "quit-requested", ()))
+                            .and_then(|()| app.emit_to("main", "quit-requested", mode))
                         {
                             eprintln!("could not request a safe exit: {error}");
                         }
+                    } else {
+                        #[cfg(windows)]
+                        runtime::handle_menu(app, id);
                     }
                 })
                 .build(app)?;
+            #[cfg(windows)]
+            runtime::start(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Nexo");
+        .build(tauri::generate_context!())
+        .expect("error while building Nexo")
+        .run(|_app, _event| {
+            #[cfg(windows)]
+            if matches!(_event, tauri::RunEvent::Exit)
+                && let Some(hub) = _app.try_state::<ipc::Hub>()
+            {
+                hub.shutdown();
+            }
+        });
 }

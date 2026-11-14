@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "apps": [{
+    "id": "minimal",
+    "name": "Minimal",
+    "tagline": "Minimal example",
+    "description": "A minimal fictional entry.",
+    "tags": [],
+    "iconUrl": "https://example.com/icon.png",
+    "installerUrl": "https://example.com/installer.exe",
+    "latestJsonUrl": "https://example.com/latest.json",
+    "integrationLevel": "launch",
+    "releasedAt": "2025-01-01T00:00:00Z",
+    "featured": false,
+    "news": []
+  }]
+}

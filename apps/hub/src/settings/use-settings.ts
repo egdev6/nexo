@@ -128,8 +128,8 @@ export function useSettings() {
     // Quit is requested by the tray; pending debounced writes must finish first.
     let dispose: (() => void) | undefined;
     let cancelled = false;
-    void listen('quit-requested', async () => {
-      if (await flush()) await invoke('quit_after_settings');
+    void listen<'all' | 'hub-only'>('quit-requested', async event => {
+      if (await flush()) await invoke(event?.payload === 'hub-only' ? 'hub_only_exit' : 'quit_after_settings');
     }).then(unlisten => { if (cancelled) unlisten(); else dispose = unlisten; })
       .catch(failure => { if (mounted.current) setError(`No se pudo preparar la salida: ${text(failure)}`); });
     const onBlur = () => { void flush(); };

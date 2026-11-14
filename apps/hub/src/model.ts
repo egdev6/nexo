@@ -21,6 +21,16 @@ export interface HubApp {
   tagline?: string;
   tags?: string[];
   links?: DiscoveryLinks;
+  /** Official catalog capability is separate from source and installed state. */
+  source?: 'official' | 'local';
+  catalogIntegration?: 'full' | 'update' | 'launch';
+  /** When false, installed/running are compatibility placeholders, not observed state. */
+  statusKnown?: boolean;
+  iconUrl?: string;
+  artUrl?: string;
+  catalogVersion?: string;
+  releasedAt?: string;
+  featured?: boolean;
 }
 
 export interface NewsItem {
@@ -30,6 +40,7 @@ export interface NewsItem {
   title: string;
   text: string;
   cta: string;
+  publishedAt?: string;
 }
 
 export type Language = 'es' | 'en';
@@ -70,6 +81,11 @@ export interface AutostartViewState {
 
 export interface CatalogViewProps {
   apps: HubApp[];
+  state?: 'loading' | 'ready' | 'empty' | 'offline' | 'error';
+  stale?: boolean;
+  reason?: 'unconfigured' | 'response' | 'cache';
+  installationKnown?: boolean;
+  onRetry?: () => void;
 }
 
 export interface NewsPopupProps {

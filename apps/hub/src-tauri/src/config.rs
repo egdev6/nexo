@@ -386,6 +386,10 @@ pub fn quit_after_settings(app: AppHandle, window: WebviewWindow) -> Result<(), 
     if window.label() != "main" {
         return Err("Ventana no autorizada".into());
     }
+    // Windows must still coordinate the connected applications before exit.
+    #[cfg(windows)]
+    crate::runtime::handle_menu(&app, "quit");
+    #[cfg(not(windows))]
     app.exit(0);
     Ok(())
 }

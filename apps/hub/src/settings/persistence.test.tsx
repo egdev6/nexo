@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import App from '../App';
+import HubApp from '../App';
+import { sampleApps, sampleNews } from '../sample';
 
-const bridge = vi.hoisted(() => ({ invoke: vi.fn(), tauri: true, onQuit: null as null | (() => Promise<void>) }));
+// Settings tests use explicit fixtures; the native App otherwise loads the official catalog.
+const App = () => <HubApp apps={sampleApps} news={sampleNews} />;
+
+const bridge = vi.hoisted(() => ({ invoke: vi.fn(), tauri: true, onQuit: null as null | ((event?: { payload: string }) => Promise<void>) }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => bridge.tauri }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ hide: vi.fn().mockResolvedValue(undefined) }) }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (_name: string, callback: () => Promise<void>) => { bridge.onQuit = callback; return () => { bridge.onQuit = null; }; }) }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (_name: string, callback: (event?: { payload: string }) => Promise<void>) => { bridge.onQuit = callback; return () => { bridge.onQuit = null; }; }) }));
+vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 
 const official = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
 const initial = { language: 'es', startWithWindows: false, showNewsOnOpen: true, accent: '#ff0036', compact: false, opacity: 85, blur: 24, firstRunComplete: false, sources: [official] };
@@ -34,7 +39,7 @@ beforeEach(() => {
     if (command === 'plugin:autostart|enable') { if (!mismatch) enabled = true; return; }
     if (command === 'plugin:autostart|disable') { if (!mismatch) enabled = false; return; }
     if (command === 'backdrop_available') return false;
-    if (command === 'quit_after_settings') return;
+    if (command === 'quit_after_settings' || command === 'hub_only_exit') return;
     throw new Error(`unexpected command: ${command}`);
   });
 });
@@ -206,6 +211,22 @@ it('does not quit or lose the pending edit when its save fails', async () => {
   await waitFor(() => expect(stored.language).toBe('en'));
   await act(async () => { await bridge.onQuit?.(); });
   expect(bridge.invoke).toHaveBeenCalledWith('quit_after_settings');
+});
+
+it('flushes pending settings before a tray-requested hub-only exit', async () => {
+  stored.firstRunComplete = true; stored.showNewsOnOpen = false;
+  render(<App />); await openSettings();
+  failSave = true;
+  fireEvent.click(screen.getByRole('radio', { name: 'English' }));
+  await waitFor(() => expect(bridge.onQuit).not.toBeNull());
+  await act(async () => { await bridge.onQuit?.({ payload: 'hub-only' }); });
+  expect(bridge.invoke).not.toHaveBeenCalledWith('hub_only_exit');
+  expect(bridge.invoke).not.toHaveBeenCalledWith('quit_after_settings');
+  expect(stored.language).toBe('es');
+  failSave = false;
+  await act(async () => { await bridge.onQuit?.({ payload: 'hub-only' }); });
+  expect(stored.language).toBe('en');
+  expect(bridge.invoke).toHaveBeenCalledWith('hub_only_exit');
 });
 
 it('shows a retryable autostart error instead of confirming a mismatch', async () => {
