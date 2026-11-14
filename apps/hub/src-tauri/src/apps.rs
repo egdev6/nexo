@@ -1,7 +1,7 @@
 use nexo_catalog::Catalog;
 
 #[cfg(windows)]
-mod windows;
+pub(crate) mod windows;
 
 #[cfg(windows)]
 #[tauri::command]
@@ -208,6 +208,50 @@ fn observe(catalog: &Catalog, registry: &impl Registry) -> Vec<Observation> {
         .into_iter()
         .map(|(observation, _)| observation)
         .collect()
+}
+
+fn official_duplicates(
+    catalog: &Catalog,
+    registry: &impl Registry,
+    launcher: &impl Launcher,
+) -> Vec<crate::local_apps::projection::OfficialCandidate> {
+    catalog
+        .apps
+        .iter()
+        .zip(matched_apps(catalog, registry))
+        .map(|(app, (_, matched))| {
+            let executable = matched.and_then(|entry| {
+                let location = identity(entry.install_location.as_deref())?;
+                let relative = &app.detection.as_ref()?.windows.executable_relative_path;
+                launcher
+                    .resolve(location, relative)
+                    .ok()?
+                    .to_str()
+                    .map(str::to_owned)
+            });
+            crate::local_apps::projection::OfficialCandidate {
+                id: app.id.clone(),
+                name: app.name.clone(),
+                executable,
+            }
+        })
+        .collect()
+}
+
+#[cfg(windows)]
+pub(crate) fn duplicate_candidates(
+    app: tauri::AppHandle,
+    hub: &crate::ipc::Hub,
+) -> Vec<crate::local_apps::projection::OfficialCandidate> {
+    official_catalog(app)
+        .map(|catalog| {
+            official_duplicates(
+                &catalog,
+                &windows::CurrentUserRegistry,
+                &windows::SystemLauncher { hub, id: "" },
+            )
+        })
+        .unwrap_or_default()
 }
 
 fn inspect(
@@ -559,6 +603,30 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_candidates_use_cached_official_names_and_only_unique_resolved_executables() {
+        let launcher = FakeLauncher::default();
+        let registry = fake(Ok(vec![entry("physical-a")]));
+        let candidates = official_duplicates(&catalog(), &registry, &launcher);
+        assert_eq!(
+            candidates,
+            vec![crate::local_apps::projection::OfficialCandidate {
+                id: "example-app".into(),
+                name: "Example App".into(),
+                executable: Some("resolved-example.exe".into()),
+            }]
+        );
+        assert_eq!(registry.scans.get(), 1);
+        assert!(launcher.launched.borrow().is_empty());
+        launcher.fail_resolution.set(true);
+        let candidates = official_duplicates(&catalog(), &registry, &launcher);
+        assert_eq!(candidates[0].executable, None);
+        assert_eq!(candidates[0].name, "Example App");
+        let absent = official_duplicates(&catalog(), &fake(Ok(vec![])), &launcher);
+        assert_eq!(absent[0].executable, None);
+        assert!(launcher.launched.borrow().is_empty());
+    }
+
+    #[test]
     fn scan_exposes_open_availability_only_after_path_resolution() {
         let launcher = FakeLauncher::default();
         let registry = fake(Ok(vec![entry("physical-a")]));
@@ -639,6 +707,19 @@ mod tests {
             ),
             Err("spawn failed".into())
         );
+        assert!(launcher.launched.borrow().is_empty());
+    }
+
+    #[test]
+    fn official_open_still_refuses_a_local_executable_path_as_an_id() {
+        let registry = fake(Ok(vec![entry("physical-a")]));
+        let launcher = FakeLauncher::default();
+        assert_eq!(
+            open_official(&catalog(), &registry, &launcher, "C:\\Apps\\App.exe"),
+            Err("nexo.appNotOfficial".into())
+        );
+        assert_eq!(registry.scans.get(), 0);
+        assert!(launcher.resolved.borrow().is_empty());
         assert!(launcher.launched.borrow().is_empty());
     }
 

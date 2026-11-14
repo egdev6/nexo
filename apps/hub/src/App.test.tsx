@@ -12,6 +12,7 @@ import { defaultSettings } from './sample';
 import fullCatalog from '../../../crates/nexo-catalog/fixtures/full.json';
 
 // Test the shell's public wiring independently of the other area writers.
+vi.mock('./local-apps/view', () => ({ LocalAppsView: () => null }));
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: vi.fn(() => false),
   invoke: vi.fn().mockResolvedValue(null),

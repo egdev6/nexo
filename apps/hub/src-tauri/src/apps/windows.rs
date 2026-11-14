@@ -82,7 +82,6 @@ impl super::Launcher for SystemLauncher<'_> {
         location: &str,
         relative: &str,
     ) -> Result<(), String> {
-        use std::os::windows::process::CommandExt;
         self.hub.while_disconnected(self.id, || {
             let fresh = resolve_path(location, relative)?;
             if fresh != executable {
@@ -90,16 +89,21 @@ impl super::Launcher for SystemLauncher<'_> {
             }
             // Hard links are accepted; same-user replacement remains possible between
             // revalidation and spawn. Name, publisher and path do not authenticate a publisher.
-            std::process::Command::new(fresh)
-                .creation_flags(0x0000_0008 | 0x0000_0200)
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-                .map(|_| ())
-                .map_err(|error| format!("nexo.appSpawnFailed:{error}"))
+            spawn_detached(&fresh)
         })
     }
+}
+
+pub(crate) fn spawn_detached(executable: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    std::process::Command::new(executable)
+        .creation_flags(0x0000_0008 | 0x0000_0200)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("nexo.appSpawnFailed:{error}"))
 }
 
 fn value(key: &RegKey, name: &str) -> Result<Option<String>, String> {

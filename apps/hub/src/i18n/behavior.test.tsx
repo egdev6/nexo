@@ -32,6 +32,7 @@ beforeEach(() => {
     if (command === 'get_settings') return { settings: { ...saved }, state: 'ready' };
     if (command === 'save_settings') { if (failSave) throw new Error('disk full'); saved = { ...saved, ...args?.patch }; return { ...saved }; }
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
+    if (command === 'local_apps_list') return [];
     return undefined;
   });
 });

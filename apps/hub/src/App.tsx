@@ -9,6 +9,7 @@ import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
 import { formatNumber, intlLocale, t } from './i18n';
 import { LocaleProvider, localeFrom, useLocale } from './i18n/use-locale';
+import { LocalAppsView } from './local-apps/view';
 import type { HubApp, HubSettings, Language, NewsItem } from './model';
 import { NewsPopup } from './news';
 import { selectOfficialNews } from './news/selection';
@@ -96,7 +97,7 @@ function AppRow({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: strin
   </Collapsible>;
 }
 
-function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, onRefresh, onClose, onOpen, actionBusy, stale }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean; onRefresh?: () => void; onClose?: (id: string) => void; onOpen?: (id: string) => void; actionBusy: boolean; stale: boolean }) {
+function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, onRefresh, onClose, onOpen, actionBusy, stale, localCycle }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean; onRefresh?: () => void; onClose?: (id: string) => void; onOpen?: (id: string) => void; actionBusy: boolean; stale: boolean; localCycle?: number }) {
   const locale = useLocale();
   const ids = new Set(connected.map(entry => entry.app.id));
   const allInstalled = apps.filter(app => app.statusKnown !== false && app.installed);
@@ -118,6 +119,7 @@ function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, o
     {unknown.length > 0 && <section aria-label={t(locale, 'appControl.installationUnknown')}><div className="section-label"><h2>{t(locale, 'appControl.installationUnknown')}</h2></div>
       {unknown.map(app => <div className="preview-row" key={app.id}><div className="app-info"><strong>{app.name}</strong><span className="secondary">{app.installationReason ? localizeAppReason(locale, app.installationReason) : t(locale, 'appControl.unknownInstallFallback')}</span></div></div>)}
     </section>}
+    <LocalAppsView names={[...apps.map(app => ({ id: app.id, name: app.name })), ...connected.map(entry => entry.app)]} cycle={localCycle} />
     {available.some(app => app.id === 'pizarra') && <p className="news-line"><Badge tone="brand">{t(locale, 'app.new')}</Badge> {t(locale, 'app.pizarraNews')}</p>}
     <p className="foot">{t(locale, onRefresh ? 'appControl.closeWithoutPlugin' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</p>
   </>;
@@ -291,7 +293,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
     </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh} onClose={onAppsRefresh ? closeApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} selectCatalog={() => setActive('catalog')} /> },
+        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh} onClose={onAppsRefresh ? closeApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} localCycle={visibility?.visible ? visibility.cycle : undefined} selectCatalog={() => setActive('catalog')} /> },
         { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} /> },
       ]} />}
     {settings && <NewsPopup items={snapshot?.items ?? []} open={usable && !firstRun && !!snapshot} onClose={finishNews} dontShow={!settings.showNewsOnOpen}

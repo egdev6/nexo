@@ -51,6 +51,7 @@ beforeEach(() => {
     if (command === 'read_catalog_cache') return cache;
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
+    if (command === 'local_apps_list') return [];
     return null;
   });
 });

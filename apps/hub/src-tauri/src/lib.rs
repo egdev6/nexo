@@ -25,6 +25,9 @@ pub mod install_workspace;
 mod install_workspace_tests;
 #[cfg(any(windows, test))]
 mod ipc;
+#[cfg(any(windows, test))]
+mod local_apps;
+pub mod local_catalog;
 mod position;
 #[cfg(any(windows, test))]
 mod registry_presentation;
@@ -281,6 +284,7 @@ pub fn run() {
         .manage(install_service::native().expect("install HTTP client"))
         .manage(ipc::Hub::new())
         .manage(runtime::Routes::default())
+        .manage(local_catalog::RefreshFence::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
             get_flyout_state,
@@ -300,6 +304,20 @@ pub fn run() {
             apps::close_connected_app,
             install_app,
             cancel_install,
+            local_apps::windows::local_apps_list,
+            local_apps::windows::local_app_add,
+            local_apps::windows::local_app_update,
+            local_apps::windows::local_app_remove,
+            local_apps::windows::local_app_repair,
+            local_apps::windows::local_app_pick_icon,
+            local_apps::windows::local_app_icon,
+            local_apps::windows::local_app_open,
+            local_apps::windows::local_catalog_set,
+            local_apps::windows::local_catalog_refresh,
+            local_apps::windows::local_catalog_clear,
+            local_apps::windows::local_catalog_bind,
+            local_apps::windows::local_catalog_unbind,
+            local_apps::windows::local_catalog_open,
             runtime::hub_only_exit
         ]);
     #[cfg(not(windows))]
@@ -411,7 +429,10 @@ pub fn run() {
                 })
                 .build(app)?;
             #[cfg(windows)]
-            runtime::start(app.handle())?;
+            {
+                local_apps::windows::start_local_catalogs(app.handle());
+                runtime::start(app.handle())?;
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
