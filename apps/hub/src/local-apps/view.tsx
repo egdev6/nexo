@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { bindLocalCatalogEntry, listLocalApps, openLocalApp, openLocalCatalogEntry, repairLocalApp, type LocalAppRow } from './index';
+import { LocalAppIcon } from './icon';
 
 const errors: Readonly<Record<string, MessageKey>> = {
   'nexo.local.missing': 'localApps.errorMissing',
@@ -84,7 +85,7 @@ export function LocalAppsView({ names, cycle }: { names: { id: string; name: str
       const other = row.duplicateOf && (lookup.find(item => item.id === row.duplicateOf)?.name ?? row.duplicateOf);
       return <Collapsible className="app-card" key={row.id} defaultOpen>
         <div className="app-row"><CollapsibleTrigger><span className="row-label">
-          <span aria-hidden="true" className="app-icon">{row.name[0]}</span>
+          <LocalAppIcon row={row} />
           <span className="app-info"><strong>{row.name}</strong><Badge tone="brand">{t(locale, 'localApps.badge')}</Badge>
             {' · '}<span className="secondary">{row.origin.kind === 'manual' ? t(locale, 'localApps.manual') : row.origin.sourceLabel}</span>
             {' · '}<span className="secondary">{t(locale, 'appControl.runningUnknown')}</span>

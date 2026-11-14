@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { addLocalApp, clearLocalCatalog, listLocalApps, pickLocalAppIcon, refreshLocalCatalog, removeLocalApp, setLocalCatalog, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
+import { LocalAppIcon } from '../local-apps/icon';
 import type { CatalogSource } from '../model';
 
 const errors: Readonly<Record<string, MessageKey>> = {
@@ -49,6 +50,7 @@ export function LocalManagement({ initialSources }: { initialSources?: CatalogSo
   const [duplicate, setDuplicate] = useState(false);
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [iconRevisions, setIconRevisions] = useState<Map<string, number>>(() => new Map());
 
   async function readSources() {
     const snapshot = await invoke<Snapshot>('get_settings');
@@ -126,19 +128,23 @@ export function LocalManagement({ initialSources }: { initialSources?: CatalogSo
       {!loading && !rows.length && !listError && <p className="settings__hint">{t(locale, 'settingsLocal.emptyAll')}</p>}
       {rows.map(row => {
         if (row.origin.kind === 'catalog') return <div className="settings__local-entry" key={row.id}>
-          <div className="settings__row"><div><strong>{row.name}</strong>
+          <div className="settings__row"><div className="row-label"><LocalAppIcon row={row} /><div><strong>{row.name}</strong>
             <span>{t(locale, 'settingsLocal.catalogSource', { source: row.origin.sourceLabel })}</span>
             {row.state !== 'ready' && <span>{t(locale, row.state === 'unbound' ? 'localApps.unbound' : 'localApps.missing')}</span>}
-          </div></div>
+          </div></div></div>
         </div>;
         const appId = row.origin.id;
         const params = { name: row.name };
         return <div className="settings__local-entry" key={row.id}>
-          <div className="settings__row"><div><strong>{row.name}</strong>
-            <span>{t(locale, row.state === 'ready' ? 'localApps.manual' : 'localApps.missing')}</span></div>
+          <div className="settings__row"><div className="row-label"><LocalAppIcon row={row} revision={iconRevisions.get(appId) ?? 0} /><div><strong>{row.name}</strong>
+            <span>{t(locale, row.state === 'ready' ? 'localApps.manual' : 'localApps.missing')}</span></div></div>
             <div className="settings__actions">
               <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.renameFor', params)} onClick={() => { setEditing({ id: appId, name: row.name }); setConfirmation(null); }}>{t(locale, 'settingsLocal.rename')}</Button>
-              <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.iconFor', params)} onClick={() => void run(async () => selected(await pickLocalAppIcon(appId)))}>{t(locale, 'settingsLocal.icon')}</Button>
+              <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.iconFor', params)} onClick={() => void run(async () => {
+                const result = await pickLocalAppIcon(appId);
+                if (result) setIconRevisions(previous => new Map(previous).set(appId, (previous.get(appId) ?? 0) + 1));
+                return selected(result);
+              })}>{t(locale, 'settingsLocal.icon')}</Button>
               <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.removeFor', params)} onClick={() => { setEditing(null); setConfirmation({ kind: 'app', id: appId }); }}>{t(locale, 'settingsLocal.remove')}</Button>
             </div>
           </div>
