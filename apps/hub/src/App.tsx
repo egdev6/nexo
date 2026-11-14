@@ -6,13 +6,16 @@ import { CatalogView } from './catalog';
 import { diskCache, loadCatalog, OFFICIAL_CATALOG_URL, webFetcher, type CatalogState } from './catalog/loader';
 import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
-import type { HubApp, HubSettings, NewsItem } from './model';
+import { formatNumber, intlLocale, t } from './i18n';
+import { LocaleProvider, localeFrom, useLocale } from './i18n/use-locale';
+import type { HubApp, HubSettings, Language, NewsItem } from './model';
 import { NewsPopup } from './news';
 import { defaultSettings, sampleApps, sampleNews } from './sample';
 import { SettingsView } from './settings';
 import { derivePalette } from './settings/palette';
 import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
+import { noticeText } from './shell/notice';
 import type { RegistryApp, RegistrySnapshot } from './shell/registry';
 import { backdropAvailable, hideFlyout } from './window';
 import './style.css';
@@ -21,7 +24,8 @@ type Tab = 'apps' | 'catalog';
 
 // Catalog actions remain illustrative until their own roadmap issues implement them.
 function Action({ label, app, primary = false }: { label: string; app: HubApp; primary?: boolean }) {
-  return <Button variant={primary ? 'primary' : 'neutral'} size="sm" type="button" aria-label={`${label} ${app.name}`} title="Acción ilustrativa no disponible" disabled>{label}</Button>;
+  const locale = useLocale();
+  return <Button variant={primary ? 'primary' : 'neutral'} size="sm" type="button" aria-label={`${label} ${app.name}`} title={t(locale, 'app.illustrativeDisabled')} disabled>{label}</Button>;
 }
 
 function AppIcon({ app }: { app: HubApp }) {
@@ -29,66 +33,68 @@ function AppIcon({ app }: { app: HubApp }) {
 }
 
 function Status({ app }: { app: HubApp }) {
-  if (app.integration === 'local') return <span className="secondary">{app.source === 'official' ? 'Catálogo egdev · Solo apertura' : 'App local · Estado desconocido'}</span>;
-  return <span className="secondary">Estado desconocido{app.update && <> · <span className="status-warning">Actualización disponible (muestra)</span></>}</span>;
+  const locale = useLocale();
+  if (app.integration === 'local') return <span className="secondary">{t(locale, app.source === 'official' ? 'app.officialLaunch' : 'app.localUnknown')}</span>;
+  return <span className="secondary">{t(locale, 'app.unknown')}{app.update && <> · <span className="status-warning">{t(locale, 'app.updateSample')}</span></>}</span>;
 }
 
 function ConnectedRow({ app }: { app: RegistryApp }) {
+  const locale = useLocale();
   return <Collapsible className="app-card" defaultOpen>
     <div className="app-row"><CollapsibleTrigger>
       <span className="row-label"><span aria-hidden="true" className="app-icon">{app.app.name[0]}</span>
         <span className="app-info"><strong>{app.app.name}</strong>
-          {app.responsive ? <span className="status-running">Conectada</span> : <span className="secondary">Sin respuesta · estado desconocido</span>}
+          {app.responsive ? <span className="status-running">{t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
         </span>
       </span>
     </CollapsibleTrigger></div>
     <CollapsibleContent>
-      <p className="meta">Versión comunicada: {app.app.version} · {app.unified ? 'Bandeja unificada' : 'Icono propio'}</p>
-      {app.menu.length > 0 && <><p className="meta">Menú comunicado por la app</p><ul className="registry-menu">
-        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}>{item.label}{!item.enabled && ' · desactivada'}{item.checked === true && ' · marcada'}{item.checked === false && ' · desmarcada'}</li>)}
+      <p className="meta">{t(locale, 'app.reportedVersion', { version: app.app.version, tray: t(locale, app.unified ? 'app.unified' : 'app.ownIcon') })}</p>
+      {app.menu.length > 0 && <><p className="meta">{t(locale, 'app.reportedMenu')}</p><ul className="registry-menu">
+        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</li>)}
       </ul></>}
     </CollapsibleContent>
   </Collapsible>;
 }
 
 function AppRow({ app }: { app: HubApp }) {
+  const locale = useLocale();
   return <Collapsible className="app-card" defaultOpen={app.id === 'antena'}>
     <div className="app-row">
       <CollapsibleTrigger>
         <span className="row-label"><AppIcon app={app} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span>
       </CollapsibleTrigger>
-      {app.id !== 'antena' && <Action label="Abrir" app={app} />}
+      {app.id !== 'antena' && <Action label={t(locale, 'common.open')} app={app} />}
     </div>
     <CollapsibleContent>
       {app.update && <div className="detail-grid">
-        <div><div className="status-warning">Disponible: {app.update}</div><div className="version">Instalada: {app.version}</div></div>
-        <Action label="Actualizar" app={app} primary />
+        <div><div className="status-warning">{t(locale, 'app.available', { version: app.update })}</div><div className="version">{t(locale, 'app.installedVersion', { version: app.version ?? '' })}</div></div>
+        <Action label={t(locale, 'common.update')} app={app} primary />
       </div>}
       <p className="meta">{app.description}</p>
-      <div className="actions">
-        <Action label={app.id === 'antena' ? 'Abrir panel' : 'Abrir'} app={app} />
-
-      </div>
+      <div className="actions"><Action label={t(locale, app.id === 'antena' ? 'app.openPanel' : 'common.open')} app={app} /></div>
     </CollapsibleContent>
   </Collapsible>;
 }
 
 function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean }) {
+  const locale = useLocale();
   const ids = new Set(connected.map(entry => entry.app.id));
   const installed = apps.filter(app => app.statusKnown !== false && app.installed && !ids.has(app.id));
   const available = apps.filter(app => app.statusKnown !== false && !app.installed && !ids.has(app.id));
+  const plural = new Intl.PluralRules(intlLocale(locale)).select(installed.length);
   return <>
-    {connected.length > 0 && <section aria-labelledby="connected-title"><div className="section-label"><h2 id="connected-title">Conectadas</h2><span>{connected.length}</span></div>
+    {connected.length > 0 && <section aria-labelledby="connected-title"><div className="section-label"><h2 id="connected-title">{t(locale, 'app.connectedPlural')}</h2><span>{formatNumber(locale, connected.length)}</span></div>
       {connected.map(app => <ConnectedRow key={app.app.id} app={app} />)}
     </section>}
-    <div className="section-label"><h2>Instaladas</h2>{installedStateKnown && <span>{installed.length} {installed.length === 1 ? 'aplicación' : 'aplicaciones'}{installed.some(app => app.source !== 'official') && ' · muestra'}</span>}</div>
-    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} />) : <div className="empty-state"><p>{installedStateKnown ? 'No hay aplicaciones instaladas.' : 'Estado de instalación no disponible todavía.'}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>Ver catálogo</Button></div>}
+    <div className="section-label"><h2>{t(locale, 'app.installed')}</h2>{installedStateKnown && <span>{t(locale, plural === 'one' ? 'app.appOne' : 'app.appOther', { count: formatNumber(locale, installed.length) })}{installed.some(app => app.source !== 'official') && ` · ${t(locale, 'common.sample')}`}</span>}</div>
+    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} />) : <div className="empty-state"><p>{t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>{t(locale, 'app.viewCatalog')}</Button></div>}
     {available.length > 0 && <section className="catalog-preview" aria-labelledby="preview-title">
-      <div className="section-label"><h2 id="preview-title">También en el catálogo</h2><span>Sin instalar</span></div>
-      {available.map(app => <div className="preview-row" key={app.id}><div className="app-info"><strong>{app.name}</strong><span className="secondary">Catálogo egdev</span></div><Action label="Instalar" app={app} /></div>)}
+      <div className="section-label"><h2 id="preview-title">{t(locale, 'app.alsoCatalog')}</h2><span>{t(locale, 'app.notInstalled')}</span></div>
+      {available.map(app => <div className="preview-row" key={app.id}><div className="app-info"><strong>{app.name}</strong><span className="secondary">{t(locale, 'common.officialCatalog')}</span></div><Action label={t(locale, 'common.install')} app={app} /></div>)}
     </section>}
-    {available.some(app => app.id === 'pizarra') && <p className="news-line"><Badge tone="brand">Nuevo</Badge> Pizarra en Novedades</p>}
-    <p className="foot">{installedStateKnown ? 'Muestra de diseño · las acciones de apps son ilustrativas.' : 'La gestión de aplicaciones aún no está disponible.'}</p>
+    {available.some(app => app.id === 'pizarra') && <p className="news-line"><Badge tone="brand">{t(locale, 'app.new')}</Badge> {t(locale, 'app.pizarraNews')}</p>}
+    <p className="foot">{t(locale, installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</p>
   </>;
 }
 
@@ -104,6 +110,8 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const [active, setActive] = useState<Tab>('apps');
   const store = useSettings();
   const settings = store.settings;
+  const locale = localeFrom(settings);
+  const [previewLanguage, setPreviewLanguage] = useState<Language>('es');
   const shown = settings ?? defaultSettings;
   const firstRun = !settings?.firstRunComplete;
   const usable = store.fileState === 'ready' || store.fileState === 'missing';
@@ -143,7 +151,6 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     }
   }, [usable, settings?.firstRunComplete, settings?.showNewsOnOpen, news.length]);
 
-  // A tray reopen focuses the same webview rather than remounting the React tree.
   useEffect(() => {
     function onFocus() {
       if (usable && settings?.firstRunComplete && settings.showNewsOnOpen && news.length > 0) setNewsOpen(true);
@@ -165,55 +172,51 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
 
   const tones = derivePalette(shown.accent);
   const panelStyle = {
-    '--hub-accent': shown.accent,
-    '--hub-accent-light': tones[1],
-    '--hub-accent-mid': tones[2],
-    '--color-fg-brand-default': tones[0],
-    '--color-fg-brand-raised': tones[1],
-    '--color-fg-brand-hover': tones[2],
-    '--color-border-brand': tones[2],
-    '--color-action-primary-solid-bg': tones[0],
-    '--color-action-primary-solid-bg-hover': tones[2],
-    '--hub-density': shown.compact ? '0.8' : '1',
-    '--hub-opacity': String(shown.opacity / 100),
-    '--hub-blur': `${shown.blur}px`,
+    '--hub-accent': shown.accent, '--hub-accent-light': tones[1], '--hub-accent-mid': tones[2],
+    '--color-fg-brand-default': tones[0], '--color-fg-brand-raised': tones[1], '--color-fg-brand-hover': tones[2],
+    '--color-border-brand': tones[2], '--color-action-primary-solid-bg': tones[0], '--color-action-primary-solid-bg-hover': tones[2],
+    '--hub-density': shown.compact ? '0.8' : '1', '--hub-opacity': String(shown.opacity / 100), '--hub-blur': `${shown.blur}px`,
   } as CSSProperties;
 
   function updateSettings(next: HubSettings) {
     if (!settings) return;
+    const displayed = { ...settings, language: store.languageDraft ?? settings.language };
     const patch = Object.fromEntries((Object.keys(next) as (keyof HubSettings)[])
-      .filter(key => key !== 'startWithWindows' && next[key] !== settings[key])
+      .filter(key => key !== 'startWithWindows' && next[key] !== displayed[key])
       .map(key => [key, next[key]]));
     store.change(patch);
   }
+  const errorLocale = usable && firstRun ? previewLanguage : locale;
+  const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
+  return <LocaleProvider locale={locale}><main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
     <header className="panel-head"><div className="heading"><span className="n-mark" aria-hidden="true">N</span><h1 id="panel-title">Nexo</h1>
-      <p>· {installedStateKnown ? `${installedCount} ${installedCount === 1 ? 'instalada' : 'instaladas'}${sampleInstalled ? ' (muestra)' : ''}` : 'instalación sin comprobar'}</p>
+      <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">
-        {usable && !firstRun && !showSettings && <IconButton label="Ajustes" title="Ajustes" variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
-        <IconButton label="Cerrar panel" title="Cerrar panel" variant="secondary" icon={<Icon name="close" />} onClick={() => void hideFlyout()} />
+        {usable && !firstRun && !showSettings && <IconButton label={t(locale, 'common.settings')} title={t(locale, 'common.settings')} variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
+        <IconButton label={t(locale, 'app.closePanel')} title={t(locale, 'app.closePanel')} variant="secondary" icon={<Icon name="close" />} onClick={() => void hideFlyout()} />
       </div>
     </div></header>
-    {registryFailed && <div className="registry-notice" role="alert">No se pudo consultar el estado de las apps conectadas.</div>}
-    {registry.notice && <div className="registry-notice" role="alert"><p>{registry.notice.message}</p>
+    {registryFailed && <div className="registry-notice" role="alert">{t(locale, 'app.registryError')}</div>}
+    {registry.notice && <div className="registry-notice" role="alert"><p>{noticeText(locale, registry.notice)}</p>
       {registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
         if (await store.flush()) await exitHubOnly();
-      })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>Salir solo de Nexo</Button>}
+      })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>{t(locale, 'app.hubOnly')}</Button>}
     </div>}
-    {store.error && <div className="settings__foot" role="alert">{store.error} <Button variant="neutral" size="sm" onClick={usable ? store.retry : store.reload}>Reintentar</Button></div>}
-    {store.fileState === null ? <p role="status" className="settings__foot">Cargando ajustes…</p> : !usable ? <div className="settings__foot">
-      {!store.error && <p role="alert">{store.fileState === 'future' ? 'Estos ajustes pertenecen a una versión más reciente y son de solo lectura.' : 'No se pudieron leer los ajustes. El archivo original no se ha modificado.'}</p>}
-      {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>Recuperar ajustes con copia de seguridad</Button>}
-      <Button variant="neutral" size="sm" onClick={store.reload}>Reintentar lectura</Button>
-    </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={settings} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
-      <Tabs className="main-tabs" variant="segmented" label="Secciones de Nexo" value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: 'Mis apps', content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} selectCatalog={() => setActive('catalog')} /> },
-        { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} /> },
+    {store.nativeError && <div className="settings__foot" role="alert">{t(locale, 'native.refreshError', { error: store.nativeError })} <Button variant="neutral" size="sm" onClick={store.retryNative}>{t(locale, 'native.refreshRetry')}</Button></div>}
+    {store.error && <div className="settings__foot" role="alert" lang={errorLocale}>{t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : store.error.detail ?? '' })} <Button variant="neutral" size="sm" onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}>{t(errorLocale, 'common.retry')}</Button></div>}
+    {store.fileState === null ? <p role="status" className="settings__foot">{t(locale, 'app.loadingSettings')}</p> : !usable ? <div className="settings__foot">
+      {!store.error && <p role="alert">{t(locale, store.fileState === 'future' ? 'app.futureSettings' : 'app.unreadableSettings')}</p>}
+      {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>{t(locale, 'app.recoverSettings')}</Button>}
+      <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
+    </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
+      <Tabs className="main-tabs" variant="segmented" label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
+        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} selectCatalog={() => setActive('catalog')} /> },
+        { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} /> },
       ]} />}
     {settings && <NewsPopup items={news} open={usable && !firstRun && newsOpen} onClose={() => setNewsOpen(false)} dontShow={!settings.showNewsOnOpen}
       onDontShowChange={dontShow => store.change({ showNewsOnOpen: !dontShow })} />}
-  </main>;
+  </main></LocaleProvider>;
 }
 
 export default function App(props: FlyoutProps) {

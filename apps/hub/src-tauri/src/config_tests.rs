@@ -35,6 +35,69 @@ impl Drop for Fixture {
 }
 
 #[test]
+fn rejected_settings_and_recovery_return_stable_codes_without_writing() {
+    let future = Fixture::new();
+    let raw = r#"{"version":999,"language":"en"}"#;
+    future.write(raw);
+    assert_eq!(
+        future.store.patch(Patch::default()).unwrap_err(),
+        "nexo.config.save.future"
+    );
+    assert_eq!(
+        future.store.recover().unwrap_err(),
+        "nexo.config.recoveryNotAllowed"
+    );
+    assert_eq!(future.raw(), raw);
+
+    let corrupt = Fixture::new();
+    corrupt.write("{ broken");
+    assert_eq!(
+        corrupt.store.patch(Patch::default()).unwrap_err(),
+        "nexo.config.save.corrupt"
+    );
+    assert_eq!(corrupt.raw(), "{ broken");
+
+    let unreadable = Fixture::new();
+    std::fs::create_dir(unreadable.path()).unwrap();
+    assert_eq!(
+        unreadable.store.patch(Patch::default()).unwrap_err(),
+        "nexo.config.save.unreadable"
+    );
+    assert!(unreadable.path().is_dir());
+
+    let missing = Fixture::new();
+    assert_eq!(
+        missing.store.recover().unwrap_err(),
+        "nexo.config.recoveryNotAllowed"
+    );
+    assert!(!missing.path().exists());
+}
+
+#[test]
+fn native_bootstrap_uses_the_same_validated_store_without_writes() {
+    use crate::i18n::Locale;
+
+    let f = Fixture::new();
+    assert_eq!(super::store_locale(&f.store), Locale::Es);
+    assert!(!f.path().exists());
+    f.write(r#"{"version":1,"language":" EN ","firstRunComplete":true}"#);
+    let original = f.raw();
+    assert_eq!(super::store_locale(&f.store), Locale::En);
+    assert_eq!(f.raw(), original);
+    f.write(r#"{"version":999,"language":"en"}"#);
+    let future = f.raw();
+    assert_eq!(super::store_locale(&f.store), Locale::Es);
+    assert_eq!(f.raw(), future);
+    f.write("{ broken");
+    assert_eq!(super::store_locale(&f.store), Locale::Es);
+    assert_eq!(f.raw(), "{ broken");
+    let unreadable = Fixture::new();
+    std::fs::create_dir(unreadable.path()).unwrap();
+    assert_eq!(super::store_locale(&unreadable.store), Locale::Es);
+    assert!(unreadable.path().is_dir());
+}
+
+#[test]
 fn missing_file_uses_first_run_defaults_without_writing() {
     let f = Fixture::new();
     let snapshot = f.store.read();

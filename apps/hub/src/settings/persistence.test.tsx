@@ -39,6 +39,7 @@ beforeEach(() => {
     if (command === 'plugin:autostart|enable') { if (!mismatch) enabled = true; return; }
     if (command === 'plugin:autostart|disable') { if (!mismatch) enabled = false; return; }
     if (command === 'backdrop_available') return false;
+    if (command === 'apply_saved_language') return;
     if (command === 'quit_after_settings' || command === 'hub_only_exit') return;
     throw new Error(`unexpected command: ${command}`);
   });
@@ -75,8 +76,8 @@ it('completes onboarding only after the language and flag are saved, with retry 
   expect(screen.queryByText('Instaladas')).toBeNull();
   expect(stored.firstRunComplete).toBe(false);
   failSave = false;
-  fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
-  expect(await screen.findByText('Instaladas')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(await screen.findByText('Installed')).toBeTruthy();
   expect(stored.language).toBe('en');
   expect(stored.firstRunComplete).toBe(true);
 });

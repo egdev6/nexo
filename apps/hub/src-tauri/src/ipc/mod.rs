@@ -32,9 +32,67 @@ pub(crate) struct AppSnapshot {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub(crate) enum NoticeOutcome {
+    Refused { reason: Option<String> },
+    Timeout,
+    Unavailable,
+    Disconnected,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub(crate) struct NoticeFailure {
+    pub app: String,
+    pub outcome: NoticeOutcome,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub(crate) enum NoticeDetail {
+    Quit {
+        all: bool,
+        failures: Vec<NoticeFailure>,
+    },
+    ConnectionClosed,
+}
+
+impl NoticeDetail {
+    pub(crate) fn message(&self, locale: crate::i18n::Locale) -> String {
+        use crate::i18n::text;
+        match self {
+            Self::ConnectionClosed => text(locale, "connectionClosed").into(),
+            Self::Quit { all, failures } => {
+                let details = failures
+                    .iter()
+                    .map(|failure| {
+                        let reason = match &failure.outcome {
+                            NoticeOutcome::Refused { reason } => {
+                                reason.as_deref().unwrap_or_else(|| text(locale, "refused"))
+                            }
+                            NoticeOutcome::Timeout => text(locale, "timeout"),
+                            NoticeOutcome::Unavailable => text(locale, "unavailable"),
+                            NoticeOutcome::Disconnected => text(locale, "disconnected"),
+                        };
+                        format!("{}: {reason}", failure.app)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                if *all {
+                    text(locale, "staysOpen").replace("{details}", &details)
+                } else {
+                    details
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct Notice {
     pub message: String,
     pub hub_only_allowed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<NoticeDetail>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
@@ -490,13 +548,27 @@ impl Hub {
             .collect()
     }
 
-    pub(crate) fn set_notice(&self, message: String, hub_only_allowed: bool) {
+    fn store_notice(&self, notice: Notice) {
         let mut registry = self.registry.lock().unwrap();
-        registry.notice = Some(Notice {
+        registry.notice = Some(notice);
+        self.changed(&mut registry);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_notice(&self, message: String, hub_only_allowed: bool) {
+        self.store_notice(Notice {
             message,
             hub_only_allowed,
+            detail: None,
         });
-        self.changed(&mut registry);
+    }
+
+    pub(crate) fn set_notice_detail(&self, detail: NoticeDetail, hub_only_allowed: bool) {
+        self.store_notice(Notice {
+            message: detail.message(crate::i18n::Locale::Es),
+            hub_only_allowed,
+            detail: Some(detail),
+        });
     }
 
     pub(crate) fn clear_notice(&self) {

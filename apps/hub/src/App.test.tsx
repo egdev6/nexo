@@ -154,9 +154,9 @@ it('starts with language choice and then shows the installed list, retaining the
   expect(screen.getByRole('region', { name: 'Idioma' })).toBeTruthy();
   expect(screen.queryByText('Instaladas')).toBeNull();
   enter('English');
-  expect(screen.getByText('Instaladas')).toBeTruthy();
+  expect(screen.getByText('Installed')).toBeTruthy();
   closeNews();
-  fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
   expect(screen.getByText('Idioma: en')).toBeTruthy();
 });
 

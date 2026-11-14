@@ -1,4 +1,7 @@
-use crate::ipc::Snapshot;
+use crate::{
+    i18n::{Locale, text},
+    ipc::Snapshot,
+};
 use nexo_protocol::Capability;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,7 +41,7 @@ pub(crate) struct Section {
     pub items: Vec<Item>,
 }
 
-pub(crate) fn compose(snapshot: &Snapshot) -> Vec<Section> {
+pub(crate) fn compose(snapshot: &Snapshot, locale: Locale) -> Vec<Section> {
     snapshot
         .apps
         .iter()
@@ -46,7 +49,7 @@ pub(crate) fn compose(snapshot: &Snapshot) -> Vec<Section> {
             let app = entry.app.id.clone();
             let generation = entry.generation;
             let mut items = vec![Item {
-                label: "Unificar bandeja".into(),
+                label: text(locale, "unify").into(),
                 enabled: true,
                 checked: Some(entry.unified),
                 command: Command::Toggle {
@@ -57,7 +60,7 @@ pub(crate) fn compose(snapshot: &Snapshot) -> Vec<Section> {
             }];
             if entry.capabilities.contains(&Capability::Show) {
                 items.push(Item {
-                    label: "Abrir".into(),
+                    label: text(locale, "show").into(),
                     enabled: true,
                     checked: None,
                     command: Command::Show {
@@ -68,7 +71,7 @@ pub(crate) fn compose(snapshot: &Snapshot) -> Vec<Section> {
             }
             if entry.capabilities.contains(&Capability::Quit) {
                 items.push(Item {
-                    label: "Cerrar".into(),
+                    label: text(locale, "close").into(),
                     enabled: true,
                     checked: None,
                     command: Command::Quit {
@@ -94,7 +97,7 @@ pub(crate) fn compose(snapshot: &Snapshot) -> Vec<Section> {
                 label: if entry.responsive {
                     entry.app.name.clone()
                 } else {
-                    format!("{} · Sin respuesta", entry.app.name)
+                    format!("{} · {}", entry.app.name, text(locale, "unresponsive"))
                 },
                 items,
             }
@@ -105,7 +108,10 @@ pub(crate) fn compose(snapshot: &Snapshot) -> Vec<Section> {
 #[cfg(test)]
 mod tests {
     use super::{Command, compose};
-    use crate::ipc::{AppSnapshot, Snapshot};
+    use crate::{
+        i18n::Locale,
+        ipc::{AppSnapshot, Snapshot},
+    };
     use nexo_protocol::{AppInfo, Capability, MenuItem};
 
     fn app(id: &str, unified: bool) -> AppSnapshot {
@@ -130,6 +136,31 @@ mod tests {
     }
 
     #[test]
+    fn english_submenu_preserves_app_labels_and_state() {
+        let mut entry = app("beta", false);
+        entry.responsive = false;
+        entry.capabilities.push(Capability::Quit);
+        let snapshot = Snapshot {
+            revision: 1,
+            apps: vec![entry],
+            notice: None,
+        };
+        let sections = compose(&snapshot, Locale::En);
+        assert_eq!(sections[0].label, "beta · Unresponsive");
+        assert_eq!(
+            sections[0]
+                .items
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Unify tray", "Open", "Close", "Pausar"]
+        );
+        assert_eq!(sections[0].items[0].checked, Some(false));
+        assert_eq!(sections[0].items[3].checked, Some(true));
+        assert!(!sections[0].items[3].enabled);
+    }
+
+    #[test]
     fn separate_submenus_preserve_checks_capabilities_and_identity() {
         let mut beta = app("beta", false);
         beta.responsive = false;
@@ -139,7 +170,7 @@ mod tests {
             apps: vec![app("alpha", true), beta],
             notice: None,
         };
-        let sections = compose(&snapshot);
+        let sections = compose(&snapshot, Locale::Es);
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].label, "alpha");
         assert_eq!(sections[1].label, "beta · Sin respuesta");
@@ -190,7 +221,7 @@ mod tests {
             notice: None,
         };
         assert!(
-            !compose(&empty)[0]
+            !compose(&empty, Locale::Es)[0]
                 .items
                 .iter()
                 .any(|item| item.label == "Pausar")

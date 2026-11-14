@@ -221,7 +221,15 @@ impl Store {
         let mut map = match self.document() {
             Ok(map) => map,
             Err(FileState::Missing) => Map::new(),
-            Err(state) => return Err(format!("No se pueden guardar ajustes: {state:?}")),
+            Err(state) => {
+                return Err(match state {
+                    FileState::Corrupt => "nexo.config.save.corrupt",
+                    FileState::Unreadable => "nexo.config.save.unreadable",
+                    FileState::Future => "nexo.config.save.future",
+                    FileState::Missing | FileState::Ready => unreachable!(),
+                }
+                .into());
+            }
         };
         // Source descriptors belong to #9 as well: preserve unrecognized per-source
         // metadata when a known descriptor survives a settings patch.
@@ -311,7 +319,7 @@ impl Store {
     pub fn recover(&self) -> Result<Settings, String> {
         match self.document() {
             Err(FileState::Corrupt | FileState::Unreadable) => {}
-            _ => return Err("No se puede recuperar este archivo de ajustes".into()),
+            _ => return Err("nexo.config.recoveryNotAllowed".into()),
         }
         let original = fs::read(&self.path).map_err(|e| e.to_string())?;
         let backup = self.path.with_file_name("config.json.bak");
@@ -338,6 +346,22 @@ impl Store {
 
 #[derive(Default)]
 pub struct ConfigLock(Mutex<()>);
+
+fn store_locale(store: &Store) -> crate::i18n::Locale {
+    crate::i18n::Locale::from_language(&store.read().settings.language)
+}
+
+pub(crate) fn bootstrap_locale(app: &AppHandle) -> crate::i18n::Locale {
+    let lock = app.state::<ConfigLock>();
+    let Ok(_guard) = lock.0.lock() else {
+        return crate::i18n::Locale::Es;
+    };
+    let Ok(directory) = app.path().app_config_dir() else {
+        return crate::i18n::Locale::Es;
+    };
+    store_locale(&Store::new(directory.join("config.json")))
+}
+
 fn store(app: &AppHandle, window: &WebviewWindow) -> Result<Store, String> {
     if window.label() != "main" {
         return Err("Ventana no autorizada".into());
