@@ -10,6 +10,8 @@ import type { HubApp, HubSettings, NewsItem } from './model';
 import { NewsPopup } from './news';
 import { defaultSettings, sampleApps, sampleNews } from './sample';
 import { SettingsView } from './settings';
+import { derivePalette } from './settings/palette';
+import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import type { RegistryApp, RegistrySnapshot } from './shell/registry';
 import { backdropAvailable, hideFlyout } from './window';
@@ -100,8 +102,12 @@ interface FlyoutProps {
 
 export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true }: FlyoutProps) {
   const [active, setActive] = useState<Tab>('apps');
-  const [settings, setSettings] = useState<HubSettings>(defaultSettings);
-  const [firstRun, setFirstRun] = useState(true);
+  const store = useSettings();
+  const settings = store.settings;
+  const shown = settings ?? defaultSettings;
+  const firstRun = !settings?.firstRunComplete;
+  const usable = store.fileState === 'ready' || store.fileState === 'missing';
+  const openedInitialNews = useRef(false);
   const [showSettings, setShowSettings] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
   const [hasBackdrop, setHasBackdrop] = useState(false);
@@ -130,14 +136,21 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    if (usable && settings?.firstRunComplete && !openedInitialNews.current && news.length > 0) {
+      openedInitialNews.current = true;
+      if (settings.showNewsOnOpen) setNewsOpen(true);
+    }
+  }, [usable, settings?.firstRunComplete, settings?.showNewsOnOpen, news.length]);
+
   // A tray reopen focuses the same webview rather than remounting the React tree.
   useEffect(() => {
     function onFocus() {
-      if (!firstRun && settings.showNewsOnOpen && news.length > 0) setNewsOpen(true);
+      if (usable && settings?.firstRunComplete && settings.showNewsOnOpen && news.length > 0) setNewsOpen(true);
     }
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [firstRun, settings.showNewsOnOpen, news.length]);
+  }, [usable, settings?.firstRunComplete, settings?.showNewsOnOpen, news.length]);
 
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
@@ -150,36 +163,56 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [newsOpen]);
 
+  const tones = derivePalette(shown.accent);
   const panelStyle = {
-    '--hub-accent': settings.accent,
-    '--hub-density': settings.compact ? '0.8' : '1',
-    '--hub-opacity': String(settings.opacity / 100),
-    '--hub-blur': `${settings.blur}px`,
+    '--hub-accent': shown.accent,
+    '--hub-accent-light': tones[1],
+    '--hub-accent-mid': tones[2],
+    '--color-fg-brand-default': tones[0],
+    '--color-fg-brand-raised': tones[1],
+    '--color-fg-brand-hover': tones[2],
+    '--color-border-brand': tones[2],
+    '--color-action-primary-solid-bg': tones[0],
+    '--color-action-primary-solid-bg-hover': tones[2],
+    '--hub-density': shown.compact ? '0.8' : '1',
+    '--hub-opacity': String(shown.opacity / 100),
+    '--hub-blur': `${shown.blur}px`,
   } as CSSProperties;
+
+  function updateSettings(next: HubSettings) {
+    if (!settings) return;
+    const patch = Object.fromEntries((Object.keys(next) as (keyof HubSettings)[])
+      .filter(key => key !== 'startWithWindows' && next[key] !== settings[key])
+      .map(key => [key, next[key]]));
+    store.change(patch);
+  }
 
   return <main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
     <header className="panel-head"><div className="heading"><span className="n-mark" aria-hidden="true">N</span><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${installedCount} ${installedCount === 1 ? 'instalada' : 'instaladas'}${sampleInstalled ? ' (muestra)' : ''}` : 'instalación sin comprobar'}</p>
       <div className="head-actions">
-        {!firstRun && !showSettings && <IconButton label="Ajustes" title="Ajustes" variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
+        {usable && !firstRun && !showSettings && <IconButton label="Ajustes" title="Ajustes" variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
         <IconButton label="Cerrar panel" title="Cerrar panel" variant="secondary" icon={<Icon name="close" />} onClick={() => void hideFlyout()} />
       </div>
     </div></header>
     {registryFailed && <div className="registry-notice" role="alert">No se pudo consultar el estado de las apps conectadas.</div>}
     {registry.notice && <div className="registry-notice" role="alert"><p>{registry.notice.message}</p>
-      {registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void exitHubOnly().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>Salir solo de Nexo</Button>}
+      {registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
+        if (await store.flush()) await exitHubOnly();
+      })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>Salir solo de Nexo</Button>}
     </div>}
-    {firstRun ? <div className="area-scroll"><FirstRun onChoose={language => {
-      setSettings(current => ({ ...current, language }));
-      setFirstRun(false);
-      setNewsOpen(settings.showNewsOnOpen && news.length > 0);
-    }} /></div> : showSettings ? <div className="area-scroll"><SettingsView settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} /></div> :
+    {store.error && <div className="settings__foot" role="alert">{store.error} <Button variant="neutral" size="sm" onClick={usable ? store.retry : store.reload}>Reintentar</Button></div>}
+    {store.fileState === null ? <p role="status" className="settings__foot">Cargando ajustes…</p> : !usable ? <div className="settings__foot">
+      {!store.error && <p role="alert">{store.fileState === 'future' ? 'Estos ajustes pertenecen a una versión más reciente y son de solo lectura.' : 'No se pudieron leer los ajustes. El archivo original no se ha modificado.'}</p>}
+      {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>Recuperar ajustes con copia de seguridad</Button>}
+      <Button variant="neutral" size="sm" onClick={store.reload}>Reintentar lectura</Button>
+    </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={settings} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" label="Secciones de Nexo" value={active} onValueChange={value => setActive(value as Tab)} items={[
         { value: 'apps', label: 'Mis apps', content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} selectCatalog={() => setActive('catalog')} /> },
         { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} /> },
       ]} />}
-    <NewsPopup items={news} open={!firstRun && newsOpen} onClose={() => setNewsOpen(false)} dontShow={!settings.showNewsOnOpen}
-      onDontShowChange={dontShow => setSettings(current => ({ ...current, showNewsOnOpen: !dontShow }))} />
+    {settings && <NewsPopup items={news} open={usable && !firstRun && newsOpen} onClose={() => setNewsOpen(false)} dontShow={!settings.showNewsOnOpen}
+      onDontShowChange={dontShow => store.change({ showNewsOnOpen: !dontShow })} />}
   </main>;
 }
 

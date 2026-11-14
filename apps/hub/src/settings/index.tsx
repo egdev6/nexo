@@ -8,7 +8,7 @@ import './settings.css';
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames = ['rojo', 'naranja', 'amarillo', 'verde', 'cian', 'azul', 'morado', 'rosa'];
 
-export function SettingsView({ settings, onChange, onClose }: SettingsViewProps) {
+export function SettingsView({ settings, onChange, onClose, sources: configuredSources, autostart }: SettingsViewProps) {
   const id = useId();
   const selected = normalizeHex(settings.accent);
   const tones = derivePalette(selected);
@@ -28,15 +28,16 @@ export function SettingsView({ settings, onChange, onClose }: SettingsViewProps)
           onValueChange={value => update('language', value as Language)} />
       </div>
       <div className="settings__row">
-        <label htmlFor={`${id}-startup`}><strong>Iniciar con Windows</strong><span id={`${id}-startup-hint`}>Preferencia de muestra</span></label>
-        <Switch id={`${id}-startup`} aria-label="Iniciar con Windows" aria-describedby={`${id}-startup-hint`} checked={settings.startWithWindows} onCheckedChange={value => update('startWithWindows', value)} />
+        <label htmlFor={`${id}-startup`}><strong>Iniciar con Windows</strong><span id={`${id}-startup-hint`}>{autostart?.confirmed === null ? 'Estado del sistema desconocido' : 'Se comprueba con el sistema'}</span></label>
+        <Switch id={`${id}-startup`} aria-label="Iniciar con Windows" aria-describedby={`${id}-startup-hint`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
       </div>
+      {autostart?.error && <div className="settings__foot" role="alert">{autostart.error} <Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>Reintentar inicio automático</Button></div>}
       <div className="settings__row">
         <label htmlFor={`${id}-news`}><strong>Mostrar novedades al abrir</strong><span id={`${id}-news-hint`}>Puedes volver a verlas en Mis apps</span></label>
         <Switch id={`${id}-news`} aria-label="Mostrar novedades al abrir" aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
       </div>
     </section>
-    <p className="settings__foot">Muestra de diseño · las preferencias no se guardan.</p>
+    <p className="settings__foot">Las preferencias se guardan localmente en este equipo.</p>
   </>;
 
   const appearance = <>
@@ -70,22 +71,22 @@ export function SettingsView({ settings, onChange, onClose }: SettingsViewProps)
       <div className="settings__preview" role="img" aria-label="Vista previa de apariencia" style={previewStyle}>
         <div className="settings__preview-panel" aria-hidden="true"><strong>Vista previa</strong><span>Panel de Nexo</span></div>
       </div>
-      <p className="settings__hint">La transparencia reducida del sistema tiene prioridad.</p>
+      <p className="settings__hint">El desenfoque afecta a las capas CSS del panel, no controla el desenfoque del escritorio. Sin Mica o acrílico, el escritorio puede verse transparente y nítido. La transparencia reducida del sistema tiene prioridad.</p>
       <div className="settings__row">
         <label htmlFor={`${id}-compact`}><strong>Interfaz compacta</strong><span id={`${id}-compact-hint`}>Reduce el espacio entre secciones</span></label>
         <Switch id={`${id}-compact`} aria-label="Interfaz compacta" aria-describedby={`${id}-compact-hint`} checked={settings.compact} onCheckedChange={value => update('compact', value)} />
       </div>
     </section>
-    <p className="settings__foot">Muestra de diseño · la apariencia es una vista previa; no se guarda.</p>
+    <p className="settings__foot">La apariencia se aplica al panel y se guarda en este equipo.</p>
   </>;
 
   const sources = <>
     <section className="settings__group" aria-labelledby={`${id}-sources`}>
       <h2 id={`${id}-sources`}>Fuentes del catálogo</h2>
-      <div className="settings__row"><div><strong>Catálogo oficial egdev</strong><span>Fuente oficial · Activa</span></div>
-        <Button variant="neutral" size="sm" type="button" disabled>Añadir fuente local</Button></div>
+      {(configuredSources ?? [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' as const }]).map(source => <div className="settings__row" key={source.id}><div><strong>{source.label}</strong><span>{source.kind === 'official' ? 'Fuente oficial' : 'Fuente local configurada'}</span></div></div>)}
+      <Button variant="neutral" size="sm" type="button" disabled>Añadir fuente local</Button>
     </section>
-    <p className="settings__foot">Muestra de diseño · añadir fuentes aún no está disponible.</p>
+    <p className="settings__foot">Añadir y utilizar fuentes locales aún no está disponible.</p>
   </>;
 
   const about = <>

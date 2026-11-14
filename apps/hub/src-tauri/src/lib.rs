@@ -1,4 +1,5 @@
 mod catalog_cache;
+mod config;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;
@@ -16,7 +17,7 @@ use std::time::{Duration, Instant};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
-    AppHandle, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
 
 #[derive(Default)]
@@ -95,7 +96,13 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(FocusState::default())
-        .manage(BackdropState::default());
+        .manage(BackdropState::default())
+        .manage(config::ConfigLock::default())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("Nexo")
+                .build(),
+        );
     #[cfg(windows)]
     let builder = builder
         .manage(ipc::Hub::new())
@@ -104,6 +111,10 @@ pub fn run() {
             backdrop_available,
             catalog_cache::read_catalog_cache,
             catalog_cache::write_catalog_cache,
+            config::get_settings,
+            config::save_settings,
+            config::recover_settings,
+            config::quit_after_settings,
             runtime::registry_snapshot,
             runtime::hub_only_exit
         ]);
@@ -111,7 +122,11 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
         catalog_cache::read_catalog_cache,
-        catalog_cache::write_catalog_cache
+        catalog_cache::write_catalog_cache,
+        config::get_settings,
+        config::save_settings,
+        config::recover_settings,
+        config::quit_after_settings
     ]);
     builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -137,8 +152,9 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            // Tauri applies its configured effect without reporting failure. Try
-            // Mica, then acrylic, and keep the CSS fallback opaque if both fail.
+            // Keep Mica/acrylic as an optional OS-controlled fallback. If neither
+            // works, the CSS panel can still be transparent and the desktop sharp;
+            // the CSS blur slider does not control either native effect's radius.
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
                 let applied = window_vibrancy::apply_mica(&window, None)
@@ -185,11 +201,18 @@ pub fn run() {
                     }
                 })
                 .on_menu_event(|app, event| {
-                    #[cfg(windows)]
-                    runtime::handle_menu(app, event.id.as_ref());
-                    #[cfg(not(windows))]
-                    if event.id.as_ref() == "quit" {
-                        app.exit(0);
+                    let id = event.id.as_ref();
+                    if id == "quit" || id == "hub-only-exit" {
+                        // Flush settings first; Windows then runs the IPC quit policy.
+                        let mode = if id == "quit" { "all" } else { "hub-only" };
+                        if let Err(error) = show_flyout(app)
+                            .and_then(|()| app.emit_to("main", "quit-requested", mode))
+                        {
+                            eprintln!("could not request a safe exit: {error}");
+                        }
+                    } else {
+                        #[cfg(windows)]
+                        runtime::handle_menu(app, id);
                     }
                 })
                 .build(app)?;
