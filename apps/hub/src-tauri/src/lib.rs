@@ -3,6 +3,9 @@ mod apps;
 mod catalog_cache;
 mod config;
 mod i18n;
+pub mod install_approval;
+#[cfg(test)]
+mod install_approval_tests;
 pub mod install_download;
 pub mod install_feed;
 pub mod install_http;
