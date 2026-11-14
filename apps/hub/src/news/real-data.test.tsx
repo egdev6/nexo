@@ -8,6 +8,13 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => t
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => {
   bridge.listeners.set(name, callback); return () => bridge.listeners.delete(name);
 }) }));
+// These tests exercise the unconfigured-endpoint and cache paths without network access;
+// fetching from configured endpoints is covered by catalog/loader.test.ts with an injected fetcher.
+vi.mock('../catalog/loader', async importOriginal => ({
+  ...(await importOriginal<typeof import('../catalog/loader')>()),
+  OFFICIAL_CATALOG_URL: undefined,
+  OFFICIAL_CATALOG_V2_URL: undefined,
+}));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ hide: vi.fn() }) }));
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 
