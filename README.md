@@ -30,4 +30,6 @@ npm run build
 npm run app:dev
 ```
 
-The hub icon is a temporary placeholder, not the final Nexo logo.
+The hub opens as a right-anchored Windows tray flyout. Left-click its tray icon to show or hide it; Escape or losing focus also hides it. Right-click the icon and choose **Salir** to quit. A second launch shows the existing panel. The tabs support arrow keys, Home and End.
+
+The displayed applications, versions, statuses and news are sample data. App actions and settings are illustrative no-ops until the hub IPC server (#4) and catalog (#5) are available; they do not install, update, open or close anything. The flyout resizes to its content up to the available work area and scrolls when necessary. The hub icon is a temporary placeholder, not the final Nexo logo.
