@@ -11,15 +11,19 @@
     "app:dev": "tauri dev"
   },
   "dependencies": {
+    "@egdev/tokens": "file:vendor/egdev-tokens-0.3.0.tgz",
+    "@egdev/ui": "file:vendor/egdev-ui-0.1.0.tgz",
     "@tauri-apps/api": "^2.8.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.0",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^31.0.1",
     "typescript": "^5.9.0",
     "vite": "^7.1.0",
     "vitest": "^4.0.0"

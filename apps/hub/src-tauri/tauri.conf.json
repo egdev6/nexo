@@ -13,9 +13,19 @@
     "withGlobalTauri": false,
     "windows": [
       {
+        "label": "main",
         "title": "Nexo",
-        "width": 800,
-        "height": 600
+        "width": 600,
+        "height": 820,
+        "visible": false,
+        "decorations": false,
+        "resizable": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "windowEffects": {
+          "effects": ["mica", "acrylic"]
+        }
       }
     ],
     "security": {

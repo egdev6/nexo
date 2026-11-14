@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "02-pestanas.html",
+  "handoffs": {
+    "02-pestanas.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-13T23:56:10.998Z",
+      "startedAt": "2026-11-13T23:56:32.094Z",
+      "implementedAt": "2026-11-14T00:29:56.513Z",
+      "note": "Implementado en apps/hub (commit eae82a6, rama feat/hub-flyout): React con tokens egdev, pestañas, filas desplegables y datos de ejemplo; ventana Tauri sin bordes de 600 px anclada a la derecha desde la bandeja. Preview en modo navegador; falta prueba nativa en Windows.",
+      "previewUrl": "http://127.0.0.1:1440/"
+    }
+  }
+}

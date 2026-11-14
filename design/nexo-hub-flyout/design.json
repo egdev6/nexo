@@ -1,0 +1,42 @@
+{
+  "title": "Nexo · Vistas del panel de bandeja",
+  "brief": "Vista elegida y exploraciones de catálogo, novedades, ajustes y primer uso para el panel de escritorio Windows.",
+  "feature": "odd/tasks/hub-flyout.md",
+  "artboards": [
+    {
+      "file": "02-pestanas.html",
+      "title": "Secciones y detalle",
+      "tradeoff": "Las pestañas y el detalle plegable reducen el ruido; algunas opciones requieren un paso más.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "04-catalogo.html",
+      "title": "Catálogo visual",
+      "tradeoff": "Las tarjetas hacen descubribles los productos y sus enlaces; ocupan más espacio que las filas compactas.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "05-novedades.html",
+      "title": "Novedades en primer plano",
+      "tradeoff": "El modal destaca la novedad sin desplazar la lista; bloquea el panel hasta cerrarlo.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "06-ajustes.html",
+      "title": "Ajustes y apariencia",
+      "tradeoff": "Las pestañas separan las categorías y conservan la vista previa; cambiar de sección requiere un paso.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "07-primer-uso.html",
+      "title": "Idioma en el primer uso",
+      "tradeoff": "La elección bilingüe es clara desde el inicio; añade un paso antes de mostrar las aplicaciones.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
