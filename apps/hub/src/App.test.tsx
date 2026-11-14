@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
 import type { CatalogViewProps, FirstRunProps, NewsPopupProps, SettingsViewProps } from './model';
 import { backdropAvailable, hideFlyout } from './window';
+import { exitHubOnly, subscribeRegistry } from './shell/registry';
+import type { RegistrySnapshot } from './shell/registry';
 
 // Test the shell's public wiring independently of the other area writers.
 vi.mock('./catalog', () => ({
@@ -26,6 +28,10 @@ vi.mock('./settings', () => ({
     <button onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>Alternar novedades</button>
     <button onClick={onClose}>Volver</button>
   </section>,
+}));
+vi.mock('./shell/registry', () => ({
+  subscribeRegistry: vi.fn().mockResolvedValue(() => {}),
+  exitHubOnly: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('./window', () => ({
   backdropAvailable: vi.fn().mockResolvedValue(false),
@@ -129,14 +135,62 @@ it('applies live appearance settings to the panel root', () => {
   expect(main.style.getPropertyValue('--hub-blur')).toBe('12px');
 });
 
+it('renders live connections and menus without duplicating sample identities', async () => {
+  let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
+  const unsubscribe = vi.fn();
+  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return unsubscribe; });
+  const { unmount } = render(<App news={[]} />); enter();
+  await waitFor(() => expect(publish).toBeTypeOf('function'));
+  act(() => publish!({ revision: 2, apps: [{
+    app: { id: 'antena', name: 'Antena', version: '2.0.0' },
+    capabilities: ['show', 'menu'], unified: false, responsive: true, generation: 1, menu_revision: 1,
+    menu: [{ id: 'pause', label: 'Pausar', enabled: false, checked: true }],
+  }, {
+    app: { id: 'external', name: 'Nueva app', version: '1.0.0' },
+    capabilities: [], unified: true, responsive: false, generation: 2, menu_revision: 0, menu: [],
+  }] }));
+  expect(screen.getAllByText('Antena')).toHaveLength(1);
+  expect(screen.getByText('Nueva app')).toBeTruthy();
+  expect(screen.getByText('Conectada')).toBeTruthy();
+  expect(screen.getByText(/Sin respuesta.*estado desconocido/i)).toBeTruthy();
+  expect(screen.getByText(/Pausar.*desactivada.*marcada/i)).toBeTruthy();
+  expect(screen.queryByText(/No está abierta/)).toBeNull();
+  act(() => publish!({ revision: 1, apps: [] }));
+  expect(screen.getByText('Nueva app')).toBeTruthy();
+  unmount();
+  await waitFor(() => expect(unsubscribe).toHaveBeenCalledOnce());
+});
+
+it('unsubscribes even if the asynchronous subscription resolves after unmount', async () => {
+  let resolveSubscription: ((stop: () => void) => void) | undefined;
+  const stop = vi.fn();
+  vi.mocked(subscribeRegistry).mockReturnValueOnce(new Promise(resolve => { resolveSubscription = resolve; }));
+  const { unmount } = render(<App news={[]} />);
+  unmount();
+  await act(async () => { resolveSubscription!(stop); });
+  expect(stop).toHaveBeenCalledOnce();
+});
+
+it('explains a blocked hub exit and requires an explicit hub-only choice', async () => {
+  let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
+  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
+  render(<App news={[]} />); enter();
+  await waitFor(() => expect(publish).toBeTypeOf('function'));
+  act(() => publish!({ revision: 3, apps: [], notice: { message: 'Antena: cambios sin guardar', hub_only_allowed: true } }));
+  expect(screen.getByRole('alert').textContent).toContain('Antena: cambios sin guardar');
+  expect(exitHubOnly).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Salir solo de Nexo' }));
+  expect(exitHubOnly).toHaveBeenCalledOnce();
+});
+
 it('preserves expandable rows, statuses and illustrative actions', () => {
   render(<App />); enter(); closeNews();
-  expect(screen.getByText('En ejecución')).toBeTruthy();
-  expect(screen.getByText('Actualización disponible')).toBeTruthy();
-  expect(screen.getByText(/Al día.*No está abierta/)).toBeTruthy();
-  expect(screen.getByText(/App local.*Solo apertura/)).toBeTruthy();
-  const row = screen.getByRole('button', { name: /Antena.*En ejecución/ });
+  expect(screen.getAllByText(/Estado desconocido/).length).toBeGreaterThan(0);
+  expect(screen.getByText(/Actualización disponible/)).toBeTruthy();
+  expect(screen.getByText(/App local.*Estado desconocido/)).toBeTruthy();
+  const row = screen.getByRole('button', { name: /Antena.*Estado desconocido/ });
   expect(row.getAttribute('aria-expanded')).toBe('true');
+  expect((screen.getByRole('button', { name: 'Actualizar Antena' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar Antena' }));
   expect(screen.getByText('Instalada: 1.4.0')).toBeTruthy();
   fireEvent.click(row);
