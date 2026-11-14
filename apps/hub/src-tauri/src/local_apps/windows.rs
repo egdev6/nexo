@@ -1,6 +1,11 @@
-use super::{ExecutableFs, FileKind, FsError, Launcher, Picker, Selection};
+use super::{
+    ExecutableFs, FileKind, FsError, Launcher, Picker, Selection,
+    icons::{self, IconFs, IconPicker, MAX_ICON_BYTES},
+};
+use std::io::{Read, Write};
 use std::os::windows::fs::MetadataExt;
-use tauri::{AppHandle, WebviewWindow};
+use std::path::PathBuf;
+use tauri::{AppHandle, Manager, WebviewWindow};
 use windows_sys::Win32::{
     Storage::FileSystem::{FILE_ATTRIBUTE_REPARSE_POINT, GetDriveTypeW},
     System::WindowsProgramming::DRIVE_FIXED,
@@ -74,6 +79,134 @@ impl Picker for SystemPicker {
     }
 }
 
+struct SystemIconPicker(isize);
+impl IconPicker for SystemIconPicker {
+    fn pick_icon(&self) -> Result<Option<String>, String> {
+        let filter: Vec<u16> = "PNG and ICO\0*.png;*.ico\0\0".encode_utf16().collect();
+        let mut path = vec![0_u16; 32768];
+        let mut dialog = OPENFILENAMEW {
+            lStructSize: std::mem::size_of::<OPENFILENAMEW>() as u32,
+            hwndOwner: self.0 as _,
+            lpstrFilter: filter.as_ptr(),
+            nFilterIndex: 1,
+            lpstrFile: path.as_mut_ptr(),
+            nMaxFile: path.len() as u32,
+            Flags: OFN_FILEMUSTEXIST
+                | OFN_PATHMUSTEXIST
+                | OFN_NOCHANGEDIR
+                | OFN_NODEREFERENCELINKS
+                | OFN_DONTADDTORECENT,
+            ..Default::default()
+        };
+        if unsafe { GetOpenFileNameW(&mut dialog) } == 0 {
+            return if unsafe { CommDlgExtendedError() } == 0 {
+                Ok(None)
+            } else {
+                Err("nexo.local.dialogFailed".into())
+            };
+        }
+        let length = path
+            .iter()
+            .position(|word| *word == 0)
+            .ok_or("nexo.local.refused")?;
+        Ok(Some(
+            String::from_utf16(&path[..length]).map_err(|_| "nexo.local.refused")?,
+        ))
+    }
+}
+
+struct SelectedIconPath(String);
+impl IconPicker for SelectedIconPath {
+    fn pick_icon(&self) -> Result<Option<String>, String> {
+        Ok(Some(self.0.clone()))
+    }
+}
+
+struct SystemIconFs {
+    directory: PathBuf,
+}
+impl SystemIconFs {
+    fn new(app: &AppHandle) -> Result<Self, String> {
+        Ok(Self {
+            directory: app
+                .path()
+                .app_data_dir()
+                .map_err(|_| "nexo.local.iconWriteFailed")?
+                .join("local-icons"),
+        })
+    }
+    fn checked_directory(&self) -> Result<(), String> {
+        let path = self
+            .directory
+            .to_str()
+            .ok_or("nexo.local.iconWriteFailed")?;
+        match SystemFs.inspect(path) {
+            Ok(FileKind::Directory) => Ok(()),
+            _ => Err("nexo.local.iconWriteFailed".into()),
+        }
+    }
+}
+impl ExecutableFs for SystemIconFs {
+    fn fixed_disk(&self, root: &str) -> bool {
+        SystemFs.fixed_disk(root)
+    }
+    fn inspect(&self, path: &str) -> Result<FileKind, FsError> {
+        SystemFs.inspect(path)
+    }
+}
+impl IconFs for SystemIconFs {
+    fn read_icon(&self, path: &str) -> Result<Vec<u8>, String> {
+        let file = std::fs::File::open(path).map_err(|_| "nexo.local.iconReadFailed")?;
+        let mut bytes = Vec::new();
+        file.take((MAX_ICON_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "nexo.local.iconReadFailed")?;
+        Ok(bytes)
+    }
+    fn save_icon(&self, bytes: &[u8], extension: &str) -> Result<String, String> {
+        std::fs::create_dir_all(&self.directory).map_err(|_| "nexo.local.iconWriteFailed")?;
+        self.checked_directory()?;
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let name = format!(
+            "icon-{nanos:x}-{:x}-{:x}.{extension}",
+            std::process::id(),
+            super::NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        );
+        let path = self.directory.join(&name);
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map_err(|_| "nexo.local.iconWriteFailed")?;
+        if file
+            .write_all(bytes)
+            .and_then(|()| file.sync_all())
+            .is_err()
+        {
+            drop(file);
+            std::fs::remove_file(path).map_err(|_| "nexo.local.iconCleanupFailed")?;
+            return Err("nexo.local.iconWriteFailed".into());
+        }
+        Ok(name)
+    }
+    fn delete_icon(&self, name: &str) -> Result<(), String> {
+        match std::fs::symlink_metadata(&self.directory) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            _ => self
+                .checked_directory()
+                .map_err(|_| "nexo.local.iconCleanupFailed")?,
+        }
+        match std::fs::remove_file(self.directory.join(name)) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(_) => Err("nexo.local.iconCleanupFailed".into()),
+        }
+    }
+}
+
 struct SelectedPath(String);
 impl Picker for SelectedPath {
     fn pick_executable(&self) -> Result<Option<String>, String> {
@@ -136,7 +269,10 @@ pub(crate) async fn local_app_remove(
     id: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        crate::config::with_locked_store(&app, &window, |store| super::remove(store, &id))
+        let fs = SystemIconFs::new(&app)?;
+        crate::config::with_locked_store(&app, &window, |store| {
+            icons::remove_with_icon(store, &fs, &id)
+        })
     })
     .await
     .map_err(|_| "nexo.local.refused".to_string())?
@@ -161,6 +297,29 @@ pub(crate) async fn local_app_repair(
 }
 
 #[tauri::command]
+pub(crate) async fn local_app_pick_icon(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+) -> Result<Option<Selection>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let owner = window.hwnd().map_err(|_| "nexo.local.dialogFailed")?.0 as isize;
+        let Some(path) = SystemIconPicker(owner).pick_icon()? else {
+            return Ok(None);
+        };
+        let fs = SystemIconFs::new(&app)?;
+        crate::config::with_locked_store(&app, &window, |store| {
+            icons::pick_icon(store, &fs, &SelectedIconPath(path), &id)
+        })
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
+}
+
+#[tauri::command]
 pub(crate) async fn local_app_open(
     app: AppHandle,
     window: WebviewWindow,
@@ -177,7 +336,8 @@ pub(crate) async fn local_app_open(
 
 #[cfg(test)]
 mod tests {
-    use super::SystemFs;
+    use super::{SystemFs, SystemIconFs};
+    use crate::local_apps::icons::{IconFs, MAX_ICON_BYTES};
     use crate::local_apps::validate_executable;
 
     struct Scratch(std::path::PathBuf);
@@ -193,6 +353,29 @@ mod tests {
         fn drop(&mut self) {
             std::fs::remove_dir_all(&self.0).unwrap();
         }
+    }
+
+    #[test]
+    fn icon_files_are_created_in_the_owned_directory_and_reads_are_bounded() {
+        let path =
+            std::env::temp_dir().join(format!("nexo-local-native-icons-{}", std::process::id()));
+        std::fs::create_dir(&path).unwrap();
+        let scratch = Scratch(path);
+        let source = scratch.0.join("source.png");
+        let bytes = vec![42; MAX_ICON_BYTES + 10];
+        std::fs::write(&source, &bytes).unwrap();
+        let fs = SystemIconFs {
+            directory: scratch.0.join("local-icons"),
+        };
+        assert_eq!(
+            fs.read_icon(source.to_str().unwrap()).unwrap().len(),
+            MAX_ICON_BYTES + 1
+        );
+        let name = fs.save_icon(b"copied", "png").unwrap();
+        assert_eq!(std::fs::read(fs.directory.join(&name)).unwrap(), b"copied");
+        fs.delete_icon(&name).unwrap();
+        assert!(!fs.directory.join(name).exists());
+        assert_eq!(std::fs::read(source).unwrap(), bytes);
     }
 
     #[test]

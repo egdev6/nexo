@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { addLocalApp, openLocalApp, removeLocalApp, repairLocalApp, updateLocalApp, type LocalAppErrorCode } from './index';
+import { addLocalApp, openLocalApp, pickLocalAppIcon, removeLocalApp, repairLocalApp, updateLocalApp, type LocalAppErrorCode } from './index';
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke }));
@@ -29,6 +29,15 @@ it('repairs through the native picker using only an opaque key', async () => {
   invoke.mockResolvedValue(null);
   await expect(repairLocalApp('manual')).resolves.toBeNull();
   expect(invoke).toHaveBeenCalledExactlyOnceWith('local_app_repair', { id: 'manual' });
+});
+
+it('selects an icon through the native picker by opaque key, preserving cancel and errors', async () => {
+  const selection = { app: { id: 'manual', name: 'App', executable: 'C:\\App.exe', icon: 'icon-1.png' }, duplicate: false };
+  invoke.mockResolvedValueOnce(selection).mockResolvedValueOnce(null).mockRejectedValueOnce('nexo.local.invalidIcon');
+  expect(await pickLocalAppIcon('manual')).toEqual(selection);
+  expect(await pickLocalAppIcon('manual')).toBeNull();
+  await expect(pickLocalAppIcon('manual')).rejects.toBe('nexo.local.invalidIcon');
+  expect(invoke.mock.calls).toEqual([['local_app_pick_icon', { id: 'manual' }], ['local_app_pick_icon', { id: 'manual' }], ['local_app_pick_icon', { id: 'manual' }]]);
 });
 
 it('opens by opaque key without a path or arguments and propagates native error codes', async () => {

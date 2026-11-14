@@ -235,6 +235,7 @@ pub fn run() {
             local_apps::windows::local_app_update,
             local_apps::windows::local_app_remove,
             local_apps::windows::local_app_repair,
+            local_apps::windows::local_app_pick_icon,
             local_apps::windows::local_app_open,
             runtime::hub_only_exit
         ]);

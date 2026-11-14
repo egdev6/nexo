@@ -242,6 +242,8 @@ fn open(
     launcher.spawn(&path)
 }
 
+mod icons;
+
 #[cfg(windows)]
 pub(crate) mod windows;
 
