@@ -1,10 +1,14 @@
 use crate::install_approval::{ApprovalDecision, ApprovalRequest, InstallApproval};
-use crate::install_download::{Body, Network, NetworkError, Response, ResponseKind};
+use crate::install_download::{
+    self, Artifact, Body, Network, NetworkError, Progress, Response, ResponseKind, StorageError,
+    WorkspaceFactory,
+};
 use crate::install_feed::{CatalogFeed, FeedError, FreshCatalog, NativeFeed};
 use crate::install_launcher::LaunchError;
 use crate::install_service::{
-    Detection, InstallDetector, InstallLauncher, InstallResult, InstallService, InstallWorkspace,
-    Installer, Monitor,
+    CancelResult, CancellableNetwork, Detection, InstallDetector, InstallLauncher, InstallProgress,
+    InstallResult, InstallService, InstallWorkspace, Installer, Monitor, Operation, ProgressPhase,
+    ProgressReporter, ProgressSink,
 };
 use crate::install_workspace::{PrepareError, PrepareFailure};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -13,7 +17,7 @@ use serde_json::{Value, json};
 use std::{
     collections::VecDeque,
     sync::{
-        Arc, Mutex,
+        Arc, Condvar, Mutex,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
@@ -61,6 +65,12 @@ struct State {
     documents: Mutex<VecDeque<Result<Value, FeedError>>>,
     observations: Mutex<VecDeque<Detection>>,
     approved: AtomicBool,
+    hold_approval: AtomicBool,
+    approval_gate: (Mutex<bool>, Condvar),
+    streaming: AtomicBool,
+    complete_stream: AtomicBool,
+    hold_launch: AtomicBool,
+    launch_gate: Semaphore,
     prepare_error: Mutex<Option<PrepareError>>,
     cleanup_failure: AtomicBool,
     launch_error: Mutex<Option<LaunchError>>,
@@ -85,6 +95,12 @@ impl State {
                 .into(),
             ),
             approved: AtomicBool::new(true),
+            hold_approval: AtomicBool::new(false),
+            approval_gate: (Mutex::new(false), Condvar::new()),
+            streaming: AtomicBool::new(false),
+            complete_stream: AtomicBool::new(false),
+            hold_launch: AtomicBool::new(false),
+            launch_gate: Semaphore::new(0),
             prepare_error: Mutex::new(None),
             cleanup_failure: AtomicBool::new(false),
             launch_error: Mutex::new(None),
@@ -128,14 +144,67 @@ impl CatalogFeed for Feed {
     }
 }
 struct FakeNetwork(Arc<State>);
+struct StreamBody {
+    state: Arc<State>,
+    first: bool,
+}
+impl Body for StreamBody {
+    async fn next(&mut self) -> Result<Option<Vec<u8>>, NetworkError> {
+        if self.first {
+            self.first = false;
+            Ok(Some(vec![1]))
+        } else if self.state.complete_stream.load(Ordering::SeqCst) {
+            Ok(None)
+        } else {
+            self.state.log("body-pending");
+            std::future::pending().await
+        }
+    }
+}
 impl Network for FakeNetwork {
-    type Body = FakeBody;
+    type Body = StreamBody;
     async fn get(&self, url: &str) -> Result<Response<Self::Body>, NetworkError> {
         self.0.log("network");
         Ok(Response {
             effective_url: url.into(),
-            kind: ResponseKind::Failed,
+            kind: if self.0.streaming.load(Ordering::SeqCst) {
+                ResponseKind::Ok {
+                    length: if self.0.complete_stream.load(Ordering::SeqCst) {
+                        None
+                    } else {
+                        Some(2)
+                    },
+                    body: StreamBody {
+                        state: self.0.clone(),
+                        first: true,
+                    },
+                }
+            } else {
+                ResponseKind::Failed
+            },
         })
+    }
+}
+struct MemoryFactory(Arc<State>);
+struct MemoryWorkspace(Arc<State>);
+impl WorkspaceFactory for MemoryFactory {
+    type Workspace = MemoryWorkspace;
+    fn create(&self) -> Result<Self::Workspace, StorageError> {
+        self.0.active.fetch_add(1, Ordering::SeqCst);
+        Ok(MemoryWorkspace(self.0.clone()))
+    }
+}
+impl install_download::Workspace for MemoryWorkspace {
+    async fn write(&mut self, _: Artifact, _: &[u8]) -> Result<(), StorageError> {
+        Ok(())
+    }
+    fn cleanup(&mut self) -> Result<(), StorageError> {
+        self.0.log("cleanup");
+        if self.0.cleanup_failure.load(Ordering::SeqCst) {
+            return Err(StorageError);
+        }
+        self.0.active.fetch_sub(1, Ordering::SeqCst);
+        Ok(())
     }
 }
 struct Workspace(Arc<State>);
@@ -154,11 +223,41 @@ impl InstallWorkspace<FakeNetwork> for Workspace {
     type Installer = Verified;
     async fn prepare(
         &self,
-        network: &FakeNetwork,
+        network: &CancellableNetwork<'_, FakeNetwork>,
         app: &CatalogApp,
+        progress: &ProgressReporter,
     ) -> Result<Verified, PrepareError> {
         self.0.log("download");
+        if self.0.streaming.load(Ordering::SeqCst) {
+            let result = install_download::download_pair(
+                network,
+                &MemoryFactory(self.0.clone()),
+                &app.installer_url,
+                install_download::Limits::default(),
+                |item| progress.download(item),
+            )
+            .await;
+            return match result {
+                Ok(prepared) => {
+                    prepared.cleanup().unwrap();
+                    self.0.active.fetch_add(1, Ordering::SeqCst);
+                    Ok(Verified(self.0.clone()))
+                }
+                Err(error) => Err(PrepareError {
+                    cause: PrepareFailure::Download(error.cause),
+                    cleanup_failed: error.cleanup_failed,
+                }),
+            };
+        }
         let _ = network.get(&app.installer_url).await;
+        for bytes in 1..=50 {
+            progress.download(Progress {
+                artifact: Artifact::Installer,
+                bytes,
+                total: Some(50),
+            });
+        }
+        progress.phase(ProgressPhase::Verifying);
         if let Some(error) = *self.0.prepare_error.lock().unwrap() {
             return Err(error);
         }
@@ -190,6 +289,13 @@ impl InstallApproval for Approval {
             "approval:{}:{}:{}:{}",
             request.app_name, request.version, request.publisher_host, request.language
         ));
+        if self.0.hold_approval.load(Ordering::SeqCst) {
+            let (lock, ready) = &self.0.approval_gate;
+            let mut released = lock.lock().unwrap();
+            while !*released {
+                released = ready.wait(released).unwrap();
+            }
+        }
         if self.0.approved.load(Ordering::SeqCst) {
             ApprovalDecision::Approved
         } else {
@@ -201,13 +307,25 @@ struct Launcher(Arc<State>);
 struct Running(Arc<State>);
 impl InstallLauncher<Verified> for Launcher {
     type Running = Running;
-    async fn launch(&self, _: &Verified) -> Result<Running, LaunchError> {
-        self.0.log("launch");
-        if let Some(error) = *self.0.launch_error.lock().unwrap() {
-            Err(error)
-        } else {
-            Ok(Running(self.0.clone()))
+    async fn launch(
+        &self,
+        _: &Verified,
+        operation: Arc<Operation>,
+    ) -> Result<Running, LaunchError> {
+        if self.0.hold_launch.load(Ordering::SeqCst) {
+            self.0.log("before-spawn");
+            self.0.launch_gate.acquire().await.unwrap().forget();
         }
+        operation
+            .spawn(|| {
+                self.0.log("launch");
+                if let Some(error) = *self.0.launch_error.lock().unwrap() {
+                    Err(error)
+                } else {
+                    Ok(Running(self.0.clone()))
+                }
+            })
+            .unwrap_or(Err(LaunchError::Spawn))
     }
 }
 impl Monitor for Running {
@@ -234,6 +352,254 @@ fn service(
         Launcher(state.clone()),
         Detector(state.clone()),
     )
+}
+
+#[derive(Default)]
+struct Events(Mutex<Vec<InstallProgress>>);
+impl ProgressSink for Events {
+    fn emit(&self, progress: InstallProgress) {
+        self.0.lock().unwrap().push(progress);
+    }
+}
+
+#[tokio::test]
+async fn progress_reaches_the_sink_with_phases_byte_counts_and_throttling() {
+    let state = State::new(1, 1);
+    let sink = Arc::new(Events::default());
+    assert!(matches!(
+        service(&state)
+            .install_app_with_progress("minimal", "en", sink.clone())
+            .await,
+        InstallResult::Installed { .. }
+    ));
+    let events = sink.0.lock().unwrap();
+    let mut phases: Vec<_> = events.iter().map(|event| event.phase).collect();
+    phases.dedup();
+    assert_eq!(
+        phases,
+        [
+            ProgressPhase::Fetching,
+            ProgressPhase::AwaitingApproval,
+            ProgressPhase::Downloading,
+            ProgressPhase::Verifying,
+            ProgressPhase::Installing,
+            ProgressPhase::Detecting
+        ]
+    );
+    assert!(events.iter().all(|event| event.id == "minimal"));
+    let bytes: Vec<_> = events
+        .iter()
+        .filter(|event| event.received.is_some())
+        .collect();
+    assert_eq!(bytes.len(), 1, "rapid byte updates must be throttled");
+    assert_eq!(
+        serde_json::to_value(bytes[0]).unwrap(),
+        json!({"id":"minimal","phase":"downloading","received":1,"total":50})
+    );
+    assert_eq!(
+        serde_json::to_value(&events[0]).unwrap(),
+        json!({"id":"minimal","phase":"fetching"})
+    );
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn real_download_adapter_reports_unknown_total_then_verification() {
+    let state = State::new(1, 1);
+    state.streaming.store(true, Ordering::SeqCst);
+    state.complete_stream.store(true, Ordering::SeqCst);
+    let sink = Arc::new(Events::default());
+    assert!(matches!(
+        service(&state)
+            .install_app_with_progress("minimal", "en", sink.clone())
+            .await,
+        InstallResult::Installed { .. }
+    ));
+    let events = sink.0.lock().unwrap();
+    let bytes = events
+        .iter()
+        .find(|event| event.received.is_some())
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(bytes).unwrap(),
+        json!({"id":"minimal","phase":"downloading","received":1})
+    );
+    let verifying = events
+        .iter()
+        .position(|event| event.phase == ProgressPhase::Verifying)
+        .unwrap();
+    let installing = events
+        .iter()
+        .position(|event| event.phase == ProgressPhase::Installing)
+        .unwrap();
+    assert!(verifying < installing);
+    assert_eq!(
+        state
+            .events()
+            .iter()
+            .filter(|event| *event == "network")
+            .count(),
+        2
+    );
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn cancelling_approval_keeps_the_claim_until_the_native_dialog_returns() {
+    let state = State::new(1, 1);
+    state.hold_approval.store(true, Ordering::SeqCst);
+    let service = Arc::new(service(&state));
+    let first = {
+        let service = service.clone();
+        tokio::spawn(async move { service.install_app("minimal", "en").await })
+    };
+    state.until("approval:Minimal:1.0.0:github.com:en").await;
+    let cancelling = {
+        let service = service.clone();
+        tokio::spawn(async move { service.cancel_install("minimal").await })
+    };
+    for _ in 0..100 {
+        tokio::task::yield_now().await;
+    }
+    let premature = cancelling.is_finished();
+    if !premature {
+        assert_eq!(
+            service.install_app("minimal", "en").await,
+            InstallResult::Busy
+        );
+    }
+    *state.approval_gate.0.lock().unwrap() = true;
+    state.approval_gate.1.notify_all();
+    assert_eq!(cancelling.await.unwrap(), CancelResult::Cancelled);
+    assert_eq!(first.await.unwrap(), InstallResult::Cancelled);
+    assert!(
+        !premature,
+        "cancellation returned while the native approval was still open"
+    );
+    assert!(!state.events().contains(&"download".into()));
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn cancellation_wins_if_requested_before_the_actual_spawn() {
+    let state = State::new(1, 1);
+    state.hold_launch.store(true, Ordering::SeqCst);
+    let service = Arc::new(service(&state));
+    let first = {
+        let service = service.clone();
+        tokio::spawn(async move { service.install_app("minimal", "en").await })
+    };
+    state.until("before-spawn").await;
+    let cancel = service.cancel_install("minimal");
+    tokio::pin!(cancel);
+    tokio::select! {
+        biased;
+        result = &mut cancel => panic!("returned before launch boundary was released: {result:?}"),
+        _ = tokio::task::yield_now() => {}
+    }
+    state.launch_gate.add_permits(1);
+    assert_eq!(cancel.await, CancelResult::Cancelled);
+    assert_eq!(first.await.unwrap(), InstallResult::Cancelled);
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+async fn cancel_during_stream(cleanup_failure: bool) {
+    let state = State::new(1, 1);
+    state.streaming.store(true, Ordering::SeqCst);
+    state
+        .cleanup_failure
+        .store(cleanup_failure, Ordering::SeqCst);
+    let service = Arc::new(service(&state));
+    let first = {
+        let service = service.clone();
+        tokio::spawn(async move { service.install_app("minimal", "en").await })
+    };
+    state.until("body-pending").await;
+    let cancel = tokio::time::timeout(
+        std::time::Duration::from_secs(1),
+        service.cancel_install("minimal"),
+    )
+    .await
+    .expect("cancellation must interrupt a pending chunk");
+    assert_eq!(
+        cancel,
+        if cleanup_failure {
+            CancelResult::CleanupFailed
+        } else {
+            CancelResult::Cancelled
+        }
+    );
+    assert_eq!(
+        first.await.unwrap(),
+        if cleanup_failure {
+            InstallResult::CleanupFailed
+        } else {
+            InstallResult::Cancelled
+        }
+    );
+    assert_eq!(
+        state
+            .events()
+            .iter()
+            .filter(|event| *event == "cleanup")
+            .count(),
+        1
+    );
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(
+        state.active.load(Ordering::SeqCst),
+        usize::from(cleanup_failure)
+    );
+}
+
+#[tokio::test]
+async fn cancel_interrupts_a_pending_chunk_and_cleans_before_returning() {
+    cancel_during_stream(false).await;
+}
+
+#[tokio::test]
+async fn cancellation_never_reports_clean_when_workspace_cleanup_fails() {
+    cancel_during_stream(true).await;
+}
+
+#[tokio::test]
+async fn cancellation_after_spawn_is_too_late_and_keeps_tracking() {
+    let state = State::new(0, 1);
+    let service = Arc::new(service(&state));
+    let first = {
+        let service = service.clone();
+        tokio::spawn(async move { service.install_app("minimal", "en").await })
+    };
+    state.until("wait").await;
+    assert_eq!(
+        service.cancel_install("minimal").await,
+        CancelResult::TooLate
+    );
+    assert_eq!(
+        service.install_app("minimal", "en").await,
+        InstallResult::Busy
+    );
+    assert_eq!(state.active.load(Ordering::SeqCst), 1);
+    assert!(!state.events().contains(&"cleanup".into()));
+    state.first.add_permits(1);
+    assert!(matches!(
+        first.await.unwrap(),
+        InstallResult::Installed { .. }
+    ));
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn unknown_cancellation_is_not_running_and_serializes_as_a_string() {
+    let state = State::new(1, 1);
+    let result = service(&state).cancel_install("other").await;
+    assert_eq!(result, CancelResult::NotRunning);
+    assert_eq!(serde_json::to_value(result).unwrap(), json!("notRunning"));
+    assert!(state.events().is_empty());
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
 }
 
 #[tokio::test]

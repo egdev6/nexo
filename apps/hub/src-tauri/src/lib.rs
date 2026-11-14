@@ -47,6 +47,17 @@ use tauri::{
 };
 
 #[cfg(windows)]
+struct NativeInstallProgress(AppHandle);
+#[cfg(windows)]
+impl install_service::ProgressSink for NativeInstallProgress {
+    fn emit(&self, progress: install_service::InstallProgress) {
+        if let Err(error) = self.0.emit_to("main", "install-progress", progress) {
+            eprintln!("could not send install progress: {error}");
+        }
+    }
+}
+
+#[cfg(windows)]
 #[tauri::command]
 async fn install_app(
     app: AppHandle,
@@ -61,7 +72,26 @@ async fn install_app(
         i18n::Locale::Es => "es",
         i18n::Locale::En => "en",
     };
-    Ok(service.install_app(&id, language).await)
+    Ok(service
+        .install_app_with_progress(
+            &id,
+            language,
+            std::sync::Arc::new(NativeInstallProgress(app)),
+        )
+        .await)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn cancel_install(
+    window: WebviewWindow,
+    service: State<'_, install_service::NativeService>,
+    id: String,
+) -> Result<install_service::CancelResult, String> {
+    if window.label() != "main" {
+        return Ok(install_service::CancelResult::NotRunning);
+    }
+    Ok(service.cancel_install(&id).await)
 }
 
 #[derive(Default)]
@@ -269,6 +299,7 @@ pub fn run() {
             apps::open_official_app,
             apps::close_connected_app,
             install_app,
+            cancel_install,
             runtime::hub_only_exit
         ]);
     #[cfg(not(windows))]
