@@ -15,14 +15,12 @@ fn resolve_path(location: &str, relative: &str) -> Result<std::path::PathBuf, St
     use std::os::windows::fs::MetadataExt;
     use std::path::{Component, Path, Prefix};
     let location = if let Some(quoted) = location.strip_prefix('"') {
-        quoted
-            .strip_suffix('"')
-            .ok_or("La ubicación contiene comillas no equilibradas")?
+        quoted.strip_suffix('"').ok_or("nexo.appUnbalancedQuotes")?
     } else {
         location
     };
     if location.contains('"') {
-        return Err("La ubicación contiene comillas inválidas".into());
+        return Err("nexo.appInvalidQuotes".into());
     }
     let directory = Path::new(location);
     let mut components = directory.components();
@@ -30,7 +28,7 @@ fn resolve_path(location: &str, relative: &str) -> Result<std::path::PathBuf, St
         || !matches!(components.next(), Some(Component::RootDir))
         || components.any(|component| !matches!(component, Component::Normal(_)))
     {
-        return Err("La ubicación no es una ruta local absoluta segura".into());
+        return Err("nexo.appUnsafeLocation".into());
     }
     let relative = Path::new(relative);
     if relative.as_os_str().is_empty()
@@ -41,14 +39,14 @@ fn resolve_path(location: &str, relative: &str) -> Result<std::path::PathBuf, St
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
     {
-        return Err("La ruta del ejecutable no es segura".into());
+        return Err("nexo.appUnsafeExe".into());
     }
     let executable = directory.join(relative);
     for path in executable.ancestors() {
-        let metadata = std::fs::symlink_metadata(path)
-            .map_err(|_| "No se puede acceder a la ubicación del ejecutable".to_string())?;
+        let metadata =
+            std::fs::symlink_metadata(path).map_err(|_| "nexo.appExeInaccessible".to_string())?;
         if metadata.file_attributes() & 0x400 != 0 {
-            return Err("La ruta contiene un enlace o punto de análisis".into());
+            return Err("nexo.appReparse".into());
         }
     }
     if !std::fs::metadata(directory)
@@ -58,12 +56,12 @@ fn resolve_path(location: &str, relative: &str) -> Result<std::path::PathBuf, St
             .map_err(|error| error.to_string())?
             .is_file()
     {
-        return Err("No hay un ejecutable normal en la ubicación".into());
+        return Err("nexo.appExeNotFile".into());
     }
     let base = std::fs::canonicalize(directory).map_err(|error| error.to_string())?;
     let executable = std::fs::canonicalize(executable).map_err(|error| error.to_string())?;
     if !executable.starts_with(&base) {
-        return Err("El ejecutable está fuera de la instalación".into());
+        return Err("nexo.appExeOutside".into());
     }
     Ok(executable)
 }
@@ -88,7 +86,7 @@ impl super::Launcher for SystemLauncher<'_> {
         self.hub.while_disconnected(self.id, || {
             let fresh = resolve_path(location, relative)?;
             if fresh != executable {
-                return Err("La ubicación cambió; vuelve a intentar".into());
+                return Err("nexo.appLocationChanged".into());
             }
             // Hard links are accepted; same-user replacement remains possible between
             // revalidation and spawn. Name, publisher and path do not authenticate a publisher.
@@ -99,7 +97,7 @@ impl super::Launcher for SystemLauncher<'_> {
                 .stderr(std::process::Stdio::null())
                 .spawn()
                 .map(|_| ())
-                .map_err(|error| format!("No se pudo iniciar la app: {error}"))
+                .map_err(|error| format!("nexo.appSpawnFailed:{error}"))
         })
     }
 }

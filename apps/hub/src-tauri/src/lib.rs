@@ -2,9 +2,12 @@
 mod apps;
 mod catalog_cache;
 mod config;
+mod i18n;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;
+#[cfg(any(windows, test))]
+mod registry_presentation;
 #[cfg(windows)]
 mod runtime;
 #[cfg(any(windows, test))]
@@ -15,7 +18,7 @@ use std::sync::{
     Mutex,
     atomic::{AtomicBool, Ordering},
 };
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
@@ -28,6 +31,100 @@ struct BackdropState(AtomicBool);
 #[tauri::command]
 fn backdrop_available(state: State<'_, BackdropState>) -> bool {
     state.0.load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+fn apply_saved_language(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    #[cfg(windows)]
+    {
+        runtime::rebuild_current(&app)
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        app.state::<i18n::Presentation>().refresh(
+            || config::bootstrap_locale(&app),
+            |locale| {
+                let quit =
+                    MenuItem::with_id(&app, "quit", i18n::text(locale, "quit"), true, None::<&str>)
+                        .map_err(|error| error.to_string())?;
+                let menu = Menu::with_items(&app, &[&quit]).map_err(|error| error.to_string())?;
+                let tray = app.tray_by_id("nexo").ok_or("Nexo tray missing")?;
+                tray.set_menu(Some(menu)).map_err(|error| error.to_string())
+            },
+        )
+    }
+}
+
+#[derive(Clone, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FlyoutVisibility {
+    visible: bool,
+    sequence: u64,
+    cycle: u64,
+    at: u64,
+    shown_at: u64,
+}
+
+#[derive(Default)]
+struct VisibilityState(Mutex<FlyoutVisibility>);
+
+fn record_visibility(app: &AppHandle, visible: bool) {
+    let state = app.state::<VisibilityState>();
+    let Ok(mut current) = state.0.lock() else {
+        return;
+    };
+    if current.visible == visible {
+        return;
+    }
+    current.visible = visible;
+    current.sequence += 1;
+    if visible {
+        current.cycle += 1;
+    }
+    current.at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
+    if visible {
+        current.shown_at = current.at;
+    }
+    let snapshot = current.clone();
+    drop(current);
+    if let Err(error) = app.emit_to("main", "flyout-visibility", snapshot) {
+        eprintln!("could not send flyout visibility: {error}");
+    }
+}
+
+#[tauri::command]
+fn get_flyout_state(state: State<'_, VisibilityState>) -> Result<FlyoutVisibility, String> {
+    state
+        .0
+        .lock()
+        .map(|value| value.clone())
+        .map_err(|error| error.to_string())
+}
+
+fn hide_window(window: &WebviewWindow) -> tauri::Result<()> {
+    if window.is_visible()? {
+        window.hide()?;
+        record_visibility(window.app_handle(), false);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_flyout(window: WebviewWindow) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    hide_window(&window).map_err(|error| error.to_string())
 }
 
 #[derive(Default)]
@@ -64,8 +161,11 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
         if let Ok(mut lost) = app.state::<FocusState>().tray_focus_loss.lock() {
             *lost = None;
         }
-        place_flyout(&window)?;
-        window.show()?;
+        if !window.is_visible()? {
+            place_flyout(&window)?;
+            window.show()?;
+            record_visibility(app, true);
+        }
         window.set_focus()?;
     }
     Ok(())
@@ -74,7 +174,7 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
 fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible()? {
-            window.hide()?;
+            hide_window(&window)?;
         } else {
             // Clicking the tray can first defocus and hide the flyout. Do not
             // interpret that same click as a request to reopen it.
@@ -98,8 +198,10 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(FocusState::default())
+        .manage(VisibilityState::default())
         .manage(BackdropState::default())
         .manage(config::ConfigLock::default())
+        .manage(i18n::Presentation::default())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name("Nexo")
@@ -111,6 +213,8 @@ pub fn run() {
         .manage(runtime::Routes::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
+            get_flyout_state,
+            hide_flyout,
             catalog_cache::read_catalog_cache,
             catalog_cache::read_catalog_v2_cache,
             catalog_cache::write_catalog_cache,
@@ -118,6 +222,7 @@ pub fn run() {
             config::save_settings,
             config::recover_settings,
             config::quit_after_settings,
+            apply_saved_language,
             runtime::registry_snapshot,
             apps::installed_apps,
             apps::open_official_app,
@@ -127,13 +232,16 @@ pub fn run() {
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
+        get_flyout_state,
+        hide_flyout,
         catalog_cache::read_catalog_cache,
         catalog_cache::read_catalog_v2_cache,
         catalog_cache::write_catalog_cache,
         config::get_settings,
         config::save_settings,
         config::recover_settings,
-        config::quit_after_settings
+        config::quit_after_settings,
+        apply_saved_language
     ]);
     builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -153,8 +261,9 @@ pub fn run() {
                         .load(Ordering::Relaxed)
                         .then(Instant::now);
                 }
-                if let Err(error) = window.hide() {
-                    eprintln!("could not hide Nexo: {error}");
+                match window.hide() {
+                    Ok(()) => record_visibility(window.app_handle(), false),
+                    Err(error) => eprintln!("could not hide Nexo: {error}"),
                 }
             }
         })
@@ -171,7 +280,9 @@ pub fn run() {
                     .0
                     .store(applied, Ordering::Relaxed);
             }
-            let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
+            let locale = config::bootstrap_locale(app.handle());
+            let quit =
+                MenuItem::with_id(app, "quit", i18n::text(locale, "quit"), true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
             let icon = app.default_window_icon().cloned().ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "missing Nexo icon")

@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 
-const VERSION: u64 = 1;
+const VERSION: u64 = 2;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -19,6 +19,13 @@ pub struct Source {
     pub kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NewsVisit {
+    pub last_visit_at: String,
+    pub seen_keys: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -33,6 +40,7 @@ pub struct Settings {
     pub blur: u8,
     pub first_run_complete: bool,
     pub sources: Vec<Source>,
+    pub news_visit: Option<NewsVisit>,
 }
 
 impl Default for Settings {
@@ -46,6 +54,7 @@ impl Default for Settings {
             opacity: 85,
             blur: 24,
             first_run_complete: false,
+            news_visit: None,
             sources: vec![Source {
                 id: "official".into(),
                 label: "Catálogo oficial egdev".into(),
@@ -68,6 +77,7 @@ pub struct Patch {
     pub blur: Option<i64>,
     pub first_run_complete: Option<bool>,
     pub sources: Option<Vec<Source>>,
+    pub news_visit: Option<NewsVisit>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -173,6 +183,11 @@ fn settings_from(map: &Map<String, Value>) -> Settings {
     if let Some(v) = map.get("sources") {
         settings.sources = sanitize_sources(v, settings.sources);
     }
+    if map.get("version").and_then(Value::as_u64) == Some(VERSION) {
+        settings.news_visit = map
+            .get("newsVisit")
+            .and_then(|value| serde_json::from_value(value.clone()).ok());
+    }
     settings
 }
 
@@ -221,8 +236,21 @@ impl Store {
         let mut map = match self.document() {
             Ok(map) => map,
             Err(FileState::Missing) => Map::new(),
-            Err(state) => return Err(format!("No se pueden guardar ajustes: {state:?}")),
+            Err(state) => {
+                return Err(match state {
+                    FileState::Corrupt => "nexo.config.save.corrupt",
+                    FileState::Unreadable => "nexo.config.save.unreadable",
+                    FileState::Future => "nexo.config.save.future",
+                    FileState::Missing | FileState::Ready => unreachable!(),
+                }
+                .into());
+            }
         };
+        // The marker did not exist before v2, even if an old document happens
+        // to contain an unrelated unknown field with the same name.
+        if map.get("version").and_then(Value::as_u64).unwrap_or(0) < VERSION {
+            map.remove("newsVisit");
+        }
         // Source descriptors belong to #9 as well: preserve unrecognized per-source
         // metadata when a known descriptor survives a settings patch.
         let old_sources = map
@@ -246,6 +274,8 @@ impl Store {
         change!(blur, "blur");
         change!(first_run_complete, "firstRunComplete");
         change!(sources, "sources");
+        change!(news_visit, "newsVisit");
+        map.insert("version".into(), json!(VERSION));
         let settings = settings_from(&map);
         let known = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
         for (key, value) in known.as_object().expect("settings is an object") {
@@ -311,7 +341,7 @@ impl Store {
     pub fn recover(&self) -> Result<Settings, String> {
         match self.document() {
             Err(FileState::Corrupt | FileState::Unreadable) => {}
-            _ => return Err("No se puede recuperar este archivo de ajustes".into()),
+            _ => return Err("nexo.config.recoveryNotAllowed".into()),
         }
         let original = fs::read(&self.path).map_err(|e| e.to_string())?;
         let backup = self.path.with_file_name("config.json.bak");
@@ -338,6 +368,22 @@ impl Store {
 
 #[derive(Default)]
 pub struct ConfigLock(Mutex<()>);
+
+fn store_locale(store: &Store) -> crate::i18n::Locale {
+    crate::i18n::Locale::from_language(&store.read().settings.language)
+}
+
+pub(crate) fn bootstrap_locale(app: &AppHandle) -> crate::i18n::Locale {
+    let lock = app.state::<ConfigLock>();
+    let Ok(_guard) = lock.0.lock() else {
+        return crate::i18n::Locale::Es;
+    };
+    let Ok(directory) = app.path().app_config_dir() else {
+        return crate::i18n::Locale::Es;
+    };
+    store_locale(&Store::new(directory.join("config.json")))
+}
+
 fn store(app: &AppHandle, window: &WebviewWindow) -> Result<Store, String> {
     if window.label() != "main" {
         return Err("Ventana no autorizada".into());

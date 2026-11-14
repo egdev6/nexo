@@ -6,9 +6,11 @@ mod windows;
 #[cfg(windows)]
 #[tauri::command]
 pub(crate) async fn close_connected_app(
+    app: tauri::AppHandle,
     id: String,
     hub: tauri::State<'_, crate::ipc::Hub>,
 ) -> Result<(), String> {
+    let locale = crate::config::bootstrap_locale(&app);
     let hub = hub.inner().clone();
     let entry = hub
         .snapshot()
@@ -21,11 +23,20 @@ pub(crate) async fn close_connected_app(
                     .capabilities
                     .contains(&nexo_protocol::Capability::Quit)
         })
-        .ok_or_else(|| {
-            "La app no admite cierre o no está disponible; ciérrala desde la propia app".to_string()
-        })?;
+        .ok_or_else(|| crate::i18n::text(locale, "appCloseUnavailable").to_string())?;
     match crate::runtime::reason(hub.quit_responsive(&id, entry.generation).await) {
-        Some(message) => Err(message),
+        Some(crate::ipc::NoticeOutcome::Refused { reason }) => {
+            Err(reason.unwrap_or_else(|| crate::i18n::text(locale, "refused").to_owned()))
+        }
+        Some(crate::ipc::NoticeOutcome::Timeout) => {
+            Err(crate::i18n::text(locale, "timeout").into())
+        }
+        Some(crate::ipc::NoticeOutcome::Unavailable) => {
+            Err(crate::i18n::text(locale, "unavailable").into())
+        }
+        Some(crate::ipc::NoticeOutcome::Disconnected) => {
+            Err(crate::i18n::text(locale, "disconnected").into())
+        }
         None => Ok(()),
     }
 }
@@ -35,7 +46,7 @@ fn official_catalog(app: tauri::AppHandle) -> Result<Catalog, String> {
     let text = match crate::catalog_cache::read_catalog_v2_cache(app.clone())? {
         Some(text) => text,
         None => crate::catalog_cache::read_catalog_cache(app)?
-            .ok_or_else(|| "No hay un catálogo oficial validado".to_string())?,
+            .ok_or_else(|| "nexo.appNoCatalog".to_string())?,
     };
     nexo_catalog::parse_catalog(&text).map_err(|error| error.to_string())
 }
@@ -47,9 +58,11 @@ pub(crate) async fn open_official_app(
     id: String,
     hub: tauri::State<'_, crate::ipc::Hub>,
 ) -> Result<String, String> {
-    let catalog = official_catalog(app)?;
+    let locale = crate::config::bootstrap_locale(&app);
+    let catalog =
+        official_catalog(app).map_err(|error| crate::i18n::app_message(locale, &error))?;
     if !catalog.apps.iter().any(|app| app.id == id) {
-        return Err("La app no está en el catálogo oficial".into());
+        return Err(crate::i18n::text(locale, "appNotOfficial").into());
     }
     let hub = hub.inner().clone();
     if let Some(entry) = hub
@@ -59,9 +72,9 @@ pub(crate) async fn open_official_app(
         .find(|entry| entry.app.id == id)
     {
         if !entry.responsive || !hub.show_responsive(&id, entry.generation) {
-            return Err("La app conectada no responde o no admite mostrar su ventana".into());
+            return Err(crate::i18n::text(locale, "appUnresponsiveShow").into());
         }
-        return Ok("Solicitud enviada; no hay confirmación de la ventana".into());
+        return Ok(crate::i18n::text(locale, "appShowRequested").into());
     }
     tauri::async_runtime::spawn_blocking(move || {
         open_official(
@@ -72,8 +85,9 @@ pub(crate) async fn open_official_app(
         )
     })
     .await
-    .map_err(|error| error.to_string())??;
-    Ok("Inicio solicitado; no hay confirmación de ejecución".into())
+    .map_err(|error| error.to_string())?
+    .map_err(|error| crate::i18n::app_message(locale, &error))?;
+    Ok(crate::i18n::text(locale, "appLaunchRequested").into())
 }
 
 #[cfg(windows)]
@@ -82,7 +96,9 @@ pub(crate) async fn installed_apps(
     app: tauri::AppHandle,
     hub: tauri::State<'_, crate::ipc::Hub>,
 ) -> Result<Vec<Observation>, String> {
-    let catalog = official_catalog(app)?;
+    let locale = crate::config::bootstrap_locale(&app);
+    let catalog =
+        official_catalog(app).map_err(|error| crate::i18n::app_message(locale, &error))?;
     let hub = hub.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         inspect(
@@ -90,6 +106,15 @@ pub(crate) async fn installed_apps(
             &windows::CurrentUserRegistry,
             &windows::SystemLauncher { hub: &hub, id: "" },
         )
+        .into_iter()
+        .map(|mut observation| {
+            observation.reason = crate::i18n::app_message(locale, &observation.reason);
+            observation.open_reason = observation
+                .open_reason
+                .map(|reason| crate::i18n::app_message(locale, &reason));
+            observation
+        })
+        .collect()
     })
     .await
     .map_err(|error| error.to_string())
@@ -138,18 +163,14 @@ fn open_official(
         .apps
         .iter()
         .find(|app| app.id == id)
-        .ok_or("La app no está en el catálogo oficial")?;
-    let hint = app
-        .detection
-        .as_ref()
-        .ok_or("La app no tiene datos de detección")?;
+        .ok_or("nexo.appNotOfficial")?;
+    let hint = app.detection.as_ref().ok_or("nexo.appNoDetection")?;
     let entry = matched_apps(catalog, registry)
         .into_iter()
         .find(|(observation, _)| observation.id == id)
         .and_then(|(_, entry)| entry)
-        .ok_or("No hay una instalación única y comprobada")?;
-    let location = identity(entry.install_location.as_deref())
-        .ok_or("La ubicación de instalación no está disponible")?;
+        .ok_or("nexo.appNoUnique")?;
+    let location = identity(entry.install_location.as_deref()).ok_or("nexo.appLocationMissing")?;
     let executable = launcher.resolve(location, &hint.windows.executable_relative_path)?;
     launcher.launch(
         &executable,
@@ -196,7 +217,7 @@ fn inspect(
         .map(|(mut observation, entry)| {
             if let Some(entry) = entry {
                 let result = identity(entry.install_location.as_deref())
-                    .ok_or_else(|| "La ubicación de instalación no está disponible".to_string())
+                    .ok_or_else(|| "nexo.appLocationMissing".to_string())
                     .and_then(|location| {
                         let app = catalog
                             .apps
@@ -239,10 +260,10 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
                 )
             };
             let Some(hint) = app.detection.as_ref().map(|detection| &detection.windows) else {
-                return unknown("Sin datos de detección en el catálogo");
+                return unknown("nexo.appNoHint");
             };
             let Ok(entries) = &scanned else {
-                return unknown("No se pudo leer el registro de instalación");
+                return unknown("nexo.appScanFailed");
             };
             let mut matches: Vec<&Entry> = Vec::new();
             let mut incomplete = false;
@@ -274,17 +295,17 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
                 }
             }
             if incomplete || matches.len() > 1 {
-                return unknown("Identidad incompleta o varias instalaciones coincidentes");
+                return unknown("nexo.appAmbiguous");
             }
             let Some(entry) = matches.first() else {
                 return (
                     Observation {
                         id: app.id.clone(),
                         state: InstallState::NotInstalled,
-                        reason: "Sin coincidencias".into(),
+                        reason: "nexo.appNoMatches".into(),
                         version: None,
                         can_open: false,
-                        open_reason: Some("No está instalada".into()),
+                        open_reason: Some("nexo.appNotInstalled".into()),
                     },
                     None,
                 );
@@ -303,13 +324,13 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
                     })
                 })
             {
-                return unknown("La instalación coincide con varias apps del catálogo");
+                return unknown("nexo.appSharedMatch");
             }
             (
                 Observation {
                     id: app.id.clone(),
                     state: InstallState::Installed,
-                    reason: "Instalación detectada".into(),
+                    reason: "nexo.appInstalled".into(),
                     version: identity(entry.version.as_deref()).map(str::to_owned),
                     can_open: false,
                     open_reason: None,

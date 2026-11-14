@@ -10,7 +10,10 @@ const App = () => <HubApp apps={sampleApps} news={sampleNews} />;
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), tauri: true, onQuit: null as null | ((event?: { payload: string }) => Promise<void>) }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => bridge.tauri }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ hide: vi.fn().mockResolvedValue(undefined) }) }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (_name: string, callback: (event?: { payload: string }) => Promise<void>) => { bridge.onQuit = callback; return () => { bridge.onQuit = null; }; }) }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, callback: (event?: { payload: string }) => Promise<void>) => {
+  if (name !== 'quit-requested') return () => {};
+  bridge.onQuit = callback; return () => { bridge.onQuit = null; };
+}) }));
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 
 const official = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
@@ -22,13 +25,15 @@ let failRead: boolean;
 let mismatch: boolean;
 let load: Promise<unknown> | null;
 let state: string;
+let visible: boolean;
 
 beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
 beforeEach(() => {
-  stored = structuredClone(initial); enabled = false; failSave = false; failRead = false; mismatch = false; load = null; state = 'missing'; bridge.onQuit = null;
+  stored = structuredClone(initial); enabled = false; failSave = false; failRead = false; mismatch = false; load = null; state = 'missing'; visible = false; bridge.onQuit = null;
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
     if (command === 'get_settings') return load ?? { settings: stored, state };
+    if (command === 'get_flyout_state') return { visible, sequence: visible ? 1 : 0, cycle: visible ? 1 : 0, at: Date.now() };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
       stored = { ...stored, ...args?.patch };
@@ -39,6 +44,7 @@ beforeEach(() => {
     if (command === 'plugin:autostart|enable') { if (!mismatch) enabled = true; return; }
     if (command === 'plugin:autostart|disable') { if (!mismatch) enabled = false; return; }
     if (command === 'backdrop_available') return false;
+    if (command === 'apply_saved_language') return;
     if (command === 'quit_after_settings' || command === 'hub_only_exit') return;
     throw new Error(`unexpected command: ${command}`);
   });
@@ -75,8 +81,8 @@ it('completes onboarding only after the language and flag are saved, with retry 
   expect(screen.queryByText('Instaladas')).toBeNull();
   expect(stored.firstRunComplete).toBe(false);
   failSave = false;
-  fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
-  expect(await screen.findByText('Instaladas')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(await screen.findByText('Installed')).toBeTruthy();
   expect(stored.language).toBe('en');
   expect(stored.firstRunComplete).toBe(true);
 });
@@ -100,7 +106,7 @@ it('restores appearance, skips onboarding and renders configured sources', async
 });
 
 it('persists the popup opt-out and shares it with settings after a restart', async () => {
-  stored.firstRunComplete = true;
+  stored.firstRunComplete = true; visible = true;
   const { unmount } = render(<App />);
   const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
   fireEvent.click(within(dialog).getByRole('checkbox', { name: 'No mostrar al abrir' }));

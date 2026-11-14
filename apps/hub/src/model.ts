@@ -71,9 +71,15 @@ export interface CatalogSource {
   location?: string;
 }
 
+export interface NewsVisit {
+  lastVisitAt: string;
+  seenKeys: string[];
+}
+
 export interface StoredSettings extends HubSettings {
   firstRunComplete: boolean;
   sources: CatalogSource[];
+  newsVisit?: NewsVisit | null;
 }
 
 export interface AutostartViewState {
@@ -91,6 +97,7 @@ export interface CatalogViewProps {
   reason?: 'unconfigured' | 'response' | 'cache';
   installationKnown?: boolean;
   onRetry?: () => void;
+  targetAppId?: string | null;
 }
 
 export interface NewsPopupProps {
@@ -100,6 +107,9 @@ export interface NewsPopupProps {
   /** "No mostrar al abrir" toggled. */
   onDontShowChange: (dontShow: boolean) => void;
   dontShow: boolean;
+  stale?: boolean;
+  onShown?: (item: NewsItem) => void;
+  onCatalog?: (appId: string) => void;
 }
 
 export interface SettingsViewProps {
@@ -108,8 +118,10 @@ export interface SettingsViewProps {
   onClose: () => void;
   sources?: CatalogSource[];
   autostart?: AutostartViewState;
+  languagePending?: boolean;
 }
 
 export interface FirstRunProps {
   onChoose: (language: Language) => void;
+  onPreview?: (language: Language) => void;
 }

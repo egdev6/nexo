@@ -6,10 +6,13 @@ use tauri::{
 };
 
 use crate::{
+    config,
+    i18n::{self, Locale, Presentation},
     ipc::{
-        Hub, QuitOutcome, Snapshot,
+        Hub, NoticeDetail, NoticeFailure, NoticeOutcome, QuitOutcome, Snapshot,
         windows::{self, Listener},
     },
+    registry_presentation,
     tray::{self, Command},
 };
 
@@ -24,17 +27,17 @@ pub(crate) fn registry_snapshot(hub: State<'_, Hub>) -> Snapshot {
 #[tauri::command]
 pub(crate) fn hub_only_exit(app: AppHandle, hub: State<'_, Hub>) -> Result<(), String> {
     if !hub.hub_only_exit() {
-        return Err("No se ha solicitado una salida solo de Nexo".into());
+        return Err(i18n::text(config::bootstrap_locale(&app), "hubOnlyNotRequested").into());
     }
     app.exit(0);
     Ok(())
 }
 
-fn rebuild(app: &AppHandle, snapshot: &Snapshot) -> tauri::Result<()> {
+fn rebuild(app: &AppHandle, snapshot: &Snapshot, locale: Locale) -> tauri::Result<()> {
     let menu = Menu::new(app)?;
     let mut routes = HashMap::new();
     let mut index = 0_u64;
-    for section in tray::compose(snapshot) {
+    for section in tray::compose(snapshot, locale) {
         let submenu = Submenu::new(app, section.label.replace('&', "&&"), true)?;
         for item in section.items {
             let id = format!("nexo:{}:{index}", snapshot.revision);
@@ -66,13 +69,13 @@ fn rebuild(app: &AppHandle, snapshot: &Snapshot) -> tauri::Result<()> {
         let only = MenuItem::with_id(
             app,
             "hub-only-exit",
-            "Salir solo de Nexo",
+            i18n::text(locale, "hubOnly"),
             true,
             None::<&str>,
         )?;
         menu.append(&only)?;
     }
-    let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", i18n::text(locale, "quit"), true, None::<&str>)?;
     menu.append(&quit)?;
     let tray = app
         .tray_by_id("nexo")
@@ -82,22 +85,33 @@ fn rebuild(app: &AppHandle, snapshot: &Snapshot) -> tauri::Result<()> {
     Ok(())
 }
 
-fn failure(app: &AppHandle, message: String, hub_only_allowed: bool) {
-    app.state::<Hub>().set_notice(message, hub_only_allowed);
+// All paths rebuild the latest snapshot under the same presentation lock.
+pub(crate) fn rebuild_current(app: &AppHandle) -> tauri::Result<Snapshot> {
+    app.state::<Presentation>().refresh(
+        || config::bootstrap_locale(app),
+        |locale| {
+            let snapshot = app.state::<Hub>().snapshot();
+            rebuild(app, &snapshot, locale)?;
+            Ok(snapshot)
+        },
+    )
+}
+
+fn failure(app: &AppHandle, detail: NoticeDetail, hub_only_allowed: bool) {
+    app.state::<Hub>()
+        .set_notice_detail(detail, hub_only_allowed);
     if let Err(error) = crate::show_flyout(app) {
         eprintln!("could not show Nexo: {error}");
     }
 }
 
-pub(crate) fn reason(result: QuitOutcome) -> Option<String> {
+pub(crate) fn reason(result: QuitOutcome) -> Option<NoticeOutcome> {
     match result {
         QuitOutcome::Accepted => None,
-        QuitOutcome::Refused(reason) => {
-            Some(reason.unwrap_or_else(|| "La app rechazó el cierre".into()))
-        }
-        QuitOutcome::Timeout => Some("No respondió en 10 segundos".into()),
-        QuitOutcome::Unavailable => Some("La app no admite cierre o no está disponible".into()),
-        QuitOutcome::Disconnected => Some("La conexión se perdió; estado desconocido".into()),
+        QuitOutcome::Refused(reason) => Some(NoticeOutcome::Refused { reason }),
+        QuitOutcome::Timeout => Some(NoticeOutcome::Timeout),
+        QuitOutcome::Unavailable => Some(NoticeOutcome::Unavailable),
+        QuitOutcome::Disconnected => Some(NoticeOutcome::Disconnected),
     }
 }
 
@@ -117,7 +131,10 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
             let failures: Vec<_> = results
                 .into_iter()
                 .filter_map(|(info, result)| {
-                    reason(result).map(|reason| format!("{}: {reason}", info.name))
+                    reason(result).map(|outcome| NoticeFailure {
+                        app: info.name,
+                        outcome,
+                    })
                 })
                 .collect();
             if failures.is_empty() {
@@ -126,7 +143,10 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
             } else {
                 failure(
                     &app,
-                    format!("Nexo sigue abierto. {}", failures.join("; ")),
+                    NoticeDetail::Quit {
+                        all: true,
+                        failures,
+                    },
                     true,
                 );
             }
@@ -141,7 +161,7 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
             value,
         }) => {
             if !hub.set_unified(&app_id, generation, value)
-                && let Err(error) = rebuild(app, &hub.snapshot())
+                && let Err(error) = rebuild_current(app)
             {
                 eprintln!("could not restore Nexo tray state: {error}");
                 hub.shutdown();
@@ -158,7 +178,7 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
         }) => {
             hub.action(&app_id, generation, revision, &item);
             // Native check items toggle themselves; the app remains authoritative.
-            if let Err(error) = rebuild(app, &hub.snapshot()) {
+            if let Err(error) = rebuild_current(app) {
                 eprintln!("could not restore Nexo tray state: {error}");
                 hub.shutdown();
             }
@@ -169,8 +189,18 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
         }) => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
-                if let Some(message) = reason(hub.quit(&app_id, generation).await) {
-                    failure(&app, format!("{app_id}: {message}"), false);
+                if let Some(outcome) = reason(hub.quit(&app_id, generation).await) {
+                    failure(
+                        &app,
+                        NoticeDetail::Quit {
+                            all: false,
+                            failures: vec![NoticeFailure {
+                                app: app_id,
+                                outcome,
+                            }],
+                        },
+                        false,
+                    );
                 }
             });
         }
@@ -183,34 +213,25 @@ pub(crate) fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         Ok(listener) => listener,
         Err(error) => {
             eprintln!("Nexo pipe ownership failed: {error}");
-            windows::report_startup_error(&error);
+            windows::report_startup_error(&error, config::bootstrap_locale(app));
             return Err(error.into());
         }
     };
     let hub = app.state::<Hub>().inner().clone();
     hub.require_presentation();
-    let mut changes = hub.subscribe();
+    let changes = hub.subscribe();
+    let app_for_rebuild = app.clone();
     let app_for_events = app.clone();
-    let hub_for_events = hub.clone();
-    tauri::async_runtime::spawn(async move {
-        while changes.changed().await.is_ok() {
-            let snapshot = hub_for_events.snapshot();
-            if let Err(error) = rebuild(&app_for_events, &snapshot) {
-                eprintln!("could not update Nexo tray; closing IPC: {error}");
-                hub_for_events.shutdown();
-                hub_for_events.set_notice(
-                    "No se pudo actualizar la bandeja; la conexión con las apps se cerró.".into(),
-                    false,
-                );
-                let _ = app_for_events.emit_to("main", "nexo-registry", hub_for_events.snapshot());
-                return;
-            }
-            hub_for_events.mark_presented(snapshot.revision);
+    tauri::async_runtime::spawn(registry_presentation::run(
+        hub.clone(),
+        changes,
+        move || rebuild_current(&app_for_rebuild),
+        move |snapshot| {
             if let Err(error) = app_for_events.emit_to("main", "nexo-registry", snapshot) {
                 eprintln!("could not send registry update: {error}");
             }
-        }
-    });
+        },
+    ));
     tauri::async_runtime::spawn(async move {
         listener.run(hub).await;
     });
