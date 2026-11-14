@@ -119,6 +119,13 @@ it.each([
   expect(onChange).toHaveBeenLastCalledWith({ ...initial, [field]: value });
 });
 
+it('describes the official unseen-news preference without suggesting a nonexistent news view', () => {
+  setup();
+  const toggle = screen.getByRole('switch', { name: 'Mostrar novedades al abrir' });
+  const description = document.getElementById(toggle.getAttribute('aria-describedby')!);
+  expect(description?.textContent).toBe('Solo aparecen novedades no vistas del catálogo oficial.');
+});
+
 it('changes language in General and retains all other settings', () => {
   const { onChange } = setup();
   fireEvent.click(screen.getByRole('radio', { name: 'English' }));

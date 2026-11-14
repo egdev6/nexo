@@ -33,7 +33,7 @@ export function SettingsView({ settings, onChange, onClose, sources: configuredS
       </div>
       {autostart?.error && <div className="settings__foot" role="alert">{autostart.error} <Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>Reintentar inicio automático</Button></div>}
       <div className="settings__row">
-        <label htmlFor={`${id}-news`}><strong>Mostrar novedades al abrir</strong><span id={`${id}-news-hint`}>Puedes volver a verlas en Mis apps</span></label>
+        <label htmlFor={`${id}-news`}><strong>Mostrar novedades al abrir</strong><span id={`${id}-news-hint`}>Solo aparecen novedades no vistas del catálogo oficial.</span></label>
         <Switch id={`${id}-news`} aria-label="Mostrar novedades al abrir" aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
       </div>
     </section>

@@ -11,8 +11,9 @@ const messages = {
   position: (current: number, total: number, label: string) => `${current} de ${total}: ${label}`,
 };
 
-function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopupProps, 'open'>) {
+function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatalog, stale }: Omit<NewsPopupProps, 'open'>) {
   const [selected, setSelected] = useState(items[0]?.id);
+  const [viewed, setViewed] = useState(() => new Set(items[0] ? [items[0].id] : []));
   const current = items.find(item => item.id === selected) ?? items[0];
   const titleId = useId();
   const checkboxId = useId();
@@ -20,7 +21,13 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopup
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
+  const onShownRef = useRef(onShown);
   onCloseRef.current = onClose;
+  onShownRef.current = onShown;
+
+  useLayoutEffect(() => {
+    if (current) onShownRef.current?.(current);
+  }, [current?.id]);
 
   // DialogContent is body-portalled; this modal must stay inside the positioned panel.
   useLayoutEffect(() => {
@@ -72,16 +79,21 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopup
       <header className="news-header"><span className="news-mark" aria-hidden="true">N</span><h2 id={titleId}>Novedades al abrir</h2>
         <IconButton ref={closeRef} type="button" label="Cerrar novedades" title="Cerrar novedades" variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
       </header>
+      {stale && <p role="status">Se muestra la copia guardada, que puede estar desactualizada.</p>}
       <div className="news-carousel">
-        <Carousel label="Últimas novedades" messages={messages} value={current?.id} onValueChange={setSelected}
+        <Carousel label="Últimas novedades" messages={messages} value={current?.id} onValueChange={value => {
+          setSelected(value);
+          setViewed(previous => new Set(previous).add(value));
+        }}
           items={items.map(item => ({ value: item.id, label: item.title, children: <article className="news-slide">
             <div className="news-hero" aria-hidden="true"><div className="news-hero-window"><span>{item.title.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div></div>
-            <Badge tone="brand">{item.badge}</Badge><h3>{item.title}</h3><p>{item.text}</p>
+            <Badge tone="brand">{item.badge}</Badge> {!viewed.has(item.id) && <Badge tone="brand">Sin ver</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
           </article> }))} />
       </div>
       {current && <div className="news-action"><Button type="button" size="sm" variant="primary" data-app-id={current.appId}
-        aria-label={`${current.cta}: ${current.title} · muestra`} title="Acción ilustrativa">{current.cta}</Button>
-        <span>Acción ilustrativa</span></div>}
+        aria-label={`${current.cta}: ${current.title}${onCatalog ? '' : ' · muestra'}`} title={onCatalog ? undefined : 'Acción ilustrativa'}
+        onClick={() => onCatalog?.(current.appId)}>{current.cta}</Button>
+        {!onCatalog && <span>Acción ilustrativa</span>}</div>}
       <div className="news-preference"><Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
         <label htmlFor={checkboxId}>No mostrar al abrir</label></div>
     </section>

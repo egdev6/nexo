@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, Tabs } from '@egdev/ui';
-import { isTauri } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { CatalogView } from './catalog';
 import { diskCache, loadCatalog, OFFICIAL_CATALOG_URL, webFetcher, type CatalogState } from './catalog/loader';
 import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
 import type { HubApp, HubSettings, NewsItem } from './model';
 import { NewsPopup } from './news';
+import { selectOfficialNews } from './news/selection';
+import { useFlyoutVisibility } from './news/use-flyout';
 import { defaultSettings, sampleApps, sampleNews } from './sample';
 import { SettingsView } from './settings';
 import { derivePalette } from './settings/palette';
@@ -98,18 +100,25 @@ interface FlyoutProps {
   catalogState?: CatalogState;
   onCatalogRetry?: () => void;
   installedStateKnown?: boolean;
+  validNewsKeys?: ReadonlySet<string>;
 }
 
-export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true }: FlyoutProps) {
+export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true, validNewsKeys }: FlyoutProps) {
   const [active, setActive] = useState<Tab>('apps');
   const store = useSettings();
   const settings = store.settings;
   const shown = settings ?? defaultSettings;
   const firstRun = !settings?.firstRunComplete;
   const usable = store.fileState === 'ready' || store.fileState === 'missing';
-  const openedInitialNews = useRef(false);
+  const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(finishNews);
+  const openedCycle = useRef(0);
+  const visitedCycle = useRef(0);
+  const viewed = useRef(new Set<string>());
+  const [snapshot, setSnapshot] = useState<{ items: NewsItem[]; at: string; stale: boolean } | null>(null);
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+  const [targetAppId, setTargetAppId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [newsOpen, setNewsOpen] = useState(false);
   const [hasBackdrop, setHasBackdrop] = useState(false);
   const [registry, setRegistry] = useState<RegistrySnapshot>({ revision: 0, apps: [] });
   const [registryFailed, setRegistryFailed] = useState(false);
@@ -136,32 +145,57 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
-    if (usable && settings?.firstRunComplete && !openedInitialNews.current && news.length > 0) {
-      openedInitialNews.current = true;
-      if (settings.showNewsOnOpen) setNewsOpen(true);
-    }
-  }, [usable, settings?.firstRunComplete, settings?.showNewsOnOpen, news.length]);
+  function finishNews() {
+    const open = snapshotRef.current;
+    if (!open) return;
+    snapshotRef.current = null;
+    store.recordVisit(open.at, Array.from(viewed.current));
+    viewed.current.clear();
+    setSnapshot(null);
+  }
 
-  // A tray reopen focuses the same webview rather than remounting the React tree.
+  function hidePanel() {
+    finishNews();
+    if (isTauri()) void invoke('hide_flyout').catch(error => console.error('No se pudo ocultar el panel de Nexo.', error));
+    else void hideFlyout();
+  }
+
   useEffect(() => {
-    function onFocus() {
-      if (usable && settings?.firstRunComplete && settings.showNewsOnOpen && news.length > 0) setNewsOpen(true);
+    if (!visibility || !usable || !settings) return;
+    if (lastShow && visitedCycle.current !== lastShow.cycle) {
+      visitedCycle.current = lastShow.cycle;
+      const shownAt = typeof lastShow.at === 'string' ? lastShow.at : new Date(lastShow.at || Date.now()).toISOString();
+      store.recordVisit(shownAt, []);
     }
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [usable, settings?.firstRunComplete, settings?.showNewsOnOpen, news.length]);
+    if (!visibility.visible) { finishNews(); return; }
+    const at = typeof visibility.at === 'string' ? visibility.at : new Date(visibility.at || Date.now()).toISOString();
+    if (validNewsKeys && catalogState && !catalogState.stale && catalogState.status !== 'loading') {
+      store.recordVisit(at, [], validNewsKeys);
+    }
+    if (!settings.firstRunComplete) return;
+    if (!settings.showNewsOnOpen) { openedCycle.current = visibility.cycle; return; }
+    if (openedCycle.current === visibility.cycle) return;
+    const seen = new Set(store.getVisit()?.seenKeys ?? []);
+    const unseen = news.filter(item => !seen.has(item.id)).slice(0, 10);
+    if (!unseen.length) return;
+    openedCycle.current = visibility.cycle;
+    viewed.current.clear();
+    const next = { items: unseen, at, stale: !!catalogState?.stale };
+    snapshotRef.current = next;
+    setTargetAppId(null);
+    setSnapshot(next);
+  }, [visibility, lastShow, usable, settings, news, validNewsKeys, catalogState]);
 
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape' && !event.defaultPrevented && !newsOpen) {
+      if (event.key === 'Escape' && !event.defaultPrevented && !snapshot) {
         event.preventDefault();
-        void hideFlyout();
+        hidePanel();
       }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [newsOpen]);
+  }, [snapshot]);
 
   const tones = derivePalette(shown.accent);
   const panelStyle = {
@@ -192,9 +226,10 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       <p>· {installedStateKnown ? `${installedCount} ${installedCount === 1 ? 'instalada' : 'instaladas'}${sampleInstalled ? ' (muestra)' : ''}` : 'instalación sin comprobar'}</p>
       <div className="head-actions">
         {usable && !firstRun && !showSettings && <IconButton label="Ajustes" title="Ajustes" variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
-        <IconButton label="Cerrar panel" title="Cerrar panel" variant="secondary" icon={<Icon name="close" />} onClick={() => void hideFlyout()} />
+        <IconButton label="Cerrar panel" title="Cerrar panel" variant="secondary" icon={<Icon name="close" />} onClick={hidePanel} />
       </div>
     </div></header>
+    {visibilityError && <div className="registry-notice" role="alert">{visibilityError}</div>}
     {registryFailed && <div className="registry-notice" role="alert">No se pudo consultar el estado de las apps conectadas.</div>}
     {registry.notice && <div className="registry-notice" role="alert"><p>{registry.notice.message}</p>
       {registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
@@ -209,9 +244,11 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={settings} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" label="Secciones de Nexo" value={active} onValueChange={value => setActive(value as Tab)} items={[
         { value: 'apps', label: 'Mis apps', content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} selectCatalog={() => setActive('catalog')} /> },
-        { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} /> },
+        { value: 'catalog', label: 'Catálogo', content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} /> },
       ]} />}
-    {settings && <NewsPopup items={news} open={usable && !firstRun && newsOpen} onClose={() => setNewsOpen(false)} dontShow={!settings.showNewsOnOpen}
+    {settings && <NewsPopup items={snapshot?.items ?? []} open={usable && !firstRun && !!snapshot} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
+      stale={snapshot?.stale} onShown={item => viewed.current.add(item.id)}
+      onCatalog={appId => { finishNews(); setShowSettings(false); setTargetAppId(appId); setActive('catalog'); }}
       onDontShowChange={dontShow => store.change({ showNewsOnOpen: !dontShow })} />}
   </main>;
 }
@@ -235,6 +272,8 @@ export default function App(props: FlyoutProps) {
   }, [liveCatalog]);
 
   if (!liveCatalog) return <FlyoutPanel {...props} news={props.news ?? (native ? [] : sampleNews)} />;
-  const projected = catalogState.catalog ? projectCatalog(catalogState.catalog) : { apps: [], news: [] };
-  return <FlyoutPanel {...props} apps={projected.apps} news={projected.news} catalogState={catalogState} onCatalogRetry={retry} installedStateKnown={false} />;
+  const catalog = catalogState.catalog;
+  const projected = catalog ? projectCatalog(catalog) : { apps: [] };
+  const selection = catalog ? selectOfficialNews(catalog) : { items: [], validKeys: undefined };
+  return <FlyoutPanel {...props} apps={projected.apps} news={selection.items} validNewsKeys={selection.validKeys} catalogState={catalogState} onCatalogRetry={retry} installedStateKnown={false} />;
 }
