@@ -2111,10 +2111,16 @@ name = "nexo-hub"
 version = "0.1.0"
 dependencies = [
  "nexo-protocol",
+ "semver",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-plugin-nexo",
  "tauri-plugin-single-instance",
+ "tokio",
  "window-vibrancy",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

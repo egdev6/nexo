@@ -1,7 +1,7 @@
 # Nexo IPC protocol — version 1
 
-> Status: **approved** (issue #1). Message types live in the `nexo-protocol` crate; transport, hub
-> and plugin are implemented in issues #3 and #4.
+> Status: **approved** (issue #1). Message types live in the `nexo-protocol` crate; the Windows
+> plugin and hub transport are implemented in issues #3 and #4.
 
 This document defines how the Nexo hub and an app built with `tauri-plugin-nexo` talk to each
 other on the same Windows machine. The hub and the plugin both depend on this contract, and on
@@ -290,6 +290,9 @@ behind.
   behavior: if the app minimizes to the tray when its window closes, the window is hidden as usual
   and the user reopens it from the hub with "Open". The app does not need any special case.
 - **Not unified**: the app keeps its icon and also appears in the hub menu.
+- The hub remembers each app's choice for the current hub session. Because `welcome` comes before
+  the app identifies itself, it initially sends `unified: true`; after `registered`, the hub sends
+  `unified: false` for a remembered non-unified choice. An icon may briefly be absent on reconnect.
 - **The hub's setting wins** over any icon visibility preference inside the app while the app is
   connected. When the connection is lost, the app's own behavior is restored (§6).
 
@@ -311,3 +314,7 @@ Approved by the maintainer when this version was reviewed:
 3. `register` carries no integration level: only apps with the plugin connect.
 4. Default heartbeat interval of 5 s; 3 missed beats mean the peer is lost.
 5. `quit` waits 10 s for `quit_result`, and the hub never kills an app on its own.
+6. The hub asks each connected app that supports quit before exiting. If an app refuses, times out,
+   or cannot quit through the protocol, the hub stays open and offers a separate explicit hub-only
+   exit. That exit closes the pipe and lets remaining clients restore their personal icons. An
+   accepted quit or `bye` does not prove the process exited.

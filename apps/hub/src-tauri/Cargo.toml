@@ -15,9 +15,19 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 nexo-protocol = { path = "../../../crates/nexo-protocol" }
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2"
+tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
 
 [target.'cfg(windows)'.dependencies]
+tauri-plugin-nexo = { path = "../../../crates/tauri-plugin-nexo" }
+tokio = { version = "1", features = ["net"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_UI_WindowsAndMessaging"] }
 # Tauri's effect helper does not report whether the OS applied the backdrop.
 window-vibrancy = "0.8.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
