@@ -26,7 +26,18 @@ pub enum FeedError {
 pub enum SelectionError {
     NotOfficial,
     MissingKey,
+    UnsupportedInstaller,
     Changed,
+}
+
+/// The catalog's keyed-release contract is limited to x64 Tauri NSIS setup assets.
+/// URL trust is validated separately by the catalog and the download stage.
+pub(crate) fn is_x64_nsis_asset(input: &str) -> bool {
+    url::Url::parse(input).ok().is_some_and(|url| {
+        url.path_segments()
+            .and_then(|mut segments| segments.next_back())
+            .is_some_and(|asset| asset.ends_with("_x64-setup.exe"))
+    })
 }
 
 #[derive(Debug)]
@@ -50,6 +61,9 @@ impl FreshCatalog {
             .ok_or(SelectionError::NotOfficial)?;
         if app.updater_public_key.is_none() {
             return Err(SelectionError::MissingKey);
+        }
+        if !is_x64_nsis_asset(&app.installer_url) {
+            return Err(SelectionError::UnsupportedInstaller);
         }
         Ok(Selection { app: app.clone() })
     }

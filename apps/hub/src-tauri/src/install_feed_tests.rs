@@ -4,8 +4,9 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
 use std::{collections::VecDeque, sync::Mutex};
 
-const URL: &str = "https://github.com/egdev6/example/releases/download/v1/setup.exe";
-const OTHER_URL: &str = "https://github.com/egdev6/example/releases/download/v2/setup.exe";
+const URL: &str = "https://github.com/egdev6/example/releases/download/v1/example_x64-setup.exe";
+const OTHER_URL: &str =
+    "https://github.com/egdev6/example/releases/download/v2/example_x64-setup.exe";
 const KEY: &str = include_str!("../tests/fixtures/tauri-test.pub");
 const OTHER_KEY: &str = include_str!("../tests/fixtures/minisign-test.pub");
 
@@ -263,6 +264,27 @@ fn selecting_requires_an_official_id_and_a_public_key() {
         fresh(&value).select("minimal"),
         Err(SelectionError::MissingKey)
     );
+}
+
+#[test]
+fn keyed_selection_refuses_assets_without_the_x64_nsis_suffix() {
+    for asset in [
+        "setup.exe",
+        "example_x64-setup.msi",
+        "example_arm64-setup.exe",
+        "example_x64-setup.EXE",
+        "example_x64-setup.exe.txt",
+    ] {
+        let mut value = catalog_value();
+        value["apps"][0]["installerUrl"] = json!(format!(
+            "https://github.com/egdev6/example/releases/download/v1/{asset}"
+        ));
+        assert_eq!(
+            fresh(&value).select("minimal"),
+            Err(SelectionError::UnsupportedInstaller),
+            "{asset}"
+        );
+    }
 }
 
 #[test]

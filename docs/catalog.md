@@ -65,7 +65,14 @@ fragments, normalized traversal and escaped separators; and permits no extra pat
 V1/v2 retain their original HTTPS policy. A v3 key must decode to a minisign public-key file
 with an `untrusted comment:` line and a base64 `Ed` public-key record. This shape check is
 not signature verification, proof of publisher control or authorization to execute anything.
-The installer remains unavailable until the separate secure installation service is implemented.
+
+A v3 entry that publishes `updaterPublicKey` also asserts that its `installerUrl` is a per-user
+Tauri NSIS installer (`bundle.windows.nsis.installMode: "currentUser"`) whose asset name ends in
+`_x64-setup.exe`, signed by that key with a prehashed minisign signature at `<installerUrl>.sig`.
+The hub rejects any other asset (for example `.msi`) before downloading. App owners must confirm
+the install mode of the release before adding or updating the key. At install time the hub verifies
+the signature before running anything, runs the installer with `/S` and no elevation, and treats an
+install that is not detected in the current user's uninstall registry as a failure.
 
 `latestJsonUrl` is owned by the app. Before any updater consumes it, the app owner must confirm
 its actual Tauri updater manifest format and verification configuration; the catalog loader does

@@ -14,7 +14,7 @@ use std::{
     },
 };
 
-const URL: &str = "https://github.com/egdev6/example/releases/download/v1/setup.exe";
+const URL: &str = "https://github.com/egdev6/example/releases/download/v1/example_x64-setup.exe";
 const KEY: &str = include_str!("../tests/fixtures/tauri-test.pub");
 const SIGNATURE: &str = include_str!("../tests/fixtures/tauri-test.sig.txt");
 static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -207,6 +207,34 @@ async fn missing_key_is_rejected_before_network_and_workspace_creation() {
 }
 
 #[tokio::test]
+async fn unsupported_installer_assets_are_rejected_before_network_or_workspace_creation() {
+    for asset in [
+        "setup.exe",
+        "example_x64-setup.msi",
+        "example_arm64-setup.exe",
+        "example_x64-setup.EXE",
+        "example_x64-setup.exe.txt",
+    ] {
+        let scratch = Scratch::new();
+        let network = FakeNetwork::valid();
+        let mut app = app();
+        app.installer_url =
+            format!("https://github.com/egdev6/example/releases/download/v1/{asset}");
+        let result = prepare(&network, &scratch.factory(), &app, Limits::default()).await;
+        assert_eq!(
+            result.unwrap_err(),
+            PrepareError {
+                cause: PrepareFailure::UnsupportedInstaller,
+                cleanup_failed: false,
+            },
+            "{asset}"
+        );
+        assert!(network.requests().is_empty(), "{asset}");
+        assert!(scratch.workspaces().is_empty(), "{asset}");
+    }
+}
+
+#[tokio::test]
 async fn bad_signature_yields_no_handle_and_removes_workspace() {
     let scratch = Scratch::new();
     let network = FakeNetwork::new(b"test", b"bad signature");
@@ -237,7 +265,7 @@ async fn disallowed_host_yields_no_handle_or_workspace() {
     let network = FakeNetwork::valid();
     let mut app = app();
     app.installer_url =
-        "https://github.com.evil/egdev6/example/releases/download/v1/setup.exe".into();
+        "https://github.com.evil/egdev6/example/releases/download/v1/example_x64-setup.exe".into();
     assert_error(
         prepare(&network, &scratch.factory(), &app, Limits::default()).await,
         PrepareFailure::Download(install_download::Failure::InitialUrl),

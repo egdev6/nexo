@@ -22,6 +22,7 @@ const SIGNATURE: &str = "installer.sig";
 pub enum PrepareFailure {
     Download(install_download::Failure),
     Verify(VerifyError),
+    UnsupportedInstaller,
     Storage,
 }
 
@@ -307,6 +308,12 @@ pub async fn download_verified<N: Network>(
         cause: PrepareFailure::Verify(VerifyError::MissingKey),
         cleanup_failed: false,
     })?;
+    if !crate::install_feed::is_x64_nsis_asset(&app.installer_url) {
+        return Err(PrepareError {
+            cause: PrepareFailure::UnsupportedInstaller,
+            cleanup_failed: false,
+        });
+    }
     let prepared =
         install_download::download_pair(network, factory, &app.installer_url, limits, progress)
             .await
