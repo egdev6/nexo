@@ -33,6 +33,8 @@ beforeEach(() => {
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
     if (command === 'get_settings') return load ?? { settings: stored, state };
+    if (command === 'local_apps_list') return [];
+    if (command === 'local_catalog_refresh') return { sourceId: 'local-1', entries: [] };
     if (command === 'get_flyout_state') return { visible, sequence: visible ? 1 : 0, cycle: visible ? 1 : 0, at: Date.now() };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
@@ -102,7 +104,7 @@ it('restores appearance, skips onboarding and renders configured sources', async
   await openSettings(); tab('Fuentes del catálogo');
   expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
   expect(screen.getByText('Trabajo')).toBeTruthy();
-  expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(true);
+  await waitFor(() => expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(false));
 });
 
 it('persists the popup opt-out and shares it with settings after a restart', async () => {
@@ -233,6 +235,23 @@ it('flushes pending settings before a tray-requested hub-only exit', async () =>
   await act(async () => { await bridge.onQuit?.({ payload: 'hub-only' }); });
   expect(stored.language).toBe('en');
   expect(bridge.invoke).toHaveBeenCalledWith('hub_only_exit');
+});
+
+it.each([
+  ['es', 'Ajustes', 'English', 'Las fuentes locales deben cambiarse mediante la selección nativa.'],
+  ['en', 'Settings', 'Español', 'Local sources must be changed using native selection.'],
+])('localizes a rejected source change in %s without saving', async (language, settingsLabel, choice, message) => {
+  stored.language = language; stored.firstRunComplete = true; stored.showNewsOnOpen = false;
+  const normalInvoke = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
+    if (command === 'save_settings') throw 'nexo.config.sourceSelectionRequired';
+    return normalInvoke(command, args);
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: settingsLabel }));
+  fireEvent.click(screen.getByRole('radio', { name: choice }));
+  expect((await screen.findByRole('alert')).textContent).toContain(message);
+  expect(stored.language).toBe(language);
 });
 
 it('shows a retryable autostart error instead of confirming a mismatch', async () => {

@@ -17,6 +17,7 @@ const configErrors: Readonly<Record<string, MessageKey>> = {
   'nexo.config.save.future': 'settings.saveBlockedFuture',
   'nexo.config.save.corrupt': 'settings.saveBlockedCorrupt',
   'nexo.config.save.unreadable': 'settings.saveBlockedUnreadable',
+  'nexo.config.sourceSelectionRequired': 'settings.sourceSelectionRequired',
   'nexo.config.recoveryNotAllowed': 'settings.recoverNotAllowed',
 };
 const configFailure = (key: MessageKey, error: unknown): Failure => {

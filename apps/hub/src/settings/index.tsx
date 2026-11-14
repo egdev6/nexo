@@ -5,6 +5,7 @@ import type { HubSettings, Language, SettingsViewProps } from '../model';
 import { formatNumber, t, type MessageKey, type Params } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { ACCENT_PRESETS, DEFAULT_ACCENT, derivePalette, normalizeHex } from './palette';
+import { LocalManagement } from './local-management';
 import './settings.css';
 
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
@@ -84,14 +85,7 @@ export function SettingsView({ settings, onChange, onClose, sources: configuredS
     <p className="settings__foot">{tr('settings.appearanceFoot')}</p>
   </>;
 
-  const sources = <>
-    <section className="settings__group" aria-labelledby={`${id}-sources`}>
-      <h2 id={`${id}-sources`}>{tr('settings.sources')}</h2>
-      {(configuredSources ?? [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' as const }]).map(source => <div className="settings__row" key={source.id}><div><strong>{source.id === 'official' && source.kind === 'official' && source.label === 'Catálogo oficial egdev' ? tr('settings.officialSource') : source.label}</strong><span>{tr(source.kind === 'official' ? 'settings.official' : 'settings.local')}</span></div></div>)}
-      <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.addSource')}</Button>
-    </section>
-    <p className="settings__foot">{tr('settings.sourceFoot')}</p>
-  </>;
+  const sources = <LocalManagement initialSources={configuredSources} />;
 
   const about = <>
     <section className="settings__group" aria-labelledby={`${id}-about`}>

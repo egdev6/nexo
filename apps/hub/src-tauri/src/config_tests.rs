@@ -133,6 +133,7 @@ fn patches_round_trip_onboarding_appearance_news_and_ordered_sources() {
             location: Some("C:\\local.json".into()),
         },
     ];
+    f.write(&serde_json::json!({"version": 2, "sources": sources}).to_string());
     let saved = f
         .store
         .patch(Patch {
@@ -319,7 +320,7 @@ fn synthetic_v0_migrates_on_save_without_losing_valid_values() {
         .unwrap();
     assert!(s.compact);
     assert_eq!(s.opacity, 42);
-    assert!(f.raw().contains("\"version\": 2"));
+    assert!(f.raw().contains("\"version\": 3"));
     assert!(f.raw().contains("unknown"));
 }
 
@@ -337,7 +338,7 @@ fn v1_migrates_without_a_news_visit_and_preserves_existing_settings() {
     assert_eq!(saved.accent, "#123456");
     assert!(serde_json::to_value(&saved).unwrap()["newsVisit"].is_null());
     assert!(saved.compact && saved.first_run_complete);
-    assert!(f.raw().contains("\"version\": 2"));
+    assert!(f.raw().contains("\"version\": 3"));
     assert!(f.raw().contains("unknown"));
 }
 
@@ -368,6 +369,216 @@ fn news_visit_round_trips_and_partial_settings_patches_preserve_it() {
 }
 
 #[test]
+fn legacy_versions_migrate_to_v3_without_losing_settings_sources_or_trusted_visit() {
+    use serde_json::json;
+
+    for version in 0..=2 {
+        let f = Fixture::new();
+        let visit = json!({"lastVisitAt":"2026-05-31T12:00:00Z","seenKeys":["a:one"]});
+        let document = json!({
+            "version": version, "language": "en", "compact": true,
+            "newsVisit": visit, "unknown": {"keep": 42},
+            "sources": [
+                {"id":"official", "label":"Official", "kind":"official", "metadata":{"keep":1}},
+                {"id":"local-1", "label":"Work", "kind":"local", "location":"C:\\work.json", "metadata":{"keep":2}}
+            ]
+        });
+        f.write(&document.to_string());
+        let initial = serde_json::to_value(f.store.read().settings).unwrap();
+        assert_eq!(
+            initial["newsVisit"],
+            if version == 2 {
+                visit.clone()
+            } else {
+                json!(null)
+            }
+        );
+        let saved = f
+            .store
+            .patch(Patch {
+                opacity: Some(42),
+                ..Default::default()
+            })
+            .unwrap();
+        let reloaded = serde_json::to_value(f.store.read().settings).unwrap();
+        assert_eq!(reloaded, serde_json::to_value(saved).unwrap());
+        assert_eq!(reloaded["language"], "en");
+        assert_eq!(reloaded["compact"], true);
+        assert_eq!(reloaded["opacity"], 42);
+        assert_eq!(
+            reloaded["newsVisit"],
+            if version == 2 { visit } else { json!(null) }
+        );
+        assert_eq!(reloaded["localApps"], json!([]));
+        assert_eq!(reloaded["localBindings"], json!([]));
+        let raw: serde_json::Value = serde_json::from_str(&f.raw()).unwrap();
+        assert_eq!(raw["version"], 3);
+        assert_eq!(raw["unknown"]["keep"], 42);
+        assert_eq!(raw["sources"][0]["metadata"]["keep"], 1);
+        assert_eq!(raw["sources"][1]["metadata"]["keep"], 2);
+        assert_eq!(raw["sources"][1]["id"], "local-1");
+    }
+}
+
+#[test]
+fn unrelated_patches_preserve_v3_local_entries_and_source_scoped_bindings() {
+    use serde_json::json;
+
+    let f = Fixture::new();
+    let document = json!({
+        "version": 3, "language": "en",
+        "sources": [
+            {"id":"official", "label":"Official", "kind":"official"},
+            {"id":"local-1", "label":"Work", "kind":"local", "location":"C:\\work.json"},
+            {"id":"local-2", "label":"Personal", "kind":"local", "location":"C:\\personal.json"}
+        ],
+        "localApps": [
+            {"id":"manual-1", "name":"Private", "executable":"C:\\private.exe", "icon":"C:\\icon.png"},
+            {"id":"manual-2", "name":"Private", "executable":"C:\\private.exe", "icon":null}
+        ],
+        "localBindings": [
+            {"sourceId":"local-1", "appId":"same-id", "executable":"C:\\work.exe"},
+            {"sourceId":"local-2", "appId":"same-id", "executable":"C:\\personal.exe"}
+        ]
+    });
+    f.write(&document.to_string());
+    assert_eq!(f.store.read().state, FileState::Ready);
+    let initial = serde_json::to_value(f.store.read().settings).unwrap();
+    assert_eq!(initial["localApps"], document["localApps"]);
+    assert_eq!(initial["localBindings"], document["localBindings"]);
+    f.store
+        .patch(Patch {
+            compact: Some(true),
+            ..Default::default()
+        })
+        .unwrap();
+    let reloaded = serde_json::to_value(f.store.read().settings).unwrap();
+    assert_eq!(reloaded["localApps"], document["localApps"]);
+    assert_eq!(reloaded["localBindings"], document["localBindings"]);
+    assert_eq!(reloaded["compact"], true);
+}
+
+#[test]
+fn unrelated_patch_preserves_local_record_metadata_and_rejected_entries() {
+    use serde_json::json;
+
+    let f = Fixture::new();
+    let document = json!({"version":3,
+        "localApps":[
+            {"id":"manual-1", "name":"Private", "executable":"C:\\private.exe", "metadata":{"keep":1}},
+            {"id":"invalid", "name":"", "executable":"C:\\bad.exe", "metadata":{"keep":2}}
+        ],
+        "localBindings":[
+            {"sourceId":"local-1", "appId":"app", "executable":"C:\\app.exe", "metadata":{"keep":3}},
+            {"sourceId":"local-1", "appId":"", "executable":"C:\\bad.exe", "metadata":{"keep":4}}
+        ]
+    });
+    f.write(&document.to_string());
+    let initial = serde_json::to_value(f.store.read().settings).unwrap();
+    assert_eq!(initial["localApps"].as_array().unwrap().len(), 1);
+    assert_eq!(initial["localBindings"].as_array().unwrap().len(), 1);
+    f.store
+        .patch(Patch {
+            compact: Some(true),
+            ..Default::default()
+        })
+        .unwrap();
+    let persisted: serde_json::Value = serde_json::from_str(&f.raw()).unwrap();
+    assert_eq!(persisted["localApps"], document["localApps"]);
+    assert_eq!(persisted["localBindings"], document["localBindings"]);
+}
+
+#[test]
+fn generic_settings_patch_rejects_local_executable_associations() {
+    use serde_json::json;
+
+    for patch in [
+        json!({"localApps":[{"id":"injected", "name":"Injected", "executable":"C:\\injected.exe"}]}),
+        json!({"localBindings":[{"sourceId":"local", "appId":"app", "executable":"C:\\injected.exe"}]}),
+    ] {
+        assert!(serde_json::from_value::<Patch>(patch).is_err());
+    }
+}
+
+#[test]
+fn legacy_unknown_local_fields_never_become_authorized_records() {
+    use serde_json::json;
+
+    for version in 0..=2 {
+        let f = Fixture::new();
+        f.write(&json!({"version": version, "language": "en", "unknown": 42,
+            "localApps": [{"id":"injected", "name":"Injected", "executable":"C:\\injected.exe"}],
+            "localBindings": [{"sourceId":"local", "appId":"app", "executable":"C:\\injected.exe"}]
+        }).to_string());
+        assert!(f.store.read().settings.local_apps.is_empty());
+        assert!(f.store.read().settings.local_bindings.is_empty());
+        let saved = f.store.patch(Patch::default()).unwrap();
+        assert!(saved.local_apps.is_empty());
+        assert!(saved.local_bindings.is_empty());
+        let reloaded = f.store.read().settings;
+        assert!(reloaded.local_apps.is_empty());
+        assert!(reloaded.local_bindings.is_empty());
+        let raw: serde_json::Value = serde_json::from_str(&f.raw()).unwrap();
+        assert_eq!(raw["version"], 3);
+        assert_eq!(raw["unknown"], 42);
+    }
+}
+
+#[test]
+fn generic_patches_cannot_create_change_or_remove_local_sources_or_set_locations() {
+    let f = Fixture::new();
+    f.write(r#"{"version":3,"language":"en","compact":false,"sources":[{"id":"official","label":"Official","kind":"official","metadata":{"keep":1}},{"id":"local","label":"Work","kind":"local","location":"C:\\work.json","metadata":{"keep":2}}]}"#);
+    let original = f.raw();
+    let sources = f.store.read().settings.sources;
+    let mut added_local = sources.clone();
+    added_local.push(Source {
+        id: "injected".into(),
+        label: "Injected".into(),
+        kind: "local".into(),
+        location: Some("C:\\injected.json".into()),
+    });
+    let mut changed_local = sources.clone();
+    changed_local[1].location = Some("C:\\injected.json".into());
+    let mut disguised_local = sources.clone();
+    disguised_local[1].kind = "official".into();
+    let mut disguised_official = sources.clone();
+    disguised_official[0].kind = "local".into();
+    let mut changed_official = sources.clone();
+    changed_official[0].location = Some("C:\\injected.json".into());
+    let removed_local = vec![sources[0].clone()];
+    for rejected in [
+        added_local,
+        changed_local,
+        disguised_local,
+        disguised_official,
+        changed_official,
+        removed_local,
+    ] {
+        let result = f.store.patch(Patch {
+            compact: Some(true),
+            sources: Some(rejected),
+            ..Default::default()
+        });
+        assert_eq!(result.unwrap_err(), "nexo.config.sourceSelectionRequired");
+        assert_eq!(f.raw(), original);
+        assert!(!f.store.read().settings.compact);
+    }
+    let saved = f
+        .store
+        .patch(Patch {
+            compact: Some(true),
+            sources: Some(sources.clone()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(saved.sources, sources);
+    assert!(saved.compact);
+    let raw: serde_json::Value = serde_json::from_str(&f.raw()).unwrap();
+    assert_eq!(raw["sources"][0]["metadata"]["keep"], 1);
+    assert_eq!(raw["sources"][1]["metadata"]["keep"], 2);
+}
+
+#[test]
 fn malformed_news_visit_is_tolerated_without_resetting_other_fields() {
     let f = Fixture::new();
     f.write(r#"{"version":2,"language":"en","newsVisit":{"lastVisitAt":5,"seenKeys":["a:one"]}}"#);
@@ -376,4 +587,33 @@ fn malformed_news_visit_is_tolerated_without_resetting_other_fields() {
     let json = serde_json::to_value(snapshot.settings).unwrap();
     assert_eq!(json["language"], "en");
     assert!(json["newsVisit"].is_null());
+}
+
+#[test]
+fn vp_generic_patch_cannot_set_locations_and_keeps_v2_bytes() {
+    use serde_json::json;
+    let dir = std::env::temp_dir().join(format!("vp-cfg-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.json");
+    std::fs::write(
+        &path,
+        r#"{"version":2,"newsVisit":{"lastVisitAt":"2026-01-01T00:00:00Z","seenKeys":["a"]}}"#,
+    )
+    .unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let store = Store::new(path.clone());
+    for p in [
+        json!({"sources":[{"id":"official","label":"O","kind":"official","location":"https://evil.example"}]}),
+        json!({"sources":[{"id":"official","label":"O","kind":"official"},{"id":"n","label":"N","kind":"local","location":"C:\\x.json"}]}),
+    ] {
+        assert_eq!(
+            store.patch(serde_json::from_value(p).unwrap()),
+            Err("nexo.config.sourceSelectionRequired".into())
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+    assert!(serde_json::from_value::<Patch>(json!({"localApps":[]})).is_err());
+    let saved = store.patch(Patch::default()).unwrap();
+    assert_eq!(saved.news_visit.unwrap().seen_keys, vec!["a".to_string()]);
+    let _ = std::fs::remove_dir_all(&dir);
 }
