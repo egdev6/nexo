@@ -274,6 +274,17 @@ struct VerifiedInstallerInner {
 }
 
 impl VerifiedInstaller {
+    /// Explicitly release a verified installer before process creation. Refuse cleanup while
+    /// another owner may still be protecting a running process.
+    pub fn cleanup(self) -> Result<(), StorageError> {
+        let mut inner = Arc::try_unwrap(self.inner).map_err(|_| StorageError)?;
+        inner.file.take();
+        match inner.workspace.as_mut() {
+            Some(workspace) => workspace.cleanup(),
+            None => Ok(()),
+        }
+    }
+
     /// This path remains protected only while this value is alive.
     pub fn executable_path(&self) -> &Path {
         &self.inner.path

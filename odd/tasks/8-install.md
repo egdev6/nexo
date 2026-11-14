@@ -109,7 +109,7 @@ All units are proposed and **not authorized**. ODD publication, assignment/start
   - Outcome: first of #7/#8 supplies v3 keys, allowlist, separate feed/cache and Rust/TS validation; the other reuses it.
   - Checks/exit: valid/invalid keys and URLs, host/path/redirect escapes, v1/v2 parity and old readers, cache separation,
     fallback with install blocked, native source binding, key changes and approved release publishing plan.
-- T3 (S1, A2, A6–A10) Download, verify and install service — route: focused writer, test-first; status: in progress (x64 NSIS asset gate complete; command, progress/cancellation and client pending).
+- T3 (S1, A2, A6–A10) Download, verify and install service — route: focused writer, test-first; status: in progress (x64 NSIS asset gate complete; explicit pre-spawn cleanup API added; native approval, command integration, progress/cancellation and client pending).
   - Outcome: ID-bound approval, per-app single-flight, bounded streaming, detached verification, protected temp files,
     unelevated process, cancellation, cleanup and fresh #6 detection behind injectable boundaries.
   - Checks/exit: fake HTTP/filesystem/signature/process/registry cover limits, timeouts, redirects, tampering, races,

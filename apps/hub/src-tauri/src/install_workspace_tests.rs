@@ -193,6 +193,74 @@ async fn verified_handle_keeps_unique_private_workspace_and_exact_verified_path_
 }
 
 #[tokio::test]
+async fn explicit_cleanup_removes_a_verified_workspace_before_spawn() {
+    let scratch = Scratch::new();
+    let installer = prepare(
+        &FakeNetwork::valid(),
+        &scratch.factory(),
+        &app(),
+        Limits::default(),
+    )
+    .await
+    .unwrap();
+    let path = installer.executable_path().to_owned();
+    assert!(installer.cleanup().is_ok());
+    assert!(!path.exists());
+    assert!(scratch.workspaces().is_empty());
+}
+
+#[tokio::test]
+async fn explicit_cleanup_reports_failure_and_stale_cleanup_can_recover() {
+    let scratch = Scratch::new();
+    let factory = scratch.factory();
+    let installer = prepare(&FakeNetwork::valid(), &factory, &app(), Limits::default())
+        .await
+        .unwrap();
+    let path = installer.executable_path().to_owned();
+    let lock = fs::read_dir(&scratch.0)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with(".nexo-install-coordination-")
+        })
+        .unwrap();
+    // A directory in place of the coordination file makes its open fail on all platforms.
+    fs::remove_file(&lock).unwrap();
+    fs::create_dir(&lock).unwrap();
+    let outcome = installer.cleanup();
+    let still_present = path.exists();
+    fs::remove_dir(&lock).unwrap();
+    factory.cleanup_stale().unwrap();
+    assert!(outcome.is_err());
+    assert!(still_present);
+    assert!(!path.exists());
+    assert!(scratch.workspaces().is_empty());
+}
+
+#[tokio::test]
+async fn explicit_cleanup_does_not_remove_a_retained_installer() {
+    let scratch = Scratch::new();
+    let installer = prepare(
+        &FakeNetwork::valid(),
+        &scratch.factory(),
+        &app(),
+        Limits::default(),
+    )
+    .await
+    .unwrap();
+    let retained = installer.retain_for_process();
+    let path = retained.executable_path().to_owned();
+    assert!(installer.cleanup().is_err());
+    assert!(path.exists());
+    drop(retained);
+    assert!(!path.exists());
+    assert!(scratch.workspaces().is_empty());
+}
+
+#[tokio::test]
 async fn missing_key_is_rejected_before_network_and_workspace_creation() {
     let scratch = Scratch::new();
     let network = FakeNetwork::valid();
