@@ -89,7 +89,7 @@ fn failure(app: &AppHandle, message: String, hub_only_allowed: bool) {
     }
 }
 
-fn reason(result: QuitOutcome) -> Option<String> {
+pub(crate) fn reason(result: QuitOutcome) -> Option<String> {
     match result {
         QuitOutcome::Accepted => None,
         QuitOutcome::Refused(reason) => {

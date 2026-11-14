@@ -357,12 +357,33 @@ impl Hub {
     }
 
     pub(crate) fn show(&self, id: &str, generation: u64) -> bool {
+        self.show_inner(id, generation, false)
+    }
+
+    pub(crate) fn show_responsive(&self, id: &str, generation: u64) -> bool {
+        self.show_inner(id, generation, true)
+    }
+
+    fn show_inner(&self, id: &str, generation: u64, require_responsive: bool) -> bool {
         let registry = self.registry.lock().unwrap();
         registry.apps.get(id).is_some_and(|entry| {
             entry.view.generation == generation
+                && (!require_responsive || (!registry.exiting && entry.view.responsive))
                 && entry.view.capabilities.contains(&Capability::Show)
                 && entry.outgoing.try_send(Outgoing::Show).is_ok()
         })
+    }
+
+    pub(crate) fn while_disconnected(
+        &self,
+        id: &str,
+        action: impl FnOnce() -> Result<(), String>,
+    ) -> Result<(), String> {
+        let registry = self.registry.lock().unwrap();
+        if registry.exiting || *self.shutdown.borrow() || registry.apps.contains_key(id) {
+            return Err("La conexión cambió; vuelve a intentar".into());
+        }
+        action()
     }
 
     pub(crate) fn set_unified(&self, id: &str, generation: u64, value: bool) -> bool {
@@ -382,10 +403,19 @@ impl Hub {
     }
 
     pub(crate) async fn quit(&self, id: &str, generation: u64) -> QuitOutcome {
+        self.quit_inner(id, generation, false).await
+    }
+
+    pub(crate) async fn quit_responsive(&self, id: &str, generation: u64) -> QuitOutcome {
+        self.quit_inner(id, generation, true).await
+    }
+
+    async fn quit_inner(&self, id: &str, generation: u64, require_responsive: bool) -> QuitOutcome {
         let (request_id, response, deadline) = {
             let mut registry = self.registry.lock().unwrap();
             let supported = registry.apps.get(id).is_some_and(|entry| {
                 entry.view.generation == generation
+                    && (!require_responsive || entry.view.responsive)
                     && entry.view.capabilities.contains(&Capability::Quit)
             });
             if !supported {

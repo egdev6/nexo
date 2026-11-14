@@ -14,6 +14,15 @@ describe('catalog format v1', () => {
     expect(parseCatalog({ schemaVersion: 1, apps: [] }).apps).toEqual([]);
     expect(parseCatalog(JSON.parse('{"schemaVersion":1.0,"apps":[]}')).apps).toEqual([]);
   });
+  it('rejects v1 detection before validating individual app fields', () => {
+    const doc = copy();
+    const second = structuredClone(doc.apps[0]);
+    second.id = 'second-app';
+    Object.assign(second, { detection: { windows: { displayName: 'A', publisher: 'P', executableRelativePath: 'A.exe' } } });
+    Object.defineProperty(doc.apps[0], 'id', { enumerable: true, get: () => { throw new Error('ID read before v1 detection rejection'); } });
+    doc.apps.push(second);
+    expect(() => parseCatalog(doc)).toThrow('Invalid catalog');
+  });
   it('rejects invalid and duplicate app and news IDs', () => {
     for (const id of ['', 'UPPER', 'a_b', '../app', 'good\n']) { const doc = copy(); doc.apps[0].id = id; expect(() => parseCatalog(doc)).toThrow(); }
     const duplicate = copy(); duplicate.apps.push(structuredClone(duplicate.apps[0])); expect(() => parseCatalog(duplicate)).toThrow();
@@ -41,7 +50,7 @@ describe('catalog format v1', () => {
       (d: ReturnType<typeof copy>) => { d.apps[0].news[0].kind = 'unknown'; },
       (d: ReturnType<typeof copy>) => { Object.assign(d.apps[0], { unexpected: true }); },
       (d: ReturnType<typeof copy>) => { delete (d.apps[0] as Partial<typeof d.apps[0]>).name; },
-      (d: ReturnType<typeof copy>) => { d.schemaVersion = 2; },
+      (d: ReturnType<typeof copy>) => { d.schemaVersion = 3; },
     ]) { const doc = copy(); mutate(doc); expect(() => parseCatalog(doc)).toThrow(); }
     expect(() => parseCatalog(null)).toThrow();
   });

@@ -1,3 +1,5 @@
+#[cfg(any(windows, test))]
+mod apps;
 mod catalog_cache;
 mod config;
 #[cfg(any(windows, test))]
@@ -110,18 +112,23 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
             catalog_cache::read_catalog_cache,
+            catalog_cache::read_catalog_v2_cache,
             catalog_cache::write_catalog_cache,
             config::get_settings,
             config::save_settings,
             config::recover_settings,
             config::quit_after_settings,
             runtime::registry_snapshot,
+            apps::installed_apps,
+            apps::open_official_app,
+            apps::close_connected_app,
             runtime::hub_only_exit
         ]);
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
         catalog_cache::read_catalog_cache,
+        catalog_cache::read_catalog_v2_cache,
         catalog_cache::write_catalog_cache,
         config::get_settings,
         config::save_settings,

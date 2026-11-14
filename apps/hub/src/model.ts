@@ -24,8 +24,13 @@ export interface HubApp {
   /** Official catalog capability is separate from source and installed state. */
   source?: 'official' | 'local';
   catalogIntegration?: 'full' | 'update' | 'launch';
-  /** When false, installed/running are compatibility placeholders, not observed state. */
+  /** Compatibility flag for installation; running evidence is represented independently. */
   statusKnown?: boolean;
+  installationState?: 'installed' | 'notInstalled' | 'unknown';
+  installationReason?: string;
+  runningState?: 'connected' | 'unknown';
+  canOpen?: boolean;
+  openReason?: string;
   iconUrl?: string;
   artUrl?: string;
   catalogVersion?: string;
