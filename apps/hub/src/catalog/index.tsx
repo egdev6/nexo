@@ -1,10 +1,13 @@
+import { useEffect, useRef } from 'react';
 import { Badge, Button, Icon, IconButton } from '@egdev/ui';
 import type { CatalogViewProps, HubApp } from '../model';
 import './catalog.css';
 
-function CatalogCard({ app }: { app: HubApp }) {
+function CatalogCard({ app, focused = false }: { app: HubApp; focused?: boolean }) {
   const official = app.source === 'official';
-  return <article className="catalog-card" aria-label={app.name}>
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => { if (focused) ref.current?.focus({ preventScroll: false }); }, [focused]);
+  return <article ref={ref} tabIndex={focused ? -1 : undefined} className="catalog-card" aria-label={app.name}>
     <div className="catalog-art" aria-hidden="true">
       {app.artUrl || app.iconUrl ? <img src={app.artUrl || app.iconUrl} alt="" /> :
         <div className="catalog-art-window"><span>{app.name.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div>}
@@ -27,8 +30,9 @@ function CatalogCard({ app }: { app: HubApp }) {
   </article>;
 }
 
-export function CatalogView({ apps, state = 'ready', stale = false, reason, installationKnown = true, onRetry }: CatalogViewProps) {
-  const available = apps.filter(app => app.integration === 'catalog' && (!app.installed || app.statusKnown === false));
+export function CatalogView({ apps, state = 'ready', stale = false, reason, installationKnown = true, onRetry, targetAppId }: CatalogViewProps) {
+  const target = targetAppId ? apps.find(app => app.id === targetAppId && app.source === 'official') : undefined;
+  const available = apps.filter(app => app === target || (app.integration === 'catalog' && (!app.installed || app.statusKnown === false)));
   const failed = state === 'offline' || state === 'error';
   const unknown = available.some(app => app.statusKnown === false);
   return <section className="catalog-view" aria-label="Catálogo">
@@ -38,7 +42,9 @@ export function CatalogView({ apps, state = 'ready', stale = false, reason, inst
       <p>{state === 'offline' ? 'Sin conexión con el catálogo o el servidor rechazó la solicitud.' : reason === 'unconfigured' ? 'La fuente oficial del catálogo aún no está configurada.' : 'Error al cargar o guardar el catálogo.'} {stale && 'Se muestra la copia guardada, que puede estar desactualizada.'}</p>
       {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>Reintentar</Button>}
     </div>}
-    {available.length > 0 ? <div className="catalog-grid">{available.map(app => <CatalogCard key={app.id} app={app} />)}</div> :
+    {targetAppId && !target && <div role="alert" className="catalog-notice"><p>Esta aplicación ya no está disponible en el catálogo.</p>
+      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>Reintentar catálogo</Button>}</div>}
+    {available.length > 0 ? <div className="catalog-grid">{available.map(app => <CatalogCard key={app.id} app={app} focused={app === target} />)}</div> :
       !failed && state !== 'loading' && <p className="catalog-empty">No hay aplicaciones disponibles en el catálogo.</p>}
     {available.some(app => app.source !== 'official') && <p className="catalog-foot">Muestra de diseño · acciones ilustrativas y enlaces de muestra.</p>}
   </section>;
