@@ -11,6 +11,8 @@
     "app:dev": "tauri dev"
   },
   "dependencies": {
+    "@egdev/tokens": "file:vendor/egdev-tokens-0.3.0.tgz",
+    "@egdev/ui": "file:vendor/egdev-ui-0.1.0.tgz",
     "@tauri-apps/api": "^2.8.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
