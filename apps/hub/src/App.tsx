@@ -4,6 +4,7 @@ import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Ico
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { closeConnectedApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
 import { CatalogView } from './catalog';
+import { useCatalogInstalls } from './catalog/install/use-installs';
 import { diskCache, diskCacheV2, diskCacheV3, loadVersionedCatalog, OFFICIAL_CATALOG_URL, OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_V3_URL, webFetcher, type CatalogState } from './catalog/loader';
 import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
@@ -147,6 +148,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(finishNews);
   const refreshAppsRef = useRef(onAppsRefresh);
   refreshAppsRef.current = onAppsRefresh;
+  const installs = useCatalogInstalls(isTauri() && !!onAppsRefresh, apps, onAppsRefresh);
   useEffect(() => {
     if (visibility?.visible) refreshAppsRef.current?.();
   }, [visibility?.cycle, visibility?.visible]);
@@ -294,7 +296,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
         { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh} onClose={onAppsRefresh ? closeApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} localCycle={visibility?.visible ? visibility.cycle : undefined} selectCatalog={() => setActive('catalog')} /> },
-        { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} /> },
+        { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /> },
       ]} />}
     {settings && <NewsPopup items={snapshot?.items ?? []} open={usable && !firstRun && !!snapshot} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
       stale={snapshot?.stale} onShown={item => viewed.current.add(item.id)}

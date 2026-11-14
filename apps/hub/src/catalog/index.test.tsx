@@ -75,16 +75,16 @@ it('shows an error without pretending an uncached catalog is empty', () => {
   expect(screen.queryByText('No hay aplicaciones disponibles en el catálogo.')).toBeNull();
 });
 
-it('does not enable illustrative installation when official installation state is unknown', () => {
+it('disables official installation when its installation state is unknown', () => {
   render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: false }]} state="ready" />);
-  expect(screen.queryByRole('button', { name: /Instalar Pizarra/ })).toBeNull();
-  expect(screen.getByText(/instalación.*no disponible/i)).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText('No se ha podido comprobar si la app está instalada.')).toBeTruthy();
 });
 
-it('does not offer a fake official install action even when the app is known to be uninstalled', () => {
-  render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: true }]} state="ready" />);
-  expect(screen.queryByRole('button', { name: /Instalar Pizarra/ })).toBeNull();
-  expect(screen.getByText(/instalación.*no disponible/i)).toBeTruthy();
+it('does not enable official installation without a validated v3 catalog', () => {
+  render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: true, installationState: 'notInstalled' }]} state="ready" />);
+  expect((screen.getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText('La instalación requiere un catálogo oficial v3.')).toBeTruthy();
 });
 
 it('renders validated official artwork and real discovery links without an install action', () => {
@@ -93,5 +93,5 @@ it('renders validated official artwork and real discovery links without an insta
   const card = screen.getByRole('article', { name: 'Pizarra' });
   expect(card.querySelector('img')?.getAttribute('src')).toBe('https://example.com/art.png');
   expect(within(card).getByRole('link', { name: 'Código en GitHub de Pizarra' }).getAttribute('href')).toBe(app.links?.github);
-  expect(within(card).queryByRole('button', { name: /Instalar/ })).toBeNull();
+  expect((within(card).getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
 });
