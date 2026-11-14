@@ -43,11 +43,12 @@ S1 — Original issue body, https://github.com/egdev6/nexo/issues/8, verbatim:
   require separate approval and coordination with its maintainers.
 - A4 — For v3, restrict `installerUrl`, `latestJsonUrl` and update artifact URLs consumed by #7 to HTTPS GitHub release
   assets under `https://github.com/egdev6/`. Parse and validate the exact host, owner and release-asset path, not a
-  string prefix; reject credentials, deceptive hosts/paths, malformed URLs and non-HTTPS. Validate every redirect
-  before following it and reject any redirect to another host; only bounded same-host redirects that still satisfy
-  the release-asset policy may be followed. Apply the policy to installer, derived `.sig` and update downloads too.
-  Preserve v1/v2 validation and endpoints. Verify actual GitHub delivery before implementation: if it redirects to an
-  asset host, this strict policy blocks it. No exception is implied by a valid signature or by this draft.
+  string prefix; reject credentials, deceptive hosts/paths, malformed URLs and non-HTTPS. Disable automatic
+  redirects and validate every hop before requesting it: follow only a bounded number of HTTPS redirects whose host
+  is exactly `release-assets.githubusercontent.com` or `objects.githubusercontent.com` (GitHub's release asset
+  hosts; verified 2026-11-14 that release downloads redirect to `release-assets.githubusercontent.com`); any other
+  host, credentials or scheme fails closed. Apply the policy to installer, derived `.sig` and update downloads too.
+  Preserve v1/v2 validation and endpoints. The signature check (A6) remains mandatory regardless of host (see L2).
 - A5 — At the native trust boundary obtain and validate the official v3 feed from the fixed official HTTPS source,
   not arbitrary renderer-supplied catalog bytes. Propose requiring a current successful fetch for each installation;
   v1/v2 or stale cache may remain visible but cannot authorize execution. Recheck the chosen ID, URL and key before
@@ -86,10 +87,8 @@ S1 — Original issue body, https://github.com/egdev6/nexo/issues/8, verbatim:
 
 ### OPEN DECISIONS and recommendations
 
-- D1 — Strict release-host policy versus GitHub asset redirects: recommend holding execution if GitHub redirects
-  outside `github.com`, and verify current real release delivery. If incompatible, maintainers must separately approve
-  either a demonstrably same-host release-asset route or a revised, narrowly reviewed redirect policy for both #7/#8.
-  Until then, do not follow another host or claim installation works.
+- D1 — RESOLVED (L2): GitHub release downloads redirect to `release-assets.githubusercontent.com`; the approved
+  policy for both #7/#8 allows only that host and `objects.githubusercontent.com` as redirect targets (A4).
 - D2 — Recommend the fresh-v3-only trust rule, independent native feed validation and limits in A5–A6. Confirm values,
   key rotation/revocation and catalog rollback handling with #7 and catalog maintainers; offline install remains blocked.
 - D3 — Recommend `/S`, current-user NSIS only, no elevation, and cancellation only before spawn. Confirm actual flags,
@@ -127,3 +126,4 @@ All units are proposed and **not authorized**. ODD publication, assignment/start
 ## Log
 
 - L1 (verbatim): Parent: "¿Preparo sus ODD en paralelo, como las tandas anteriores?" User: "si". Parent interpretation: draft the ODDs for #7, #8 and #9 in parallel only; no publication, assignment or implementation is authorized.
+- L2 (verbatim): Parent: "Un ajuste a la recomendación del borrador de #8: proponía bloquear la instalación mientras GitHub redirigiera a otro host. Lo comprobé: las descargas de releases redirigen a `release-assets.githubusercontent.com`. Bloquear eso impediría instalar cualquier app, así que recomiendo permitir **solo** esa redirección de GitHub. La firma es la verdadera garantía: aunque el host fallara, un instalador sin firma válida no se ejecuta. ¿Apruebo los tres ODD con esas recomendaciones, los publico y arranco la implementación en paralelo?" User: "si". Effect: A4 and D1 updated; T2-T4 authorized.
