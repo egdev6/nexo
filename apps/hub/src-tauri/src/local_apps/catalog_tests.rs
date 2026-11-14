@@ -109,18 +109,32 @@ struct Reader {
     reads: RefCell<Vec<String>>,
 }
 impl LocalCatalogReader for Reader {
-    fn read(&self, path: &str) -> io::Result<String> {
+    fn open(&self, path: &str) -> io::Result<impl io::Read> {
         self.reads.borrow_mut().push(path.into());
         self.files
             .borrow()
             .get(path)
-            .cloned()
+            .map(|text| io::Cursor::new(text.as_bytes().to_vec()))
             .ok_or_else(|| io::ErrorKind::NotFound.into())
     }
 }
 impl Reader {
     fn put(&self, path: &str, text: &str) {
         self.files.borrow_mut().insert(path.into(), text.into());
+    }
+}
+struct BlockingReader {
+    entered: std::sync::mpsc::Sender<()>,
+    resume: std::sync::mpsc::Receiver<()>,
+    text: String,
+}
+impl LocalCatalogReader for BlockingReader {
+    fn open(&self, _path: &str) -> io::Result<impl io::Read> {
+        self.entered.send(()).unwrap();
+        self.resume
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        Ok(io::Cursor::new(self.text.as_bytes().to_vec()))
     }
 }
 struct CatalogChoice(Result<Option<String>, String>);
@@ -154,6 +168,240 @@ impl Launcher for FakeLauncher {
         self.paths.borrow_mut().push(path.into());
         Ok(())
     }
+}
+
+// Existing single-threaded command tests use one transaction at a time.
+fn set(
+    store: &Store,
+    fs: &impl ExecutableFs,
+    reader: &impl LocalCatalogReader,
+    picker: &impl CatalogPicker,
+    fence: &RefreshFence,
+    id: Option<&str>,
+) -> Result<Option<LocalCatalogSnapshot>, String> {
+    super::set(store, &ConfigLock::default(), fs, reader, picker, fence, id)
+}
+fn refresh(
+    store: &Store,
+    fs: &impl ExecutableFs,
+    reader: &impl LocalCatalogReader,
+    fence: &RefreshFence,
+    id: &str,
+) -> Result<LocalCatalogSnapshot, String> {
+    super::refresh(store, &ConfigLock::default(), fs, reader, fence, id)
+}
+fn clear(store: &Store, fence: &RefreshFence, id: &str) -> Result<(), String> {
+    super::clear(store, &ConfigLock::default(), fence, id)
+}
+fn bind(
+    store: &Store,
+    fs: &impl ExecutableFs,
+    reader: &impl LocalCatalogReader,
+    picker: &impl Picker,
+    fence: &RefreshFence,
+    key: &LocalEntryKey,
+) -> Result<Option<LocalBinding>, String> {
+    super::bind(
+        store,
+        &ConfigLock::default(),
+        fs,
+        reader,
+        picker,
+        fence,
+        key,
+    )
+}
+fn unbind(store: &Store, key: &LocalEntryKey) -> Result<(), String> {
+    super::unbind(store, &ConfigLock::default(), key)
+}
+fn open(
+    store: &Store,
+    fs: &impl ExecutableFs,
+    reader: &impl LocalCatalogReader,
+    launcher: &impl Launcher,
+    fence: &RefreshFence,
+    key: &LocalEntryKey,
+) -> Result<(), String> {
+    super::open(
+        store,
+        &ConfigLock::default(),
+        fs,
+        reader,
+        launcher,
+        fence,
+        key,
+    )
+}
+
+#[test]
+fn catalog_size_limit_rejects_oversized_set_and_refresh_without_changing_saved_data() {
+    const LIMIT: usize = 1024 * 1024;
+    let f = Fixture::new();
+    let fs = FakeFs::new();
+    let reader = Reader::default();
+    let fence = RefreshFence::default();
+    let mut text = document().to_string();
+    text.push_str(&" ".repeat(LIMIT - text.len()));
+    reader.put(OLD, &text);
+    let snapshot = set(&f.store, &fs, &reader, &choose(OLD), &fence, Some("work"))
+        .unwrap()
+        .unwrap();
+    let saved = f.raw();
+    assert_eq!(fence.current("work"), Some(Ok(snapshot)));
+
+    text.push(' ');
+    reader.put(OLD, &text);
+    assert_eq!(
+        set(&f.store, &fs, &reader, &choose(OLD), &fence, Some("work")),
+        Err("nexo.local.catalogInvalid".into())
+    );
+    assert_eq!(f.raw(), saved);
+    assert_eq!(
+        refresh(&f.store, &fs, &reader, &fence, "work"),
+        Err("nexo.local.catalogInvalid".into())
+    );
+    assert_eq!(f.raw(), saved);
+    assert_eq!(fence.current("work"), Some(Err(LocalCatalogError::Invalid)));
+}
+
+#[test]
+fn a_slow_catalog_read_does_not_block_settings_updates() {
+    use std::sync::{Arc, mpsc};
+    use std::time::Duration;
+
+    let f = Fixture::new();
+    let lock = Arc::new(crate::config::ConfigLock::default());
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let (updated_tx, updated_rx) = mpsc::channel();
+    let reader = BlockingReader {
+        entered: entered_tx,
+        resume: resume_rx,
+        text: document().to_string(),
+    };
+    std::thread::scope(|scope| {
+        let store = &f.store;
+        let refresh_lock = Arc::clone(&lock);
+        let worker = scope.spawn(move || {
+            super::refresh(
+                store,
+                &refresh_lock,
+                &FakeFs::new(),
+                &reader,
+                &RefreshFence::default(),
+                "work",
+            )
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let update_lock = Arc::clone(&lock);
+        let update = scope.spawn(move || {
+            let result = update_lock.with_store(store, |store| {
+                store.patch(crate::config::Patch {
+                    language: Some("es".into()),
+                    ..Default::default()
+                })
+            });
+            updated_tx.send(result.is_ok()).unwrap();
+        });
+        let updated_before_read_finished = updated_rx.recv_timeout(Duration::from_secs(1));
+        resume_tx.send(()).unwrap();
+        assert!(worker.join().unwrap().is_ok());
+        update.join().unwrap();
+        assert_eq!(updated_before_read_finished, Ok(true));
+    });
+    assert_eq!(f.json()["language"], "es");
+    assert_eq!(f.json()["localBindings"].as_array().unwrap().len(), 2);
+    assert_eq!(f.json()["newsVisit"]["seenKeys"], json!(["a:one"]));
+}
+
+#[test]
+fn newer_same_source_selection_fences_an_older_read_without_overwriting_it() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let f = Fixture::new();
+    let lock = ConfigLock::default();
+    let fence = RefreshFence::default();
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let mut old = document();
+    old["apps"][0]["name"] = json!("Older");
+    let reader = BlockingReader {
+        entered: entered_tx,
+        resume: resume_rx,
+        text: old.to_string(),
+    };
+    std::thread::scope(|scope| {
+        let store = &f.store;
+        let lock = &lock;
+        let fence = &fence;
+        let worker = scope.spawn(move || {
+            super::set(
+                store,
+                lock,
+                &FakeFs::new(),
+                &reader,
+                &choose(OLD),
+                fence,
+                Some("work"),
+            )
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let mut new = document();
+        new["apps"][0]["name"] = json!("Newer");
+        let reader = Reader::default();
+        reader.put(OLD, &new.to_string());
+        let current = super::set(
+            &f.store,
+            lock,
+            &FakeFs::new(),
+            &reader,
+            &choose(OLD),
+            fence,
+            Some("work"),
+        )
+        .unwrap()
+        .unwrap();
+        let saved = f.raw();
+        resume_tx.send(()).unwrap();
+        assert_eq!(worker.join().unwrap(), Err("nexo.local.refused".into()));
+        assert_eq!(fence.current("work"), Some(Ok(current)));
+        assert_eq!(f.raw(), saved);
+        assert_eq!(f.json()["localBindings"].as_array().unwrap().len(), 2);
+    });
+}
+
+#[test]
+fn a_removed_source_fences_an_inflight_refresh_without_restoring_its_bindings() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let f = Fixture::new();
+    let lock = ConfigLock::default();
+    let fence = RefreshFence::default();
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let reader = BlockingReader {
+        entered: entered_tx,
+        resume: resume_rx,
+        text: document().to_string(),
+    };
+    std::thread::scope(|scope| {
+        let store = &f.store;
+        let lock = &lock;
+        let fence = &fence;
+        let worker = scope
+            .spawn(move || super::refresh(store, lock, &FakeFs::new(), &reader, fence, "work"));
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        super::clear(&f.store, lock, fence, "work").unwrap();
+        let saved = f.raw();
+        resume_tx.send(()).unwrap();
+        assert_eq!(worker.join().unwrap(), Err("nexo.local.notFound".into()));
+        assert_eq!(fence.current("work"), None);
+        assert_eq!(f.raw(), saved);
+        assert_eq!(f.json()["localBindings"].as_array().unwrap().len(), 1);
+        assert_eq!(f.json()["localBindings"][0]["sourceId"], "personal");
+    });
 }
 
 #[test]

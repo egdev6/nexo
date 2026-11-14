@@ -19,14 +19,43 @@ struct FakeReader {
     reads: RefCell<Vec<String>>,
 }
 impl LocalCatalogReader for FakeReader {
-    fn read(&self, location: &str) -> io::Result<String> {
+    fn open(&self, location: &str) -> io::Result<impl io::Read> {
         self.reads.borrow_mut().push(location.into());
         self.files
             .borrow()
             .get(location)
-            .cloned()
+            .map(|text| io::Cursor::new(text.as_bytes().to_vec()))
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
+}
+
+#[test]
+fn oversized_stream_is_stopped_after_the_limit_plus_one_byte() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    struct StreamingReader(Arc<AtomicUsize>);
+    struct Stream(Arc<AtomicUsize>);
+    impl io::Read for Stream {
+        fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+            output.fill(b' ');
+            self.0.fetch_add(output.len(), Ordering::Relaxed);
+            Ok(output.len())
+        }
+    }
+    impl LocalCatalogReader for StreamingReader {
+        fn open(&self, _: &str) -> io::Result<impl io::Read> {
+            Ok(Stream(Arc::clone(&self.0)))
+        }
+    }
+    let count = Arc::new(AtomicUsize::new(0));
+    assert_eq!(
+        read_local_catalog(&StreamingReader(Arc::clone(&count)), "work", "selected"),
+        Err(LocalCatalogError::Invalid)
+    );
+    assert_eq!(count.load(Ordering::Relaxed), MAX_LOCAL_CATALOG_BYTES + 1);
 }
 
 #[test]

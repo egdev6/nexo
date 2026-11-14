@@ -555,7 +555,7 @@ pub(crate) fn bootstrap_locale(app: &AppHandle) -> crate::i18n::Locale {
     store_locale(&Store::new(directory.join("config.json")))
 }
 
-fn store(app: &AppHandle, window: &WebviewWindow) -> Result<Store, String> {
+pub(crate) fn store(app: &AppHandle, window: &WebviewWindow) -> Result<Store, String> {
     if window.label() != "main" {
         return Err("Ventana no autorizada".into());
     }

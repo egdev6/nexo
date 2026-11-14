@@ -2,7 +2,10 @@
 
 use serde::Serialize;
 use std::collections::HashMap;
+use std::io::Read;
 use std::sync::{Arc, Mutex};
+
+pub const MAX_LOCAL_CATALOG_BYTES: usize = 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,7 +42,7 @@ pub enum LocalCatalogError {
 /// The caller owns selection and safe local-path validation; implementations must
 /// never interpret the location as a URL or request catalog metadata URLs.
 pub trait LocalCatalogReader {
-    fn read(&self, location: &str) -> std::io::Result<String>;
+    fn open(&self, location: &str) -> std::io::Result<impl Read>;
 }
 
 /// Holds the latest refresh result per source. Invalidate under the same source
@@ -62,19 +65,42 @@ pub struct RefreshTicket {
 
 impl RefreshFence {
     pub fn begin(&self, source_id: &str) -> RefreshTicket {
+        self.start(source_id, false)
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn begin_preserving(&self, source_id: &str) -> RefreshTicket {
+        self.start(source_id, true)
+    }
+
+    fn start(&self, source_id: &str, preserve: bool) -> RefreshTicket {
         let token = Arc::new(());
         let mut slots = self.slots.lock().unwrap_or_else(|error| error.into_inner());
+        let result = if preserve {
+            slots.get(source_id).and_then(|slot| slot.result.clone())
+        } else {
+            None
+        };
         slots.insert(
             source_id.to_owned(),
             RefreshSlot {
                 token: Arc::clone(&token),
-                result: None,
+                result,
             },
         );
         RefreshTicket {
             source_id: source_id.to_owned(),
             token,
         }
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn is_current(&self, ticket: &RefreshTicket) -> bool {
+        self.slots
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&ticket.source_id)
+            .is_some_and(|slot| Arc::ptr_eq(&slot.token, &ticket.token))
     }
 
     pub fn invalidate(&self, source_id: &str) {
@@ -159,9 +185,17 @@ pub fn read_local_catalog(
     source_id: &str,
     location: &str,
 ) -> Result<LocalCatalogSnapshot, LocalCatalogError> {
-    let text = reader
-        .read(location)
+    let file = reader
+        .open(location)
         .map_err(|_| LocalCatalogError::Unreadable)?;
+    let mut bytes = Vec::new();
+    file.take((MAX_LOCAL_CATALOG_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|_| LocalCatalogError::Unreadable)?;
+    if bytes.len() > MAX_LOCAL_CATALOG_BYTES {
+        return Err(LocalCatalogError::Invalid);
+    }
+    let text = String::from_utf8(bytes).map_err(|_| LocalCatalogError::Unreadable)?;
     parse_local_catalog(source_id, &text)
 }
 
