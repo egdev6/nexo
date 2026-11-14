@@ -1,7 +1,7 @@
 //! Bounded, injectable installer download stage. It does not execute files.
 //!
-//! This orchestration has no production HTTP or filesystem adapter yet and does not verify
-//! signatures. It is not an authorization to execute an artifact.
+//! Downloading alone does not verify signatures or authorize execution. The workspace adapter
+//! must retain the prepared workspace through verification and eventual process creation.
 use std::future::Future;
 use std::time::Duration;
 
@@ -108,6 +108,14 @@ pub trait Workspace: Send {
 pub trait WorkspaceFactory {
     type Workspace: Workspace;
     fn create(&self) -> Result<Self::Workspace, StorageError>;
+
+    /// Factories may report a failed cleanup when creation itself only partially succeeded.
+    fn create_for_download(&self) -> Result<Self::Workspace, DownloadError> {
+        self.create().map_err(|_| DownloadError {
+            cause: Failure::Storage,
+            cleanup_failed: false,
+        })
+    }
 }
 
 pub struct Prepared<W: Workspace> {
@@ -115,6 +123,10 @@ pub struct Prepared<W: Workspace> {
 }
 
 impl<W: Workspace> Prepared<W> {
+    pub(crate) fn into_workspace(mut self) -> W {
+        self.workspace.take().expect("workspace is present")
+    }
+
     pub fn cleanup(mut self) -> Result<(), StorageError> {
         self.workspace
             .take()
@@ -282,10 +294,7 @@ pub async fn download_pair<N: Network, F: WorkspaceFactory>(
             cleanup_failed: false,
         });
     }
-    let workspace = factory.create().map_err(|_| DownloadError {
-        cause: Failure::Storage,
-        cleanup_failed: false,
-    })?;
+    let workspace = factory.create_for_download()?;
     // The guard also cleans up if the caller drops or cancels the future mid-download.
     let mut prepared = Prepared {
         workspace: Some(workspace),
@@ -683,6 +692,35 @@ mod tests {
             }
         );
         assert_eq!(factory.0.lock().unwrap().cleaned, 1);
+    }
+
+    struct PartialCreateFailure;
+    impl WorkspaceFactory for PartialCreateFailure {
+        type Workspace = FakeWorkspace;
+        fn create(&self) -> Result<Self::Workspace, StorageError> {
+            Err(StorageError)
+        }
+        fn create_for_download(&self) -> Result<Self::Workspace, DownloadError> {
+            Err(DownloadError {
+                cause: Failure::Storage,
+                cleanup_failed: true,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn partial_creation_cleanup_failure_is_reported_without_network() {
+        let network = FakeNetwork::default();
+        let result =
+            download_pair(&network, &PartialCreateFailure, INITIAL, limits(), |_| {}).await;
+        assert!(matches!(
+            result,
+            Err(DownloadError {
+                cause: Failure::Storage,
+                cleanup_failed: true
+            })
+        ));
+        assert!(network.requests().is_empty());
     }
 
     #[tokio::test]

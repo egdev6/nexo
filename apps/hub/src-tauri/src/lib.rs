@@ -8,6 +8,9 @@ pub mod install_http;
 pub mod install_signature;
 #[cfg(test)]
 mod install_signature_tests;
+pub mod install_workspace;
+#[cfg(test)]
+mod install_workspace_tests;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;
@@ -276,6 +279,12 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            if install_workspace::PrivateFactory::system()
+                .cleanup_stale()
+                .is_err()
+            {
+                eprintln!("Could not clean stale installer workspaces");
+            }
             // Keep Mica/acrylic as an optional OS-controlled fallback. If neither
             // works, the CSS panel can still be transparent and the desktop sharp;
             // the CSS blur slider does not control either native effect's radius.
