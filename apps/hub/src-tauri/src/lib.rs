@@ -5,6 +5,7 @@ mod config;
 mod i18n;
 #[cfg(any(windows, test))]
 mod ipc;
+pub mod local_catalog;
 mod position;
 #[cfg(any(windows, test))]
 mod registry_presentation;
