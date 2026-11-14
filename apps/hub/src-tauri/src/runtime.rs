@@ -16,8 +16,14 @@ use crate::{
     tray::{self, Command},
 };
 
+#[derive(Clone)]
+struct Route {
+    command: Command,
+    check: Option<(CheckMenuItem<tauri::Wry>, bool)>,
+}
+
 #[derive(Default)]
-pub(crate) struct Routes(Mutex<HashMap<String, Command>>);
+pub(crate) struct Routes(Mutex<HashMap<String, Route>>);
 
 #[tauri::command]
 pub(crate) fn registry_snapshot(hub: State<'_, Hub>) -> Snapshot {
@@ -43,7 +49,7 @@ fn rebuild(app: &AppHandle, snapshot: &Snapshot, locale: Locale) -> tauri::Resul
             let id = format!("nexo:{}:{index}", snapshot.revision);
             index += 1;
             let label = item.label.replace('&', "&&");
-            if let Some(checked) = item.checked {
+            let check = if let Some(checked) = item.checked {
                 let native = CheckMenuItem::with_id(
                     app,
                     id.clone(),
@@ -53,11 +59,19 @@ fn rebuild(app: &AppHandle, snapshot: &Snapshot, locale: Locale) -> tauri::Resul
                     None::<&str>,
                 )?;
                 submenu.append(&native)?;
+                Some((native, checked))
             } else {
                 let native = MenuItem::with_id(app, id.clone(), label, item.enabled, None::<&str>)?;
                 submenu.append(&native)?;
-            }
-            routes.insert(id, item.command);
+                None
+            };
+            routes.insert(
+                id,
+                Route {
+                    command: item.command,
+                    check,
+                },
+            );
         }
         menu.append(&submenu)?;
     }
@@ -153,19 +167,29 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
         });
         return;
     }
-    let command = app.state::<Routes>().0.lock().unwrap().get(id).cloned();
-    match command {
+    let route = app.state::<Routes>().0.lock().unwrap().get(id).cloned();
+    let check = route.as_ref().and_then(|route| route.check.clone());
+    let restore_check = move || {
+        if let Some((item, checked)) = check
+            && let Err(error) = item.set_checked(checked)
+        {
+            eprintln!("could not restore Nexo tray check state: {error}");
+        }
+    };
+    match route.map(|route| route.command) {
         Some(Command::Toggle {
             app: app_id,
             generation,
             value,
         }) => {
-            if !hub.set_unified(&app_id, generation, value)
-                && let Err(error) = rebuild_current(app)
-            {
-                eprintln!("could not restore Nexo tray state: {error}");
-                hub.shutdown();
-            }
+            tray::restore_toggle(
+                &hub,
+                &app_id,
+                generation,
+                value,
+                || rebuild_current(app),
+                restore_check,
+            );
         }
         Some(Command::Show { app, generation }) => {
             hub.show(&app, generation);
@@ -176,12 +200,16 @@ pub(crate) fn handle_menu(app: &AppHandle, id: &str) {
             revision,
             item,
         }) => {
-            hub.action(&app_id, generation, revision, &item);
             // Native check items toggle themselves; the app remains authoritative.
-            if let Err(error) = rebuild_current(app) {
-                eprintln!("could not restore Nexo tray state: {error}");
-                hub.shutdown();
-            }
+            tray::restore_action(
+                &hub,
+                &app_id,
+                generation,
+                revision,
+                &item,
+                || rebuild_current(app),
+                restore_check,
+            );
         }
         Some(Command::Quit {
             app: app_id,

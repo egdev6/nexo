@@ -171,6 +171,342 @@ async fn tray_rebuild_failure_keeps_ipc_and_previous_menu_until_next_trigger() {
     driver.abort();
 }
 
+async fn non_registry_restore_failure_keeps_ipc_and_retries(action: bool) {
+    use std::cell::{Cell, RefCell};
+
+    let hub = Hub::new();
+    let mut client = Client::connect(&hub);
+    client.hello().await;
+    client.register("alpha").await;
+    client
+        .send(Message::Menu {
+            items: vec![item("pause", true, Some(false))],
+        })
+        .await;
+    client.send(Message::Heartbeat { seq: 1 }).await;
+    assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 1 });
+    let entry = hub.snapshot().apps[0].clone();
+    let displayed = RefCell::new(vec!["previous menu".to_string()]);
+    let checked = Cell::new(false);
+    let attempts = Cell::new(0);
+    let fail = Cell::new(true);
+    let rebuild = || {
+        attempts.set(attempts.get() + 1);
+        if fail.replace(false) {
+            return Err("fake tray failure");
+        }
+        let snapshot = hub.snapshot();
+        *displayed.borrow_mut() = vec![snapshot.apps[0].menu[0].label.clone()];
+        checked.set(false);
+        Ok(snapshot)
+    };
+    let trigger = || {
+        // The native check item changes itself before the menu event is delivered.
+        checked.set(!checked.get());
+        if action {
+            crate::tray::restore_action(
+                &hub,
+                "alpha",
+                entry.generation,
+                entry.menu_revision,
+                "pause",
+                rebuild,
+                || checked.set(false),
+            );
+        } else {
+            // A stale toggle fails and needs the native check state restored.
+            crate::tray::restore_toggle(
+                &hub,
+                "alpha",
+                entry.generation + 1,
+                false,
+                rebuild,
+                || checked.set(false),
+            );
+        }
+    };
+
+    trigger();
+    assert_eq!(*displayed.borrow(), ["previous menu"]);
+    assert_eq!(attempts.get(), 1);
+    if action {
+        assert_eq!(
+            client.receive().await,
+            Message::Action {
+                item_id: "pause".into()
+            }
+        );
+    }
+    client.send(Message::Heartbeat { seq: 2 }).await;
+    assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 2 });
+    assert!(!checked.get(), "the previous check state must be restored");
+    settle().await;
+    assert_eq!(attempts.get(), 1, "failure must not spin");
+    trigger();
+    assert_eq!(attempts.get(), 2);
+    assert_eq!(*displayed.borrow(), ["Label pause"]);
+    if action {
+        assert!(matches!(client.receive().await, Message::Action { .. }));
+    }
+    client.send(Message::Heartbeat { seq: 3 }).await;
+    assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 3 });
+}
+
+#[tokio::test]
+async fn stale_toggle_restore_failure_keeps_ipc_and_retries() {
+    non_registry_restore_failure_keeps_ipc_and_retries(false).await;
+}
+
+#[tokio::test]
+async fn action_restore_failure_keeps_ipc_and_retries() {
+    non_registry_restore_failure_keeps_ipc_and_retries(true).await;
+}
+
+#[tokio::test]
+async fn successful_tray_toggle_still_sends_unified_without_restoration() {
+    use std::cell::Cell;
+
+    let hub = Hub::new();
+    let mut client = Client::connect(&hub);
+    client.hello().await;
+    client.register("alpha").await;
+    let generation = hub.snapshot().apps[0].generation;
+    let rebuilt = Cell::new(false);
+    let restored = Cell::new(false);
+    crate::tray::restore_toggle(
+        &hub,
+        "alpha",
+        generation,
+        false,
+        || {
+            rebuilt.set(true);
+            Ok::<_, &str>(hub.snapshot())
+        },
+        || restored.set(true),
+    );
+    assert_eq!(client.receive().await, Message::Unified { value: false });
+    assert!(!hub.snapshot().apps[0].unified);
+    assert!(!rebuilt.get());
+    assert!(!restored.get());
+}
+
+#[tokio::test]
+async fn connected_app_still_rejects_launch_without_running_it() {
+    use std::cell::Cell;
+
+    let hub = Hub::new();
+    let mut client = Client::connect(&hub);
+    client.hello().await;
+    client.register("alpha").await;
+    let before = hub.snapshot();
+    let launched = Cell::new(false);
+    assert_eq!(
+        hub.while_disconnected("alpha", || {
+            launched.set(true);
+            Ok(())
+        }),
+        Err("nexo.appConnectionChanged".into())
+    );
+    assert!(!launched.get());
+    assert_eq!(hub.snapshot(), before);
+    client.send(Message::Heartbeat { seq: 7 }).await;
+    assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 7 });
+}
+
+#[test]
+fn slow_launch_does_not_block_other_sessions() {
+    use std::{sync::mpsc, thread};
+
+    let hub = Hub::new();
+    let driver_hub = hub.clone();
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (drive_tx, drive_rx) = mpsc::channel();
+    let (served_tx, served_rx) = mpsc::channel();
+    let driver = thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut alpha = Client::connect(&driver_hub);
+                alpha.hello().await;
+                alpha.register("alpha").await;
+                let mut beta = Client::connect(&driver_hub);
+                beta.hello().await;
+                beta.register("beta").await;
+                ready_tx.send(()).unwrap();
+                drive_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                for (client, name, seq) in [(&mut alpha, "a", 11), (&mut beta, "b", 12)] {
+                    client
+                        .send(Message::Menu {
+                            items: vec![item(name, true, None)],
+                        })
+                        .await;
+                    client.send(Message::Heartbeat { seq }).await;
+                    assert_eq!(client.receive().await, Message::HeartbeatAck { seq });
+                }
+                let snapshot = driver_hub.snapshot();
+                assert_eq!(snapshot.apps[0].menu[0].id, "a");
+                assert_eq!(snapshot.apps[1].menu[0].id, "b");
+                served_tx.send(()).unwrap();
+            });
+    });
+    ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let launch_hub = hub.clone();
+    let launch = thread::spawn(move || {
+        launch_hub.while_disconnected("target", || {
+            started_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            Ok(())
+        })
+    });
+    started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    drive_tx.send(()).unwrap();
+    let served_before_release = served_rx.recv_timeout(Duration::from_millis(750)).is_ok();
+    release_tx.send(()).unwrap();
+    assert_eq!(launch.join().unwrap(), Ok(()));
+    driver.join().unwrap();
+    assert!(
+        served_before_release,
+        "IPC stalled until the launcher returned"
+    );
+}
+
+#[test]
+fn launch_serializes_its_own_registration_without_delaying_other_registrations() {
+    use std::{sync::mpsc, thread};
+
+    let hub = Hub::new();
+    let driver_hub = hub.clone();
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (drive_tx, drive_rx) = mpsc::channel();
+    let (pending_tx, pending_rx) = mpsc::channel();
+    let driver = thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut target = Client::connect(&driver_hub);
+                target.hello().await;
+                ready_tx.send(()).unwrap();
+                drive_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                target.send(registration("target", "1.0.0")).await;
+                let mut other = Client::connect(&driver_hub);
+                other.hello().await;
+                other.register("other").await;
+                other.send(Message::Heartbeat { seq: 9 }).await;
+                assert_eq!(other.receive().await, Message::HeartbeatAck { seq: 9 });
+                let mut line = String::new();
+                assert!(
+                    tokio::time::timeout(
+                        Duration::from_millis(50),
+                        target.reader.read_line(&mut line)
+                    )
+                    .await
+                    .is_err(),
+                    "launching app registered before the launch finished"
+                );
+                pending_tx.send(()).unwrap();
+                assert_eq!(target.receive().await, Message::Registered);
+                target.send(Message::Heartbeat { seq: 10 }).await;
+                assert_eq!(target.receive().await, Message::HeartbeatAck { seq: 10 });
+            });
+    });
+    ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let launch_hub = hub.clone();
+    let launch = thread::spawn(move || {
+        launch_hub.while_disconnected("target", || {
+            started_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            Ok(())
+        })
+    });
+    started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    drive_tx.send(()).unwrap();
+    let progressed = pending_rx.recv_timeout(Duration::from_millis(750)).is_ok();
+    release_tx.send(()).unwrap();
+    assert_eq!(launch.join().unwrap(), Ok(()));
+    let result = driver.join();
+    assert!(progressed, "unrelated registration stalled during launch");
+    result.unwrap();
+}
+
+#[test]
+fn quit_all_waits_for_in_flight_launch_without_blocking_ipc() {
+    use std::{sync::mpsc, thread};
+
+    let hub = Hub::new();
+    let driver_hub = hub.clone();
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (drive_tx, drive_rx) = mpsc::channel();
+    let (pending_tx, pending_rx) = mpsc::channel();
+    let driver = thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut client = Client::connect(&driver_hub);
+                client.hello().await;
+                client.register("alpha").await;
+                ready_tx.send(()).unwrap();
+                drive_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                let quitter = driver_hub.clone();
+                let quit = tokio::spawn(async move { quitter.quit_all().await });
+                client.send(Message::Heartbeat { seq: 20 }).await;
+                assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 20 });
+                let mut line = String::new();
+                assert!(
+                    tokio::time::timeout(
+                        Duration::from_millis(50),
+                        client.reader.read_line(&mut line)
+                    )
+                    .await
+                    .is_err(),
+                    "quit started before the launch finished"
+                );
+                pending_tx.send(()).unwrap();
+                let Message::Quit { id, .. } = client.receive().await else {
+                    panic!("expected IPC quit");
+                };
+                client
+                    .send(Message::QuitResult {
+                        id,
+                        accepted: true,
+                        reason: None,
+                    })
+                    .await;
+                let results = quit.await.unwrap();
+                assert_eq!(results.len(), 1);
+                assert_eq!(results[0].1, QuitOutcome::Accepted);
+            });
+    });
+    ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let launch_hub = hub.clone();
+    let launch = thread::spawn(move || {
+        launch_hub.while_disconnected("target", || {
+            started_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            Ok(())
+        })
+    });
+    started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    drive_tx.send(()).unwrap();
+    let progressed = pending_rx.recv_timeout(Duration::from_millis(750)).is_ok();
+    release_tx.send(()).unwrap();
+    assert_eq!(launch.join().unwrap(), Ok(()));
+    let result = driver.join();
+    assert!(progressed, "quit stalled IPC during launch");
+    result.unwrap();
+}
+
 #[tokio::test]
 async fn registered_waits_until_the_app_has_a_tray_menu() {
     let hub = Hub::new();

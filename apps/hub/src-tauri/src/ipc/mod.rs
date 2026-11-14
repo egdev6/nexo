@@ -145,11 +145,14 @@ struct Registry {
     exiting: bool,
     require_presentation: bool,
     notice: Option<Notice>,
+    launching: Option<(String, watch::Sender<()>)>,
 }
 
 #[derive(Clone)]
 pub(crate) struct Hub {
     registry: Arc<Mutex<Registry>>,
+    // Serializes launches with each other and with synchronous shutdown, not IPC.
+    launch_gate: Arc<Mutex<()>>,
     shutdown: watch::Sender<bool>,
     changed: watch::Sender<u64>,
     presented: watch::Sender<u64>,
@@ -164,6 +167,17 @@ struct Registration {
 struct ExitGuard {
     hub: Hub,
     keep_fenced: bool,
+}
+
+struct LaunchGuard<'a> {
+    hub: &'a Hub,
+}
+
+impl Drop for LaunchGuard<'_> {
+    fn drop(&mut self) {
+        // Dropping the sender wakes registration and exit waiters even on failure.
+        self.hub.registry.lock().unwrap().launching = None;
+    }
 }
 
 impl Drop for ExitGuard {
@@ -285,6 +299,7 @@ impl Hub {
         let (presented, _) = watch::channel(0);
         Self {
             registry: Arc::new(Mutex::new(Registry::default())),
+            launch_gate: Arc::new(Mutex::new(())),
             shutdown,
             changed,
             presented,
@@ -328,7 +343,7 @@ impl Hub {
         }
     }
 
-    fn register(
+    async fn register(
         &self,
         app: AppInfo,
         capabilities: Vec<Capability>,
@@ -343,44 +358,55 @@ impl Hub {
         {
             return Err(RejectCode::InvalidMessage);
         }
-        let mut registry = self.registry.lock().unwrap();
-        if registry.exiting || *self.shutdown.borrow() {
-            return Err(RejectCode::InvalidMessage);
+        loop {
+            let mut pending = {
+                let mut registry = self.registry.lock().unwrap();
+                if registry.exiting || *self.shutdown.borrow() {
+                    return Err(RejectCode::InvalidMessage);
+                }
+                if registry.apps.contains_key(&app.id) {
+                    return Err(RejectCode::DuplicateApp);
+                }
+                if let Some((_, finished)) =
+                    registry.launching.as_ref().filter(|(id, _)| *id == app.id)
+                {
+                    finished.subscribe()
+                } else {
+                    registry.next_generation += 1;
+                    let generation = registry.next_generation;
+                    let id = app.id.clone();
+                    let unified = *registry.preferences.get(&id).unwrap_or(&true);
+                    registry.apps.insert(
+                        id.clone(),
+                        Entry {
+                            view: AppSnapshot {
+                                app,
+                                capabilities,
+                                menu: Vec::new(),
+                                unified,
+                                responsive: true,
+                                generation,
+                                menu_revision: 0,
+                            },
+                            outgoing,
+                            pending: HashMap::new(),
+                            last_heartbeat: tokio::time::Instant::now(),
+                        },
+                    );
+                    self.changed(&mut registry);
+                    return Ok((
+                        Registration {
+                            hub: self.clone(),
+                            id,
+                            generation,
+                        },
+                        unified,
+                        registry.require_presentation.then_some(registry.revision),
+                    ));
+                }
+            };
+            let _ = pending.changed().await;
         }
-        if registry.apps.contains_key(&app.id) {
-            return Err(RejectCode::DuplicateApp);
-        }
-        registry.next_generation += 1;
-        let generation = registry.next_generation;
-        let id = app.id.clone();
-        let unified = *registry.preferences.get(&id).unwrap_or(&true);
-        registry.apps.insert(
-            id.clone(),
-            Entry {
-                view: AppSnapshot {
-                    app,
-                    capabilities,
-                    menu: Vec::new(),
-                    unified,
-                    responsive: true,
-                    generation,
-                    menu_revision: 0,
-                },
-                outgoing,
-                pending: HashMap::new(),
-                last_heartbeat: tokio::time::Instant::now(),
-            },
-        );
-        self.changed(&mut registry);
-        Ok((
-            Registration {
-                hub: self.clone(),
-                id,
-                generation,
-            },
-            unified,
-            registry.require_presentation.then_some(registry.revision),
-        ))
     }
 
     pub(crate) fn action(
@@ -437,10 +463,19 @@ impl Hub {
         id: &str,
         action: impl FnOnce() -> Result<(), String>,
     ) -> Result<(), String> {
-        let registry = self.registry.lock().unwrap();
-        if registry.exiting || *self.shutdown.borrow() || registry.apps.contains_key(id) {
-            return Err("nexo.appConnectionChanged".into());
+        let _gate = self
+            .launch_gate
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        {
+            let mut registry = self.registry.lock().unwrap();
+            if registry.exiting || *self.shutdown.borrow() || registry.apps.contains_key(id) {
+                return Err("nexo.appConnectionChanged".into());
+            }
+            let (finished, _) = watch::channel(());
+            registry.launching = Some((id.into(), finished));
         }
+        let _claim = LaunchGuard { hub: self };
         action()
     }
 
@@ -517,19 +552,27 @@ impl Hub {
     }
 
     pub(crate) async fn quit_all(&self) -> Vec<(AppInfo, QuitOutcome)> {
-        {
-            let mut registry = self.registry.lock().unwrap();
-            if registry.exiting {
-                return vec![(
-                    AppInfo {
-                        id: "hub".into(),
-                        name: "Nexo".into(),
-                        version: String::new(),
-                    },
-                    QuitOutcome::Unavailable,
-                )];
-            }
-            registry.exiting = true;
+        loop {
+            let mut pending = {
+                let mut registry = self.registry.lock().unwrap();
+                if registry.exiting {
+                    return vec![(
+                        AppInfo {
+                            id: "hub".into(),
+                            name: "Nexo".into(),
+                            version: String::new(),
+                        },
+                        QuitOutcome::Unavailable,
+                    )];
+                }
+                if let Some((_, finished)) = &registry.launching {
+                    finished.subscribe()
+                } else {
+                    registry.exiting = true;
+                    break;
+                }
+            };
+            let _ = pending.changed().await;
         }
         let mut guard = ExitGuard {
             hub: self.clone(),
@@ -624,6 +667,10 @@ impl Hub {
     }
 
     pub(crate) fn shutdown(&self) {
+        let _gate = self
+            .launch_gate
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let mut registry = self.registry.lock().unwrap();
         registry.exiting = true;
         self.shutdown.send_replace(true);
@@ -837,7 +884,7 @@ impl Hub {
         };
         let (outgoing, mut commands) = mpsc::channel(OUTGOING_CAPACITY);
         let (registration, unified, presentation) =
-            match self.register(app, capabilities, outgoing.clone()) {
+            match self.register(app, capabilities, outgoing.clone()).await {
                 Ok(registration) => registration,
                 Err(code) => {
                     let _ = send(

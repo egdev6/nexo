@@ -1,8 +1,42 @@
 use crate::{
     i18n::{Locale, text},
-    ipc::Snapshot,
+    ipc::{Hub, Snapshot},
 };
 use nexo_protocol::Capability;
+use std::fmt::Display;
+
+// Keep the native check item in sync with the authoritative registry.
+pub(crate) fn restore_toggle<E: Display>(
+    hub: &Hub,
+    id: &str,
+    generation: u64,
+    value: bool,
+    rebuild: impl FnOnce() -> Result<Snapshot, E>,
+    restore_check: impl FnOnce(),
+) {
+    if !hub.set_unified(id, generation, value)
+        && let Err(error) = rebuild()
+    {
+        eprintln!("could not restore Nexo tray state; retaining previous menu: {error}");
+        restore_check();
+    }
+}
+
+pub(crate) fn restore_action<E: Display>(
+    hub: &Hub,
+    id: &str,
+    generation: u64,
+    revision: u64,
+    item: &str,
+    rebuild: impl FnOnce() -> Result<Snapshot, E>,
+    restore_check: impl FnOnce(),
+) {
+    hub.action(id, generation, revision, item);
+    if let Err(error) = rebuild() {
+        eprintln!("could not restore Nexo tray state; retaining previous menu: {error}");
+        restore_check();
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Command {
