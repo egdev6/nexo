@@ -20,6 +20,7 @@ beforeEach(() => {
     if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, language: 'en', firstRunComplete: true, showNewsOnOpen: false, sources: [] } };
     if (command === 'plugin:autostart|is_enabled') return false;
     if (command === 'get_flyout_state') return null;
+    if (command === 'local_apps_list') return [];
     if (command === 'close_connected_app') throw 'cambios sin guardar';
     return undefined;
   });

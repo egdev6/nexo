@@ -7,6 +7,7 @@ import settings from '../settings/index.tsx?raw';
 import firstRun from '../first-run/index.tsx?raw';
 import catalog from '../catalog/index.tsx?raw';
 import news from '../news/index.tsx?raw';
+import localApps from '../local-apps/view.tsx?raw';
 type Tree = { [key: string]: string | Tree };
 const leaves = (tree: Tree, prefix = ''): Record<string, string> => Object.fromEntries(
   Object.entries(tree).flatMap(([key, value]) => typeof value === 'string'
@@ -29,7 +30,7 @@ describe('shared catalog', () => {
 });
 
 it('does not hard-code hub-owned JSX copy or accessible labels in views', () => {
-  const views = Object.entries({ '../App.tsx': app, '../settings/index.tsx': settings, '../first-run/index.tsx': firstRun, '../catalog/index.tsx': catalog, '../news/index.tsx': news });
+  const views = Object.entries({ '../App.tsx': app, '../settings/index.tsx': settings, '../first-run/index.tsx': firstRun, '../catalog/index.tsx': catalog, '../news/index.tsx': news, '../local-apps/view.tsx': localApps });
   const exceptions = new Set(['N', 'Nexo', '+']);
   const found: string[] = [];
   for (const [file, text] of views) {
