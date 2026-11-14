@@ -1,6 +1,7 @@
-//! Versions 1 and 2 of the public, maintainer-curated catalog.
+//! Versions 1, 2 and 3 of the public, maintainer-curated catalog.
 //! Parse untrusted input with [`parse_catalog`] rather than deserializing it directly.
 
+use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::DateTime;
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -37,6 +38,12 @@ pub struct CatalogApp {
     pub art_url: Option<String>,
     pub installer_url: String,
     pub latest_json_url: String,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub updater_public_key: Option<String>,
     pub integration_level: IntegrationLevel,
     pub released_at: String,
     pub featured: bool,
@@ -138,6 +145,8 @@ pub enum CatalogError {
     DuplicateId,
     #[error("invalid HTTPS URL")]
     BadUrl,
+    #[error("invalid updater public key")]
+    BadPublicKey,
     #[error("invalid semantic version")]
     BadVersion,
     #[error("invalid RFC 3339 timestamp")]
@@ -189,6 +198,81 @@ fn check_url(input: &str) -> Result<(), CatalogError> {
         || url.password().is_some()
     {
         return Err(CatalogError::BadUrl);
+    }
+    Ok(())
+}
+
+/// Validate an official GitHub release asset URL before it is used for execution or updates.
+pub fn check_release_asset_url(input: &str) -> Result<(), CatalogError> {
+    check_url(input)?;
+    let url = Url::parse(input).map_err(|_| CatalogError::BadUrl)?;
+    if url.host_str() != Some("github.com")
+        || url.port().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(CatalogError::BadUrl);
+    }
+    let authority_end = input[8..].find('/').ok_or(CatalogError::BadUrl)? + 8;
+    let raw_path = &input[authority_end..];
+    // URL parsers normalize dot segments. Reject normalized and escaped separators rather
+    // than allowing the server and client to disagree about the release-asset route.
+    if raw_path != url.path() {
+        return Err(CatalogError::BadUrl);
+    }
+    let bytes = raw_path.as_bytes();
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte == b'%' {
+            let encoded = u8::from_str_radix(&raw_path[index + 1..index + 3], 16)
+                .map_err(|_| CatalogError::BadUrl)?;
+            if encoded.is_ascii_control() || matches!(encoded, b'/' | b'\\' | b'.' | b'%') {
+                return Err(CatalogError::BadUrl);
+            }
+        }
+    }
+    let parts: Vec<_> = raw_path
+        .strip_prefix('/')
+        .ok_or(CatalogError::BadUrl)?
+        .split('/')
+        .collect();
+    if parts.len() != 6
+        || parts[0] != "egdev6"
+        || parts[2] != "releases"
+        || parts[3] != "download"
+        || parts
+            .iter()
+            .any(|part| part.is_empty() || *part == "." || *part == "..")
+    {
+        return Err(CatalogError::BadUrl);
+    }
+    Ok(())
+}
+
+fn check_updater_key(input: &str) -> Result<(), CatalogError> {
+    let decoded = STANDARD
+        .decode(input)
+        .map_err(|_| CatalogError::BadPublicKey)?;
+    if STANDARD.encode(&decoded) != input {
+        return Err(CatalogError::BadPublicKey);
+    }
+    let text = std::str::from_utf8(&decoded).map_err(|_| CatalogError::BadPublicKey)?;
+    let mut lines = text.lines();
+    if !lines
+        .next()
+        .is_some_and(|line| line.starts_with("untrusted comment: "))
+    {
+        return Err(CatalogError::BadPublicKey);
+    }
+    let encoded = lines.next().ok_or(CatalogError::BadPublicKey)?;
+    let key = STANDARD
+        .decode(encoded)
+        .map_err(|_| CatalogError::BadPublicKey)?;
+    if lines.next().is_some()
+        || STANDARD.encode(&key) != encoded
+        || key.len() != 42
+        || &key[..2] != b"Ed"
+    {
+        return Err(CatalogError::BadPublicKey);
     }
     Ok(())
 }
@@ -265,6 +349,7 @@ pub fn parse_catalog(input: &str) -> Result<Catalog, CatalogError> {
         *version = match version.as_f64() {
             Some(1.0) => serde_json::Value::from(1),
             Some(2.0) => serde_json::Value::from(2),
+            Some(3.0) => serde_json::Value::from(3),
             _ => return Err(CatalogError::SchemaVersion),
         };
     }
@@ -288,14 +373,29 @@ pub fn parse_catalog(input: &str) -> Result<Catalog, CatalogError> {
         }
     }
     let catalog: Catalog = serde_json::from_value(value).map_err(|_| CatalogError::Document)?;
-    if !matches!(catalog.schema_version, 1 | 2) {
+    if !matches!(catalog.schema_version, 1..=3) {
         return Err(CatalogError::SchemaVersion);
     }
     if catalog.schema_version == 1 && catalog.apps.iter().any(|app| app.detection.is_some()) {
         return Err(CatalogError::Document);
     }
+    if catalog.schema_version < 3
+        && catalog
+            .apps
+            .iter()
+            .any(|app| app.updater_public_key.is_some())
+    {
+        return Err(CatalogError::Document);
+    }
     let mut app_ids = HashSet::new();
     for app in &catalog.apps {
+        if catalog.schema_version == 3 {
+            check_release_asset_url(&app.installer_url)?;
+            check_release_asset_url(&app.latest_json_url)?;
+            if let Some(key) = &app.updater_public_key {
+                check_updater_key(key)?;
+            }
+        }
         if let Some(detection) = &app.detection {
             check_text(&detection.windows.display_name)?;
             check_text(&detection.windows.publisher)?;

@@ -4,7 +4,7 @@ import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Ico
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { closeConnectedApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
 import { CatalogView } from './catalog';
-import { diskCache, diskCacheV2, loadVersionedCatalog, OFFICIAL_CATALOG_URL, OFFICIAL_CATALOG_V2_URL, webFetcher, type CatalogState } from './catalog/loader';
+import { diskCache, diskCacheV2, diskCacheV3, loadVersionedCatalog, OFFICIAL_CATALOG_URL, OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_V3_URL, webFetcher, type CatalogState } from './catalog/loader';
 import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
 import { formatNumber, intlLocale, t } from './i18n';
@@ -323,7 +323,7 @@ export default function App(props: FlyoutProps) {
   function retry() {
     const id = ++requestId.current;
     setCatalogState(current => ({ ...current, status: 'loading' }));
-    void loadVersionedCatalog(OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_URL, diskCacheV2, diskCache, webFetcher).then(result => {
+    void loadVersionedCatalog(OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_URL, diskCacheV2, diskCache, webFetcher, OFFICIAL_CATALOG_V3_URL, diskCacheV3).then(result => {
       if (id === requestId.current) setCatalogState(result);
     });
   }

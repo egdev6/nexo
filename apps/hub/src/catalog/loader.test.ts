@@ -141,6 +141,32 @@ describe('catalog loader', () => {
     expect(requests).toBe(3);
     expect(v1Store.value()).toBe(empty);
   });
+  it('prefers a v3 feed and preserves separate v2 and v1 caches', async () => {
+    const v3 = '{"schemaVersion":3,"apps":[]}';
+    const v3Store = cache(); const v2Store = cache('{"schemaVersion":2,"apps":[]}'); const v1Store = cache(valid);
+    const loadV3 = loadVersionedCatalog as typeof loadVersionedCatalog & ((v2: string, v1: string, c2: ReturnType<typeof cache>, c1: ReturnType<typeof cache>, f: CatalogFetcher, v3: string, c3: ReturnType<typeof cache>) => ReturnType<typeof loadVersionedCatalog>);
+    const fetcher = fetchResponse(v3);
+    const result = await loadV3('https://v2.example.com/catalog.json', 'https://v1.example.com/catalog.json', v2Store, v1Store, fetcher, endpoint, v3Store);
+    expect(result.status).toBe('empty'); expect(result.catalog?.schemaVersion).toBe(3);
+    expect(v3Store.value()).toBe(v3); expect(v2Store.value()).toBe('{"schemaVersion":2,"apps":[]}'); expect(v1Store.value()).toBe(valid);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('falls back from an invalid v3 response to v2 without replacing any cache', async () => {
+    const v2 = '{"schemaVersion":2,"apps":[]}';
+    const v3Store = cache(); const v2Store = cache(v2); const v1Store = cache(valid);
+    const fetcher: CatalogFetcher = async url => ({ ok: true, url, redirected: false, text: async () => url === endpoint ? '{broken' : v2 });
+    const result = await loadVersionedCatalog('https://v2.example.com/catalog.json', 'https://v1.example.com/catalog.json', v2Store, v1Store, fetcher, endpoint, v3Store);
+    expect(result.catalog?.schemaVersion).toBe(2); expect(v3Store.value()).toBeNull();
+    expect(v2Store.value()).toBe(v2); expect(v1Store.value()).toBe(valid);
+  });
+  it('keeps a stale v3 cache visible rather than silently replacing it with v2', async () => {
+    const v3 = '{"schemaVersion":3,"apps":[]}';
+    const v3Store = cache(v3); const v2Store = cache('{"schemaVersion":2,"apps":[]}'); const v1Store = cache(valid);
+    const offline: CatalogFetcher = async () => { throw new Error('offline'); };
+    const result = await loadVersionedCatalog('https://v2.example.com/catalog.json', 'https://v1.example.com/catalog.json', v2Store, v1Store, offline, endpoint, v3Store);
+    expect(result.status).toBe('offline'); expect(result.stale).toBe(true); expect(result.catalog?.schemaVersion).toBe(3);
+    expect(v3Store.value()).toBe(v3); expect(v2Store.value()).toBe('{"schemaVersion":2,"apps":[]}'); expect(v1Store.value()).toBe(valid);
+  });
   it('bounds a fetcher that never resolves and signals its abort', async () => {
     vi.useFakeTimers();
     try {

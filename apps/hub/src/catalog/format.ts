@@ -19,6 +19,7 @@ export interface CatalogApp {
   artUrl?: string;
   installerUrl: string;
   latestJsonUrl: string;
+  updaterPublicKey?: string;
   integrationLevel: CatalogIntegration;
   releasedAt: string;
   featured: boolean;
@@ -28,7 +29,7 @@ export interface CatalogApp {
   news: CatalogNews[];
 }
 
-export interface Catalog { schemaVersion: 1 | 2; apps: CatalogApp[] }
+export interface Catalog { schemaVersion: 1 | 2 | 3; apps: CatalogApp[] }
 
 function fail(): never { throw new Error('Invalid catalog'); }
 function record(value: unknown, required: string[], optional: string[] = []): Record<string, unknown> {
@@ -49,6 +50,32 @@ export function isHttpsUrl(value: unknown): value is string {
   } catch { return false; }
 }
 function https(value: unknown): void { if (!isHttpsUrl(value)) fail(); }
+function releaseAsset(value: unknown): void {
+  if (!isHttpsUrl(value)) return fail();
+  const parsed = new URL(value);
+  const slash = value.indexOf('/', 8);
+  const rawPath = slash < 0 ? '' : value.slice(slash);
+  if (parsed.hostname !== 'github.com' || parsed.port || parsed.search || parsed.hash || rawPath !== parsed.pathname) return fail();
+  for (const match of rawPath.matchAll(/%([0-9a-f]{2})/ig)) {
+    const byte = Number.parseInt(match[1], 16);
+    if (byte < 32 || byte === 127 || [0x2f, 0x5c, 0x2e, 0x25].includes(byte)) return fail();
+  }
+  const parts = rawPath.slice(1).split('/');
+  if (parts.length !== 6 || parts[0] !== 'egdev6' || parts[2] !== 'releases' || parts[3] !== 'download' || parts.some(part => !part || part === '.' || part === '..')) fail();
+}
+function updaterKey(value: unknown): void {
+  if (typeof value !== 'string') return fail();
+  try {
+    const decoded = atob(value);
+    if (btoa(decoded) !== value) return fail();
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(decoded, byte => byte.charCodeAt(0)));
+    const lines = text.replace(/\r\n/g, '\n').split('\n');
+    if (lines.at(-1) === '') lines.pop();
+    if (lines.length !== 2 || !lines[0].startsWith('untrusted comment: ')) return fail();
+    const key = atob(lines[1]);
+    if (btoa(key) !== lines[1] || key.length !== 42 || !key.startsWith('Ed')) return fail();
+  } catch { fail(); }
+}
 function semver(value: unknown): void {
   if (typeof value !== 'string') return fail();
   const match = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.exec(value);
@@ -73,11 +100,15 @@ function executableRelativePath(value: unknown): void {
 /** Validate untrusted parsed JSON; no input becomes official UI data without this check. */
 export function parseCatalog(value: unknown): Catalog {
   const root = record(value, ['schemaVersion', 'apps']);
-  if ((root.schemaVersion !== 1 && root.schemaVersion !== 2) || !Array.isArray(root.apps)) return fail();
+  if ((root.schemaVersion !== 1 && root.schemaVersion !== 2 && root.schemaVersion !== 3) || !Array.isArray(root.apps)) return fail();
   if (root.schemaVersion === 1 && root.apps.some(entry => typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'detection'))) fail();
   const ids = new Set<string>();
   for (const entry of root.apps) {
-    const app = record(entry, ['id', 'name', 'tagline', 'description', 'tags', 'installerUrl', 'latestJsonUrl', 'integrationLevel', 'releasedAt', 'featured', 'news'], ['iconUrl', 'artUrl', 'version', 'links', ...(root.schemaVersion === 2 ? ['detection'] : [])]);
+    const app = record(entry, ['id', 'name', 'tagline', 'description', 'tags', 'installerUrl', 'latestJsonUrl', 'integrationLevel', 'releasedAt', 'featured', 'news'], ['iconUrl', 'artUrl', 'version', 'links', ...(root.schemaVersion !== 1 ? ['detection'] : []), ...(root.schemaVersion === 3 ? ['updaterPublicKey'] : [])]);
+    if (root.schemaVersion === 3) {
+      releaseAsset(app.installerUrl); releaseAsset(app.latestJsonUrl);
+      if (Object.hasOwn(app, 'updaterPublicKey')) updaterKey(app.updaterPublicKey);
+    }
     if (Object.hasOwn(app, 'detection')) {
       const detection = record(app.detection, ['windows']);
       const windows = record(detection.windows, ['displayName', 'publisher', 'executableRelativePath']);

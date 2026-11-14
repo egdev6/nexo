@@ -4,6 +4,7 @@ import { isHttpsUrl, parseCatalog, type Catalog } from './format';
 // T4: the maintainer sets the stable, reviewed public HTTPS URL after publication.
 export const OFFICIAL_CATALOG_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/catalog.json';
 export const OFFICIAL_CATALOG_V2_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/v2/catalog.json';
+export const OFFICIAL_CATALOG_V3_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/v3/catalog.json';
 export const CATALOG_TIMEOUT_MS = 8000;
 
 export interface CatalogCache { read(): Promise<string | null>; write(text: string): Promise<void> }
@@ -22,6 +23,10 @@ export const diskCache: CatalogCache = {
 };
 export const diskCacheV2: CatalogCache = {
   read: () => invoke<string | null>('read_catalog_v2_cache'),
+  write: text => invoke<void>('write_catalog_cache', { input: text }),
+};
+export const diskCacheV3: CatalogCache = {
+  read: () => invoke<string | null>('read_catalog_v3_cache'),
   write: text => invoke<void>('write_catalog_cache', { input: text }),
 };
 export const webFetcher: CatalogFetcher = (url, options) => fetch(url, options);
@@ -49,7 +54,7 @@ async function writeCurrent(cache: CatalogCache, transaction: CacheTransaction, 
 }
 
 /** Startup/retry transaction. A failed response never replaces the last valid cache. */
-export async function loadCatalog(endpoint: string | undefined, cache: CatalogCache, fetcher: CatalogFetcher, timeoutMs = CATALOG_TIMEOUT_MS, version: 1 | 2 = 1): Promise<CatalogState> {
+export async function loadCatalog(endpoint: string | undefined, cache: CatalogCache, fetcher: CatalogFetcher, timeoutMs = CATALOG_TIMEOUT_MS, version: 1 | 2 | 3 = 1): Promise<CatalogState> {
   const [transaction, generation] = beginCacheTransaction(cache);
   let previous: Catalog | undefined;
   try {
@@ -83,13 +88,18 @@ export async function loadCatalog(endpoint: string | undefined, cache: CatalogCa
   } finally { if (timer !== undefined) clearTimeout(timer); }
 }
 
-/** Prefer a separately configured v2 feed/cache; retain the old v1 feed and cache for fallback. */
+/** Prefer separately configured v3 and v2 feeds/caches; retain v1 for fallback. */
 export async function loadVersionedCatalog(
   v2Endpoint: string | undefined, v1Endpoint: string | undefined,
   v2Cache: CatalogCache, v1Cache: CatalogCache, fetcher: CatalogFetcher,
+  v3Endpoint?: string, v3Cache?: CatalogCache,
 ): Promise<CatalogState> {
   const generation = (versionedTransactions.get(v1Cache) ?? 0) + 1;
   versionedTransactions.set(v1Cache, generation);
+  if (v3Cache) {
+    const v3 = await loadCatalog(v3Endpoint, v3Cache, fetcher, CATALOG_TIMEOUT_MS, 3);
+    if (v3.catalog || versionedTransactions.get(v1Cache) !== generation) return v3;
+  }
   const v2 = await loadCatalog(v2Endpoint, v2Cache, fetcher, CATALOG_TIMEOUT_MS, 2);
   if (v2.catalog || versionedTransactions.get(v1Cache) !== generation) return v2;
   const v1 = await loadCatalog(v1Endpoint, v1Cache, fetcher);

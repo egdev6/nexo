@@ -43,10 +43,13 @@ pub(crate) async fn close_connected_app(
 
 #[cfg(windows)]
 fn official_catalog(app: tauri::AppHandle) -> Result<Catalog, String> {
-    let text = match crate::catalog_cache::read_catalog_v2_cache(app.clone())? {
+    let text = match crate::catalog_cache::read_catalog_v3_cache(app.clone())? {
         Some(text) => text,
-        None => crate::catalog_cache::read_catalog_cache(app)?
-            .ok_or_else(|| "nexo.appNoCatalog".to_string())?,
+        None => match crate::catalog_cache::read_catalog_v2_cache(app.clone())? {
+            Some(text) => text,
+            None => crate::catalog_cache::read_catalog_cache(app)?
+                .ok_or_else(|| "nexo.appNoCatalog".to_string())?,
+        },
     };
     nexo_catalog::parse_catalog(&text).map_err(|error| error.to_string())
 }
