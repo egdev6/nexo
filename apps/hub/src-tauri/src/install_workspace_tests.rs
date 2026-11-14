@@ -2,7 +2,9 @@ use crate::install_download::{
     self, Body, Limits, Network, NetworkError, Response, ResponseKind, WorkspaceFactory,
 };
 use crate::install_signature::VerifyError;
-use crate::install_workspace::{PrepareError, PrepareFailure, PrivateFactory, download_verified};
+use crate::install_workspace::{
+    PrepareError, PrepareFailure, PrivateFactory, download_verified, owner_is_trusted,
+};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use std::{
     collections::VecDeque,
@@ -18,6 +20,31 @@ const URL: &str = "https://github.com/egdev6/example/releases/download/v1/exampl
 const KEY: &str = include_str!("../tests/fixtures/tauri-test.pub");
 const SIGNATURE: &str = include_str!("../tests/fixtures/tauri-test.sig.txt");
 static NEXT: AtomicU64 = AtomicU64::new(0);
+
+#[test]
+fn owner_check_accepts_the_token_user() {
+    let user = "S-1-5-21-100-200-300-1001";
+    assert!(owner_is_trusted(user, user, "S-1-5-32-544"));
+}
+
+#[test]
+fn owner_check_accepts_the_token_default_owner() {
+    let user = "S-1-5-21-100-200-300-1001";
+    let default_owner = "S-1-5-32-544";
+    assert!(owner_is_trusted(default_owner, user, default_owner));
+}
+
+#[test]
+fn owner_check_rejects_other_sids() {
+    let user = "S-1-5-21-100-200-300-1001";
+    assert!(!owner_is_trusted(
+        "S-1-5-21-100-200-300-1002",
+        user,
+        "S-1-5-32-544"
+    ));
+    // Administrators is not trusted merely because it is a well-known SID.
+    assert!(!owner_is_trusted("S-1-5-32-544", user, user));
+}
 
 pub(super) struct Scratch(PathBuf);
 impl Scratch {

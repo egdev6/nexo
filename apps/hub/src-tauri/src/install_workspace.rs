@@ -602,6 +602,11 @@ fn is_reparse(_file: &File) -> io::Result<bool> {
     Ok(false)
 }
 
+#[cfg(any(windows, test))]
+pub(super) fn owner_is_trusted(owner: &str, token_user: &str, token_owner: &str) -> bool {
+    owner == token_user || owner == token_owner
+}
+
 #[cfg(windows)]
 fn current_user_id() -> io::Result<String> {
     tauri_plugin_nexo::current_user_sid()
@@ -613,24 +618,110 @@ fn is_reparse(file: &File) -> io::Result<bool> {
     Ok(file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
 }
 #[cfg(windows)]
-fn is_owned(file: &File) -> io::Result<bool> {
-    use std::{os::windows::io::AsRawHandle, ptr};
-    use windows_sys::Win32::{
-        Foundation::LocalFree,
-        Security::{
-            Authorization::{ConvertSidToStringSidW, GetSecurityInfo, SE_FILE_OBJECT},
-            OWNER_SECURITY_INFORMATION,
-        },
-    };
-    struct Local(*mut std::ffi::c_void);
-    impl Drop for Local {
-        fn drop(&mut self) {
-            // SAFETY: the value was allocated by the corresponding Windows API.
-            unsafe {
-                LocalFree(self.0);
-            }
+struct Local(*mut std::ffi::c_void);
+#[cfg(windows)]
+impl Drop for Local {
+    fn drop(&mut self) {
+        // SAFETY: the value was allocated by the corresponding Windows API.
+        unsafe { windows_sys::Win32::Foundation::LocalFree(self.0) };
+    }
+}
+
+#[cfg(windows)]
+unsafe fn sid_to_string(sid: *mut std::ffi::c_void) -> io::Result<String> {
+    use std::ptr;
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+
+    if sid.is_null() {
+        return Err(io::Error::other("missing owner SID"));
+    }
+    let mut raw = ptr::null_mut();
+    // SAFETY: the caller keeps the SID's backing storage alive and raw is writable.
+    if unsafe { ConvertSidToStringSidW(sid, &mut raw) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let _sid = Local(raw.cast());
+    let mut length = 0;
+    // SAFETY: ConvertSidToStringSidW returned a NUL-terminated Windows string.
+    unsafe {
+        while *raw.add(length) != 0 {
+            length += 1;
         }
     }
+    // SAFETY: the NUL-terminated string has length initialized UTF-16 code units.
+    String::from_utf16(unsafe { std::slice::from_raw_parts(raw, length) })
+        .map_err(|_| io::Error::other("invalid owner SID"))
+}
+
+#[cfg(windows)]
+fn current_token_owner_sid() -> io::Result<String> {
+    use std::{mem::size_of, ptr};
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, HANDLE},
+        Security::{GetTokenInformation, TOKEN_OWNER, TOKEN_QUERY, TokenOwner},
+        System::Threading::{GetCurrentProcess, OpenProcessToken},
+    };
+
+    struct Token(HANDLE);
+    impl Drop for Token {
+        fn drop(&mut self) {
+            // SAFETY: the token is an owned handle returned by OpenProcessToken.
+            unsafe { CloseHandle(self.0) };
+        }
+    }
+    let mut raw: HANDLE = ptr::null_mut();
+    // SAFETY: the current pseudo-handle is valid and raw is a writable output handle.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let token = Token(raw);
+    let mut bytes = 0_u32;
+    // SAFETY: the null buffer requests the required size; bytes is writable.
+    let result =
+        unsafe { GetTokenInformation(token.0, TokenOwner, ptr::null_mut(), 0, &mut bytes) };
+    if result != 0 {
+        return Err(io::Error::other("unexpected token owner query result"));
+    }
+    let error = io::Error::last_os_error();
+    if error.raw_os_error() != Some(ERROR_INSUFFICIENT_BUFFER as i32) {
+        return Err(error);
+    }
+    if (bytes as usize) < size_of::<TOKEN_OWNER>() {
+        return Err(io::Error::other("invalid token owner information"));
+    }
+    // TOKEN_OWNER contains a pointer and therefore requires pointer-aligned storage.
+    let mut buffer = vec![0_usize; (bytes as usize).div_ceil(size_of::<usize>())];
+    let mut returned = 0_u32;
+    // SAFETY: buffer is aligned and holds at least bytes bytes; returned is writable.
+    if unsafe {
+        GetTokenInformation(
+            token.0,
+            TokenOwner,
+            buffer.as_mut_ptr().cast(),
+            bytes,
+            &mut returned,
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    if (returned as usize) < size_of::<TOKEN_OWNER>() {
+        return Err(io::Error::other("invalid token owner information"));
+    }
+    // SAFETY: the successful query initialized a TOKEN_OWNER in aligned storage; its SID
+    // remains valid while buffer is alive.
+    let owner = unsafe { (*buffer.as_ptr().cast::<TOKEN_OWNER>()).Owner };
+    // SAFETY: owner was returned by GetTokenInformation and buffer remains alive.
+    unsafe { sid_to_string(owner) }
+}
+
+#[cfg(windows)]
+fn is_owned(file: &File) -> io::Result<bool> {
+    use std::{os::windows::io::AsRawHandle, ptr};
+    use windows_sys::Win32::Security::{
+        Authorization::{GetSecurityInfo, SE_FILE_OBJECT},
+        OWNER_SECURITY_INFORMATION,
+    };
     let mut owner = ptr::null_mut();
     let mut descriptor = ptr::null_mut();
     // SAFETY: file owns a valid handle; the output pointers are writable and optional fields are null.
@@ -650,21 +741,11 @@ fn is_owned(file: &File) -> io::Result<bool> {
         return Err(io::Error::from_raw_os_error(status as i32));
     }
     let _descriptor = Local(descriptor);
-    let mut raw = ptr::null_mut();
-    // SAFETY: owner belongs to the live descriptor and raw is writable.
-    if unsafe { ConvertSidToStringSidW(owner, &mut raw) } == 0 {
-        return Err(io::Error::last_os_error());
-    }
-    let _sid = Local(raw.cast());
-    let mut length = 0;
-    // SAFETY: ConvertSidToStringSidW returned a NUL-terminated Windows string.
-    unsafe {
-        while *raw.add(length) != 0 {
-            length += 1;
-        }
-    }
-    // SAFETY: the NUL-terminated string has length initialized UTF-16 code units.
-    let sid = String::from_utf16(unsafe { std::slice::from_raw_parts(raw, length) })
-        .map_err(|_| io::Error::other("invalid owner SID"))?;
-    Ok(sid == current_user_id()?)
+    // SAFETY: owner belongs to the live descriptor returned by GetSecurityInfo.
+    let sid = unsafe { sid_to_string(owner) }?;
+    Ok(owner_is_trusted(
+        &sid,
+        &current_user_id()?,
+        &current_token_owner_sid()?,
+    ))
 }
