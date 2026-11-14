@@ -2,12 +2,17 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { CatalogViewProps, FirstRunProps, NewsPopupProps, SettingsViewProps } from './model';
 import { backdropAvailable, hideFlyout } from './window';
 
 // Test the shell's public wiring independently of the other area writers.
+vi.mock('@tauri-apps/api/core', () => ({
+  isTauri: vi.fn(() => false),
+  invoke: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('./catalog', () => ({
-  CatalogView: ({ apps }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}</div>,
+  CatalogView: ({ apps, state }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}{state && <span>Estado catálogo: {state}</span>}</div>,
 }));
 vi.mock('./first-run', () => ({
   FirstRun: ({ onChoose }: FirstRunProps) => <section aria-label="Idioma"><button onClick={() => onChoose('es')}>Español</button><button onClick={() => onChoose('en')}>English</button></section>,
@@ -33,7 +38,7 @@ vi.mock('./window', () => ({
 }));
 
 afterEach(cleanup);
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(isTauri).mockReturnValue(false); });
 
 function enter(language: 'Español' | 'English' = 'Español') {
   const choice = screen.queryByRole('button', { name: language });
@@ -43,6 +48,17 @@ function closeNews() {
   const close = screen.queryByRole('button', { name: 'Cerrar novedades' });
   if (close) fireEvent.click(close);
 }
+
+it('loads the native catalog without treating samples or unknown installation as real', async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  render(<App />); enter();
+  expect(screen.getByText('Estado de instalación no disponible todavía.')).toBeTruthy();
+  expect(screen.queryByText('Antena')).toBeNull();
+  expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Ver catálogo' }));
+  await waitFor(() => expect(screen.getByText('Estado catálogo: error')).toBeTruthy());
+  expect(invoke).toHaveBeenCalledWith('read_catalog_cache');
+});
 
 it('starts with language choice and then shows the installed list, retaining the choice', () => {
   render(<App />);
@@ -127,6 +143,13 @@ it('applies live appearance settings to the panel root', () => {
   expect(main.style.getPropertyValue('--hub-density')).toBe('0.8');
   expect(main.style.getPropertyValue('--hub-opacity')).toBe('0.63');
   expect(main.style.getPropertyValue('--hub-blur')).toBe('12px');
+});
+
+it('labels an installed official launch-only app as official and disables illustrative actions', () => {
+  render(<App apps={[{ id: 'example', name: 'Example', installed: true, running: false, integration: 'local', source: 'official', statusKnown: true, description: 'Example' }]} news={[]} />); enter();
+  expect(screen.getByText(/Catálogo egdev.*Solo apertura/)).toBeTruthy();
+  expect(screen.queryByText(/App local.*Solo apertura/)).toBeNull();
+  expect((screen.getByRole('button', { name: 'Abrir Example' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it('preserves expandable rows, statuses and illustrative actions', () => {

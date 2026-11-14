@@ -1,3 +1,4 @@
+mod catalog_cache;
 mod position;
 
 use position::{WorkArea, flyout_bounds};
@@ -89,7 +90,11 @@ pub fn run() {
     tauri::Builder::default()
         .manage(FocusState::default())
         .manage(BackdropState::default())
-        .invoke_handler(tauri::generate_handler![backdrop_available])
+        .invoke_handler(tauri::generate_handler![
+            backdrop_available,
+            catalog_cache::read_catalog_cache,
+            catalog_cache::write_catalog_cache
+        ])
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");

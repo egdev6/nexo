@@ -1,0 +1,45 @@
+{
+  "cases": [
+    { "name": "full", "base": "full", "valid": true },
+    { "name": "minimal", "base": "minimal", "valid": true },
+    { "name": "empty", "base": "empty", "valid": true },
+    { "name": "numeric schema version", "base": "full", "valid": true, "patches": [{ "op": "set", "path": "/schemaVersion", "value": 1.0 }] },
+    { "name": "art only", "base": "full", "valid": true, "patches": [{ "op": "remove", "path": "/apps/0/iconUrl" }] },
+    { "name": "offset leap day", "base": "full", "valid": true, "patches": [{ "op": "set", "path": "/apps/0/releasedAt", "value": "2024-02-29T13:45:00.123+02:30" }] },
+    { "name": "app id", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/id", "value": "Bad_id" }] },
+    { "name": "duplicate app", "base": "full", "valid": false, "patches": [{ "op": "duplicate", "path": "/apps" }] },
+    { "name": "news id", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/news/0/id", "value": "Bad_id" }] },
+    { "name": "duplicate news", "base": "full", "valid": false, "patches": [{ "op": "duplicate", "path": "/apps/0/news" }] },
+    { "name": "insecure icon", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/iconUrl", "value": "http://example.com/icon" }] },
+    { "name": "insecure latest endpoint", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/latestJsonUrl", "value": "http://example.com/latest.json" }] },
+    { "name": "insecure discovery", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/links/youtube", "value": "http://example.com" }] },
+    { "name": "URL credentials", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/installerUrl", "value": "https://user:pass@example.com" }] },
+    { "name": "invalid semver", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/version", "value": "1.2.3-01" }] },
+    { "name": "invalid app date", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/releasedAt", "value": "2025-02-29T00:00:00Z" }] },
+    { "name": "invalid news date", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/news/0/publishedAt", "value": "2025-13-01T00:00:00Z" }] },
+    { "name": "integration enum", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/integrationLevel", "value": "other" }] },
+    { "name": "news kind", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/news/0/kind", "value": "other" }] },
+    { "name": "missing required field", "base": "full", "valid": false, "patches": [{ "op": "remove", "path": "/apps/0/name" }] },
+    { "name": "null optional field", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/iconUrl", "value": null }] },
+    { "name": "unknown field", "base": "full", "valid": false, "patches": [{ "op": "add", "path": "/apps/0/unexpected", "value": true }] },
+    { "name": "unsupported schema", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/schemaVersion", "value": 2 }] },
+    { "name": "NEL-only text", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/name", "value": "\u0085" }] },
+    { "name": "BOM-only text", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/name", "value": "\ufeff" }] },
+    { "name": "C1 control in URL", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/iconUrl", "value": "https://example.com/\u0081" }] },
+    { "name": "BOM in URL", "base": "full", "valid": false, "patches": [{ "op": "set", "path": "/apps/0/iconUrl", "value": "https://example.com/\ufeff" }] }
+  ],
+  "projectedFull": {
+    "apps": [{
+      "id": "example-app", "name": "Example App", "tagline": "An example for testing",
+      "description": "A fictional catalog entry.", "tags": ["Example", "Desktop"],
+      "iconUrl": "https://example.com/icon.png", "artUrl": "https://example.com/art.png",
+      "links": { "github": "https://github.com/example/example", "youtube": "https://youtube.com/@example" },
+      "source": "official", "statusKnown": false, "catalogIntegration": "full",
+      "catalogVersion": "1.2.3-beta.1+build.5", "releasedAt": "2025-01-02T03:04:05Z", "featured": true
+    }],
+    "news": [{
+      "id": "example-app:release", "appId": "example-app", "badge": "Nuevo", "title": "Example release",
+      "text": "A fictional release announcement.", "cta": "Ver en el catálogo", "publishedAt": "2025-01-02T03:04:05Z"
+    }]
+  }
+}
