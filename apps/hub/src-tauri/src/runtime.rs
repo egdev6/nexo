@@ -105,7 +105,7 @@ fn failure(app: &AppHandle, detail: NoticeDetail, hub_only_allowed: bool) {
     }
 }
 
-fn reason(result: QuitOutcome) -> Option<NoticeOutcome> {
+pub(crate) fn reason(result: QuitOutcome) -> Option<NoticeOutcome> {
     match result {
         QuitOutcome::Accepted => None,
         QuitOutcome::Refused(reason) => Some(NoticeOutcome::Refused { reason }),

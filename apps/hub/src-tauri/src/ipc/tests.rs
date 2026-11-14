@@ -349,7 +349,14 @@ async fn heartbeat_marks_unresponsive_at_three_intervals_and_recovers() {
     assert!(hub.snapshot().apps[0].responsive);
     tokio::time::advance(Duration::from_millis(1)).await;
     settle().await;
-    assert!(!hub.snapshot().apps[0].responsive);
+    let entry = hub.snapshot().apps[0].clone();
+    assert!(!entry.responsive);
+    assert!(!hub.show_responsive("alpha", entry.generation));
+    assert_eq!(
+        hub.quit_responsive("alpha", entry.generation).await,
+        QuitOutcome::Unavailable
+    );
+    assert!(hub.while_disconnected("alpha", || Ok(())).is_err());
     client.send(Message::Heartbeat { seq: 42 }).await;
     assert_eq!(client.receive().await, Message::HeartbeatAck { seq: 42 });
     assert!(hub.snapshot().apps[0].responsive);
@@ -504,6 +511,8 @@ async fn routes_only_current_enabled_actions_to_the_owning_app() {
         }
     );
     assert!(hub.show("beta", b.generation));
+    assert_eq!(beta.receive().await, Message::Show);
+    assert!(hub.show_responsive("beta", b.generation));
     assert_eq!(beta.receive().await, Message::Show);
     alpha
         .send(Message::Menu {

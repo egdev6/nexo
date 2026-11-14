@@ -1,4 +1,4 @@
-//! Version 1 of the public, maintainer-curated catalog.
+//! Versions 1 and 2 of the public, maintainer-curated catalog.
 //! Parse untrusted input with [`parse_catalog`] rather than deserializing it directly.
 
 use chrono::DateTime;
@@ -52,7 +52,27 @@ pub struct CatalogApp {
         skip_serializing_if = "Option::is_none"
     )]
     pub links: Option<DiscoveryLinks>,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub detection: Option<Detection>,
     pub news: Vec<NewsEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Detection {
+    pub windows: WindowsDetection,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowsDetection {
+    pub display_name: String,
+    pub publisher: String,
+    pub executable_relative_path: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -132,6 +152,8 @@ pub enum CatalogError {
     EmptyText,
     #[error("an icon or art URL is required")]
     MissingArtwork,
+    #[error("invalid Windows executable relative path")]
+    BadExecutablePath,
 }
 
 fn valid_id(id: &str) -> bool {
@@ -218,6 +240,20 @@ fn check_text(input: &str) -> Result<(), CatalogError> {
     }
 }
 
+fn check_executable_path(path: &str) -> Result<(), CatalogError> {
+    if !path.to_ascii_lowercase().ends_with(".exe")
+        || path
+            .chars()
+            .any(|c| c.is_control() || "<>:\"|?*".contains(c))
+        || path.split(['/', '\\']).any(|part| {
+            part.is_empty() || part == "." || part == ".." || part.ends_with([' ', '.'])
+        })
+    {
+        return Err(CatalogError::BadExecutablePath);
+    }
+    Ok(())
+}
+
 /// Decode and validate the complete document before using or caching it.
 pub fn parse_catalog(input: &str) -> Result<Catalog, CatalogError> {
     let mut value: serde_json::Value =
@@ -226,10 +262,11 @@ pub fn parse_catalog(input: &str) -> Result<Catalog, CatalogError> {
     if let Some(version) = value.get_mut("schemaVersion")
         && version.is_number()
     {
-        if version.as_f64() != Some(1.0) {
-            return Err(CatalogError::SchemaVersion);
-        }
-        *version = serde_json::Value::from(1);
+        *version = match version.as_f64() {
+            Some(1.0) => serde_json::Value::from(1),
+            Some(2.0) => serde_json::Value::from(2),
+            _ => return Err(CatalogError::SchemaVersion),
+        };
     }
     // Preserve typed errors for unknown enum values instead of conflating them with malformed JSON.
     if let Some(apps) = value.get("apps").and_then(|v| v.as_array()) {
@@ -251,11 +288,19 @@ pub fn parse_catalog(input: &str) -> Result<Catalog, CatalogError> {
         }
     }
     let catalog: Catalog = serde_json::from_value(value).map_err(|_| CatalogError::Document)?;
-    if catalog.schema_version != 1 {
+    if !matches!(catalog.schema_version, 1 | 2) {
         return Err(CatalogError::SchemaVersion);
+    }
+    if catalog.schema_version == 1 && catalog.apps.iter().any(|app| app.detection.is_some()) {
+        return Err(CatalogError::Document);
     }
     let mut app_ids = HashSet::new();
     for app in &catalog.apps {
+        if let Some(detection) = &app.detection {
+            check_text(&detection.windows.display_name)?;
+            check_text(&detection.windows.publisher)?;
+            check_executable_path(&detection.windows.executable_relative_path)?;
+        }
         if !valid_id(&app.id) {
             return Err(CatalogError::BadId);
         }

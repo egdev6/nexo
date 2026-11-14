@@ -1,4 +1,4 @@
-use super::{Locale, Presentation, text};
+use super::{Locale, Presentation, app_message, text};
 use crate::ipc::{Hub, NoticeDetail, NoticeFailure, NoticeOutcome};
 use serde_json::Value;
 use std::{
@@ -35,6 +35,50 @@ fn shared_native_catalog_has_matching_nonempty_keys_and_placeholders() {
     }
     assert_eq!(text(Locale::Es, "quit"), "Salir");
     assert_eq!(text(Locale::En, "quit"), "Quit");
+}
+
+#[test]
+fn app_detection_and_launch_messages_are_available_in_both_languages() {
+    assert_eq!(
+        text(Locale::Es, "appNoHint"),
+        "Sin datos de detección en el catálogo"
+    );
+    assert_eq!(
+        text(Locale::En, "appNoHint"),
+        "No detection information in the catalog"
+    );
+    assert_eq!(
+        text(Locale::En, "appUnsafeExe"),
+        "The executable path is unsafe"
+    );
+    assert_eq!(
+        text(Locale::En, "appLaunchRequested"),
+        "Launch requested; execution is not confirmed"
+    );
+    assert_eq!(
+        text(Locale::En, "appSpawnFailed"),
+        "Could not start the app: {error}"
+    );
+}
+
+#[test]
+fn app_message_localizes_known_codes_and_keeps_external_diagnostics() {
+    assert_eq!(
+        app_message(Locale::En, "nexo.appNoHint"),
+        "No detection information in the catalog"
+    );
+    assert_eq!(
+        app_message(Locale::Es, "nexo.appSpawnFailed:disk full"),
+        "No se pudo iniciar la app: disk full"
+    );
+    assert_eq!(
+        app_message(Locale::En, "external refusal"),
+        "external refusal"
+    );
+    assert_eq!(
+        app_message(Locale::En, "nexo.appUnknown"),
+        "nexo.appUnknown"
+    );
 }
 
 #[test]

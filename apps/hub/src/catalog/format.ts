@@ -24,10 +24,11 @@ export interface CatalogApp {
   featured: boolean;
   version?: string;
   links?: { github?: string; youtube?: string };
+  detection?: { windows: { displayName: string; publisher: string; executableRelativePath: string } };
   news: CatalogNews[];
 }
 
-export interface Catalog { schemaVersion: 1; apps: CatalogApp[] }
+export interface Catalog { schemaVersion: 1 | 2; apps: CatalogApp[] }
 
 function fail(): never { throw new Error('Invalid catalog'); }
 function record(value: unknown, required: string[], optional: string[] = []): Record<string, unknown> {
@@ -64,13 +65,24 @@ function timestamp(value: unknown): void {
   if (month < 1 || month > 12 || day < 1 || day > days[month - 1] || hour > 23 || minute > 59 || second > 60 || (second === 60 && minute !== 59) || (oh && Number(oh) > 23) || (om && Number(om) > 59)) fail();
 }
 
+function executableRelativePath(value: unknown): void {
+  if (typeof value !== 'string' || !/\.exe$/i.test(value) || /[<>:"|?*\u0000-\u001f\u007f-\u009f]/u.test(value) ||
+      value.split(/[\\/]/).some(part => !part || part === '.' || part === '..' || /[ .]$/.test(part))) fail();
+}
+
 /** Validate untrusted parsed JSON; no input becomes official UI data without this check. */
 export function parseCatalog(value: unknown): Catalog {
   const root = record(value, ['schemaVersion', 'apps']);
-  if (root.schemaVersion !== 1 || !Array.isArray(root.apps)) return fail();
+  if ((root.schemaVersion !== 1 && root.schemaVersion !== 2) || !Array.isArray(root.apps)) return fail();
+  if (root.schemaVersion === 1 && root.apps.some(entry => typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'detection'))) fail();
   const ids = new Set<string>();
   for (const entry of root.apps) {
-    const app = record(entry, ['id', 'name', 'tagline', 'description', 'tags', 'installerUrl', 'latestJsonUrl', 'integrationLevel', 'releasedAt', 'featured', 'news'], ['iconUrl', 'artUrl', 'version', 'links']);
+    const app = record(entry, ['id', 'name', 'tagline', 'description', 'tags', 'installerUrl', 'latestJsonUrl', 'integrationLevel', 'releasedAt', 'featured', 'news'], ['iconUrl', 'artUrl', 'version', 'links', ...(root.schemaVersion === 2 ? ['detection'] : [])]);
+    if (Object.hasOwn(app, 'detection')) {
+      const detection = record(app.detection, ['windows']);
+      const windows = record(detection.windows, ['displayName', 'publisher', 'executableRelativePath']);
+      text(windows.displayName); text(windows.publisher); executableRelativePath(windows.executableRelativePath);
+    }
     id(app.id);
     if (ids.has(app.id as string)) fail();
     ids.add(app.id as string);

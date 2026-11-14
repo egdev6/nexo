@@ -1,15 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/nexo/catalog-v1.schema.json",
-  "title": "Nexo official catalog, version 1",
+  "$id": "https://example.com/nexo/catalog-v1-v2.schema.json",
+  "title": "Nexo official catalog, versions 1 and 2",
   "description": "Shape validation must be followed by domain validation (including uniqueness by id). The $id is illustrative, not a publication URL.",
   "type": "object",
   "required": ["schemaVersion", "apps"],
   "additionalProperties": false,
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "apps": { "type": "array", "items": { "$ref": "#/$defs/app" } }
+    "schemaVersion": { "enum": [1, 2] },
+    "apps": { "type": "array" }
   },
+  "oneOf": [
+    { "properties": { "schemaVersion": { "const": 1 }, "apps": { "items": { "$ref": "#/$defs/appV1" } } } },
+    { "properties": { "schemaVersion": { "const": 2 }, "apps": { "items": { "$ref": "#/$defs/appV2" } } } }
+  ],
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "not": { "pattern": "[^a-z0-9-]" } },
     "text": { "type": "string", "pattern": "[^\\s\\u0085]" },
@@ -28,8 +32,32 @@
         "publishedAt": { "$ref": "#/$defs/timestamp" }, "kind": { "enum": ["new", "featured", "update"] }
       }
     },
-    "app": {
+    "windowsDetection": {
       "type": "object", "additionalProperties": false,
+      "required": ["displayName", "publisher", "executableRelativePath"],
+      "properties": {
+        "displayName": { "$ref": "#/$defs/text" }, "publisher": { "$ref": "#/$defs/text" },
+        "executableRelativePath": {
+          "type": "string", "pattern": "\\.[eE][xX][eE]$",
+          "allOf": [
+            { "not": { "pattern": "[<>:\"|?*\\u0000-\\u001f\\u007f-\\u009f]" } },
+            { "not": { "pattern": "(^[\\\\/]|[\\\\/]{2}|[\\\\/]$)" } },
+            { "not": { "pattern": "(^|[\\\\/])[^\\\\/]*[ .]([\\\\/]|$)" } }
+          ]
+        }
+      }
+    },
+    "detection": {
+      "type": "object", "additionalProperties": false, "required": ["windows"],
+      "properties": { "windows": { "$ref": "#/$defs/windowsDetection" } }
+    },
+    "appV1": { "allOf": [{ "$ref": "#/$defs/app" }], "unevaluatedProperties": false },
+    "appV2": {
+      "allOf": [{ "$ref": "#/$defs/app" }], "unevaluatedProperties": false,
+      "properties": { "detection": { "$ref": "#/$defs/detection" } }
+    },
+    "app": {
+      "type": "object",
       "required": ["id", "name", "tagline", "description", "tags", "installerUrl", "latestJsonUrl", "integrationLevel", "releasedAt", "featured", "news"],
       "anyOf": [{ "required": ["iconUrl"] }, { "required": ["artUrl"] }],
       "properties": {

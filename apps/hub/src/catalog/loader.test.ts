@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import full from '../../../../crates/nexo-catalog/fixtures/full.json';
-import { loadCatalog, type CatalogFetcher } from './loader';
+import { loadCatalog, loadVersionedCatalog, type CatalogFetcher } from './loader';
 
 const endpoint = 'https://catalog.example.com/catalog.json';
 const valid = JSON.stringify(full);
@@ -34,7 +34,7 @@ describe('catalog loader', () => {
   it('distinguishes offline from HTTP, malformed and invalid responses, preserving only a valid cache', async () => {
     const store = cache(valid); const offline: CatalogFetcher = async () => { throw new Error('offline'); };
     expect((await loadCatalog(endpoint, store, offline)).status).toBe('offline');
-    for (const fetcher of [fetchResponse('', { ok: false }), fetchResponse('{'), fetchResponse('{"schemaVersion":2,"apps":[]}')]) {
+    for (const fetcher of [fetchResponse('', { ok: false }), fetchResponse('{'), fetchResponse('{"schemaVersion":3,"apps":[]}')]) {
       const result = await loadCatalog(endpoint, store, fetcher);
       expect(result.status).toBe('error'); expect(result.catalog?.apps).toHaveLength(1); expect(store.value()).toBe(valid);
     }
@@ -49,6 +49,97 @@ describe('catalog loader', () => {
     expect((await loadCatalog(endpoint, store, offline)).status).toBe('offline');
     expect((await loadCatalog(endpoint, store, fetchResponse(valid))).status).toBe('ready');
     expect(store.value()).toBe(valid);
+  });
+  it('never replaces the v1 cache with a v2 feed', async () => {
+    const store = cache(valid);
+    const result = await loadCatalog(endpoint, store, fetchResponse('{"schemaVersion":2,"apps":[]}'));
+    expect(result.status).toBe('error');
+    expect(result.stale).toBe(true);
+    expect(result.catalog?.schemaVersion).toBe(1);
+    expect(store.value()).toBe(valid);
+  });
+  it('does not treat a misplaced v1 cache as a v2 cache', async () => {
+    const loadVersion = loadCatalog as typeof loadCatalog & ((endpoint: string, store: ReturnType<typeof cache>, fetcher: CatalogFetcher, timeout: number, version: 1 | 2) => ReturnType<typeof loadCatalog>);
+    const offline: CatalogFetcher = async () => { throw new Error('offline'); };
+    const result = await loadVersion(endpoint, cache(valid), offline, 100, 2);
+    expect(result.status).toBe('offline');
+    expect(result.catalog).toBeUndefined();
+    expect(result.stale).toBe(false);
+  });
+  it('prefers the v2 feed without changing or fetching the v1 feed', async () => {
+    const v2 = '{"schemaVersion":2,"apps":[]}';
+    const v2Store = cache(); const v1Store = cache(valid);
+    const fetcher = fetchResponse(v2);
+    const result = await loadVersionedCatalog(endpoint, 'https://v1.example.com/catalog.json', v2Store, v1Store, fetcher);
+    expect(result.status).toBe('empty');
+    expect(result.catalog?.schemaVersion).toBe(2);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(v2Store.value()).toBe(v2);
+    expect(v1Store.value()).toBe(valid);
+  });
+  it('falls back to v1 when v2 has no valid cache and preserves both caches on an invalid response', async () => {
+    const v2Store = cache(); const v1Store = cache(valid);
+    const fetcher: CatalogFetcher = async url => ({ ok: true, url, redirected: false, text: async () => url === endpoint ? '{broken' : valid });
+    const result = await loadVersionedCatalog(endpoint, 'https://v1.example.com/catalog.json', v2Store, v1Store, fetcher);
+    expect(result.status).toBe('ready');
+    expect(result.catalog?.schemaVersion).toBe(1);
+    expect(v2Store.value()).toBeNull();
+    expect(v1Store.value()).toBe(valid);
+  });
+  it('marks a valid v2 cache stale on a failed v2 response', async () => {
+    const v2 = '{"schemaVersion":2,"apps":[]}';
+    const v2Store = cache(v2); const v1Store = cache(valid);
+    const offline: CatalogFetcher = async () => { throw new Error('offline'); };
+    const result = await loadVersionedCatalog(endpoint, 'https://v1.example.com/catalog.json', v2Store, v1Store, offline);
+    expect(result.status).toBe('offline'); expect(result.stale).toBe(true);
+    expect(result.catalog?.schemaVersion).toBe(2); expect(v2Store.value()).toBe(v2); expect(v1Store.value()).toBe(valid);
+  });
+  it('does not let an older overlapping response overwrite the newer valid cache', async () => {
+    const store = cache(valid);
+    let resolveFirst!: (response: Awaited<ReturnType<CatalogFetcher>>) => void;
+    const firstFetcher: CatalogFetcher = () => new Promise(resolve => { resolveFirst = resolve; });
+    const first = loadCatalog(endpoint, store, firstFetcher);
+    await vi.waitFor(() => expect(resolveFirst).toBeTypeOf('function'));
+    expect((await loadCatalog(endpoint, store, fetchResponse(empty))).status).toBe('empty');
+    resolveFirst({ ok: true, url: endpoint, redirected: false, text: async () => valid });
+    await first;
+    expect(store.value()).toBe(empty);
+  });
+  it('serializes overlapping writes that have already started', async () => {
+    let finishFirst!: () => void;
+    let stored: string | null = null;
+    let calls = 0;
+    const store = {
+      read: async () => stored,
+      write: async (text: string) => {
+        if (++calls === 1) await new Promise<void>(resolve => { finishFirst = resolve; });
+        stored = text;
+      },
+    };
+    const first = loadCatalog(endpoint, store, fetchResponse(valid));
+    await vi.waitFor(() => expect(finishFirst).toBeTypeOf('function'));
+    const second = loadCatalog(endpoint, store, fetchResponse(empty));
+    finishFirst();
+    await Promise.all([first, second]);
+    expect(stored).toBe(empty);
+  });
+  it('prevents an older v2 failure from starting a later v1 fallback', async () => {
+    const v2Store = cache(); const v1Store = cache();
+    let resolveFirst!: (response: Awaited<ReturnType<CatalogFetcher>>) => void;
+    let requests = 0;
+    const v1 = 'https://v1.example.com/catalog.json';
+    const fetcher: CatalogFetcher = url => {
+      requests++;
+      if (requests === 1) return new Promise(resolve => { resolveFirst = resolve; });
+      return Promise.resolve({ ok: true, url, redirected: false, text: async () => url === endpoint ? '{broken' : empty });
+    };
+    const first = loadVersionedCatalog(endpoint, v1, v2Store, v1Store, fetcher);
+    await vi.waitFor(() => expect(resolveFirst).toBeTypeOf('function'));
+    expect((await loadVersionedCatalog(endpoint, v1, v2Store, v1Store, fetcher)).status).toBe('empty');
+    resolveFirst({ ok: true, url: endpoint, redirected: false, text: async () => '{broken' });
+    await first;
+    expect(requests).toBe(3);
+    expect(v1Store.value()).toBe(empty);
   });
   it('bounds a fetcher that never resolves and signals its abort', async () => {
     vi.useFakeTimers();

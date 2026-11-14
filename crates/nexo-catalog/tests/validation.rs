@@ -27,6 +27,17 @@ fn accepts_minimal_full_and_empty_catalogs() {
 }
 
 #[test]
+fn v1_hint_rejection_precedes_other_app_errors() {
+    let mut doc = full();
+    let mut second = doc["apps"][0].clone();
+    second["id"] = json!("second-app");
+    second["detection"] = json!({"windows": {"displayName": "A", "publisher": "P", "executableRelativePath": "A.exe"}});
+    doc["apps"][0]["id"] = json!("Bad Id");
+    doc["apps"].as_array_mut().unwrap().push(second);
+    assert_eq!(validate(&doc).unwrap_err(), CatalogError::Document);
+}
+
+#[test]
 fn rejects_bad_and_duplicate_app_ids() {
     for id in ["", "UPPER", "a_b", "../app", "good\n"] {
         let mut doc = full();
@@ -135,7 +146,7 @@ fn rejects_missing_wrong_types_unknown_fields_and_schema_versions() {
     doc["apps"][0]["unexpected"] = json!(true);
     assert_eq!(validate(&doc).unwrap_err(), CatalogError::Document);
     let mut doc = full();
-    doc["schemaVersion"] = json!(2);
+    doc["schemaVersion"] = json!(3);
     assert_eq!(validate(&doc).unwrap_err(), CatalogError::SchemaVersion);
     assert_eq!(parse_catalog("{").unwrap_err(), CatalogError::Document);
 }
@@ -183,7 +194,7 @@ fn shared_corpus_pins_validation_and_catalog_field_mapping() {
         let valid = case["valid"].as_bool().unwrap();
         assert_eq!(parsed.is_ok(), valid, "{}", case["name"]);
         if let Ok(catalog) = parsed {
-            document["schemaVersion"] = json!(1);
+            document["schemaVersion"] = json!(catalog.schema_version);
             assert_eq!(
                 serde_json::to_value(catalog).unwrap(),
                 document,

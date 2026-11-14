@@ -1,3 +1,5 @@
+#[cfg(any(windows, test))]
+mod apps;
 mod catalog_cache;
 mod config;
 mod i18n;
@@ -214,6 +216,7 @@ pub fn run() {
             get_flyout_state,
             hide_flyout,
             catalog_cache::read_catalog_cache,
+            catalog_cache::read_catalog_v2_cache,
             catalog_cache::write_catalog_cache,
             config::get_settings,
             config::save_settings,
@@ -221,6 +224,9 @@ pub fn run() {
             config::quit_after_settings,
             apply_saved_language,
             runtime::registry_snapshot,
+            apps::installed_apps,
+            apps::open_official_app,
+            apps::close_connected_app,
             runtime::hub_only_exit
         ]);
     #[cfg(not(windows))]
@@ -229,6 +235,7 @@ pub fn run() {
         get_flyout_state,
         hide_flyout,
         catalog_cache::read_catalog_cache,
+        catalog_cache::read_catalog_v2_cache,
         catalog_cache::write_catalog_cache,
         config::get_settings,
         config::save_settings,

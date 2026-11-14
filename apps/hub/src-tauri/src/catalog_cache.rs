@@ -5,9 +5,22 @@ use tauri::{AppHandle, Manager};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
-fn read_cache(directory: &Path) -> Result<Option<String>, String> {
-    match std::fs::read_to_string(directory.join("catalog.json")) {
-        Ok(text) if nexo_catalog::parse_catalog(&text).is_ok() => Ok(Some(text)),
+fn cache_name(version: u64) -> Result<&'static str, String> {
+    match version {
+        1 => Ok("catalog.json"),
+        2 => Ok("catalog-v2.json"),
+        _ => Err("Unsupported catalog cache version".into()),
+    }
+}
+
+fn read_version(directory: &Path, version: u64) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(directory.join(cache_name(version)?)) {
+        Ok(text)
+            if nexo_catalog::parse_catalog(&text)
+                .is_ok_and(|catalog| catalog.schema_version == version) =>
+        {
+            Ok(Some(text))
+        }
         Ok(_) => Ok(None),
         Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::InvalidData) => {
             Ok(None)
@@ -16,8 +29,15 @@ fn read_cache(directory: &Path) -> Result<Option<String>, String> {
     }
 }
 
+fn read_cache(directory: &Path) -> Result<Option<String>, String> {
+    read_version(directory, 1)
+}
+
 fn write_cache(directory: &Path, input: &str) -> Result<(), String> {
-    nexo_catalog::parse_catalog(input).map_err(|error| error.to_string())?;
+    let version = nexo_catalog::parse_catalog(input)
+        .map_err(|error| error.to_string())?
+        .schema_version;
+    let target = cache_name(version)?;
     std::fs::create_dir_all(directory).map_err(|error| error.to_string())?;
     let name = format!(
         ".catalog-{}-{}.tmp",
@@ -35,7 +55,7 @@ fn write_cache(directory: &Path, input: &str) -> Result<(), String> {
         file.write_all(input.as_bytes())?;
         file.sync_all()?;
         drop(file);
-        std::fs::rename(&temporary, directory.join("catalog.json"))
+        std::fs::rename(&temporary, directory.join(target))
     })();
     if result.is_err() && created {
         let _ = std::fs::remove_file(&temporary);
@@ -50,6 +70,15 @@ pub(crate) fn read_catalog_cache(app: AppHandle) -> Result<Option<String>, Strin
         .app_data_dir()
         .map_err(|error| error.to_string())?;
     read_cache(&directory)
+}
+
+#[tauri::command]
+pub(crate) fn read_catalog_v2_cache(app: AppHandle) -> Result<Option<String>, String> {
+    let directory = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    read_version(&directory, 2)
 }
 
 #[tauri::command]
@@ -102,10 +131,22 @@ mod tests {
     fn rejected_document_never_replaces_valid_cache() {
         let dir = Scratch::new();
         write_cache(&dir.0, VALID).unwrap();
-        for invalid in ["{", "{\"schemaVersion\":2,\"apps\":[]}"] {
+        for invalid in ["{", "{\"schemaVersion\":3,\"apps\":[]}"] {
             assert!(write_cache(&dir.0, invalid).is_err());
             assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
         }
+    }
+
+    #[test]
+    fn v2_write_does_not_replace_the_v1_cache() {
+        let dir = Scratch::new();
+        write_cache(&dir.0, VALID).unwrap();
+        let v2 = "{\"schemaVersion\":2,\"apps\":[]}";
+        write_cache(&dir.0, v2).unwrap();
+        assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
+        assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
+        assert!(write_cache(&dir.0, "{\"schemaVersion\":3,\"apps\":[]}").is_err());
+        assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
     }
 
     #[test]

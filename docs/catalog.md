@@ -1,4 +1,4 @@
-# Official catalog v1
+# Official catalog v1 and v2
 
 The catalog is a maintainer-curated **allowlist**, not repository discovery: an app appears as an
 official app only when the public catalog contains it. The maintainer reviews public status and
@@ -7,7 +7,8 @@ publish private URLs, tokens, private metadata or examples copied from this priv
 
 ## Format
 
-The envelope is `{ "schemaVersion": 1, "apps": [...] }`. A fictional full example and a minimal
+The envelope is `{ "schemaVersion": 1, "apps": [...] }` or `{ "schemaVersion": 2, "apps": [...] }`.
+Readers accept both versions; v1 continues to reject v2-only fields. A fictional full example and a minimal
 example are in `crates/nexo-catalog/fixtures/`; they are test/development fixtures, **not** the
 live catalog. The structural schema is `crates/nexo-catalog/catalog.schema.json`; Rust
 `nexo_catalog::parse_catalog` and TypeScript `parseCatalog` also perform domain validation.
@@ -30,6 +31,7 @@ Each app has:
 | `news` | yes | App-scoped news entries; may be empty. |
 | `version` | no | SemVer metadata for the published app; not evidence of an installed version or update. |
 | `links` | no | Object with optional HTTPS `github` and `youtube` links. |
+| `detection` | v2 only, optional | `{ "windows": { "displayName": "Example App", "publisher": "Example Publisher", "executableRelativePath": "bin\\\\Example.exe" } }`. All three fields are required nonblank strings. A hint is metadata, not proof of installation. |
 
 Each news entry has required `id`, nonblank `title` and `text`, `publishedAt`, and `kind`
 (`new`, `featured`, `update`). IDs are unique within each app; the UI projects a globally
@@ -46,11 +48,23 @@ with major/minor/patch bounded by unsigned 64-bit integers. Timestamps use the R
 Future incompatible format changes require a new schema version; readers reject versions they do
 not understand. Additive fields also require a new version while v1 rejects unknown fields.
 
+The Windows hint uses exact `DisplayName` and `Publisher` values from the current user's NSIS
+uninstall entry, not the catalog display name. The executable path is relative to `InstallLocation`;
+only `.exe` paths are accepted, without absolute/UNC/drive paths, traversal, empty components,
+Windows-forbidden characters, controls, or components ending in space or dot. A matching path and
+publisher are not authentication: HKCU and same-user files can be spoofed. Confirm actual installer
+metadata with app owners before publishing a hint. A v1 app or v2 app without a hint has unknown
+installation state; never infer it from catalog `version` or IPC.
+
 `latestJsonUrl` is owned by the app. Before any updater consumes it, the app owner must confirm
 its actual Tauri updater manifest format and verification configuration; the catalog loader does
-not fetch it. Installation, app control, installed versions and update execution belong to #4 and
-#6–#9. Until then, catalog entries carry unknown installation/running state and no fake install
-action. Catalog `version` must not be used as the installed version.
+not fetch it. Installed versions come only from the current user's uninstall registry; the app's
+IPC version is displayed separately. Detection failures, absent hints and ambiguous matches remain
+unknown. Opening rechecks the matching entry and executable; connected plugins receive `show` and
+can receive `quit` when supported. Other apps have unknown running state and must be closed from the
+app itself. Accepted requests do not prove that a window opened or a process exited. An app's own
+single-instance handler is responsible for handoff; duplicates are possible without one. Local apps
+are owned by #9, and install/update execution by #7/#8. Catalog `version` is never the installed version.
 
 ## Loading, cache and trust
 
@@ -58,12 +72,16 @@ The native hub starts with a fixed source configured in
 `apps/hub/src/catalog/loader.ts`. **No official URL is configured yet**: the hub displays an error
 with retry rather than presenting a fixture as official. Browser-only design preview uses labeled
 sample data. The loader fetches on startup and explicit retry with an eight-second timeout, rejects
-redirects, checks HTTPS, validates the whole response, and saves only valid data to
-`catalog.json` in Tauri's app-data directory. A corrupt cache is ignored. On offline/HTTP/parse/
+redirects, checks HTTPS, validates the whole response, and saves only valid data to the version-specific cache in Tauri's app-data directory: `catalog.json` for v1 and
+`catalog-v2.json` for v2. A corrupt cache is ignored. On offline/HTTP/parse/
 validation failure a valid previous cache remains visible with a stale warning; without one the
 error/offline state offers retry. A successful empty catalog shows the empty state. Cache write
 failure is surfaced instead of claiming offline persistence. There is no TTL or ETag policy in v1.
-The webview performs the fetch: the host must allow the deployed webview origin via CORS.
+New clients prefer the separately configured v2 endpoint and its cache, falling back to v1 when v2
+is unavailable and has no valid cache. Responses and caches of the wrong version are rejected.
+Both endpoint URLs are currently unconfigured; publishing/configuring either is a separate maintainer
+decision. Never replace the v1 endpoint in place with v2. The webview performs the fetch: the host
+must allow the deployed webview origin via CORS.
 
 HTTPS and validation protect transport and shape, not publisher identity or installer integrity.
 V1 does not add catalog signatures, mandatory installer hashes, keys or rotation. These and
