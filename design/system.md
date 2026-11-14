@@ -16,6 +16,8 @@ Sincronización de lectura de EGDEV Foundation, commit `247752f`. Es una selecci
 | `--color-fg-secondary` | `var(--color-primitive-neutral-200)` | Texto secundario · `#CCCCCC` | `packages/tokens/src/theme.css` |
 | `--color-fg-muted` | `var(--color-primitive-graphite-400)` | Metadatos · `#A1A2A8` | `packages/tokens/src/theme.css` |
 | `--color-border-default` | `var(--color-primitive-graphite-800)` | Separador decorativo · `#2A2B30` | `packages/tokens/src/theme.css` |
+| `--color-border-subtle` | `var(--color-alpha-white-07)` | Pista de progreso decorativa · `rgba(255, 255, 255, 0.07)` | `packages/tokens/src/theme.css` |
+| `--color-fg-brand-default` | `var(--color-primitive-red-neon)` | Relleno de marca · `#FF0036` | `packages/tokens/src/theme.css` |
 | `--color-border-control` | `var(--color-primitive-graphite-500)` | Contorno de controles · `#7A7B81` | `packages/tokens/src/theme.css` |
 | `--color-border-hairline` | `rgba(255, 255, 255, 0.08)` | Borde decorativo de superficie | `packages/tokens/src/theme.css` |
 | `--color-border-hairline-strong` | `rgba(255, 255, 255, 0.14)` | Borde de overlay | `packages/tokens/src/theme.css` |
@@ -35,6 +37,7 @@ Sincronización de lectura de EGDEV Foundation, commit `247752f`. Es una selecci
 | `--color-status-warning` | `#FFB224` | Actualización, acompañado de texto | `packages/tokens/src/theme.css` |
 | `--color-status-info` | `#8AB4FF` | Información | `packages/tokens/src/theme.css` |
 | `--color-status-danger` | `var(--color-primitive-red-300)` | Error · `#FF6680` | `packages/tokens/src/theme.css` |
+| `--color-status-danger-bg` | `color-mix(in srgb, var(--color-status-danger) 12%, transparent)` | Fondo de control inválido | `packages/tokens/src/theme.css` |
 
 El borde tenue es decorativo, no es el único límite de un control; usar `--color-border-control` para los controles secundarios. El neón pequeño no alcanza AA sobre las superficies 1–3; para etiquetas pequeñas de marca usar `--color-primitive-red-200`. El texto negro sobre el rojo sólido alcanza 5,31:1 según `theme.css`.
 
@@ -113,12 +116,41 @@ Las fuentes declaradas son Barlow Condensed, Barlow y JetBrains Mono. Las lámin
 | `--blur-overlay` | `20px` | Desenfoque de overlay con `saturate(150%)` | `packages/tokens/src/theme.css` |
 | `--focus-width` | `2px` | Grosor del foco | `packages/tokens/src/theme.css` |
 | `--focus-offset` | `2px` | Separación del foco | `packages/tokens/src/theme.css` |
+| `--border-width-invalid` | `2px` | Borde de control inválido | `packages/tokens/src/theme.css` |
+| `--duration-fast` | `200ms` | Transición rápida | `packages/tokens/src/theme.css` |
+| `--duration-base` | `300ms` | Transición base | `packages/tokens/src/theme.css` |
+| `--duration-press` | `90ms` | Pulsación | `packages/tokens/src/theme.css` |
+| `--ease-out` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Curva general | `packages/tokens/src/theme.css` |
+| `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Curva de hover | `packages/tokens/src/theme.css` |
 
 - **Surface**: escalera Grafito, brillo cenital, borde de luz y sombra de dos capas; overlay solo para superficies flotantes y con alternativa sólida para transparencia reducida o sin soporte (`packages/ui/src/primitives/surface/types.ts`, `docs/MATERIAL.md`).
 - **Button**: primario con degradado rojo y texto negro; secundario tintado o neutral. Tamaños mínimos `44.8px`, `38.4px`, `32px`; foco exterior y movimiento reducido (`packages/ui/src/atoms/button/types.ts`).
 - **Badge / StatusDot**: la etiqueta visible explica el estado; el punto es decorativo. Badge de marca usa `--color-primitive-red-200`; estados `running`, `warning`, `stopped` se acompañan de texto (`packages/ui/src/atoms/badge/types.ts`, `packages/ui/src/atoms/status-dot/types.ts`).
-- **NavList / Tabs**: la ubicación activa añade marcador y texto; las pestañas pueden ser subrayadas o segmentadas, con foco diferenciado (`packages/ui/src/molecules/nav-list/types.ts`, `packages/ui/src/molecules/tabs/types.ts`).
+- **NavList**: la ubicación activa añade marcador y texto (`packages/ui/src/molecules/nav-list/types.ts`).
+- **Tabs**: `eg-tabs` agrupa un `tablist` horizontal, botones `tab` y sus paneles `tabpanel` enlazados; activación automática y foco itinerante con flechas, Inicio y Fin. La variante segmentada compone el pozo Surface, eleva la opción activa y distingue el foco (`packages/ui/src/molecules/tabs/Tabs.tsx`, `packages/ui/src/molecules/tabs/useTabs.ts`, `packages/ui/src/molecules/tabs/types.ts`; referencia histórica `packages/ui/src/styles/legacy/bundle.css:1342-1360`).
+- **Selector de acento personalizable (patrón de Quorb, no tokens EGDEV)**: ocho muestras circulares con selección y foco visibles, un selector nativo de color libre sobre un círculo arcoíris, y tres tonos calculados. Los colores elegidos son datos de usuario y se reservan para la vista previa; texto, foco y estados mantienen los roles EGDEV (`/home/egdev/proyectos/quorb/src/Settings.tsx:1597-1618`, `/home/egdev/proyectos/quorb/src/lib/palette.ts:4-64`, `/home/egdev/proyectos/quorb/src/theme.css:313-328`).
 - **Input**: pozo en surface-0, contorno de control y etiqueta accesible; foco visible (`packages/ui/src/atoms/input/types.ts`).
 - **ModuleCard / Table / Notice**: agrupación de contenido y acciones cercanas, filas alineadas, aviso con resumen, icono y recuperación (`packages/ui/src/molecules/module-card/types.ts`, `packages/ui/src/molecules/table/types.ts`, `packages/ui/src/molecules/notice/types.ts`).
+- **Carousel**: colección manual y acotada de diapositivas de solo lectura, sin autoplay ni enlaces o controles dentro de las diapositivas. `eg-carousel` contiene cabecera con etiqueta, contador `01 / 02` y dos IconButton; después, pista desplazable con grupos de diapositivas montados y foco itinerante, ProgressBar decorativa e instrucciones/estado accesibles. Flechas, Inicio y Fin actúan sobre la diapositiva enfocada; no hay puntos de selección. Las acciones de la aplicación se sitúan fuera del carrusel (`packages/ui/src/molecules/carousel/Carousel.tsx`, `packages/ui/src/molecules/carousel/useCarousel.ts`, `packages/ui/src/molecules/carousel/types.ts`, `packages/ui/src/atoms/icon-button/types.ts`, `packages/ui/src/atoms/progress-bar/types.ts`).
+- **Slider**: `eg-slider` horizontal de un solo valor, pista hundida, tramo rojo y tirador elevado; el nombre, límites, valor, orientación y texto de valor pertenecen al tirador `role="slider"`. Las flechas avanzan un paso, Re Pág/Av Pág y Mayús+flecha diez, Inicio/Fin van a los extremos; Field aporta etiqueta y lectura visual. Las recetas son `h-6`, `h-1`, `size-4` y `pointer-coarse:h-11` sobre la escala `--spacing` del sistema (`packages/ui/src/atoms/slider/Slider.tsx`, `packages/ui/src/atoms/slider/useSlider.ts`, `packages/ui/src/atoms/slider/types.ts`, `packages/ui/src/molecules/field/types.ts`, `packages/tokens/src/theme.css`).
+
+`packages/ui/src/styles/compiled.css` incorpora las recetas CVA de ambos componentes; `packages/ui/src/styles/legacy/bundle.css` conserva reglas históricas de IconButton, ProgressBar y campos range, no las recetas actuales de Carousel o Slider.
+
+### Valores del patrón Quorb (excepción de acento de usuario)
+
+Estos valores no son tokens de EGDEV Foundation; se documentan para reproducir el selector solicitado. El usuario puede elegir cualquier color, por lo que las muestras y tonos calculados son datos dinámicos, no colores semánticos de la interfaz.
+
+| Referencia | Valor | Fuente |
+| --- | --- | --- |
+| `ACCENT_PRESETS[0]` | `#ff0036` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[1]` | `#ff7a00` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[2]` | `#ffd400` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[3]` | `#22c55e` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[4]` | `#00c2ff` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[5]` | `#3b82f6` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[6]` | `#8b5cf6` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `ACCENT_PRESETS[7]` | `#ff3fb4` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:7` |
+| `derivePalette('#ff0036')` | `#ff0036`, `#ffebef`, `#ff859f` | `/home/egdev/proyectos/quorb/src/lib/palette.ts:55-60`, `/home/egdev/proyectos/quorb/src/lib/palette.test.ts:15-19` |
+| `q-swatch--picker` | `conic-gradient(red, yellow, lime, cyan, blue, magenta, red)` | `/home/egdev/proyectos/quorb/src/theme.css:324` |
 
 Las recetas históricas CSS de botones, tarjetas en bandas y tablas se contrastaron con `packages/ui/src/styles/legacy/bundle.css`; para las reglas actuales de componentes prevalecen los contratos `types.ts` citados arriba. Las láminas son propuestas estáticas, no implementaciones de `@egdev/ui`; las fichas con iniciales son identificadores provisionales, no logotipos oficiales.
