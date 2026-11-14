@@ -4,6 +4,10 @@ mod catalog_cache;
 mod config;
 mod i18n;
 pub mod install_download;
+pub mod install_http;
+pub mod install_signature;
+#[cfg(test)]
+mod install_signature_tests;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;

@@ -14,8 +14,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+base64 = "0.23"
+minisign-verify = "0.3"
 nexo-catalog = { path = "../../../crates/nexo-catalog" }
 nexo-protocol = { path = "../../../crates/nexo-protocol" }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 semver = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
