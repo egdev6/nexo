@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
 import { NewsPopup } from './index';
+import nexoLogo from '../../src-tauri/app-icon.svg';
 
 afterEach(cleanup);
 
@@ -29,6 +30,15 @@ function setup() {
   render(<Fixture />);
   return { onClose, onDontShowChange };
 }
+
+it('renders the Nexo logo in the news header and retains the close control', () => {
+  setup(); fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
+  const dialog = screen.getByRole('dialog', { name: 'Novedades al abrir' });
+  const mark = dialog.querySelector('header img');
+  expect(mark?.getAttribute('src')).toBe(nexoLogo);
+  expect(mark?.getAttribute('alt')).toBe('');
+  expect(within(dialog).getByRole('button', { name: 'Cerrar novedades' })).toBeTruthy();
+});
 
 it('renders nothing while closed', () => {
   const { container } = render(<NewsPopup items={items} open={false} onClose={() => {}} dontShow={false} onDontShowChange={() => {}} />);

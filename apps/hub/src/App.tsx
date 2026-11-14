@@ -21,6 +21,7 @@ import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import { noticeText } from './shell/notice';
 import type { RegistryApp, RegistrySnapshot } from './shell/registry';
 import { backdropAvailable, hideFlyout } from './window';
+import nexoLogo from '../src-tauri/app-icon.svg';
 import './style.css';
 
 type Tab = 'apps' | 'catalog';
@@ -267,7 +268,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
   return <LocaleProvider locale={locale}><main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
-    <header className="panel-head"><div className="heading"><span className="n-mark" aria-hidden="true">N</span><h1 id="panel-title">Nexo</h1>
+    <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">
         {usable && !firstRun && !showSettings && <IconButton label={t(locale, 'common.settings')} title={t(locale, 'common.settings')} variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
