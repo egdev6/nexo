@@ -164,7 +164,7 @@ it('hides on close and Escape, except while the news dialog owns Escape', () => 
   expect(hideFlyout).toHaveBeenCalledTimes(2);
 });
 
-it('keeps the opaque fallback and enables native backdrop only when available', async () => {
+it('detects native backdrop availability without requiring it for the panel', async () => {
   vi.mocked(backdropAvailable).mockResolvedValueOnce(true);
   const { unmount } = render(<App />);
   const panel = screen.getByRole('main');

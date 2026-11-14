@@ -1,3 +1,4 @@
+mod config;
 mod position;
 
 use position::{WorkArea, flyout_bounds};
@@ -9,7 +10,7 @@ use std::time::{Duration, Instant};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
-    AppHandle, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
 
 #[derive(Default)]
@@ -89,7 +90,19 @@ pub fn run() {
     tauri::Builder::default()
         .manage(FocusState::default())
         .manage(BackdropState::default())
-        .invoke_handler(tauri::generate_handler![backdrop_available])
+        .manage(config::ConfigLock::default())
+        .invoke_handler(tauri::generate_handler![
+            backdrop_available,
+            config::get_settings,
+            config::save_settings,
+            config::recover_settings,
+            config::quit_after_settings
+        ])
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("Nexo")
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");
@@ -113,8 +126,9 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            // Tauri applies its configured effect without reporting failure. Try
-            // Mica, then acrylic, and keep the CSS fallback opaque if both fail.
+            // Keep Mica/acrylic as an optional OS-controlled fallback. If neither
+            // works, the CSS panel can still be transparent and the desktop sharp;
+            // the CSS blur slider does not control either native effect's radius.
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
                 let applied = window_vibrancy::apply_mica(&window, None)
@@ -162,7 +176,12 @@ pub fn run() {
                 })
                 .on_menu_event(|app, event| {
                     if event.id.as_ref() == "quit" {
-                        app.exit(0);
+                        // The webview flushes pending settings before it invokes quit_after_settings.
+                        if let Err(error) = show_flyout(app)
+                            .and_then(|()| app.emit_to("main", "quit-requested", ()))
+                        {
+                            eprintln!("could not request a safe exit: {error}");
+                        }
                     }
                 })
                 .build(app)?;

@@ -47,6 +47,27 @@ export interface HubSettings {
   blur: number;
 }
 
+// #16 stores and displays descriptors; #9 owns creation and consumption.
+export interface CatalogSource {
+  id: string;
+  label: string;
+  kind: 'official' | 'local';
+  location?: string;
+}
+
+export interface StoredSettings extends HubSettings {
+  firstRunComplete: boolean;
+  sources: CatalogSource[];
+}
+
+export interface AutostartViewState {
+  confirmed: boolean | null;
+  busy: boolean;
+  error: string | null;
+  change: (value: boolean) => void;
+  retry: () => void;
+}
+
 export interface CatalogViewProps {
   apps: HubApp[];
 }
@@ -64,6 +85,8 @@ export interface SettingsViewProps {
   settings: HubSettings;
   onChange: (next: HubSettings) => void;
   onClose: () => void;
+  sources?: CatalogSource[];
+  autostart?: AutostartViewState;
 }
 
 export interface FirstRunProps {

@@ -83,7 +83,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopup
         aria-label={`${current.cta}: ${current.title} · muestra`} title="Acción ilustrativa">{current.cta}</Button>
         <span>Acción ilustrativa</span></div>}
       <div className="news-preference"><Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
-        <label htmlFor={checkboxId}>No mostrar al abrir</label><span>· preferencia de muestra</span></div>
+        <label htmlFor={checkboxId}>No mostrar al abrir</label></div>
     </section>
   </div>;
 }

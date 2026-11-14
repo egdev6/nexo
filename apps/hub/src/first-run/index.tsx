@@ -16,6 +16,6 @@ export function FirstRun({ onChoose }: FirstRunProps) {
     <Button className="first-run__continue" type="button" lang={language} onClick={() => onChoose(language)}>
       {language === 'es' ? 'Continuar' : 'Continue'}
     </Button>
-    <p className="first-run__foot">Selección de muestra · <span lang="en">Example selection</span></p>
+    <p className="first-run__foot">La elección se guarda en este equipo · <span lang="en">Saved on this device</span></p>
   </section>;
 }
