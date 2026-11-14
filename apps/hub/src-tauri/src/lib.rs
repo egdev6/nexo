@@ -1,5 +1,11 @@
 mod catalog_cache;
+#[cfg(any(windows, test))]
+mod ipc;
 mod position;
+#[cfg(windows)]
+mod runtime;
+#[cfg(any(windows, test))]
+mod tray;
 
 use position::{WorkArea, flyout_bounds};
 use std::sync::{
@@ -87,14 +93,27 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(FocusState::default())
-        .manage(BackdropState::default())
+        .manage(BackdropState::default());
+    #[cfg(windows)]
+    let builder = builder
+        .manage(ipc::Hub::new())
+        .manage(runtime::Routes::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
             catalog_cache::read_catalog_cache,
-            catalog_cache::write_catalog_cache
-        ])
+            catalog_cache::write_catalog_cache,
+            runtime::registry_snapshot,
+            runtime::hub_only_exit
+        ]);
+    #[cfg(not(windows))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        backdrop_available,
+        catalog_cache::read_catalog_cache,
+        catalog_cache::write_catalog_cache
+    ]);
+    builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");
@@ -135,7 +154,7 @@ pub fn run() {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "missing Nexo icon")
             })?;
 
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("nexo")
                 .icon(icon)
                 .tooltip("Nexo")
                 .menu(&menu)
@@ -166,13 +185,26 @@ pub fn run() {
                     }
                 })
                 .on_menu_event(|app, event| {
+                    #[cfg(windows)]
+                    runtime::handle_menu(app, event.id.as_ref());
+                    #[cfg(not(windows))]
                     if event.id.as_ref() == "quit" {
                         app.exit(0);
                     }
                 })
                 .build(app)?;
+            #[cfg(windows)]
+            runtime::start(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Nexo");
+        .build(tauri::generate_context!())
+        .expect("error while building Nexo")
+        .run(|_app, _event| {
+            #[cfg(windows)]
+            if matches!(_event, tauri::RunEvent::Exit)
+                && let Some(hub) = _app.try_state::<ipc::Hub>()
+            {
+                hub.shutdown();
+            }
+        });
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Allow the main flyout to hide itself.",
+  "description": "Allow the main flyout to hide and receive registry updates.",
   "windows": ["main"],
-  "permissions": ["core:window:allow-hide"]
+  "permissions": ["core:window:allow-hide", "core:event:allow-listen", "core:event:allow-unlisten"]
 }
