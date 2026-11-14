@@ -110,10 +110,11 @@ catalog icons are served from the catalog repository for that reason.
 
 HTTPS and validation protect transport and shape, not publisher identity or installer integrity.
 The catalog has no signature, mandatory installer hashes or key rotation/revocation mechanism.
-The v3 key is metadata, not evidence that a download is trusted; a future installer/updater must
-independently fetch current v3 data and verify the detached signature before any execution.
-Third-party sources require a separate security design. Remote strings are displayed as text;
-no catalog content is currently executed or auto-installed.
+The v3 key is metadata, not evidence that a download is trusted: the hub's installer fetches current
+v3 data natively, asks for native confirmation, and verifies the detached signature with that key
+before any execution. Third-party sources require a separate security design. Remote strings are
+displayed as text; nothing is installed without the user's confirmation, and only signature-verified
+installers are run.
 
 ## Publication and adding an app
 

@@ -736,3 +736,7 @@ mod tests {
         assert_eq!(factory.0.lock().unwrap().cleaned, 1);
     }
 }
+
+#[cfg(test)]
+#[path = "vp_install_tests.rs"]
+mod vp_install_tests;
