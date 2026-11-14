@@ -235,6 +235,23 @@ it('flushes pending settings before a tray-requested hub-only exit', async () =>
   expect(bridge.invoke).toHaveBeenCalledWith('hub_only_exit');
 });
 
+it.each([
+  ['es', 'Ajustes', 'English', 'Las fuentes locales deben cambiarse mediante la selección nativa.'],
+  ['en', 'Settings', 'Español', 'Local sources must be changed using native selection.'],
+])('localizes a rejected source change in %s without saving', async (language, settingsLabel, choice, message) => {
+  stored.language = language; stored.firstRunComplete = true; stored.showNewsOnOpen = false;
+  const normalInvoke = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
+    if (command === 'save_settings') throw 'nexo.config.sourceSelectionRequired';
+    return normalInvoke(command, args);
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: settingsLabel }));
+  fireEvent.click(screen.getByRole('radio', { name: choice }));
+  expect((await screen.findByRole('alert')).textContent).toContain(message);
+  expect(stored.language).toBe(language);
+});
+
 it('shows a retryable autostart error instead of confirming a mismatch', async () => {
   stored.firstRunComplete = true; stored.showNewsOnOpen = false; mismatch = true;
   render(<App />); await openSettings();

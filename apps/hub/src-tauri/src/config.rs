@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 
-const VERSION: u64 = 2;
+const VERSION: u64 = 3;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -30,6 +30,24 @@ pub struct NewsVisit {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct LocalApp {
+    pub id: String,
+    pub name: String,
+    pub executable: String,
+    #[serde(default)]
+    pub icon: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalBinding {
+    pub source_id: String,
+    pub app_id: String,
+    pub executable: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub language: String,
     pub start_with_windows: bool,
@@ -41,6 +59,8 @@ pub struct Settings {
     pub first_run_complete: bool,
     pub sources: Vec<Source>,
     pub news_visit: Option<NewsVisit>,
+    pub local_apps: Vec<LocalApp>,
+    pub local_bindings: Vec<LocalBinding>,
 }
 
 impl Default for Settings {
@@ -55,6 +75,8 @@ impl Default for Settings {
             blur: 24,
             first_run_complete: false,
             news_visit: None,
+            local_apps: Vec::new(),
+            local_bindings: Vec::new(),
             sources: vec![Source {
                 id: "official".into(),
                 label: "Catálogo oficial egdev".into(),
@@ -139,6 +161,44 @@ fn sanitize_sources(raw: &Value, fallback: Vec<Source>) -> Vec<Source> {
     result
 }
 
+fn sanitize_local_apps(raw: &Value) -> Vec<LocalApp> {
+    let mut result = Vec::new();
+    for value in raw.as_array().into_iter().flatten() {
+        let Ok(app) = serde_json::from_value::<LocalApp>(value.clone()) else {
+            continue;
+        };
+        if app.id.trim().is_empty()
+            || app.name.trim().is_empty()
+            || app.executable.trim().is_empty()
+            || result.iter().any(|old: &LocalApp| old.id == app.id)
+        {
+            continue;
+        }
+        result.push(app);
+    }
+    result
+}
+
+fn sanitize_local_bindings(raw: &Value) -> Vec<LocalBinding> {
+    let mut result = Vec::new();
+    for value in raw.as_array().into_iter().flatten() {
+        let Ok(binding) = serde_json::from_value::<LocalBinding>(value.clone()) else {
+            continue;
+        };
+        if binding.source_id.trim().is_empty()
+            || binding.app_id.trim().is_empty()
+            || binding.executable.trim().is_empty()
+            || result.iter().any(|old: &LocalBinding| {
+                old.source_id == binding.source_id && old.app_id == binding.app_id
+            })
+        {
+            continue;
+        }
+        result.push(binding);
+    }
+    result
+}
+
 fn settings_from(map: &Map<String, Value>) -> Settings {
     let mut settings = Settings::default();
     if let Some(s) = map.get("language").and_then(Value::as_str) {
@@ -183,10 +243,19 @@ fn settings_from(map: &Map<String, Value>) -> Settings {
     if let Some(v) = map.get("sources") {
         settings.sources = sanitize_sources(v, settings.sources);
     }
-    if map.get("version").and_then(Value::as_u64) == Some(VERSION) {
+    let version = map.get("version").and_then(Value::as_u64).unwrap_or(0);
+    if version >= 2 {
         settings.news_visit = map
             .get("newsVisit")
             .and_then(|value| serde_json::from_value(value.clone()).ok());
+    }
+    if version >= 3 {
+        if let Some(value) = map.get("localApps") {
+            settings.local_apps = sanitize_local_apps(value);
+        }
+        if let Some(value) = map.get("localBindings") {
+            settings.local_bindings = sanitize_local_bindings(value);
+        }
     }
     settings
 }
@@ -246,10 +315,38 @@ impl Store {
                 .into());
             }
         };
-        // The marker did not exist before v2, even if an old document happens
-        // to contain an unrelated unknown field with the same name.
-        if map.get("version").and_then(Value::as_u64).unwrap_or(0) < VERSION {
+        if let Some(sources) = patch.sources.as_ref() {
+            let previous = settings_from(&map).sources;
+            let invalid_change = sources.iter().any(|source| {
+                match previous.iter().find(|old| old.id == source.id) {
+                    Some(old) => old.kind != source.kind || old.location != source.location,
+                    None => source.kind == "local" || source.location.is_some(),
+                }
+            });
+            // Check the same sanitized projection that will be saved, so an
+            // invalid or duplicate descriptor cannot silently remove a source.
+            let sanitized = sanitize_sources(&json!(sources), Vec::new());
+            let removed_local = previous.iter().any(|old| {
+                old.kind == "local"
+                    && !sanitized.iter().any(|source| {
+                        source.id == old.id
+                            && source.kind == old.kind
+                            && source.location == old.location
+                    })
+            });
+            if invalid_change || removed_local {
+                return Err("nexo.config.sourceSelectionRequired".into());
+            }
+        }
+        let version = map.get("version").and_then(Value::as_u64).unwrap_or(0);
+        // Neither a pre-v2 visit marker nor pre-v3 local records were owned by
+        // Nexo. Never promote similarly named unknown fields into trusted data.
+        if version < 2 {
             map.remove("newsVisit");
+        }
+        if version < 3 {
+            map.remove("localApps");
+            map.remove("localBindings");
         }
         // Source descriptors belong to #9 as well: preserve unrecognized per-source
         // metadata when a known descriptor survives a settings patch.
@@ -279,6 +376,11 @@ impl Store {
         let settings = settings_from(&map);
         let known = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
         for (key, value) in known.as_object().expect("settings is an object") {
+            // Generic settings patches cannot edit local associations. Keep their
+            // original representation, including unknown and rejected entries.
+            if matches!(key.as_str(), "localApps" | "localBindings") && map.contains_key(key) {
+                continue;
+            }
             if key == "sources" {
                 let merged = value
                     .as_array()
