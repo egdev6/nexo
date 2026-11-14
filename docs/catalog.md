@@ -69,9 +69,13 @@ are owned by #9, and install/update execution by #7/#8. Catalog `version` is nev
 ## Loading, cache and trust
 
 The native hub starts with a fixed source configured in
-`apps/hub/src/catalog/loader.ts`. **No official URL is configured yet**: the hub displays an error
-with retry rather than presenting a fixture as official. Browser-only design preview uses labeled
-sample data. The loader fetches on startup and explicit retry with an eight-second timeout, rejects
+`apps/hub/src/catalog/loader.ts`. The official catalog is published from the public repository
+[`egdev6/nexo-catalog`](https://github.com/egdev6/nexo-catalog) on GitHub Pages:
+`https://egdev6.github.io/nexo-catalog/v2/catalog.json` (preferred) and
+`https://egdev6.github.io/nexo-catalog/catalog.json` (v1 fallback). Editing that repository updates every
+install on its next start without a Nexo release, as long as the content stays within a schema version
+the installed hub understands. If both endpoints and caches fail, the hub displays an error with retry
+rather than presenting a fixture as official. Browser-only design preview uses labeled sample data. The loader fetches on startup and explicit retry with an eight-second timeout, rejects
 redirects, checks HTTPS, validates the whole response, and saves only valid data to the version-specific cache in Tauri's app-data directory: `catalog.json` for v1 and
 `catalog-v2.json` for v2. A corrupt cache is ignored. On offline/HTTP/parse/
 validation failure a valid previous cache remains visible with a stale warning; without one the
@@ -79,9 +83,10 @@ error/offline state offers retry. A successful empty catalog shows the empty sta
 failure is surfaced instead of claiming offline persistence. There is no TTL or ETag policy in v1.
 New clients prefer the separately configured v2 endpoint and its cache, falling back to v1 when v2
 is unavailable and has no valid cache. Responses and caches of the wrong version are rejected.
-Both endpoint URLs are currently unconfigured; publishing/configuring either is a separate maintainer
-decision. Never replace the v1 endpoint in place with v2. The webview performs the fetch: the host
-must allow the deployed webview origin via CORS.
+Never replace the v1 endpoint in place with v2. The webview performs the fetch: GitHub Pages answers
+with `Access-Control-Allow-Origin: *` and `Cache-Control: max-age=600`, so changes reach clients within
+about ten minutes. The webview CSP allows fetches and images only from `https://egdev6.github.io`;
+catalog icons are served from the catalog repository for that reason.
 
 HTTPS and validation protect transport and shape, not publisher identity or installer integrity.
 V1 does not add catalog signatures, mandatory installer hashes, keys or rotation. These and
@@ -90,14 +95,14 @@ responsibility. Remote strings are displayed as text; no catalog content is exec
 
 ## Publication and adding an app
 
-1. The recommended hosting decision is a **dedicated public catalog repository** served over HTTPS
-   (for example GitHub Pages). Creating it and publishing are separate maintainer-authorized steps;
-   do not make the private Nexo repository public.
+1. The catalog lives in the **dedicated public repository** `egdev6/nexo-catalog`, served over HTTPS by
+   GitHub Pages; its `Validate catalog` workflow checks both files against the schema. Do not make the
+   private Nexo repository public.
 2. For each inclusion, a maintainer reviews the app and verifies that the repository, installer,
    icon/art, updater endpoint and discovery destinations are intentionally public. Verify all URLs
    anonymously and check CORS and stable hosting; HTTPS alone does not establish public status.
 3. Add an entry to the public allowlist using the fields above, update the catalog under review, run
    schema **and** domain validation and publish only with separate authorization.
-4. After the host and stable URL are established, connect that URL in `OFFICIAL_CATALOG_URL`,
-   narrow the webview CSP to the approved origins, and verify anonymous access, redirects and CORS.
-   The example fixture URLs do not represent published apps or an existing release.
+4. Images and links must stay on origins the webview allows (`https://egdev6.github.io` for icons);
+   adding another origin requires a CSP change and a Nexo release. Verify anonymous access, redirects
+   and CORS after publishing. The example fixture URLs do not represent published apps or an existing release.

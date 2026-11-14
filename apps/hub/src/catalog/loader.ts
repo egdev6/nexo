@@ -2,8 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { isHttpsUrl, parseCatalog, type Catalog } from './format';
 
 // T4: the maintainer sets the stable, reviewed public HTTPS URL after publication.
-export const OFFICIAL_CATALOG_URL: string | undefined = undefined;
-export const OFFICIAL_CATALOG_V2_URL: string | undefined = undefined;
+export const OFFICIAL_CATALOG_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/catalog.json';
+export const OFFICIAL_CATALOG_V2_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/v2/catalog.json';
 export const CATALOG_TIMEOUT_MS = 8000;
 
 export interface CatalogCache { read(): Promise<string | null>; write(text: string): Promise<void> }

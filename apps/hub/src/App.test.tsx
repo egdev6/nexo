@@ -15,6 +15,13 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: vi.fn(() => false),
   invoke: vi.fn().mockResolvedValue(null),
 }));
+// These tests exercise the unconfigured-endpoint and cache paths without network access;
+// fetching from configured endpoints is covered by catalog/loader.test.ts with an injected fetcher.
+vi.mock('./catalog/loader', async importOriginal => ({
+  ...(await importOriginal<typeof import('./catalog/loader')>()),
+  OFFICIAL_CATALOG_URL: undefined,
+  OFFICIAL_CATALOG_V2_URL: undefined,
+}));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('./catalog', () => ({
   CatalogView: ({ apps, state, onRetry }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}{state && <span>Estado catálogo: {state}</span>}{onRetry && <button onClick={onRetry}>Reintentar catálogo</button>}</div>,
