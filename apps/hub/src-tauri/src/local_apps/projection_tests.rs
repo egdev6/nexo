@@ -44,7 +44,10 @@ impl ExecutableFs for FakeFs {
 }
 impl icons::IconFs for FakeFs {
     fn read_icon(&self, _: &str) -> Result<Vec<u8>, String> {
-        Ok(b"\x89PNG\r\n\x1a\n".to_vec())
+        Ok(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\0\0\0\0\x3a\x7e\x9b\x55\0\0\0\rIDAT\x78\x01\x01\x02\0\xfd\xff\0\0\0\x02\0\x01\x7e\x05\x0d\xd2\0\0\0\0IEND\xae\x42\x60\x82".to_vec())
+    }
+    fn read_owned_icon(&self, _: &str) -> Result<Vec<u8>, String> {
+        Err("nexo.local.iconReadFailed".into())
     }
     fn save_icon(&self, _: &[u8], _: &str) -> Result<String, String> {
         Ok("icon-1.png".into())

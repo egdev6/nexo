@@ -238,6 +238,7 @@ pub fn run() {
             local_apps::windows::local_app_remove,
             local_apps::windows::local_app_repair,
             local_apps::windows::local_app_pick_icon,
+            local_apps::windows::local_app_icon,
             local_apps::windows::local_app_open,
             local_apps::windows::local_catalog_set,
             local_apps::windows::local_catalog_refresh,

@@ -6,11 +6,13 @@ use super::{
 use crate::config::LocalBinding;
 use crate::local_catalog::{LocalCatalogReader, LocalCatalogSnapshot, LocalEntryKey, RefreshFence};
 use std::io::{Read, Write};
-use std::os::windows::fs::MetadataExt;
+use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager, WebviewWindow};
 use windows_sys::Win32::{
-    Storage::FileSystem::{FILE_ATTRIBUTE_REPARSE_POINT, GetDriveTypeW},
+    Storage::FileSystem::{
+        FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_OPEN_REPARSE_POINT, GetDriveTypeW,
+    },
     System::WindowsProgramming::DRIVE_FIXED,
     UI::Controls::Dialogs::{
         CommDlgExtendedError, GetOpenFileNameW, OFN_DONTADDTORECENT, OFN_FILEMUSTEXIST,
@@ -226,6 +228,25 @@ impl IconFs for SystemIconFs {
             .map_err(|_| "nexo.local.iconReadFailed")?;
         Ok(bytes)
     }
+    fn read_owned_icon(&self, name: &str) -> Result<Vec<u8>, String> {
+        if !icons::managed_name(name) || self.checked_directory().is_err() {
+            return Err("nexo.local.iconReadFailed".into());
+        }
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(self.directory.join(name))
+            .map_err(|_| "nexo.local.iconReadFailed")?;
+        let metadata = file.metadata().map_err(|_| "nexo.local.iconReadFailed")?;
+        if !metadata.is_file() || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return Err("nexo.local.iconReadFailed".into());
+        }
+        let mut bytes = Vec::new();
+        file.take((MAX_ICON_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "nexo.local.iconReadFailed")?;
+        Ok(bytes)
+    }
     fn save_icon(&self, bytes: &[u8], extension: &str) -> Result<String, String> {
         std::fs::create_dir_all(&self.directory).map_err(|_| "nexo.local.iconWriteFailed")?;
         self.checked_directory()?;
@@ -396,6 +417,22 @@ pub(crate) async fn local_app_pick_icon(
         let fs = SystemIconFs::new(&app)?;
         crate::config::with_locked_store(&app, &window, |store| {
             icons::pick_icon(store, &fs, &SelectedIconPath(path), &id)
+        })
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn local_app_icon(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let fs = SystemIconFs::new(&app)?;
+        crate::config::with_locked_store(&app, &window, |store| {
+            Ok(icons::icon_data(store, &fs, &id))
         })
     })
     .await
@@ -621,6 +658,8 @@ mod tests {
         );
         let name = fs.save_icon(b"copied", "png").unwrap();
         assert_eq!(std::fs::read(fs.directory.join(&name)).unwrap(), b"copied");
+        assert_eq!(fs.read_owned_icon(&name).unwrap(), b"copied");
+        assert!(fs.read_owned_icon("../source.png").is_err());
         assert_eq!(
             fs.owned_path(&name),
             fs.directory.join(&name).to_str().map(str::to_owned)
