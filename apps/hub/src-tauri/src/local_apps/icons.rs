@@ -75,7 +75,7 @@ fn selected_file(fs: &impl ExecutableFs, path: &str) -> Result<(String, &'static
     Ok((path, extension))
 }
 
-fn managed_name(name: &str) -> bool {
+pub(super) fn managed_name(name: &str) -> bool {
     let Some((stem, extension)) = name.rsplit_once('.') else {
         return false;
     };

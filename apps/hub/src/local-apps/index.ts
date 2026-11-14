@@ -4,6 +4,33 @@ export type LocalAppErrorCode = 'nexo.local.missing' | 'nexo.local.notExecutable
 export interface LocalApp { id: string; name: string; executable: string; icon: string | null }
 export interface LocalAppSelection { app: LocalApp; duplicate: boolean }
 
+export type LocalAppState = 'ready' | 'missingExecutable' | 'unbound';
+export type LocalAppOrigin =
+  | { kind: 'manual'; id: string }
+  | { kind: 'catalog'; sourceId: string; sourceLabel: string; appId: string };
+export interface LocalAppRow {
+  /** A stable, namespaced presentation ID, not a launch argument. */
+  id: string;
+  source: 'local';
+  name: string;
+  state: LocalAppState;
+  origin: LocalAppOrigin;
+  /** Owned local file path; it grants no frontend filesystem access. */
+  iconPath?: string;
+  /** Official ID or another namespaced local ID. */
+  duplicateOf?: string;
+  tagline?: string;
+  description?: string;
+  tags?: string[];
+}
+
+/** Read only local rows; use origin to call the existing ID/key-only launch commands. */
+export async function listLocalApps(): Promise<LocalAppRow[]> {
+  const rows = await invoke<LocalAppRow[]>('local_apps_list');
+  if (!Array.isArray(rows)) throw new Error('nexo.local.invalidList');
+  return rows;
+}
+
 // Only native pickers can select executables; callers pass opaque IDs, never paths.
 export function addLocalApp(): Promise<LocalAppSelection | null> { return invoke('local_app_add'); }
 export function updateLocalApp(id: string, name: string): Promise<LocalAppSelection> { return invoke('local_app_update', { id, name }); }

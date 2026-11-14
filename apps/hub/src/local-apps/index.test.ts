@@ -1,9 +1,21 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { addLocalApp, openLocalApp, pickLocalAppIcon, removeLocalApp, repairLocalApp, updateLocalApp, type LocalAppErrorCode } from './index';
+import { addLocalApp, listLocalApps, openLocalApp, pickLocalAppIcon, removeLocalApp, repairLocalApp, updateLocalApp, type LocalAppErrorCode, type LocalAppRow } from './index';
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke }));
 beforeEach(() => { invoke.mockReset(); });
+
+it('lists local rows without sending paths and rejects a malformed native response', async () => {
+  const rows = [
+    { id: 'local:manual:31', source: 'local', name: 'App', state: 'ready', origin: { kind: 'manual', id: '1' }, iconPath: 'C:\\Nexo\\icon-1.png', duplicateOf: 'official-app' },
+    { id: 'local:catalog:31:32', source: 'local', name: 'Catalog app', state: 'unbound', origin: { kind: 'catalog', sourceId: '1', sourceLabel: 'Work', appId: '2' }, tagline: 'Tag', description: 'Description', tags: [] },
+    { id: 'local:manual:32', source: 'local', name: 'Missing', state: 'missingExecutable', origin: { kind: 'manual', id: '2' } },
+  ] satisfies LocalAppRow[];
+  invoke.mockResolvedValueOnce(rows).mockResolvedValueOnce({});
+  expect(await listLocalApps()).toEqual(rows);
+  await expect(listLocalApps()).rejects.toThrow('nexo.local.invalidList');
+  expect(invoke.mock.calls).toEqual([['local_apps_list'], ['local_apps_list']]);
+});
 
 it('adds through the native picker without sending a path, preserving cancel and duplicate warning', async () => {
   invoke.mockResolvedValueOnce(null).mockResolvedValueOnce({ app: { id: 'manual', name: 'App', executable: 'C:\\App.exe', icon: null }, duplicate: true });

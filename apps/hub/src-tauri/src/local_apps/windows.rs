@@ -188,6 +188,16 @@ impl SystemIconFs {
                 .join("local-icons"),
         })
     }
+    // A path is informational only; it grants no frontend filesystem access.
+    fn owned_path(&self, name: &str) -> Option<String> {
+        if !icons::managed_name(name) || self.checked_directory().is_err() {
+            return None;
+        }
+        let path = self.directory.join(name);
+        let text = path.to_str()?;
+        (SystemFs.inspect(text) == Ok(FileKind::File)).then(|| text.to_owned())
+    }
+
     fn checked_directory(&self) -> Result<(), String> {
         let path = self
             .directory
@@ -281,6 +291,26 @@ fn selected_path(window: &WebviewWindow) -> Result<Option<String>, String> {
     }
     let owner = window.hwnd().map_err(|_| "nexo.local.dialogFailed")?.0 as isize;
     SystemPicker(owner).pick_executable()
+}
+
+#[tauri::command]
+pub(crate) async fn local_apps_list(
+    app: AppHandle,
+    window: WebviewWindow,
+) -> Result<Vec<super::projection::LocalRow>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = crate::config::store(&app, &window)?;
+        let lock = app.state::<crate::config::ConfigLock>();
+        let fence = app.state::<RefreshFence>();
+        let hub = app.state::<crate::ipc::Hub>();
+        let official = crate::apps::duplicate_candidates(app.clone(), &hub);
+        let icons = SystemIconFs::new(&app).ok();
+        super::projection::list(&store, &lock, &SystemFs, &fence, &official, &|name| {
+            icons.as_ref().and_then(|fs| fs.owned_path(name))
+        })
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
 }
 
 #[tauri::command]
@@ -591,7 +621,13 @@ mod tests {
         );
         let name = fs.save_icon(b"copied", "png").unwrap();
         assert_eq!(std::fs::read(fs.directory.join(&name)).unwrap(), b"copied");
+        assert_eq!(
+            fs.owned_path(&name),
+            fs.directory.join(&name).to_str().map(str::to_owned)
+        );
+        assert_eq!(fs.owned_path("../selected.png"), None);
         fs.delete_icon(&name).unwrap();
+        assert_eq!(fs.owned_path(&name), None);
         assert!(!fs.directory.join(name).exists());
         assert_eq!(std::fs::read(source).unwrap(), bytes);
     }

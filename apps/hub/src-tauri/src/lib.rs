@@ -232,6 +232,7 @@ pub fn run() {
             apps::installed_apps,
             apps::open_official_app,
             apps::close_connected_app,
+            local_apps::windows::local_apps_list,
             local_apps::windows::local_app_add,
             local_apps::windows::local_app_update,
             local_apps::windows::local_app_remove,

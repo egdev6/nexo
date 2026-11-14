@@ -244,6 +244,7 @@ fn open(
 
 mod catalog;
 mod icons;
+pub(crate) mod projection;
 
 #[cfg(windows)]
 pub(crate) mod windows;
