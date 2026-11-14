@@ -2163,6 +2163,7 @@ dependencies = [
  "tauri-plugin-nexo",
  "tauri-plugin-single-instance",
  "tokio",
+ "url",
  "window-vibrancy",
  "windows-sys 0.61.2",
  "winreg",

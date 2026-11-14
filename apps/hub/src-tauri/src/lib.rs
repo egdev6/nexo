@@ -3,6 +3,7 @@ mod apps;
 mod catalog_cache;
 mod config;
 mod i18n;
+pub mod install_download;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;
