@@ -51,6 +51,12 @@ pub struct Selection {
 }
 
 impl FreshCatalog {
+    /// The complete fresh catalog is needed to preserve shared-match detection semantics.
+    #[cfg(any(windows, test))]
+    pub(crate) fn catalog(&self) -> &Catalog {
+        &self.catalog
+    }
+
     /// Select by official ID only. Validated v3 entries without keys remain display-only.
     pub fn select(&self, id: &str) -> Result<Selection, SelectionError> {
         let app = self
