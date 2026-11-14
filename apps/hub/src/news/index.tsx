@@ -3,6 +3,7 @@ import { Badge, Button, Carousel, Checkbox, Icon, IconButton } from '@egdev/ui';
 import type { NewsPopupProps } from '../model';
 import { formatNumber, t } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
+import nexoLogo from '../../src-tauri/app-icon.svg';
 import './news.css';
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -80,7 +81,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   return <div className="news-overlay" ref={layerRef}>
     <div className="news-scrim" aria-hidden="true" />
     <section className="news-dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-      <header className="news-header"><span className="news-mark" aria-hidden="true">N</span><h2 id={titleId}>{t(locale, 'news.title')}</h2>
+      <header className="news-header"><img className="news-mark" src={nexoLogo} alt="" /><h2 id={titleId}>{t(locale, 'news.title')}</h2>
         <IconButton ref={closeRef} type="button" label={t(locale, 'news.close')} title={t(locale, 'news.close')} variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
       </header>
       {stale && <p role="status">{t(locale, 'catalog.stale')}</p>}

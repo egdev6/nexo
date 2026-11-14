@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
+import nexoLogo from '../src-tauri/app-icon.svg';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { CatalogViewProps, FirstRunProps, NewsPopupProps, SettingsViewProps } from './model';
 import { backdropAvailable, hideFlyout } from './window';
@@ -77,6 +78,16 @@ function closeNews() {
   const close = screen.queryByRole('button', { name: 'Cerrar novedades' });
   if (close) fireEvent.click(close);
 }
+
+it('renders the Nexo logo in the flyout header without changing its controls', () => {
+  render(<App news={[]} />);
+  const heading = screen.getByRole('heading', { name: 'Nexo' });
+  const header = heading.closest('header')!;
+  const mark = header.querySelector('img');
+  expect(mark?.getAttribute('src')).toBe(nexoLogo);
+  expect(mark?.getAttribute('alt')).toBe('');
+  expect(within(header).getByRole('button', { name: 'Cerrar panel' })).toBeTruthy();
+});
 
 it('loads the native catalog without treating samples or unknown installation as real', async () => {
   vi.mocked(isTauri).mockReturnValue(true);

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "chosen": "05-panel.html",
+  "handoffs": {
+    "05-panel.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-14T17:22:36.228Z",
+      "startedAt": "2026-11-14T17:22:47.431Z",
+      "implementedAt": null,
+      "note": "#26 fase 2: SVG fuente, iconos de app con tauri icon, variantes de bandeja clara/oscura y aplicación en hub."
+    }
+  }
+}

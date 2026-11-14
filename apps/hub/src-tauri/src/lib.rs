@@ -12,6 +12,7 @@ mod registry_presentation;
 mod runtime;
 #[cfg(any(windows, test))]
 mod tray;
+mod tray_icon;
 
 use position::{WorkArea, flyout_bounds};
 use std::sync::{
@@ -284,12 +285,8 @@ pub fn run() {
             let quit =
                 MenuItem::with_id(app, "quit", i18n::text(locale, "quit"), true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
-            let icon = app.default_window_icon().cloned().ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "missing Nexo icon")
-            })?;
-
             TrayIconBuilder::with_id("nexo")
-                .icon(icon)
+                .icon(tray_icon::icon())
                 .tooltip("Nexo")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
