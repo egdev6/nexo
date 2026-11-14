@@ -4,22 +4,43 @@
   "artboards": [
     {
       "file": "01-nodos-enlace.html",
-      "title": "Nodos de enlace",
+      "title": "Descartada: Nodos de enlace",
       "tradeoff": "N reconocible y conexión explícita; la diagonal requiere adaptación a 16 px y un carácter más técnico.",
       "width": 1440,
       "height": 900
     },
     {
       "file": "02-nucleo.html",
-      "title": "Núcleo",
+      "title": "Descartada: Núcleo",
       "tradeoff": "Centralita directa y geométrica; es menos propia del nombre y puede recordar a una cruceta en pequeño.",
       "width": 1440,
       "height": 900
     },
     {
       "file": "03-puente.html",
-      "title": "Puente",
+      "title": "Descartada: Puente",
       "tradeoff": "Trazado compacto construido para 16 px; es más austero y puede leerse como una H.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "04-n-centro.html",
+      "title": "N · todo dentro",
+      "tradeoff": "Monograma reconocible y aplicaciones reunidas; los módulos internos se simplifican para la bandeja.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "05-panel.html",
+      "title": "Panel · un solo lugar",
+      "tradeoff": "El tablero de aplicaciones es inmediato; puede parecer un icono genérico de cuadrícula.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "06-mando.html",
+      "title": "Mando · centro conectado",
+      "tradeoff": "Centro de control táctil y compacto; los puntos periféricos necesitan simplificación a 16 px.",
       "width": 1440,
       "height": 900
     }

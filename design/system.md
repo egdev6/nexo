@@ -21,6 +21,8 @@ Sincronización de lectura de EGDEV Foundation, commit `247752f`. Es una selecci
 | `--color-border-control` | `var(--color-primitive-graphite-500)` | Contorno de controles · `#7A7B81` | `packages/tokens/src/theme.css` |
 | `--color-border-hairline` | `rgba(255, 255, 255, 0.08)` | Borde decorativo de superficie | `packages/tokens/src/theme.css` |
 | `--color-border-hairline-strong` | `rgba(255, 255, 255, 0.14)` | Borde de overlay | `packages/tokens/src/theme.css` |
+| `--logo-red` | `#E91B35` | logo face | `egdev-design-system/packages/tokens/src/theme.css:419-421` |
+| `--logo-red-shade` | `#800C1D` | logo shade (depth) | `egdev-design-system/packages/tokens/src/theme.css:419-421` |
 | `--color-primitive-red-neon` | `#FF0036` | Marca, relleno, foco | `packages/tokens/src/theme.css` |
 | `--color-primitive-red-dark` | `#CC002B` | Borde de acción | `packages/tokens/src/theme.css` |
 | `--color-primitive-red-light` | `#FF335E` | Hover de marca | `packages/tokens/src/theme.css` |
