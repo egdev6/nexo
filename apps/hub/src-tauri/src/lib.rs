@@ -6,6 +6,11 @@ mod i18n;
 pub mod install_download;
 pub mod install_feed;
 pub mod install_http;
+#[cfg(any(windows, test))]
+#[allow(dead_code)] // The install command will wire this staged launcher.
+mod install_launcher;
+#[cfg(test)]
+mod install_launcher_tests;
 pub mod install_signature;
 #[cfg(test)]
 mod install_signature_tests;

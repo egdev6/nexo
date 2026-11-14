@@ -5,6 +5,7 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::install_download::{
     self, Artifact, Limits, Network, Progress, StorageError, Workspace, WorkspaceFactory,
@@ -261,6 +262,11 @@ impl Drop for PrivateWorkspace {
 /// ```
 #[derive(Debug)]
 pub struct VerifiedInstaller {
+    inner: Arc<VerifiedInstallerInner>,
+}
+
+#[derive(Debug)]
+struct VerifiedInstallerInner {
     path: PathBuf,
     file: Option<File>,
     workspace: Option<PrivateWorkspace>,
@@ -269,11 +275,19 @@ pub struct VerifiedInstaller {
 impl VerifiedInstaller {
     /// This path remains protected only while this value is alive.
     pub fn executable_path(&self) -> &Path {
-        &self.path
+        &self.inner.path
+    }
+
+    // Only the native launcher may retain a verified handle beyond the caller's lifetime.
+    #[cfg(any(windows, test))]
+    pub(crate) fn retain_for_process(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }
 
-impl Drop for VerifiedInstaller {
+impl Drop for VerifiedInstallerInner {
     fn drop(&mut self) {
         self.file.take();
         self.workspace.take();
@@ -311,9 +325,11 @@ pub async fn download_verified<N: Network>(
     })();
     match verified {
         Ok(file) => Ok(VerifiedInstaller {
-            path: workspace.path.join(INSTALLER),
-            file: Some(file),
-            workspace: Some(workspace),
+            inner: Arc::new(VerifiedInstallerInner {
+                path: workspace.path.join(INSTALLER),
+                file: Some(file),
+                workspace: Some(workspace),
+            }),
         }),
         Err(cause) => Err(PrepareError {
             cause,

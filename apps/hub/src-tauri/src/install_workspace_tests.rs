@@ -19,9 +19,9 @@ const KEY: &str = include_str!("../tests/fixtures/tauri-test.pub");
 const SIGNATURE: &str = include_str!("../tests/fixtures/tauri-test.sig.txt");
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
-struct Scratch(PathBuf);
+pub(super) struct Scratch(PathBuf);
 impl Scratch {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let path = std::env::temp_dir().join(format!(
             "nexo-workspace-test-{}-{}",
             std::process::id(),
@@ -30,10 +30,10 @@ impl Scratch {
         fs::create_dir(&path).unwrap();
         Self(path)
     }
-    fn factory(&self) -> PrivateFactory {
+    pub(super) fn factory(&self) -> PrivateFactory {
         PrivateFactory::in_directory(self.0.clone())
     }
-    fn workspaces(&self) -> Vec<PathBuf> {
+    pub(super) fn workspaces(&self) -> Vec<PathBuf> {
         fs::read_dir(&self.0)
             .unwrap()
             .map(|entry| entry.unwrap().path())
@@ -53,7 +53,7 @@ impl Drop for Scratch {
     }
 }
 
-fn app() -> nexo_catalog::CatalogApp {
+pub(super) fn app() -> nexo_catalog::CatalogApp {
     let mut value: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../crates/nexo-catalog/fixtures/minimal.json"
     ))
@@ -69,13 +69,13 @@ fn app() -> nexo_catalog::CatalogApp {
         .remove(0)
 }
 
-struct FakeBody(Option<Vec<u8>>);
+pub(super) struct FakeBody(Option<Vec<u8>>);
 impl Body for FakeBody {
     async fn next(&mut self) -> Result<Option<Vec<u8>>, NetworkError> {
         Ok(self.0.take().filter(|chunk| !chunk.is_empty()))
     }
 }
-struct FakeNetwork {
+pub(super) struct FakeNetwork {
     replies: Mutex<VecDeque<Vec<u8>>>,
     requests: Mutex<Vec<String>>,
     tamper_root: Option<PathBuf>,
@@ -88,7 +88,7 @@ impl FakeNetwork {
             tamper_root: None,
         }
     }
-    fn valid() -> Self {
+    pub(super) fn valid() -> Self {
         Self::new(b"test", STANDARD.encode(SIGNATURE).as_bytes())
     }
     fn requests(&self) -> Vec<String> {
@@ -132,7 +132,7 @@ impl Network for FakeNetwork {
     }
 }
 
-async fn prepare(
+pub(super) async fn prepare(
     network: &FakeNetwork,
     factory: &PrivateFactory,
     app: &nexo_catalog::CatalogApp,
