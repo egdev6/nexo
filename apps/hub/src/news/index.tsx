@@ -7,7 +7,7 @@ import './news.css';
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopupProps, 'open'>) {
+function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatalog, stale }: Omit<NewsPopupProps, 'open'>) {
   const locale = useLocale();
   const messages = {
     previousSlide: t(locale, 'news.previous'), nextSlide: t(locale, 'news.next'),
@@ -16,6 +16,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopup
     position: (current: number, total: number, label: string) => t(locale, 'news.position', { current: formatNumber(locale, current), total: formatNumber(locale, total), label }),
   };
   const [selected, setSelected] = useState(items[0]?.id);
+  const [viewed, setViewed] = useState(() => new Set(items[0] ? [items[0].id] : []));
   const current = items.find(item => item.id === selected) ?? items[0];
   const cta = current?.cta === t('es', 'news.viewCatalog') ? t(locale, 'news.viewCatalog') : current?.cta;
   const titleId = useId();
@@ -24,7 +25,13 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopup
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
+  const onShownRef = useRef(onShown);
   onCloseRef.current = onClose;
+  onShownRef.current = onShown;
+
+  useLayoutEffect(() => {
+    if (current) onShownRef.current?.(current);
+  }, [current?.id]);
 
   // DialogContent is body-portalled; this modal must stay inside the positioned panel.
   useLayoutEffect(() => {
@@ -76,16 +83,21 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange }: Omit<NewsPopup
       <header className="news-header"><span className="news-mark" aria-hidden="true">N</span><h2 id={titleId}>{t(locale, 'news.title')}</h2>
         <IconButton ref={closeRef} type="button" label={t(locale, 'news.close')} title={t(locale, 'news.close')} variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
       </header>
+      {stale && <p role="status">{t(locale, 'catalog.stale')}</p>}
       <div className="news-carousel">
-        <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id} onValueChange={setSelected}
+        <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id} onValueChange={value => {
+          setSelected(value);
+          setViewed(previous => new Set(previous).add(value));
+        }}
           items={items.map(item => ({ value: item.id, label: item.title, children: <article className="news-slide">
             <div className="news-hero" aria-hidden="true"><div className="news-hero-window"><span>{item.title.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div></div>
-            <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge><h3>{item.title}</h3><p>{item.text}</p>
+            <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge> {!viewed.has(item.id) && <Badge tone="brand">{t(locale, 'news.unseen')}</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
           </article> }))} />
       </div>
       {current && <div className="news-action"><Button type="button" size="sm" variant="primary" data-app-id={current.appId}
-        aria-label={t(locale, 'news.sampleCta', { cta: cta ?? '', title: current.title })} title={t(locale, 'news.sampleAction')}>{cta}</Button>
-        <span>{t(locale, 'news.sampleAction')}</span></div>}
+        aria-label={t(locale, onCatalog ? 'news.catalogCta' : 'news.sampleCta', { cta: cta ?? '', title: current.title })} title={onCatalog ? undefined : t(locale, 'news.sampleAction')}
+        onClick={() => onCatalog?.(current.appId)}>{cta}</Button>
+        {!onCatalog && <span>{t(locale, 'news.sampleAction')}</span>}</div>}
       <div className="news-preference"><Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
         <label htmlFor={checkboxId}>{t(locale, 'news.dontShow')}</label></div>
     </section>

@@ -237,12 +237,17 @@ it('localizes catalog-generated news chrome but keeps source content unchanged',
   saved = { ...saved, language: 'en', firstRunComplete: true, showNewsOnOpen: true };
   const catalog = { schemaVersion: 1 as const, apps: [{ id: 'outside', name: 'Exterior', tagline: 'Texto original', description: 'Descripción original', tags: [], installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch' as const, releasedAt: '2025-01-01T00:00:00Z', featured: false, news: [{ id: 'news', kind: 'new' as const, title: 'Título original', text: 'Noticia original', publishedAt: '2025-01-01T00:00:00Z' }] }] };
   const projection = projectCatalog(catalog);
+  const normal = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
+    if (command === 'get_flyout_state') return { visible: true, sequence: 1, cycle: 1, at: '2026-05-31T12:00:00Z' };
+    return normal(command, args);
+  });
   render(<App apps={projection.apps} news={projection.news} />);
   const dialog = await screen.findByRole('dialog', { name: 'News on opening' });
   expect(within(dialog).getByText('New')).toBeTruthy();
   expect(within(dialog).getByText('Título original')).toBeTruthy();
   expect(within(dialog).getByText('Noticia original')).toBeTruthy();
-  expect(within(dialog).getByRole('button', { name: 'View in catalog: Título original · sample' })).toBeTruthy();
+  expect(within(dialog).getByRole('button', { name: 'View in catalog: Título original' })).toBeTruthy();
 });
 
 it('serializes rapid opposing language choices and an unrelated change without flashing an older locale', async () => {

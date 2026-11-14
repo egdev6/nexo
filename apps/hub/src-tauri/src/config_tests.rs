@@ -145,6 +145,7 @@ fn patches_round_trip_onboarding_appearance_news_and_ordered_sources() {
             blur: Some(40),
             first_run_complete: Some(true),
             sources: Some(sources.clone()),
+            ..Default::default()
         })
         .unwrap();
     let reloaded = Store::new(f.path()).read();
@@ -318,6 +319,61 @@ fn synthetic_v0_migrates_on_save_without_losing_valid_values() {
         .unwrap();
     assert!(s.compact);
     assert_eq!(s.opacity, 42);
-    assert!(f.raw().contains("\"version\": 1"));
+    assert!(f.raw().contains("\"version\": 2"));
     assert!(f.raw().contains("unknown"));
+}
+
+#[test]
+fn v1_migrates_without_a_news_visit_and_preserves_existing_settings() {
+    let f = Fixture::new();
+    f.write(r##"{"version":1,"language":"en","showNewsOnOpen":false,"accent":"#123456","compact":true,"firstRunComplete":true,"unknown":42,"newsVisit":{"lastVisitAt":"2026-05-31T12:00:00Z","seenKeys":["a:old"]}}"##);
+    let initial = f.store.read();
+    assert_eq!(initial.state, FileState::Ready);
+    let json = serde_json::to_value(&initial.settings).unwrap();
+    assert!(json["newsVisit"].is_null());
+    let saved = f.store.patch(Patch::default()).unwrap();
+    assert_eq!(saved.language, "en");
+    assert!(!saved.show_news_on_open);
+    assert_eq!(saved.accent, "#123456");
+    assert!(serde_json::to_value(&saved).unwrap()["newsVisit"].is_null());
+    assert!(saved.compact && saved.first_run_complete);
+    assert!(f.raw().contains("\"version\": 2"));
+    assert!(f.raw().contains("unknown"));
+}
+
+#[test]
+fn news_visit_round_trips_and_partial_settings_patches_preserve_it() {
+    let f = Fixture::new();
+    let patch: Patch = serde_json::from_value(serde_json::json!({"newsVisit": {
+        "lastVisitAt": "2026-05-31T12:00:00Z", "seenKeys": ["a:one", "n:one:release"]
+    }}))
+    .unwrap();
+    f.store.patch(patch).unwrap();
+    f.store
+        .patch(Patch {
+            compact: Some(true),
+            ..Default::default()
+        })
+        .unwrap();
+    let reloaded = Store::new(f.path()).read();
+    assert_eq!(reloaded.state, FileState::Ready);
+    let json = serde_json::to_value(reloaded.settings).unwrap();
+    assert_eq!(
+        json["newsVisit"],
+        serde_json::json!({
+            "lastVisitAt": "2026-05-31T12:00:00Z", "seenKeys": ["a:one", "n:one:release"]
+        })
+    );
+    assert_eq!(json["compact"], true);
+}
+
+#[test]
+fn malformed_news_visit_is_tolerated_without_resetting_other_fields() {
+    let f = Fixture::new();
+    f.write(r#"{"version":2,"language":"en","newsVisit":{"lastVisitAt":5,"seenKeys":["a:one"]}}"#);
+    let snapshot = f.store.read();
+    assert_eq!(snapshot.state, FileState::Ready);
+    let json = serde_json::to_value(snapshot.settings).unwrap();
+    assert_eq!(json["language"], "en");
+    assert!(json["newsVisit"].is_null());
 }

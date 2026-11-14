@@ -1,7 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useEffect, useRef, useState } from 'react';
-import type { AutostartViewState, Language, StoredSettings } from '../model';
+import type { AutostartViewState, Language, NewsVisit, StoredSettings } from '../model';
 import { t, type MessageKey } from '../i18n';
 import { defaultSettings } from '../sample';
 
@@ -40,6 +40,8 @@ export function useSettings() {
   const startupRef = useRef(startup);
   const desiredStartup = useRef<boolean | null>(null);
   const pending = useRef<Patch>({});
+  // A queued visit is not exposed as persisted until Rust confirms the write.
+  const desiredVisit = useRef<NewsVisit | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const running = useRef<Promise<boolean> | null>(null);
   const mounted = useRef(true);
@@ -82,7 +84,8 @@ export function useSettings() {
           const saved = await invoke<StoredSettings>('save_settings', { patch });
           if (patch.language !== undefined) savedLanguage = true;
           confirmed.current = saved;
-          const next = { ...saved, ...pending.current };
+          if (!Object.hasOwn(pending.current, 'newsVisit')) desiredVisit.current = saved.newsVisit ?? null;
+          const next = { ...saved, ...pending.current, newsVisit: saved.newsVisit };
           // A later language choice must not be replaced by an older result.
           if (pending.current.language !== undefined && current.current) next.language = current.current.language;
           if (pending.current.firstRunComplete !== undefined && current.current) next.firstRunComplete = current.current.firstRunComplete;
@@ -121,11 +124,24 @@ export function useSettings() {
     else timer.current = setTimeout(() => { void flush(); }, 200);
   }
 
+  function recordVisit(at: string, keys: string[], validKeys?: ReadonlySet<string>) {
+    if (!current.current) return;
+    const previous = desiredVisit.current;
+    const retained = (previous?.seenKeys ?? []).filter(key => !validKeys || validKeys.has(key));
+    const seenKeys = Array.from(new Set([...retained, ...keys]));
+    const lastVisitAt = previous && Date.parse(previous.lastVisitAt) > Date.parse(at) ? previous.lastVisitAt : at;
+    if (previous && previous.lastVisitAt === lastVisitAt && previous.seenKeys.length === seenKeys.length && previous.seenKeys.every((key, index) => key === seenKeys[index])) return;
+    const visit = { lastVisitAt, seenKeys };
+    desiredVisit.current = visit;
+    change({ newsVisit: visit }, true, false);
+  }
+
   async function load() {
     try {
       const snapshot = await invoke<Snapshot>('get_settings');
       if (!mounted.current) return;
       confirmed.current = snapshot.settings;
+      desiredVisit.current = snapshot.settings.newsVisit ?? null;
       updateCurrent(snapshot.settings);
       setFileState(snapshot.state);
       setError(null);
@@ -137,7 +153,9 @@ export function useSettings() {
   async function recover() {
     try {
       const saved = await invoke<StoredSettings>('recover_settings');
-      confirmed.current = saved; updateCurrent(saved); setFileState('ready'); setError(null);
+      confirmed.current = saved;
+      desiredVisit.current = saved.newsVisit ?? null;
+      updateCurrent(saved); setFileState('ready'); setError(null);
     } catch (failure) { setError(configFailure('settings.recoverError', failure)); }
   }
 
@@ -209,7 +227,8 @@ export function useSettings() {
   const startupError = startup.error ? t(settings?.language ?? 'es', startup.error.key, { error: startup.error.detail ?? '' }) : null;
   const autostart: AutostartViewState = { ...startup, error: startupError, change: value => { void changeStartup(value); }, retry: retryStartup };
   return {
-    settings, fileState, error, autostart, change, languageDraft, nativeError,
+    settings, fileState, error, autostart, change, languageDraft, nativeError, recordVisit,
+    getVisit: () => desiredVisit.current,
     previewChoice: (language: Language) => { onboardingPreview.current = language; },
     choose: (language: Language) => { onboardingPreview.current = language; change({ language, firstRunComplete: true }, true, false); },
     retryNative: () => { void refreshNative(); },

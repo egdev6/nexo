@@ -94,6 +94,7 @@ it('keeps settings, live IPC and late-arriving catalog news together', async () 
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'read_catalog_cache') return cache;
+    if (command === 'get_flyout_state') return Promise.resolve({ visible: true, sequence: 1, cycle: 1, at: Date.now() });
     if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
     return Promise.resolve(null);
   }) as typeof invoke);
@@ -103,7 +104,8 @@ it('keeps settings, live IPC and late-arriving catalog news together', async () 
   expect(await screen.findByText('App conectada')).toBeTruthy();
   expect(screen.getByRole('main').style.getPropertyValue('--hub-accent')).toBe('#123456');
   expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
-  await act(async () => { resolveCache(JSON.stringify({ schemaVersion: 1, apps: [{ id: 'minimal', name: 'Minimal', tagline: 'Prueba', description: 'Una app', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt: '2025-01-01T00:00:00Z', featured: false, news: [{ id: 'release', title: 'Novedad de catálogo', text: 'Disponible', publishedAt: '2025-01-01T00:00:00Z', kind: 'new' }] }] })); });
+  const now = new Date().toISOString();
+  await act(async () => { resolveCache(JSON.stringify({ schemaVersion: 1, apps: [{ id: 'minimal', name: 'Minimal', tagline: 'Prueba', description: 'Una app', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt: now, featured: false, news: [{ id: 'release', title: 'Novedad de catálogo', text: 'Disponible', publishedAt: now, kind: 'new' }] }] })); });
   expect(await screen.findByRole('dialog', { name: 'Novedades' })).toBeTruthy();
   expect(screen.getByText('Novedad de catálogo')).toBeTruthy();
   closeNews();
@@ -209,7 +211,7 @@ it('shows sample news in the panel on opening and honours the opt-out on reopeni
   fireEvent.click(screen.getByRole('button', { name: 'Alternar novedades' }));
   fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
   fireEvent.focus(window);
-  expect(screen.getByRole('dialog', { name: 'Novedades' })).toBeTruthy();
+  expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
 });
 
 it('does not open news when the list is empty', () => {

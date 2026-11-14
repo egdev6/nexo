@@ -16,7 +16,7 @@ use std::sync::{
     Mutex,
     atomic::{AtomicBool, Ordering},
 };
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
@@ -58,6 +58,73 @@ fn apply_saved_language(app: AppHandle, window: WebviewWindow) -> Result<(), Str
     }
 }
 
+#[derive(Clone, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FlyoutVisibility {
+    visible: bool,
+    sequence: u64,
+    cycle: u64,
+    at: u64,
+    shown_at: u64,
+}
+
+#[derive(Default)]
+struct VisibilityState(Mutex<FlyoutVisibility>);
+
+fn record_visibility(app: &AppHandle, visible: bool) {
+    let state = app.state::<VisibilityState>();
+    let Ok(mut current) = state.0.lock() else {
+        return;
+    };
+    if current.visible == visible {
+        return;
+    }
+    current.visible = visible;
+    current.sequence += 1;
+    if visible {
+        current.cycle += 1;
+    }
+    current.at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
+    if visible {
+        current.shown_at = current.at;
+    }
+    let snapshot = current.clone();
+    drop(current);
+    if let Err(error) = app.emit_to("main", "flyout-visibility", snapshot) {
+        eprintln!("could not send flyout visibility: {error}");
+    }
+}
+
+#[tauri::command]
+fn get_flyout_state(state: State<'_, VisibilityState>) -> Result<FlyoutVisibility, String> {
+    state
+        .0
+        .lock()
+        .map(|value| value.clone())
+        .map_err(|error| error.to_string())
+}
+
+fn hide_window(window: &WebviewWindow) -> tauri::Result<()> {
+    if window.is_visible()? {
+        window.hide()?;
+        record_visibility(window.app_handle(), false);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_flyout(window: WebviewWindow) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    hide_window(&window).map_err(|error| error.to_string())
+}
+
 #[derive(Default)]
 struct FocusState {
     pointer_over_tray: AtomicBool,
@@ -92,8 +159,11 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
         if let Ok(mut lost) = app.state::<FocusState>().tray_focus_loss.lock() {
             *lost = None;
         }
-        place_flyout(&window)?;
-        window.show()?;
+        if !window.is_visible()? {
+            place_flyout(&window)?;
+            window.show()?;
+            record_visibility(app, true);
+        }
         window.set_focus()?;
     }
     Ok(())
@@ -102,7 +172,7 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
 fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible()? {
-            window.hide()?;
+            hide_window(&window)?;
         } else {
             // Clicking the tray can first defocus and hide the flyout. Do not
             // interpret that same click as a request to reopen it.
@@ -126,6 +196,7 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(FocusState::default())
+        .manage(VisibilityState::default())
         .manage(BackdropState::default())
         .manage(config::ConfigLock::default())
         .manage(i18n::Presentation::default())
@@ -140,6 +211,8 @@ pub fn run() {
         .manage(runtime::Routes::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
+            get_flyout_state,
+            hide_flyout,
             catalog_cache::read_catalog_cache,
             catalog_cache::write_catalog_cache,
             config::get_settings,
@@ -153,6 +226,8 @@ pub fn run() {
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
+        get_flyout_state,
+        hide_flyout,
         catalog_cache::read_catalog_cache,
         catalog_cache::write_catalog_cache,
         config::get_settings,
@@ -179,8 +254,9 @@ pub fn run() {
                         .load(Ordering::Relaxed)
                         .then(Instant::now);
                 }
-                if let Err(error) = window.hide() {
-                    eprintln!("could not hide Nexo: {error}");
+                match window.hide() {
+                    Ok(()) => record_visibility(window.app_handle(), false),
+                    Err(error) => eprintln!("could not hide Nexo: {error}"),
                 }
             }
         })

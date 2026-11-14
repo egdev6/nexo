@@ -1,13 +1,16 @@
+import { useEffect, useRef } from 'react';
 import { Badge, Button, Icon, IconButton } from '@egdev/ui';
 import type { CatalogViewProps, HubApp } from '../model';
 import { formatNumber, t } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import './catalog.css';
 
-function CatalogCard({ app }: { app: HubApp }) {
+function CatalogCard({ app, focused = false }: { app: HubApp; focused?: boolean }) {
   const locale = useLocale();
   const official = app.source === 'official';
-  return <article className="catalog-card" aria-label={app.name}>
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => { if (focused) ref.current?.focus({ preventScroll: false }); }, [focused]);
+  return <article ref={ref} tabIndex={focused ? -1 : undefined} className="catalog-card" aria-label={app.name}>
     <div className="catalog-art" aria-hidden="true">
       {app.artUrl || app.iconUrl ? <img src={app.artUrl || app.iconUrl} alt="" /> :
         <div className="catalog-art-window"><span>{app.name.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div>}
@@ -30,9 +33,10 @@ function CatalogCard({ app }: { app: HubApp }) {
   </article>;
 }
 
-export function CatalogView({ apps, state = 'ready', stale = false, reason, installationKnown = true, onRetry }: CatalogViewProps) {
+export function CatalogView({ apps, state = 'ready', stale = false, reason, installationKnown = true, onRetry, targetAppId }: CatalogViewProps) {
   const locale = useLocale();
-  const available = apps.filter(app => app.integration === 'catalog' && (!app.installed || app.statusKnown === false));
+  const target = targetAppId ? apps.find(app => app.id === targetAppId && app.source === 'official') : undefined;
+  const available = apps.filter(app => app === target || (app.integration === 'catalog' && (!app.installed || app.statusKnown === false)));
   const failed = state === 'offline' || state === 'error';
   const unknown = available.some(app => app.statusKnown === false);
   return <section className="catalog-view" aria-label={t(locale, 'common.catalog')}>
@@ -42,7 +46,9 @@ export function CatalogView({ apps, state = 'ready', stale = false, reason, inst
       <p>{t(locale, state === 'offline' ? 'catalog.offline' : reason === 'unconfigured' ? 'catalog.unconfigured' : 'catalog.error')} {stale && t(locale, 'catalog.stale')}</p>
       {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'common.retry')}</Button>}
     </div>}
-    {available.length > 0 ? <div className="catalog-grid">{available.map(app => <CatalogCard key={app.id} app={app} />)}</div> :
+    {targetAppId && !target && <div role="alert" className="catalog-notice"><p>{t(locale, 'catalog.targetUnavailable')}</p>
+      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'catalog.retryCatalog')}</Button>}</div>}
+    {available.length > 0 ? <div className="catalog-grid">{available.map(app => <CatalogCard key={app.id} app={app} focused={app === target} />)}</div> :
       !failed && state !== 'loading' && <p className="catalog-empty">{t(locale, 'catalog.empty')}</p>}
     {available.some(app => app.source !== 'official') && <p className="catalog-foot">{t(locale, 'catalog.sampleFoot')}</p>}
   </section>;
