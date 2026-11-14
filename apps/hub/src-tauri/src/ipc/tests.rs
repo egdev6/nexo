@@ -97,6 +97,81 @@ fn registration(id: &str, version: &str) -> Message {
 }
 
 #[tokio::test]
+async fn tray_rebuild_failure_keeps_ipc_and_previous_menu_until_next_trigger() {
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    };
+    use tokio::sync::mpsc;
+
+    let hub = Hub::new();
+    hub.require_presentation();
+    let changes = hub.subscribe();
+    let source = hub.clone();
+    let fail_next = Arc::new(AtomicBool::new(false));
+    let fail_builder = fail_next.clone();
+    let menu = Arc::new(Mutex::new(Vec::<String>::new()));
+    let rendered = menu.clone();
+    let (attempt_tx, mut attempt_rx) = mpsc::unbounded_channel();
+    let driver = tokio::spawn(crate::registry_presentation::run(
+        hub.clone(),
+        changes,
+        move || {
+            let snapshot = source.snapshot();
+            let failed = fail_builder.swap(false, Ordering::SeqCst);
+            let _ = attempt_tx.send(!failed);
+            if failed {
+                return Err("fake tray failure");
+            }
+            *rendered.lock().unwrap() = snapshot
+                .apps
+                .iter()
+                .map(|app| app.app.name.clone())
+                .collect();
+            Ok(snapshot)
+        },
+        |_| {},
+    ));
+    let mut alpha = Client::connect(&hub);
+    alpha.hello().await;
+    alpha.register("alpha").await;
+    assert_eq!(attempt_rx.recv().await, Some(true));
+    assert_eq!(*menu.lock().unwrap(), vec!["App alpha"]);
+
+    fail_next.store(true, Ordering::SeqCst);
+    let mut beta = Client::connect(&hub);
+    beta.hello().await;
+    beta.send(registration("beta", "1.2.3")).await;
+    assert_eq!(attempt_rx.recv().await, Some(false));
+    assert_eq!(*menu.lock().unwrap(), vec!["App alpha"]);
+    alpha.send(Message::Heartbeat { seq: 41 }).await;
+    assert_eq!(alpha.receive().await, Message::HeartbeatAck { seq: 41 });
+    let mut line = String::new();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), beta.reader.read_line(&mut line))
+            .await
+            .is_err()
+    );
+    settle().await;
+    assert!(
+        attempt_rx.try_recv().is_err(),
+        "failure must not spin or retry without a trigger"
+    );
+
+    alpha
+        .send(Message::Menu {
+            items: vec![item("pause", true, None)],
+        })
+        .await;
+    assert_eq!(attempt_rx.recv().await, Some(true));
+    assert_eq!(beta.receive().await, Message::Registered);
+    assert_eq!(*menu.lock().unwrap(), vec!["App alpha", "App beta"]);
+    alpha.send(Message::Heartbeat { seq: 42 }).await;
+    assert_eq!(alpha.receive().await, Message::HeartbeatAck { seq: 42 });
+    driver.abort();
+}
+
+#[tokio::test]
 async fn registered_waits_until_the_app_has_a_tray_menu() {
     let hub = Hub::new();
     hub.require_presentation();

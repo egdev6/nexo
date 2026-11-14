@@ -1,4 +1,5 @@
-use super::Hub;
+use super::{Hub, NoticeDetail};
+use crate::i18n::{self, Locale};
 use nexo_protocol::pipe_name;
 use std::{ffi::c_void, io, ptr};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
@@ -52,10 +53,13 @@ fn bind(name: &str, sid: &str, first: bool) -> io::Result<NamedPipeServer> {
     }
 }
 
-pub(crate) fn report_startup_error(error: &io::Error) {
-    let message: Vec<u16> = format!("No se pudo iniciar la comunicación de Nexo: {error}\0")
-        .encode_utf16()
-        .collect();
+pub(crate) fn report_startup_error(error: &io::Error, locale: Locale) {
+    let message: Vec<u16> = format!(
+        "{}\0",
+        i18n::text(locale, "startupError").replace("{error}", &error.to_string())
+    )
+    .encode_utf16()
+    .collect();
     let title: Vec<u16> = "Nexo\0".encode_utf16().collect();
     // SAFETY: both strings are NUL terminated and live until the dialog returns.
     unsafe {
@@ -95,7 +99,7 @@ impl Listener {
                     if let Err(error) = result {
                         eprintln!("Nexo pipe connection failed: {error}");
                         hub.shutdown();
-                        hub.set_notice("La conexión de Nexo se cerró inesperadamente.".into(), false);
+                        hub.set_notice_detail(NoticeDetail::ConnectionClosed, false);
                         return;
                     }
                     let next = match bind(&self.name, &self.sid, false) {
@@ -103,7 +107,7 @@ impl Listener {
                         Err(error) => {
                             eprintln!("Nexo pipe listener stopped: {error}");
                             hub.shutdown();
-                            hub.set_notice("La conexión de Nexo se cerró inesperadamente.".into(), false);
+                            hub.set_notice_detail(NoticeDetail::ConnectionClosed, false);
                             return;
                         }
                     };

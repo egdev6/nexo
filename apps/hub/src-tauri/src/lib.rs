@@ -1,8 +1,11 @@
 mod catalog_cache;
 mod config;
+mod i18n;
 #[cfg(any(windows, test))]
 mod ipc;
 mod position;
+#[cfg(any(windows, test))]
+mod registry_presentation;
 #[cfg(windows)]
 mod runtime;
 #[cfg(any(windows, test))]
@@ -26,6 +29,33 @@ struct BackdropState(AtomicBool);
 #[tauri::command]
 fn backdrop_available(state: State<'_, BackdropState>) -> bool {
     state.0.load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+fn apply_saved_language(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    #[cfg(windows)]
+    {
+        runtime::rebuild_current(&app)
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        app.state::<i18n::Presentation>().refresh(
+            || config::bootstrap_locale(&app),
+            |locale| {
+                let quit =
+                    MenuItem::with_id(&app, "quit", i18n::text(locale, "quit"), true, None::<&str>)
+                        .map_err(|error| error.to_string())?;
+                let menu = Menu::with_items(&app, &[&quit]).map_err(|error| error.to_string())?;
+                let tray = app.tray_by_id("nexo").ok_or("Nexo tray missing")?;
+                tray.set_menu(Some(menu)).map_err(|error| error.to_string())
+            },
+        )
+    }
 }
 
 #[derive(Clone, Default, serde::Serialize)]
@@ -169,6 +199,7 @@ pub fn run() {
         .manage(VisibilityState::default())
         .manage(BackdropState::default())
         .manage(config::ConfigLock::default())
+        .manage(i18n::Presentation::default())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name("Nexo")
@@ -188,6 +219,7 @@ pub fn run() {
             config::save_settings,
             config::recover_settings,
             config::quit_after_settings,
+            apply_saved_language,
             runtime::registry_snapshot,
             runtime::hub_only_exit
         ]);
@@ -201,7 +233,8 @@ pub fn run() {
         config::get_settings,
         config::save_settings,
         config::recover_settings,
-        config::quit_after_settings
+        config::quit_after_settings,
+        apply_saved_language
     ]);
     builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -240,7 +273,9 @@ pub fn run() {
                     .0
                     .store(applied, Ordering::Relaxed);
             }
-            let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
+            let locale = config::bootstrap_locale(app.handle());
+            let quit =
+                MenuItem::with_id(app, "quit", i18n::text(locale, "quit"), true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&quit])?;
             let icon = app.default_window_icon().cloned().ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "missing Nexo icon")

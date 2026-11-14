@@ -18,10 +18,15 @@ export interface RegistryApp {
   menu_revision: number;
 }
 
+export type NoticeDetail =
+  | { kind: 'connectionClosed' }
+  | { kind: 'trayFailure' }
+  | { kind: 'quit'; all: boolean; failures: { app: string; outcome: { kind: 'refused'; reason?: string | null } | { kind: 'timeout' | 'unavailable' | 'disconnected' } }[] };
+
 export interface RegistrySnapshot {
   revision: number;
   apps: RegistryApp[];
-  notice?: { message: string; hub_only_allowed: boolean } | null;
+  notice?: { message: string; hub_only_allowed: boolean; detail?: NoticeDetail | null } | null;
 }
 
 export async function exitHubOnly(): Promise<void> {

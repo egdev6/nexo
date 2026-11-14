@@ -1,21 +1,22 @@
 import { Button, RadioGroup } from '@egdev/ui';
 import { useState } from 'react';
 import type { FirstRunProps, Language } from '../model';
+import { t } from '../i18n';
 import './first-run.css';
 
-export function FirstRun({ onChoose }: FirstRunProps) {
+export function FirstRun({ onChoose, onPreview }: FirstRunProps) {
   const [language, setLanguage] = useState<Language>('es');
-  return <section className="first-run" aria-label="Idioma / Language">
-    <p className="first-run__eyebrow">Primer uso · <span lang="en">First launch</span></p>
-    <h1>Elige tu idioma <span lang="en">Choose your language</span></h1>
-    <p className="first-run__description">Puedes cambiarlo después en Ajustes.<br /><span lang="en">You can change it later in Settings.</span></p>
-    <div className="first-run__legend">Idioma / <span lang="en">Language</span></div>
-    <RadioGroup className="first-run__choices" label="Idioma / Language" orientation="horizontal" value={language}
+  return <section className="first-run" aria-label={t('es', 'firstRun.label')}>
+    <p className="first-run__eyebrow"><span lang="es">{t('es', 'firstRun.eyebrowEs')}</span> <span lang="en">{t('es', 'firstRun.eyebrowEn')}</span></p>
+    <h1><span lang="es">{t('es', 'firstRun.titleEs')}</span> <span lang="en">{t('es', 'firstRun.titleEn')}</span></h1>
+    <p className="first-run__description"><span lang="es">{t('es', 'firstRun.hintEs')}</span><br /><span lang="en">{t('es', 'firstRun.hintEn')}</span></p>
+    <div className="first-run__legend"><span lang="es">{t('es', 'firstRun.languageEs')}</span> <span lang="en">{t('es', 'firstRun.languageEn')}</span></div>
+    <RadioGroup className="first-run__choices" label={t('es', 'firstRun.label')} orientation="horizontal" value={language}
       options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]}
-      onValueChange={value => setLanguage(value as Language)} />
+      onValueChange={value => { const next = value as Language; setLanguage(next); onPreview?.(next); }} />
     <Button className="first-run__continue" type="button" lang={language} onClick={() => onChoose(language)}>
-      {language === 'es' ? 'Continuar' : 'Continue'}
+      {t(language, 'firstRun.continue')}
     </Button>
-    <p className="first-run__foot">La elección se guarda en este equipo · <span lang="en">Saved on this device</span></p>
+    <p className="first-run__foot"><span lang="es">{t('es', 'firstRun.footEs')}</span> <span lang="en">{t('es', 'firstRun.footEn')}</span></p>
   </section>;
 }

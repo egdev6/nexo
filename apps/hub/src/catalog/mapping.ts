@@ -1,5 +1,6 @@
 import type { HubApp, NewsItem } from '../model';
 import type { Catalog } from './format';
+import { t } from '../i18n';
 
 /** Installation observations must come from the app-management owner, not catalog metadata. */
 export interface OfficialInstallation {
@@ -25,10 +26,10 @@ export function projectCatalog(catalog: Catalog, installations: Readonly<Record<
       version: observed?.installed ? observed.version : undefined, update: observed?.installed ? observed.update : undefined,
     };
   });
-  const badges = { new: 'Nuevo', featured: 'Destacada', update: 'Actualización' } as const;
+  const badges = { new: 'news.new', featured: 'news.featured', update: 'news.update' } as const;
   const news: NewsItem[] = catalog.apps.flatMap(app => app.news.map(item => ({
     id: `${app.id}:${item.id}`, appId: app.id, title: item.title, text: item.text,
-    badge: badges[item.kind], cta: 'Ver en el catálogo', publishedAt: item.publishedAt,
+    badge: t('es', badges[item.kind]) as NewsItem['badge'], cta: t('es', 'news.viewCatalog'), publishedAt: item.publishedAt,
   })));
   return { apps, news };
 }

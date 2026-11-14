@@ -2,13 +2,17 @@ import { Button, Field, Icon, IconButton, RadioGroup, Slider, Switch, Tabs } fro
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
+import { formatNumber, t, type MessageKey, type Params } from '../i18n';
+import { useLocale } from '../i18n/use-locale';
 import { ACCENT_PRESETS, DEFAULT_ACCENT, derivePalette, normalizeHex } from './palette';
 import './settings.css';
 
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
-const colorNames = ['rojo', 'naranja', 'amarillo', 'verde', 'cian', 'azul', 'morado', 'rosa'];
+const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
 
-export function SettingsView({ settings, onChange, onClose, sources: configuredSources, autostart }: SettingsViewProps) {
+export function SettingsView({ settings, onChange, onClose, sources: configuredSources, autostart, languagePending }: SettingsViewProps) {
+  const locale = useLocale();
+  const tr = (key: MessageKey, params?: Params) => t(locale, key, params);
   const id = useId();
   const selected = normalizeHex(settings.accent);
   const tones = derivePalette(selected);
@@ -21,94 +25,94 @@ export function SettingsView({ settings, onChange, onClose, sources: configuredS
 
   const general = <>
     <section className="settings__group" aria-labelledby={`${id}-general`}>
-      <h2 id={`${id}-general`}>General</h2>
+      <h2 id={`${id}-general`}>{tr('settings.general')}</h2>
       <div className="settings__row settings__language">
-        <div><strong>Idioma</strong><span>También se elige en el primer uso</span></div>
-        <RadioGroup label="Idioma" orientation="horizontal" options={languages} value={settings.language}
+        <div><strong>{tr('settings.language')}</strong><span>{tr('settings.languageHint')}</span>{languagePending && <span role="status">{tr('settings.languageSaving')}</span>}</div>
+        <RadioGroup label={tr('settings.language')} orientation="horizontal" options={languages} value={settings.language}
           onValueChange={value => update('language', value as Language)} />
       </div>
       <div className="settings__row">
-        <label htmlFor={`${id}-startup`}><strong>Iniciar con Windows</strong><span id={`${id}-startup-hint`}>{autostart?.confirmed === null ? 'Estado del sistema desconocido' : 'Se comprueba con el sistema'}</span></label>
-        <Switch id={`${id}-startup`} aria-label="Iniciar con Windows" aria-describedby={`${id}-startup-hint`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
+        <label htmlFor={`${id}-startup`}><strong>{tr('settings.startup')}</strong><span id={`${id}-startup-hint`}>{tr(autostart?.confirmed === null ? 'settings.startupUnknown' : 'settings.startupHint')}</span></label>
+        <Switch id={`${id}-startup`} aria-label={tr('settings.startup')} aria-describedby={`${id}-startup-hint`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
       </div>
-      {autostart?.error && <div className="settings__foot" role="alert">{autostart.error} <Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>Reintentar inicio automático</Button></div>}
+      {autostart?.error && <div className="settings__foot" role="alert">{autostart.error} <Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>{tr('settings.retryStartup')}</Button></div>}
       <div className="settings__row">
-        <label htmlFor={`${id}-news`}><strong>Mostrar novedades al abrir</strong><span id={`${id}-news-hint`}>Solo aparecen novedades no vistas del catálogo oficial.</span></label>
-        <Switch id={`${id}-news`} aria-label="Mostrar novedades al abrir" aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
+        <label htmlFor={`${id}-news`}><strong>{tr('settings.news')}</strong><span id={`${id}-news-hint`}>{tr('settings.newsHint')}</span></label>
+        <Switch id={`${id}-news`} aria-label={tr('settings.news')} aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
       </div>
     </section>
-    <p className="settings__foot">Las preferencias se guardan localmente en este equipo.</p>
+    <p className="settings__foot">{tr('settings.localFoot')}</p>
   </>;
 
   const appearance = <>
     <section className="settings__group settings__appearance" aria-labelledby={`${id}-appearance`}>
-      <h2 id={`${id}-appearance`}>Apariencia</h2>
+      <h2 id={`${id}-appearance`}>{tr('settings.appearance')}</h2>
       <fieldset className="settings__colors">
-        <legend>Color de acento</legend>
-        <div className="settings__swatches" role="group" aria-label="Colores de acento">
+        <legend>{tr('settings.accent')}</legend>
+        <div className="settings__swatches" role="group" aria-label={tr('settings.accents')}>
           {ACCENT_PRESETS.map((color, index) => <button className="settings__swatch" type="button" key={color}
-            style={{ backgroundColor: color }} aria-label={`Usar ${colorNames[index]} ${color}`} aria-pressed={selected === color}
+            style={{ backgroundColor: color }} aria-label={tr('settings.useColor', { name: tr(colorNames[index]), color })} aria-pressed={selected === color}
             onClick={() => update('accent', color)} />)}
-          <label className="settings__swatch settings__custom" title="Elegir cualquier color">
-            <input type="color" aria-label="Elegir cualquier color de acento" value={selected}
+          <label className="settings__swatch settings__custom" title={tr('settings.chooseColor')}>
+            <input type="color" aria-label={tr('settings.chooseAccent')} value={selected}
               onChange={event => update('accent', event.currentTarget.value)} />
             <span aria-hidden="true">+</span>
           </label>
         </div>
-        <div className="settings__tones" role="group" aria-label="Tonos derivados">
+        <div className="settings__tones" role="group" aria-label={tr('settings.tones')}>
           {tones.map((tone, index) => <span key={index}><i aria-hidden="true" style={{ backgroundColor: tone }} /><code>{tone}</code></span>)}
         </div>
-        <Button className="settings__reset" variant="neutral" size="sm" type="button" onClick={() => update('accent', DEFAULT_ACCENT)}>Restablecer rojo egdev</Button>
+        <Button className="settings__reset" variant="neutral" size="sm" type="button" onClick={() => update('accent', DEFAULT_ACCENT)}>{tr('settings.reset')}</Button>
       </fieldset>
-      <Field className="settings__range" label="Opacidad del fondo" readout={`${settings.opacity} %`}>
-        <Slider label="Opacidad del fondo" min={0} max={100} step={1} value={settings.opacity}
-          valueText={value => `${value} %`} onValueChange={value => update('opacity', value)} />
+      <Field className="settings__range" label={tr('settings.opacity')} readout={`${formatNumber(locale, settings.opacity)} %`}>
+        <Slider label={tr('settings.opacity')} min={0} max={100} step={1} value={settings.opacity}
+          valueText={value => `${formatNumber(locale, value)} %`} onValueChange={value => update('opacity', value)} />
       </Field>
-      <Field className="settings__range" label="Desenfoque del fondo" readout={`${settings.blur} px`}>
-        <Slider label="Desenfoque del fondo" min={0} max={40} step={1} value={settings.blur}
-          valueText={value => `${value} px`} onValueChange={value => update('blur', value)} />
+      <Field className="settings__range" label={tr('settings.blur')} readout={`${formatNumber(locale, settings.blur)} px`}>
+        <Slider label={tr('settings.blur')} min={0} max={40} step={1} value={settings.blur}
+          valueText={value => `${formatNumber(locale, value)} px`} onValueChange={value => update('blur', value)} />
       </Field>
-      <div className="settings__preview" role="img" aria-label="Vista previa de apariencia" style={previewStyle}>
-        <div className="settings__preview-panel" aria-hidden="true"><strong>Vista previa</strong><span>Panel de Nexo</span></div>
+      <div className="settings__preview" role="img" aria-label={tr('settings.previewAria')} style={previewStyle}>
+        <div className="settings__preview-panel" aria-hidden="true"><strong>{tr('settings.preview')}</strong><span>{tr('settings.panel')}</span></div>
       </div>
-      <p className="settings__hint">El desenfoque afecta a las capas CSS del panel, no controla el desenfoque del escritorio. Sin Mica o acrílico, el escritorio puede verse transparente y nítido. La transparencia reducida del sistema tiene prioridad.</p>
+      <p className="settings__hint">{tr('settings.blurHint')}</p>
       <div className="settings__row">
-        <label htmlFor={`${id}-compact`}><strong>Interfaz compacta</strong><span id={`${id}-compact-hint`}>Reduce el espacio entre secciones</span></label>
-        <Switch id={`${id}-compact`} aria-label="Interfaz compacta" aria-describedby={`${id}-compact-hint`} checked={settings.compact} onCheckedChange={value => update('compact', value)} />
+        <label htmlFor={`${id}-compact`}><strong>{tr('settings.compact')}</strong><span id={`${id}-compact-hint`}>{tr('settings.compactHint')}</span></label>
+        <Switch id={`${id}-compact`} aria-label={tr('settings.compact')} aria-describedby={`${id}-compact-hint`} checked={settings.compact} onCheckedChange={value => update('compact', value)} />
       </div>
     </section>
-    <p className="settings__foot">La apariencia se aplica al panel y se guarda en este equipo.</p>
+    <p className="settings__foot">{tr('settings.appearanceFoot')}</p>
   </>;
 
   const sources = <>
     <section className="settings__group" aria-labelledby={`${id}-sources`}>
-      <h2 id={`${id}-sources`}>Fuentes del catálogo</h2>
-      {(configuredSources ?? [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' as const }]).map(source => <div className="settings__row" key={source.id}><div><strong>{source.label}</strong><span>{source.kind === 'official' ? 'Fuente oficial' : 'Fuente local configurada'}</span></div></div>)}
-      <Button variant="neutral" size="sm" type="button" disabled>Añadir fuente local</Button>
+      <h2 id={`${id}-sources`}>{tr('settings.sources')}</h2>
+      {(configuredSources ?? [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' as const }]).map(source => <div className="settings__row" key={source.id}><div><strong>{source.id === 'official' && source.kind === 'official' && source.label === 'Catálogo oficial egdev' ? tr('settings.officialSource') : source.label}</strong><span>{tr(source.kind === 'official' ? 'settings.official' : 'settings.local')}</span></div></div>)}
+      <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.addSource')}</Button>
     </section>
-    <p className="settings__foot">Añadir y utilizar fuentes locales aún no está disponible.</p>
+    <p className="settings__foot">{tr('settings.sourceFoot')}</p>
   </>;
 
   const about = <>
     <section className="settings__group" aria-labelledby={`${id}-about`}>
-      <h2 id={`${id}-about`}>Acerca de</h2>
-      <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">Versión 0.1.0</span></div>
-        <Button variant="neutral" size="sm" type="button" disabled>Buscar actualizaciones</Button></div>
+      <h2 id={`${id}-about`}>{tr('settings.about')}</h2>
+      <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: '0.1.0' })}</span></div>
+        <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.updates')}</Button></div>
     </section>
-    <p className="settings__foot">Muestra de diseño · búsqueda de actualizaciones aún no disponible.</p>
+    <p className="settings__foot">{tr('settings.aboutFoot')}</p>
   </>;
 
-  return <section className="settings" aria-label="Ajustes">
+  return <section className="settings" aria-label={tr('common.settings')}>
     <header className="settings__header">
-      <IconButton label="Volver" title="Volver" icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
-      <div><h1>Ajustes</h1><p>Nexo · Preferencias del hub</p></div>
-      <IconButton label="Cerrar ajustes" title="Cerrar ajustes" icon={<Icon name="close" />} variant="secondary" onClick={onClose} />
+      <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
+      <div><h1>{tr('common.settings')}</h1><p>{tr('settings.subtitle')}</p></div>
+      <IconButton label={tr('settings.close')} title={tr('settings.close')} icon={<Icon name="close" />} variant="secondary" onClick={onClose} />
     </header>
-    <Tabs className="settings__tabs" variant="segmented" label="Secciones de ajustes" items={[
-      { value: 'general', label: 'General', content: general },
-      { value: 'appearance', label: 'Apariencia', content: appearance },
-      { value: 'sources', label: 'Fuentes del catálogo', content: sources },
-      { value: 'about', label: 'Acerca de', content: about },
+    <Tabs className="settings__tabs" variant="segmented" label={tr('settings.sections')} items={[
+      { value: 'general', label: tr('settings.general'), content: general },
+      { value: 'appearance', label: tr('settings.appearance'), content: appearance },
+      { value: 'sources', label: tr('settings.sources'), content: sources },
+      { value: 'about', label: tr('settings.about'), content: about },
     ]} />
   </section>;
 }

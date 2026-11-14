@@ -1,6 +1,7 @@
 import type { Catalog } from '../catalog/format';
 import { projectCatalog } from '../catalog/mapping';
 import type { NewsItem } from '../model';
+import { t } from '../i18n';
 
 const WINDOW_SECONDS = 30 * 24 * 60 * 60;
 type Instant = { seconds: number; fraction: string };
@@ -43,8 +44,8 @@ export function selectOfficialNews(catalog: Catalog, now = Date.now()): { items:
       items.push({ item: { ...item, id: `n:${app.id}:${news.id}` }, time });
     }
     if (!explicitRelease) items.push({
-      item: { id: appKey, appId: app.id, badge: app.featured ? 'Destacada' : 'Nuevo', title: app.name,
-        text: app.tagline || app.description, cta: 'Ver en el catálogo', publishedAt: app.releasedAt },
+      item: { id: appKey, appId: app.id, badge: t('es', app.featured ? 'news.featured' : 'news.new') as NewsItem['badge'], title: app.name,
+        text: app.tagline || app.description, cta: t('es', 'news.viewCatalog'), publishedAt: app.releasedAt },
       time: release,
     });
   }

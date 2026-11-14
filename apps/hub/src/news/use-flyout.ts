@@ -37,7 +37,7 @@ export function useFlyoutVisibility(onHide: () => void) {
         dispose = stop;
         accept(await invoke<FlyoutVisibility>('get_flyout_state'));
       } catch (failure) {
-        if (!cancelled) setError(`No se pudo comprobar la visibilidad del panel: ${String(failure)}`);
+        if (!cancelled) setError(String(failure));
       }
     })();
     return () => { cancelled = true; dispose?.(); };

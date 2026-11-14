@@ -1,20 +1,24 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Badge, Button, Carousel, Checkbox, Icon, IconButton } from '@egdev/ui';
 import type { NewsPopupProps } from '../model';
+import { formatNumber, t } from '../i18n';
+import { useLocale } from '../i18n/use-locale';
 import './news.css';
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const messages = {
-  previousSlide: 'Diapositiva anterior', nextSlide: 'Diapositiva siguiente',
-  carousel: 'carrusel', slide: 'diapositiva', empty: 'No hay novedades.',
-  instructions: 'Usa las flechas izquierda y derecha para cambiar de diapositiva. Inicio y Fin van a la primera y a la última.',
-  position: (current: number, total: number, label: string) => `${current} de ${total}: ${label}`,
-};
 
 function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatalog, stale }: Omit<NewsPopupProps, 'open'>) {
+  const locale = useLocale();
+  const messages = {
+    previousSlide: t(locale, 'news.previous'), nextSlide: t(locale, 'news.next'),
+    carousel: t(locale, 'news.carousel'), slide: t(locale, 'news.slide'), empty: t(locale, 'news.empty'),
+    instructions: t(locale, 'news.instructions'),
+    position: (current: number, total: number, label: string) => t(locale, 'news.position', { current: formatNumber(locale, current), total: formatNumber(locale, total), label }),
+  };
   const [selected, setSelected] = useState(items[0]?.id);
   const [viewed, setViewed] = useState(() => new Set(items[0] ? [items[0].id] : []));
   const current = items.find(item => item.id === selected) ?? items[0];
+  const cta = current?.cta === t('es', 'news.viewCatalog') ? t(locale, 'news.viewCatalog') : current?.cta;
   const titleId = useId();
   const checkboxId = useId();
   const layerRef = useRef<HTMLDivElement>(null);
@@ -76,26 +80,26 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   return <div className="news-overlay" ref={layerRef}>
     <div className="news-scrim" aria-hidden="true" />
     <section className="news-dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-      <header className="news-header"><span className="news-mark" aria-hidden="true">N</span><h2 id={titleId}>Novedades al abrir</h2>
-        <IconButton ref={closeRef} type="button" label="Cerrar novedades" title="Cerrar novedades" variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
+      <header className="news-header"><span className="news-mark" aria-hidden="true">N</span><h2 id={titleId}>{t(locale, 'news.title')}</h2>
+        <IconButton ref={closeRef} type="button" label={t(locale, 'news.close')} title={t(locale, 'news.close')} variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
       </header>
-      {stale && <p role="status">Se muestra la copia guardada, que puede estar desactualizada.</p>}
+      {stale && <p role="status">{t(locale, 'catalog.stale')}</p>}
       <div className="news-carousel">
-        <Carousel label="Últimas novedades" messages={messages} value={current?.id} onValueChange={value => {
+        <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id} onValueChange={value => {
           setSelected(value);
           setViewed(previous => new Set(previous).add(value));
         }}
           items={items.map(item => ({ value: item.id, label: item.title, children: <article className="news-slide">
             <div className="news-hero" aria-hidden="true"><div className="news-hero-window"><span>{item.title.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div></div>
-            <Badge tone="brand">{item.badge}</Badge> {!viewed.has(item.id) && <Badge tone="brand">Sin ver</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
+            <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge> {!viewed.has(item.id) && <Badge tone="brand">{t(locale, 'news.unseen')}</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
           </article> }))} />
       </div>
       {current && <div className="news-action"><Button type="button" size="sm" variant="primary" data-app-id={current.appId}
-        aria-label={`${current.cta}: ${current.title}${onCatalog ? '' : ' · muestra'}`} title={onCatalog ? undefined : 'Acción ilustrativa'}
-        onClick={() => onCatalog?.(current.appId)}>{current.cta}</Button>
-        {!onCatalog && <span>Acción ilustrativa</span>}</div>}
+        aria-label={t(locale, onCatalog ? 'news.catalogCta' : 'news.sampleCta', { cta: cta ?? '', title: current.title })} title={onCatalog ? undefined : t(locale, 'news.sampleAction')}
+        onClick={() => onCatalog?.(current.appId)}>{cta}</Button>
+        {!onCatalog && <span>{t(locale, 'news.sampleAction')}</span>}</div>}
       <div className="news-preference"><Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
-        <label htmlFor={checkboxId}>No mostrar al abrir</label></div>
+        <label htmlFor={checkboxId}>{t(locale, 'news.dontShow')}</label></div>
     </section>
   </div>;
 }

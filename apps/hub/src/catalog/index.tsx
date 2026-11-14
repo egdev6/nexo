@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Badge, Button, Icon, IconButton } from '@egdev/ui';
 import type { CatalogViewProps, HubApp } from '../model';
+import { formatNumber, t } from '../i18n';
+import { useLocale } from '../i18n/use-locale';
 import './catalog.css';
 
 function CatalogCard({ app, focused = false }: { app: HubApp; focused?: boolean }) {
+  const locale = useLocale();
   const official = app.source === 'official';
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (focused) ref.current?.focus({ preventScroll: false }); }, [focused]);
@@ -16,36 +19,37 @@ function CatalogCard({ app, focused = false }: { app: HubApp; focused?: boolean 
       {app.tags && app.tags.length > 0 && <div className="catalog-tags">{app.tags.map((tag, index) => <Badge tone="brand" key={`${tag}-${index}`}>{tag}</Badge>)}</div>}
       <h3>{app.name}</h3>
       <p>{app.tagline || app.description}</p>
-      {app.version && <span className="catalog-version">Versión: {app.version}</span>}
-      {app.catalogVersion && <span className="catalog-version">Versión publicada: {app.catalogVersion}</span>}
+      {app.version && <span className="catalog-version">{t(locale, 'catalog.version', { version: app.version })}</span>}
+      {app.catalogVersion && <span className="catalog-version">{t(locale, 'catalog.publishedVersion', { version: app.catalogVersion })}</span>}
       <div className="catalog-actions">
-        {official || app.statusKnown === false ? <span className="catalog-version">Instalación aún no disponible</span> :
-          <Button type="button" size="sm" variant="primary" aria-label={`Instalar ${app.name} · muestra`} title="Instalación ilustrativa">Instalar</Button>}
-        {app.links?.github && (official ? <a className="catalog-link" href={app.links.github} target="_blank" rel="noopener noreferrer" aria-label={`Código en GitHub de ${app.name}`}><Icon name="github" /></a> :
-          <IconButton type="button" size="sm" variant="secondary" icon={<Icon name="github" />} label={`Código en GitHub de ${app.name} · muestra`} title="Código en GitHub · muestra" />)}
-        {app.links?.youtube && (official ? <a className="catalog-link" href={app.links.youtube} target="_blank" rel="noopener noreferrer" aria-label={`Ver en YouTube: ${app.name}`}><Icon name="youtube" /></a> :
-          <IconButton type="button" size="sm" variant="secondary" icon={<Icon name="youtube" />} label={`Ver en YouTube: ${app.name} · muestra`} title="Ver en YouTube · muestra" />)}
+        {official || app.statusKnown === false ? <span className="catalog-version">{t(locale, 'catalog.installUnavailable')}</span> :
+          <Button type="button" size="sm" variant="primary" aria-label={t(locale, 'catalog.installSample', { name: app.name })} title={t(locale, 'catalog.installTitle')}>{t(locale, 'common.install')}</Button>}
+        {app.links?.github && (official ? <a className="catalog-link" href={app.links.github} target="_blank" rel="noopener noreferrer" aria-label={t(locale, 'catalog.github', { name: app.name })}><Icon name="github" /></a> :
+          <IconButton type="button" size="sm" variant="secondary" icon={<Icon name="github" />} label={t(locale, 'catalog.githubSample', { name: app.name })} title={t(locale, 'catalog.githubTitle')} />)}
+        {app.links?.youtube && (official ? <a className="catalog-link" href={app.links.youtube} target="_blank" rel="noopener noreferrer" aria-label={t(locale, 'catalog.youtube', { name: app.name })}><Icon name="youtube" /></a> :
+          <IconButton type="button" size="sm" variant="secondary" icon={<Icon name="youtube" />} label={t(locale, 'catalog.youtubeSample', { name: app.name })} title={t(locale, 'catalog.youtubeTitle')} />)}
       </div>
     </div>
   </article>;
 }
 
 export function CatalogView({ apps, state = 'ready', stale = false, reason, installationKnown = true, onRetry, targetAppId }: CatalogViewProps) {
+  const locale = useLocale();
   const target = targetAppId ? apps.find(app => app.id === targetAppId && app.source === 'official') : undefined;
   const available = apps.filter(app => app === target || (app.integration === 'catalog' && (!app.installed || app.statusKnown === false)));
   const failed = state === 'offline' || state === 'error';
   const unknown = available.some(app => app.statusKnown === false);
-  return <section className="catalog-view" aria-label="Catálogo">
-    <div className="catalog-heading"><h2>Catálogo egdev</h2>{state !== 'loading' && (!failed || available.length > 0) && <span>{available.length} {unknown || !installationKnown ? 'en el catálogo' : 'sin instalar'}</span>}</div>
-    {state === 'loading' && <p role="status" className="catalog-empty">Cargando catálogo…</p>}
+  return <section className="catalog-view" aria-label={t(locale, 'common.catalog')}>
+    <div className="catalog-heading"><h2>{t(locale, 'common.officialCatalog')}</h2>{state !== 'loading' && (!failed || available.length > 0) && <span>{t(locale, unknown || !installationKnown ? 'catalog.countCatalog' : 'catalog.countUninstalled', { count: formatNumber(locale, available.length) })}</span>}</div>
+    {state === 'loading' && <p role="status" className="catalog-empty">{t(locale, 'catalog.loading')}</p>}
     {failed && <div role="alert" className="catalog-notice">
-      <p>{state === 'offline' ? 'Sin conexión con el catálogo o el servidor rechazó la solicitud.' : reason === 'unconfigured' ? 'La fuente oficial del catálogo aún no está configurada.' : 'Error al cargar o guardar el catálogo.'} {stale && 'Se muestra la copia guardada, que puede estar desactualizada.'}</p>
-      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>Reintentar</Button>}
+      <p>{t(locale, state === 'offline' ? 'catalog.offline' : reason === 'unconfigured' ? 'catalog.unconfigured' : 'catalog.error')} {stale && t(locale, 'catalog.stale')}</p>
+      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'common.retry')}</Button>}
     </div>}
-    {targetAppId && !target && <div role="alert" className="catalog-notice"><p>Esta aplicación ya no está disponible en el catálogo.</p>
-      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>Reintentar catálogo</Button>}</div>}
+    {targetAppId && !target && <div role="alert" className="catalog-notice"><p>{t(locale, 'catalog.targetUnavailable')}</p>
+      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'catalog.retryCatalog')}</Button>}</div>}
     {available.length > 0 ? <div className="catalog-grid">{available.map(app => <CatalogCard key={app.id} app={app} focused={app === target} />)}</div> :
-      !failed && state !== 'loading' && <p className="catalog-empty">No hay aplicaciones disponibles en el catálogo.</p>}
-    {available.some(app => app.source !== 'official') && <p className="catalog-foot">Muestra de diseño · acciones ilustrativas y enlaces de muestra.</p>}
+      !failed && state !== 'loading' && <p className="catalog-empty">{t(locale, 'catalog.empty')}</p>}
+    {available.some(app => app.source !== 'official') && <p className="catalog-foot">{t(locale, 'catalog.sampleFoot')}</p>}
   </section>;
 }

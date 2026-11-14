@@ -113,8 +113,10 @@ export interface SettingsViewProps {
   onClose: () => void;
   sources?: CatalogSource[];
   autostart?: AutostartViewState;
+  languagePending?: boolean;
 }
 
 export interface FirstRunProps {
   onChoose: (language: Language) => void;
+  onPreview?: (language: Language) => void;
 }

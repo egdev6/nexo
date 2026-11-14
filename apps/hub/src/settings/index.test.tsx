@@ -4,6 +4,7 @@ import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { HubSettings } from '../model';
 import { SettingsView } from './index';
+import { LocaleProvider } from '../i18n/use-locale';
 
 configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
 // Radix measures slider thumbs; jsdom does not implement ResizeObserver.
@@ -27,7 +28,7 @@ function setup() {
     const [settings, setSettings] = useState(initial);
     return <SettingsView settings={settings} onClose={onClose} onChange={next => { onChange(next); setSettings(next); }} />;
   }
-  render(<Harness />);
+  render(<LocaleProvider locale="es"><Harness /></LocaleProvider>);
   return { onChange, onClose };
 }
 
