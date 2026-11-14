@@ -252,3 +252,7 @@ pub(crate) mod windows;
 #[cfg(test)]
 #[path = "local_apps_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "vp_local.rs"]
+mod vp_local;

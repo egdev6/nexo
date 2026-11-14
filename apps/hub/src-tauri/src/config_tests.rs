@@ -588,3 +588,32 @@ fn malformed_news_visit_is_tolerated_without_resetting_other_fields() {
     assert_eq!(json["language"], "en");
     assert!(json["newsVisit"].is_null());
 }
+
+#[test]
+fn vp_generic_patch_cannot_set_locations_and_keeps_v2_bytes() {
+    use serde_json::json;
+    let dir = std::env::temp_dir().join(format!("vp-cfg-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.json");
+    std::fs::write(
+        &path,
+        r#"{"version":2,"newsVisit":{"lastVisitAt":"2026-01-01T00:00:00Z","seenKeys":["a"]}}"#,
+    )
+    .unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let store = Store::new(path.clone());
+    for p in [
+        json!({"sources":[{"id":"official","label":"O","kind":"official","location":"https://evil.example"}]}),
+        json!({"sources":[{"id":"official","label":"O","kind":"official"},{"id":"n","label":"N","kind":"local","location":"C:\\x.json"}]}),
+    ] {
+        assert_eq!(
+            store.patch(serde_json::from_value(p).unwrap()),
+            Err("nexo.config.sourceSelectionRequired".into())
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+    assert!(serde_json::from_value::<Patch>(json!({"localApps":[]})).is_err());
+    let saved = store.patch(Patch::default()).unwrap();
+    assert_eq!(saved.news_visit.unwrap().seen_keys, vec!["a".to_string()]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
