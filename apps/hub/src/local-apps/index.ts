@@ -13,3 +13,19 @@ export function repairLocalApp(id: string): Promise<LocalAppSelection | null> { 
 export function pickLocalAppIcon(id: string): Promise<LocalAppSelection | null> { return invoke('local_app_pick_icon', { id }); }
 /** A resolved request means spawn was requested, not that the app is running. */
 export function openLocalApp(id: string): Promise<void> { return invoke('local_app_open', { id }); }
+
+export interface LocalEntryKey { sourceId: string; appId: string }
+export interface LocalCatalogEntry { key: LocalEntryKey; source: 'local'; name: string; tagline: string; description: string; tags: string[] }
+export interface LocalCatalogSnapshot { sourceId: string; entries: LocalCatalogEntry[] }
+export interface LocalBinding { sourceId: string; appId: string; executable: string }
+export type LocalCatalogErrorCode = LocalAppErrorCode | 'nexo.local.catalogUnreadable' | 'nexo.local.catalogInvalid' | 'nexo.local.catalogLaunchOnly' | 'nexo.local.unbound';
+
+/** Choose a local JSON file; an existing source ID replaces that source. */
+export function setLocalCatalog(sourceId?: string): Promise<LocalCatalogSnapshot | null> { return invoke('local_catalog_set', { sourceId: sourceId ?? null }); }
+export function refreshLocalCatalog(sourceId: string): Promise<LocalCatalogSnapshot> { return invoke('local_catalog_refresh', { sourceId }); }
+export function clearLocalCatalog(sourceId: string): Promise<void> { return invoke('local_catalog_clear', { sourceId }); }
+/** Choose the executable natively; the frontend never sends a path. */
+export function bindLocalCatalogEntry(key: LocalEntryKey): Promise<LocalBinding | null> { return invoke('local_catalog_bind', { key }); }
+export function unbindLocalCatalogEntry(key: LocalEntryKey): Promise<void> { return invoke('local_catalog_unbind', { key }); }
+/** Spawn is a request, not proof the app is running. */
+export function openLocalCatalogEntry(key: LocalEntryKey): Promise<void> { return invoke('local_catalog_open', { key }); }

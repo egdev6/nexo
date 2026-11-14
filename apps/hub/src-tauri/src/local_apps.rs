@@ -242,6 +242,7 @@ fn open(
     launcher.spawn(&path)
 }
 
+mod catalog;
 mod icons;
 
 #[cfg(windows)]

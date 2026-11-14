@@ -433,6 +433,15 @@ impl Store {
     }
 
     #[cfg(any(windows, test))]
+    pub(crate) fn mutate_local_catalog<T>(
+        &self,
+        change: impl FnOnce(&mut Map<String, Value>, &Settings) -> Result<T, String>,
+    ) -> Result<T, String> {
+        self.patch_with(Patch::default(), change)
+            .map(|(_, result)| result)
+    }
+
+    #[cfg(any(windows, test))]
     pub(crate) fn local_settings(&self) -> Result<Settings, String> {
         match self.document() {
             Ok(map) => Ok(settings_from(&map)),

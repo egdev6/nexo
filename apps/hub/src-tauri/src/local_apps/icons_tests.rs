@@ -290,6 +290,61 @@ fn shared_copies_are_kept_until_the_last_owner_is_removed() {
 }
 
 #[test]
+fn normal_icon_replacement_and_removal_still_clean_up_owned_copies() {
+    let f = Fixture::new();
+    let fs = FakeFs::default();
+    fs.selected("C:\\Images\\one.png", PNG);
+    fs.selected("C:\\Images\\two.png", PNG);
+    let first = pick_icon(&f.store, &fs, &pick("C:\\Images\\one.png"), "manual-1")
+        .unwrap()
+        .unwrap()
+        .app
+        .icon
+        .unwrap();
+    let second = pick_icon(&f.store, &fs, &pick("C:\\Images\\two.png"), "manual-1")
+        .unwrap()
+        .unwrap()
+        .app
+        .icon
+        .unwrap();
+    assert_eq!(fs.deleted.borrow().as_slice(), std::slice::from_ref(&first));
+    assert!(!fs.copies.borrow().contains_key(&first));
+    remove_with_icon(&f.store, &fs, "manual-1").unwrap();
+    assert_eq!(*fs.deleted.borrow(), [first, second]);
+    assert!(fs.copies.borrow().is_empty());
+    assert!(f.store.read().settings.local_apps.is_empty());
+}
+
+#[test]
+fn cleanup_failure_after_replacement_or_removal_reports_the_persisted_result() {
+    let f = Fixture::new();
+    let fs = FakeFs::default();
+    fs.selected("C:\\Images\\one.png", PNG);
+    fs.selected("C:\\Images\\two.png", PNG);
+    let old = pick_icon(&f.store, &fs, &pick("C:\\Images\\one.png"), "manual-1")
+        .unwrap()
+        .unwrap()
+        .app
+        .icon
+        .unwrap();
+    fs.fail_delete.set(true);
+    let saved = pick_icon(&f.store, &fs, &pick("C:\\Images\\two.png"), "manual-1")
+        .unwrap()
+        .unwrap();
+    let new = saved.app.icon.unwrap();
+    assert_ne!(new, old);
+    assert_eq!(
+        f.store.read().settings.local_apps[0].icon.as_deref(),
+        Some(new.as_str())
+    );
+    assert!(fs.copies.borrow().contains_key(&old));
+    assert!(fs.copies.borrow().contains_key(&new));
+    assert_eq!(remove_with_icon(&f.store, &fs, "manual-1"), Ok(()));
+    assert!(f.store.read().settings.local_apps.is_empty());
+    assert!(fs.copies.borrow().contains_key(&new));
+}
+
+#[test]
 fn removal_deletes_only_our_unshared_copy_not_original_or_untrusted_paths() {
     let f = Fixture::new();
     let fs = FakeFs::default();

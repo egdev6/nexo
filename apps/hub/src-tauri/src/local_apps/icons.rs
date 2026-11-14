@@ -140,7 +140,9 @@ pub(super) fn pick_icon(
     });
     match saved {
         Ok((selected, old)) => {
-            delete_owned(fs, old.as_deref())?;
+            if let Err(error) = delete_owned(fs, old.as_deref()) {
+                eprintln!("could not clean up replaced local icon: {error}");
+            }
             Ok(Some(selected))
         }
         Err(error) => {
@@ -164,7 +166,10 @@ pub(super) fn remove_with_icon(store: &Store, fs: &impl IconFs, id: &str) -> Res
             .any(|other| other.id != id && other.icon.as_deref() == Some(*icon))
     });
     super::remove(store, id)?;
-    delete_owned(fs, unshared)
+    if let Err(error) = delete_owned(fs, unshared) {
+        eprintln!("could not clean up removed local icon: {error}");
+    }
+    Ok(())
 }
 
 #[cfg(test)]
