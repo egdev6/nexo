@@ -12,18 +12,19 @@
 
 ## Tasks
 
-- T1 (S1, L5) Closing the hub keeps it in the tray; the tray menu offers the definitive exit — route: writer, test-first; status: reopened (L5: the in-panel X exits the process).
-- T2 (S2, L3) Entry animation slides from right to left — native window slide (no gray backdrop) — route: writer; status: in progress (Rust checks pass; frontend and Windows app checks pending).
-- T3 (S3) News slider: no scrollbar, working navigation, up to the 4 latest items, adapts to fewer, a single item is static — route: writer (same unit); status: pending.
-- T4 (S4) Canvas design reproducing the current hub UI for gentle-design iteration — route: design writer; status: pending.
+- T1 (S1, L5) Closing the hub keeps it in the tray; the tray menu offers the definitive exit — route: writer, test-first; status: done (c678b82, 1a05bb7; user confirmed hide to tray).
+- T2 (S2, L3) Entry animation slides from right to left — native window slide (no gray backdrop) — route: writer; status: done (43e86e4, 6d976bf; L6 "animación perfecta").
+- T3 (S3) News slider: no scrollbar, working navigation, up to the 4 latest items, adapts to fewer, a single item is static — route: writer (same unit); status: done (7f38b60).
+- T4 (S4) Canvas design reproducing the current hub UI for gentle-design iteration — route: design writer; status: done (b5a79a7, 5ca87df, 5d5535c).
 
-- T5 (S4, canvas 6tkmm777) Flush window frame: no margins (top/right/taskbar), no rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_DONOTROUND) and no CSS radius — route: writer, test-first; status: authorized.
-- T6 (S4, canvas Quorb contrast) Port `apps/hub/scripts/canvas/egdev-family-contrast.css` into the app styles: window background surface-0 (keeping user opacity/blur), cards, header band, reds; header icon buttons ghost — route: writer; status: authorized.
-- T7 (S4, canvas 01) Mis apps: single-open accordion closed by default; header actions (update = red secondary download icon only when a newer version exists, open = link icon); detail panel (installed version, new version badge first, @egdev/ui SocialLinks GitHub/YouTube, secondary Cerrar for plugin apps); no "Instalada" in headers; no catalog section or news notice; refresh in section headers without count; local apps share the block — route: writer, test-first; status: authorized.
-- T8 (S4, canvas 02) Catalog cards: no tag badges, fixed-size banner (object-fit cover), SocialLinks, actions pinned to the bottom — route: writer; status: authorized; banner source by convention (L9).
-- T9 (S4, canvas 04/05/03) Settings without close button (back arrow), tabs General / Apariencia / Apps locales / Acerca de, Autor card with SocialLinks; first-run bilingual lines joined by " - "; news popup vertically centered — route: writer; status: authorized.
-- T10 (S4, L7, canvas 06) Remove the local catalog source (#9 T3) end to end with a tolerant config migration that drops stored local catalog sources/bindings; add the "Añadir app local" dialog (executable via native picker, editable name, icon) replacing the direct picker — route: writer, test-first, independent verification (stored config migration); status: authorized.
-- T11 (L9) Upgrade the vendored @egdev/tokens and @egdev/ui to the current egdev-design-system version; keep tests green and record visual changes — route: writer in an isolated worktree, then merge; status: authorized.
+- T5 (S4, canvas 6tkmm777) Flush window frame: no margins (top/right/taskbar), no rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_DONOTROUND) and no CSS radius — route: writer, test-first; status: done (4818c17).
+- T6 (S4, canvas Quorb contrast) Port `apps/hub/scripts/canvas/egdev-family-contrast.css` into the app styles: window background surface-0 (keeping user opacity/blur), cards, header band, reds; header icon buttons ghost — route: writer; status: done (4818c17).
+- T7 (S4, canvas 01) Mis apps: single-open accordion closed by default; header actions (update = red secondary download icon only when a newer version exists, open = link icon); detail panel (installed version, new version badge first, @egdev/ui SocialLinks GitHub/YouTube, secondary Cerrar for plugin apps); no "Instalada" in headers; no catalog section or news notice; refresh in section headers without count; local apps share the block — route: writer, test-first; status: done (44bb79e).
+- T8 (S4, canvas 02) Catalog cards: no tag badges, fixed-size banner (object-fit cover), SocialLinks, actions pinned to the bottom — route: writer; status: done (03901cc).
+- T9 (S4, canvas 04/05/03) Settings without close button (back arrow), tabs General / Apariencia / Apps locales / Acerca de, Autor card with SocialLinks; first-run bilingual lines joined by " - "; news popup vertically centered — route: writer; status: done (cdc0f10).
+- T10 (S4, L7, canvas 06) Remove the local catalog source (#9 T3) end to end with a tolerant config migration that drops stored local catalog sources/bindings; add the "Añadir app local" dialog (executable via native picker, editable name, icon) replacing the direct picker — route: writer, test-first, independent verification (stored config migration); status: done (c93e696, a276f67).
+- T11 (L9) Upgrade the vendored @egdev/tokens and @egdev/ui to the current egdev-design-system version; keep tests green and record visual changes — route: writer in an isolated worktree, then merge; status: done (585bedd).
+- T12 (S4 follow-up, user: "empaqueta Barlow") Bundle Barlow and Barlow Condensed (woff2 only, used weights) with the OFL notice — status: done (41512d9, d074ca4).
 
 ## Log
 
@@ -40,3 +41,4 @@
 - L7 (verbatim): "yo dejaría solo una forma de añadirlas...no tiene sentido 2." Decision: remove the local catalog file source (#9 T3: local_catalog_set/refresh/clear/bind/unbind/open, "Fuentes del catálogo" settings block); local apps are added only one by one through a new "Añadir app local" popup (design artboard 06-anadir-app: executable, name, icon). The settings tab becomes "Apps locales". Implementation follows when the canvas round closes.
 - L8 (verbatim): "ok. llevemoslo. entiendo que vas a usar los componentes del design system? si encuentras alguna posible issue avisame". Effect: implement the canvas round (T5-T10) with @egdev/ui components (vendored 0.1.0 has Collapsible, IconButton, Button, Badge, SocialLinks, Dialog, Field, Input).
 - L9 (verbatim): "1-vamos con ello 2-abrir issue 3-actualizar version de egdev design system 4-quitar". Decisions: (1) catalog banners by convention at `https://egdev6.github.io/nexo-catalog/banners/<id>.webp`, placeholder when missing, no schema change; (2) open an issue in egdev-design-system to host the family contrast (from Quorb) in tokens/ui; (3) upgrade the vendored @egdev design system in Nexo to the current version (T11); (4) remove the local catalog (T10 confirmed).
+- L10: independent verification of T5–T11: pass with advisories (no blockers); its token and open_external probes added as regressions; stale node_modules (design system) reinstalled and Vite restarted.

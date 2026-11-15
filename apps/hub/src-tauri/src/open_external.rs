@@ -204,3 +204,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "vp_open_external.rs"]
+mod vp_probes;

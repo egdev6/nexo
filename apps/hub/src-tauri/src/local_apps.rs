@@ -265,3 +265,7 @@ mod tests;
 #[cfg(test)]
 #[path = "vp_local.rs"]
 mod vp_local;
+
+#[cfg(test)]
+#[path = "local_apps/vp_tokens.rs"]
+mod vp_tokens;
