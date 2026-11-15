@@ -134,7 +134,8 @@ it('removes a confirmed installation and refreshes My apps using the new observa
   // The owner supplies the refreshed registry observation.
   rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
   select('Mis apps');
-  expect(screen.getByText('Instalada: 7.0.0')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Alfa.*Estado de ejecución desconocido/ }));
+  expect(screen.getByText('7.0.0')).toBeTruthy();
   select('Catálogo'); expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
 });
 
@@ -259,7 +260,8 @@ it('uses the real App refresh path after native installation', async () => {
   await waitFor(() => expect(scans).toBe(2));
   expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
   select('Mis apps');
-  expect(await screen.findByText('Instalada: 7.0.0')).toBeTruthy();
+  fireEvent.click(await screen.findByRole('button', { name: /Alfa.*Estado de ejecución desconocido/ }));
+  expect(screen.getByText('7.0.0')).toBeTruthy();
 });
 
 it('keeps tracking when cancellation fails and never claims it was cancelled', async () => {

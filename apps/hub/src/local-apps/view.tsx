@@ -1,4 +1,5 @@
-import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger } from '@egdev/ui';
+import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, IconButton } from '@egdev/ui';
+import { LinkIcon } from '../apps/action-icons';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
@@ -32,10 +33,11 @@ const errorKey = (error: unknown): MessageKey => {
 };
 
 /** Local rows never enter the official projection, registry merge, or News inputs. */
-export function LocalAppsView({ names, cycle }: { names: { id: string; name: string }[]; cycle?: number }) {
+export function LocalAppsView({ names, cycle, openId, onDisclosureChange }: { names: { id: string; name: string }[]; cycle?: number; openId?: string | null; onDisclosureChange?: (id: string, open: boolean) => void }) {
   const locale = useLocale();
   const native = isTauri();
   const [rows, setRows] = useState<LocalAppRow[]>([]);
+  const [standaloneOpen, setStandaloneOpen] = useState<string | null>(null);
   const [listError, setListError] = useState<MessageKey | null>(null);
   const [message, setMessage] = useState<{ error: boolean; key: MessageKey } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,20 +85,25 @@ export function LocalAppsView({ names, cycle }: { names: { id: string; name: str
     {rows.map(row => {
       const reason = row.state === 'unbound' ? 'localApps.unbound' : 'localApps.missing';
       const other = row.duplicateOf && (lookup.find(item => item.id === row.duplicateOf)?.name ?? row.duplicateOf);
-      return <Collapsible className="app-card" key={row.id} defaultOpen>
+      return <Collapsible className="app-card" key={row.id} open={(onDisclosureChange ? openId === `local:${row.id}` : standaloneOpen === row.id)} onOpenChange={open => onDisclosureChange ? onDisclosureChange(row.id, open) : setStandaloneOpen(open ? row.id : null)}>
         <div className="app-row"><CollapsibleTrigger><span className="row-label">
           <LocalAppIcon row={row} />
           <span className="app-info"><strong>{row.name}</strong><Badge tone="brand">{t(locale, 'localApps.badge')}</Badge>
-            {' · '}<span className="secondary">{row.origin.kind === 'manual' ? t(locale, 'localApps.manual') : row.origin.sourceLabel}</span>
             {' · '}<span className="secondary">{t(locale, 'appControl.runningUnknown')}</span>
-            {row.state !== 'ready' && <>{' · '}<span className="status-warning">{t(locale, reason)}</span></>}
-            {other && <>{' · '}<span className="status-warning">{t(locale, 'localApps.duplicate', { name: other })}</span></>}
           </span></span></CollapsibleTrigger>
-          <div className="actions"><Button type="button" variant="neutral" size="sm" aria-label={t(locale, 'appControl.openFor', { name: row.name })} title={t(locale, row.state === 'ready' ? 'appControl.requestOpen' : reason)} disabled={busy || row.state !== 'ready'} onClick={() => void action(row, 'open')}>{t(locale, 'common.open')}</Button>
+          <div className="row-actions">
             {row.state !== 'ready' && <Button type="button" variant="neutral" size="sm" aria-label={t(locale, row.state === 'unbound' ? 'localApps.bindFor' : 'localApps.repairFor', { name: row.name })} disabled={busy} onClick={() => void action(row, 'repair')}>{t(locale, row.state === 'unbound' ? 'localApps.bind' : 'localApps.repair')}</Button>}
+            <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: row.name })} title={t(locale, row.state === 'ready' ? 'appControl.requestOpen' : reason)} disabled={busy || row.state !== 'ready'} onClick={() => void action(row, 'open')} />
           </div>
         </div>
-        <CollapsibleContent>{row.description && <p className="meta">{row.description}</p>}<p className="meta">{t(locale, 'appControl.closeWithoutPlugin')}</p></CollapsibleContent>
+        <CollapsibleContent><div className="detail-inner">
+          {row.executable && <p className="meta local-path">{row.executable}</p>}
+          <p className="meta">{row.origin.kind === 'manual' ? t(locale, 'localApps.manual') : row.origin.sourceLabel}</p>
+          {row.state !== 'ready' && <p className="status-warning">{t(locale, reason)}</p>}
+          {other && <p className="status-warning">{t(locale, 'localApps.duplicate', { name: other })}</p>}
+          {row.description && <p className="meta">{row.description}</p>}
+          <p className="meta">{t(locale, 'appControl.closeWithoutPlugin')}</p>
+        </div></CollapsibleContent>
       </Collapsible>;
     })}
   </section>;

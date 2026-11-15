@@ -35,6 +35,10 @@ function card(name: string) {
   if (!element) throw new Error('Missing app row');
   return within(element as HTMLElement);
 }
+function expand(name: string) {
+  const trigger = card(name).getAllByRole('button').find(button => button.hasAttribute('aria-expanded'))!;
+  if (trigger.getAttribute('aria-expanded') === 'false') fireEvent.click(trigger);
+}
 
 it('shows separate source-labelled local rows after official apps with duplicate and availability warnings', async () => {
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
@@ -42,13 +46,16 @@ it('shows separate source-labelled local rows after official apps with duplicate
   const names = Array.from(document.querySelectorAll('.app-card strong')).map(node => node.textContent);
   expect(names).toEqual(['Official Example', 'Work', 'Broken', 'Catalog App']);
   expect(card('Work').getByText('Local')).toBeTruthy();
+  expand('Work');
   expect(card('Work').getByText('Added manually')).toBeTruthy();
   expect(card('Work').getByText('Running status unknown')).toBeTruthy();
   expect(card('Work').getByText('Possible duplicate of Official Example')).toBeTruthy();
   expect((card('Work').getByRole('button', { name: 'Open Work' }) as HTMLButtonElement).disabled).toBe(false);
+  expand('Broken');
   expect(card('Broken').getByText('Executable missing or inaccessible')).toBeTruthy();
   expect((card('Broken').getByRole('button', { name: 'Open Broken' }) as HTMLButtonElement).disabled).toBe(true);
   expect(card('Broken').getByRole('button', { name: 'Repair Broken' })).toBeTruthy();
+  expand('Catalog App');
   expect(card('Catalog App').getByText('Work catalog')).toBeTruthy();
   expect(card('Catalog App').getByText('Executable not selected')).toBeTruthy();
   expect((card('Catalog App').getByRole('button', { name: 'Open Catalog App' }) as HTMLButtonElement).disabled).toBe(true);
@@ -88,7 +95,9 @@ it('uses native pickers for repair and catalog binding and preserves cancellatio
   await waitFor(() => expect((card('Broken').getByRole('button', { name: 'Repair Broken' }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(card('Catalog App').getByRole('button', { name: 'Bind Catalog App' }));
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_bind', { key: { sourceId: 'source-1', appId: 'app-2' } }));
+  expand('Broken');
   expect(card('Broken').getByText('Executable missing or inaccessible')).toBeTruthy();
+  expand('Catalog App');
   expect(card('Catalog App').getByText('Executable not selected')).toBeTruthy();
 });
 

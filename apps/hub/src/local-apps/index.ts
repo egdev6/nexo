@@ -17,6 +17,8 @@ export interface LocalAppRow {
   origin: LocalAppOrigin;
   /** Owned local file path; it grants no frontend filesystem access. */
   iconPath?: string;
+  /** Informational only; opening still uses the opaque origin ID. */
+  executable?: string;
   /** Official ID or another namespaced local ID. */
   duplicateOf?: string;
   tagline?: string;

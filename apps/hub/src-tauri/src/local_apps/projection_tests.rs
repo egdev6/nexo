@@ -204,6 +204,9 @@ fn lists_source_scoped_rows_and_warns_on_official_name_or_executable_matches() {
     assert_eq!(rows.len(), 3);
     assert_eq!(rows[0]["source"], "local");
     assert_eq!(rows[0]["state"], "ready");
+    assert_eq!(rows[0]["executable"], EXE);
+    assert_eq!(rows[1]["executable"], EXE);
+    assert!(rows[2].get("executable").is_none());
     assert_eq!(rows[0]["origin"], json!({"kind":"manual", "id":manual}));
     assert_eq!(rows[0]["iconPath"], "C:\\Nexo\\local-icons\\icon-1.png");
     assert_eq!(rows[0]["duplicateOf"], "official-path");

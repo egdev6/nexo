@@ -28,6 +28,8 @@ mod ipc;
 #[cfg(any(windows, test))]
 mod local_apps;
 pub mod local_catalog;
+#[cfg(any(windows, test))]
+mod open_external;
 mod position;
 #[cfg(any(windows, test))]
 mod registry_presentation;
@@ -516,6 +518,7 @@ pub fn run() {
             apps::installed_apps,
             apps::open_official_app,
             apps::close_connected_app,
+            open_external::open_external,
             install_app,
             update_app,
             cancel_install,

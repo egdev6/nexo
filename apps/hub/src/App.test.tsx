@@ -80,6 +80,12 @@ function closeNews() {
   const close = screen.queryByRole('button', { name: 'Cerrar novedades' });
   if (close) fireEvent.click(close);
 }
+function expandRow(name: string) {
+  const card = screen.getByText(name).closest('.app-card') as HTMLElement;
+  const trigger = within(card).getAllByRole('button').find(button => button.hasAttribute('aria-expanded'))!;
+  if (trigger.getAttribute('aria-expanded') === 'false') fireEvent.click(trigger);
+  return trigger;
+}
 
 it('renders the Nexo logo in the flyout header without changing its controls', () => {
   render(<App news={[]} />);
@@ -119,8 +125,10 @@ it('shows actual installed and absent observations with a registry version and u
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
-  expect(await screen.findByText('Instalada: 9.1.0')).toBeTruthy();
-  expect(screen.getByText('Other App')).toBeTruthy();
+  await screen.findByText('Example App');
+  expandRow('Example App');
+  expect(screen.getByText('9.1.0')).toBeTruthy();
+  expect(screen.queryByText('Other App')).toBeNull();
   expect(screen.getByText(/Estado de ejecución desconocido/)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Cerrar Example App' })).toBeNull();
   expect(screen.getByText(/1 instalada/)).toBeTruthy();
@@ -149,9 +157,11 @@ it('ignores an older installation scan that resolves after a newer refresh', asy
   render(<App />);
   await waitFor(() => expect(finishFirst).toBeTypeOf('function'));
   fireEvent.focus(window);
-  expect(await screen.findByText('Instalada: 9.1.0')).toBeTruthy();
+  await screen.findByText('Example App');
+  expandRow('Example App');
+  expect(screen.getByText('9.1.0')).toBeTruthy();
   await act(async () => finishFirst([{ id: 'example-app', state: 'notInstalled', version: null, reason: 'Sin coincidencias' }]));
-  expect(screen.getByText('Instalada: 9.1.0')).toBeTruthy();
+  expect(screen.getByText('9.1.0')).toBeTruthy();
 });
 
 it('routes a connected plugin close through IPC, reports refusal, and refreshes without claiming exit', async () => {
@@ -168,8 +178,9 @@ it('routes a connected plugin close through IPC, reports refusal, and refreshes 
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
-  await screen.findByText('Instalada: 9.1.0');
+  await screen.findByText('Example App');
   act(() => publish({ revision: 1, apps: [{ app: { id: 'example-app', name: 'Example App', version: '2.0.0' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  expandRow('Example App');
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
   expect((await screen.findByRole('alert')).textContent).toContain('Cambios sin guardar');
   expect(invoke).toHaveBeenCalledWith('close_connected_app', { id: 'example-app' });
@@ -212,7 +223,7 @@ it('keeps installation unknown on scan failure instead of claiming absence', asy
   expect(await screen.findByRole('region', { name: 'Instalación desconocida' })).toBeTruthy();
   expect(screen.getByText('Example App')).toBeTruthy();
   expect(screen.queryByText('No hay aplicaciones instaladas.')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Abrir Example App' })).toBeNull();
+  expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it('disables plugin show without capability and sends only an ID when supported', async () => {
@@ -229,7 +240,7 @@ it('disables plugin show without capability and sends only an ID when supported'
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
-  await screen.findByText('Instalada: 9.1.0');
+  await screen.findByText('Example App');
   const entry = { app: { id: 'example-app', name: 'Example App', version: '2.0.0' }, capabilities: [] as string[], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] };
   act(() => publish({ revision: 1, apps: [entry] }));
   expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(true);
@@ -444,6 +455,7 @@ it('renders live connections and menus without duplicating sample identities', a
   expect(screen.getByText('Nueva app')).toBeTruthy();
   expect(screen.getByText('Conectada')).toBeTruthy();
   expect(screen.getByText(/Sin respuesta.*estado desconocido/i)).toBeTruthy();
+  expandRow('Antena');
   expect(screen.getByText(/Pausar.*desactivada.*marcada/i)).toBeTruthy();
   expect(screen.queryByText(/No está abierta/)).toBeNull();
   act(() => publish!({ revision: 1, apps: [] }));
@@ -474,21 +486,19 @@ it('explains a blocked hub exit and requires an explicit hub-only choice', async
   await waitFor(() => expect(exitHubOnly).toHaveBeenCalledOnce());
 });
 
-it('preserves expandable rows, statuses and illustrative actions', () => {
+it('preserves expandable sample rows and unknown statuses without inventing an update', () => {
   render(<App />); enter(); closeNews();
   expect(screen.getAllByText(/Estado desconocido/).length).toBeGreaterThan(0);
-  expect(screen.getByText(/Actualización disponible/)).toBeTruthy();
   expect(screen.getByText(/App local.*Estado desconocido/)).toBeTruthy();
   const row = screen.getByRole('button', { name: /Antena.*Estado desconocido/ });
+  expect(row.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('button', { name: /Actualizar a v/ })).toBeNull();
+  fireEvent.click(row);
   expect(row.getAttribute('aria-expanded')).toBe('true');
-  expect((screen.getByRole('button', { name: 'Actualizar Antena' }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Actualizar Antena' }));
-  expect(screen.getByText('Instalada: 1.4.0')).toBeTruthy();
+  expect(screen.getByText('1.4.0')).toBeTruthy();
   fireEvent.click(row);
   expect(row.getAttribute('aria-expanded')).toBe('false');
-  expect(screen.queryByText('Instalada: 1.4.0')).toBeNull();
-  fireEvent.click(row);
-  expect(screen.getByText('Disponible: 1.5.0')).toBeTruthy();
+  expect(screen.queryByText('1.4.0')).toBeNull();
   expect(screen.getByText(/acciones.*ilustrativas/i)).toBeTruthy();
 });
 

@@ -20,6 +20,8 @@ pub(crate) struct LocalRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     icon_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    executable: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     duplicate_of: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tagline: Option<String>,
@@ -121,6 +123,7 @@ pub(super) fn list(
                 state: state(fs, Some(&app.executable)),
                 origin: LocalOrigin::Manual { id: app.id.clone() },
                 icon_path: app.icon.as_deref().and_then(icon),
+                executable: None,
                 duplicate_of: None,
                 tagline: None,
                 description: None,
@@ -154,6 +157,7 @@ pub(super) fn list(
                         app_id: entry.key.app_id,
                     },
                     icon_path: None,
+                    executable: None,
                     duplicate_of: None,
                     tagline: Some(entry.tagline),
                     description: Some(entry.description),
@@ -202,7 +206,8 @@ pub(super) fn list(
     Ok(rows
         .into_iter()
         .zip(duplicates)
-        .map(|((mut row, _), duplicate)| {
+        .map(|((mut row, executable), duplicate)| {
+            row.executable = executable;
             row.duplicate_of = duplicate;
             row
         })

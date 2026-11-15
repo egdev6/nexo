@@ -111,6 +111,7 @@ it('hydrates a saved English preference before showing English chrome, without t
   expect(document.documentElement.lang).toBe('en');
   expect(screen.getByRole('button', { name: 'Settings' }).getAttribute('title')).toBe('Settings');
   expect(screen.getByRole('button', { name: 'Close panel' }).getAttribute('title')).toBe('Close panel');
+  fireEvent.click(screen.getByRole('button', { name: /Externa.*Connected/ }));
   expect(screen.getByText(/Pausar original/).textContent).toContain('Pausar original');
   const catalog = screen.getByRole('tab', { name: 'Catalog' });
   fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);

@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { Button, ProgressBar } from '@egdev/ui';
+import { Button, IconButton, ProgressBar } from '@egdev/ui';
+import { DownloadIcon } from '../../apps/action-icons';
 import type { HubApp } from '../../model';
 import { formatNumber, t, type MessageKey, type Params } from '../../i18n';
 import { useLocale } from '../../i18n/use-locale';
@@ -7,17 +8,19 @@ import { compareSemver } from '../format';
 import type { CatalogInstalls } from './use-installs';
 
 /** Shared presentation for the native install and update transaction. */
-export function InstallAction({ app, reason, installs, focused = false, mode = 'install', version, unverifiable = false }: { app: HubApp; reason?: MessageKey; installs?: CatalogInstalls; focused?: boolean; mode?: 'install' | 'update'; version?: string; unverifiable?: boolean }) {
+export function InstallAction({ app, reason, installs, focused = false, mode = 'install', version, unverifiable = false, compact = false, part = 'action' }: { app: HubApp; reason?: MessageKey; installs?: CatalogInstalls; focused?: boolean; mode?: 'install' | 'update'; version?: string; unverifiable?: boolean; compact?: boolean; part?: 'action' | 'feedback' }) {
   const locale = useLocale();
-  const id = useId();
+  const generatedId = useId();
+  const id = compact ? `update-reason-${app.id}` : generatedId;
   const current = installs?.entries.get(app.id);
   const entry = current?.operation === mode ? current : undefined;
   if (entry?.status === 'running') {
+    if (compact && part === 'action') return null;
     const { progress, cancelling, cancelError } = entry;
     const afterSpawn = progress.phase === 'installing' || progress.phase === 'detecting';
     const percent = progress.phase === 'downloading' && progress.total !== undefined && progress.total > 0 && progress.received !== undefined
       ? Math.max(0, Math.min(100, Math.round(progress.received / progress.total * 100))) : undefined;
-    return <div className="catalog-install">
+    return <div className={compact ? 'catalog-install update-feedback' : 'catalog-install'}>
       <div role="status" className="catalog-install-status">{t(locale, `install.phase.${progress.phase}`)}
         {afterSpawn && <span>{t(locale, 'install.cancelUnavailable')}</span>}</div>
       {progress.phase === 'downloading' && <div className="catalog-progress"><ProgressBar size="lg" value={percent ?? NaN} label={t(locale, 'install.downloadFor', { name: app.name })} />
@@ -34,12 +37,14 @@ export function InstallAction({ app, reason, installs, focused = false, mode = '
   const canOffer = mode === 'install' || (!!version && (!result || compareSemver(result.version, version) === -1));
   const retry = !!error && !unverifiable;
   if (mode === 'update' && !canOffer && !entry) return null;
-  return <div className="catalog-install">
+  if (compact && part === 'action') return canOffer && (!focused || !reason) ?
+    <IconButton type="button" size="md" variant="secondary" icon={<DownloadIcon />} label={t(locale, 'update.action', { version: version! })} title={t(locale, 'update.action', { version: version! })} disabled={!!reason || !installs} aria-describedby={reason ? id : undefined} onClick={() => installs?.startUpdate(app.id)} /> : null;
+  return <div className={compact ? 'catalog-install update-feedback' : 'catalog-install'}>
     {message && <div role="alert" className="catalog-install-error">{message}</div>}
     {result && <div role="status" className="catalog-install-status">{t(locale, `update.${result.status}`, { version: result.version })}</div>}
     {entry?.status === 'error' && entry.cleanupFailed && error?.status !== 'cleanupFailed' && <div role="alert" className="catalog-install-error">{t(locale, 'install.error.cleanupFailed')}</div>}
     {reason && canOffer && <div id={id} className="catalog-install-reason">{t(locale, reason)}</div>}
-    {canOffer && (!focused || !reason) && <Button type="button" size="sm" variant="primary" disabled={!!reason || !installs} aria-describedby={reason ? id : undefined}
+    {!compact && canOffer && (!focused || !reason) && <Button type="button" size="sm" variant="primary" disabled={!!reason || !installs} aria-describedby={reason ? id : undefined}
       aria-label={retry ? t(locale, 'install.retryFor', { name: app.name }) : mode === 'update' ? t(locale, 'update.actionFor', { name: app.name, version: version! }) : t(locale, 'install.installFor', { name: app.name })}
       onClick={() => mode === 'update' ? installs?.startUpdate(app.id) : installs?.start(app.id)}>{retry ? t(locale, 'common.retry') : mode === 'update' ? t(locale, 'update.action', { version: version! }) : t(locale, 'common.install')}</Button>}
     {installs?.connection === 'error' && (reason === 'install.progressUnavailable' || reason === 'update.progressUnavailable') && <Button type="button" size="sm" variant="neutral" onClick={installs.retryConnection}>{t(locale, 'common.retry')}</Button>}

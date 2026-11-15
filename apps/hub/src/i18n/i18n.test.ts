@@ -52,7 +52,7 @@ it('does not hard-code hub-owned JSX copy or accessible labels in views', () => 
 });
 
 it('interpolates and falls back to Spanish and then the key', () => {
-  expect(t('en', 'app.available', { version: '1.2.3' })).toBe('Available: 1.2.3');
+  expect(t('en', 'update.action', { version: '1.2.3' })).toBe('Update to v1.2.3');
   expect(formatMessage('{x} {missing}', { x: 7 })).toBe('7 {missing}');
   expect(translate({ a: 'Hola' }, { a: '' }, 'en', 'a')).toBe('Hola');
   expect(translate({}, {}, 'en', 'missing.key')).toBe('missing.key');
