@@ -14,6 +14,11 @@ pub struct FlyoutBounds {
     pub height: u32,
 }
 
+pub fn work_area_right_edge(area: &WorkArea) -> i32 {
+    (i64::from(area.x) + i64::from(area.width)).clamp(i64::from(i32::MIN), i64::from(i32::MAX))
+        as i32
+}
+
 pub fn flyout_bounds(area: &WorkArea, scale: f64) -> FlyoutBounds {
     let scale = if scale.is_finite() && scale > 0.0 {
         scale
@@ -39,7 +44,21 @@ pub fn flyout_bounds(area: &WorkArea, scale: f64) -> FlyoutBounds {
 
 #[cfg(test)]
 mod tests {
-    use super::{FlyoutBounds, WorkArea, flyout_bounds};
+    use super::{FlyoutBounds, WorkArea, flyout_bounds, work_area_right_edge};
+
+    #[test]
+    fn right_edge_respects_negative_origins_and_saturates() {
+        let mut area = WorkArea {
+            x: -1920,
+            y: 40,
+            width: 1920,
+            height: 1320,
+        };
+        assert_eq!(work_area_right_edge(&area), 0);
+        area.x = i32::MAX - 1;
+        area.width = 1920;
+        assert_eq!(work_area_right_edge(&area), i32::MAX);
+    }
 
     #[test]
     fn fills_work_area_height_independent_of_content() {

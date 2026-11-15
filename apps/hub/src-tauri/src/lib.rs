@@ -39,8 +39,11 @@ mod tray_icon;
 pub mod update_close;
 #[cfg(test)]
 mod update_service_tests;
+mod window_motion;
+#[cfg(test)]
+mod window_motion_tests;
 
-use position::{WorkArea, flyout_bounds};
+use position::{WorkArea, flyout_bounds, work_area_right_edge};
 use std::sync::{
     Mutex,
     atomic::{AtomicBool, Ordering},
@@ -51,6 +54,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
+use window_motion::{Animation, Coordinator, Geometry, Surface};
 
 #[cfg(windows)]
 struct NativeInstallProgress(AppHandle);
@@ -214,105 +218,51 @@ fn get_flyout_state(state: State<'_, VisibilityState>) -> Result<FlyoutVisibilit
         .map_err(|error| error.to_string())
 }
 
-#[derive(Clone, serde::Serialize)]
-struct FlyoutMotion {
-    phase: &'static str,
-    sequence: u64,
-}
-
-struct MotionCoordinator {
-    current: FlyoutMotion,
-    pending_hide: Option<u64>,
-}
-
-impl Default for MotionCoordinator {
-    fn default() -> Self {
-        Self {
-            current: FlyoutMotion {
-                phase: "hidden",
-                sequence: 0,
-            },
-            pending_hide: None,
-        }
-    }
-}
-
-trait FlyoutSurface {
-    type Error;
-    fn is_visible(&self) -> Result<bool, Self::Error>;
-    fn show(&self) -> Result<(), Self::Error>;
-    fn hide(&self) -> Result<(), Self::Error>;
-    fn visibility(&self, visible: bool);
-    fn emit(&self, event: FlyoutMotion);
-}
-
-impl MotionCoordinator {
-    fn publish(&mut self, surface: &impl FlyoutSurface, phase: &'static str) -> u64 {
-        self.current.sequence += 1;
-        self.current.phase = phase;
-        surface.emit(self.current.clone());
-        self.current.sequence
-    }
-
-    fn show<S: FlyoutSurface>(&mut self, surface: &S) -> Result<(), S::Error> {
-        if !surface.is_visible()? {
-            surface.show()?;
-            surface.visibility(true);
-            self.pending_hide = None;
-            self.publish(surface, "enter");
-        } else if self.pending_hide.take().is_some() {
-            self.publish(surface, "enter");
-        }
-        Ok(())
-    }
-
-    fn hide<S: FlyoutSurface>(&mut self, surface: &S) -> Result<Option<u64>, S::Error> {
-        if !surface.is_visible()? || self.pending_hide.is_some() {
-            return Ok(None);
-        }
-        let sequence = self.publish(surface, "exit");
-        self.pending_hide = Some(sequence);
-        Ok(Some(sequence))
-    }
-
-    fn finish<S: FlyoutSurface>(&mut self, surface: &S, sequence: u64) -> Result<(), S::Error> {
-        if self.pending_hide == Some(sequence) {
-            surface.hide()?;
-            self.pending_hide = None;
-            surface.visibility(false);
-            self.publish(surface, "hidden");
-        }
-        Ok(())
-    }
-
-    fn toggle<S: FlyoutSurface>(
-        &mut self,
-        surface: &S,
-        suppress_reopen: bool,
-    ) -> Result<Option<u64>, S::Error> {
-        if surface.is_visible()? && self.pending_hide.is_none() {
-            self.hide(surface)
-        } else {
-            if !suppress_reopen {
-                self.show(surface)?;
-            }
-            Ok(None)
-        }
-    }
-}
-
 #[derive(Default)]
-struct MotionState(Mutex<MotionCoordinator>);
+struct MotionState(Mutex<Coordinator>);
 
 struct NativeFlyout<'a>(&'a WebviewWindow);
 
-impl FlyoutSurface for NativeFlyout<'_> {
+impl Surface for NativeFlyout<'_> {
     type Error = tauri::Error;
     fn is_visible(&self) -> tauri::Result<bool> {
         self.0.is_visible()
     }
+    fn geometry(&self) -> tauri::Result<Option<Geometry>> {
+        let Some(monitor) = self.0.primary_monitor()? else {
+            return Ok(None);
+        };
+        let work = monitor.work_area();
+        let area = WorkArea {
+            x: work.position.x,
+            y: work.position.y,
+            width: work.size.width,
+            height: work.size.height,
+        };
+        let bounds = flyout_bounds(&area, monitor.scale_factor());
+        Ok(Some(Geometry {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            offscreen_x: work_area_right_edge(&area),
+        }))
+    }
+    fn set_size(&self, width: u32, height: u32) -> tauri::Result<()> {
+        let size = PhysicalSize::new(width, height);
+        if self.0.inner_size()? != size {
+            self.0.set_size(size)?;
+        }
+        Ok(())
+    }
+    fn position(&self) -> tauri::Result<(i32, i32)> {
+        let position = self.0.outer_position()?;
+        Ok((position.x, position.y))
+    }
+    fn set_position(&self, x: i32, y: i32) -> tauri::Result<()> {
+        self.0.set_position(PhysicalPosition::new(x, y))
+    }
     fn show(&self) -> tauri::Result<()> {
-        place_flyout(self.0)?;
         self.0.show()
     }
     fn hide(&self) -> tauri::Result<()> {
@@ -321,60 +271,85 @@ impl FlyoutSurface for NativeFlyout<'_> {
     fn visibility(&self, visible: bool) {
         record_visibility(self.0.app_handle(), visible);
     }
-    fn emit(&self, event: FlyoutMotion) {
-        if let Err(error) = self.0.emit("flyout-motion", event) {
-            eprintln!("could not send flyout motion: {error}");
-        }
-    }
 }
 
-#[tauri::command]
-fn get_flyout_motion(state: State<'_, MotionState>) -> Result<FlyoutMotion, String> {
-    state
-        .0
-        .lock()
-        .map(|motion| motion.current.clone())
-        .map_err(|error| error.to_string())
+#[cfg(windows)]
+fn reduced_motion() -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        SPI_GETCLIENTAREAANIMATION, SystemParametersInfoW,
+    };
+    let mut enabled: i32 = 0;
+    // SAFETY: this SPI action writes a BOOL into the valid pointer supplied here.
+    let success = unsafe {
+        SystemParametersInfoW(
+            SPI_GETCLIENTAREAANIMATION,
+            0,
+            std::ptr::from_mut(&mut enabled).cast(),
+            0,
+        )
+    };
+    success == 0 || enabled == 0
 }
 
-fn finish_window_hide(window: &WebviewWindow, sequence: u64) -> tauri::Result<()> {
-    let state = window.app_handle().state::<MotionState>();
-    if let Ok(mut motion) = state.0.lock() {
-        motion.finish(&NativeFlyout(window), sequence)?;
-    }
-    Ok(())
+#[cfg(not(windows))]
+fn reduced_motion() -> bool {
+    false
 }
 
-#[tauri::command]
-fn finish_flyout_hide(window: WebviewWindow, sequence: u64) -> Result<(), String> {
-    if window.label() != "main" {
-        return Err("Ventana no autorizada".into());
-    }
-    finish_window_hide(&window, sequence).map_err(|error| error.to_string())
-}
-
-// A nonresponsive or not-yet-loaded webview must never prevent hiding to tray.
-fn schedule_hide_fallback(window: &WebviewWindow, sequence: u64) {
+// The timer is off-thread, but every coordinator and native-window operation
+// runs on the UI thread. Check the generation there, not before dispatching a
+// frame, so even already-queued frames cannot outlive a newer request.
+fn schedule_animation(window: &WebviewWindow, animation: Option<Animation>) {
+    let Some(animation) = animation else { return };
     let window = window.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(600));
-        if let Err(error) = finish_window_hide(&window, sequence) {
-            eprintln!("could not hide Nexo: {error}");
+        let started = Instant::now();
+        loop {
+            let last = started.elapsed() >= window_motion::DURATION;
+            let target = window.clone();
+            if let Err(error) = window.run_on_main_thread(move || {
+                let state = target.app_handle().state::<MotionState>();
+                let Ok(mut motion) = state.0.try_lock() else {
+                    return;
+                };
+                if let Err(error) =
+                    motion.advance(&NativeFlyout(&target), &animation, started.elapsed())
+                {
+                    eprintln!("could not animate Nexo: {error}");
+                    if let Err(error) = motion.abort(&NativeFlyout(&target)) {
+                        eprintln!("could not hide Nexo after animation failure: {error}");
+                    }
+                }
+            }) {
+                eprintln!("could not schedule Nexo animation: {error}");
+                return;
+            }
+            if last {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(16));
         }
     });
 }
 
-fn hide_window(window: &WebviewWindow) -> tauri::Result<()> {
+fn hide_window_on_main(window: &WebviewWindow) -> tauri::Result<()> {
     let state = window.app_handle().state::<MotionState>();
-    let sequence = if let Ok(mut motion) = state.0.lock() {
-        motion.hide(&NativeFlyout(window))?
+    let animation = if let Ok(mut motion) = state.0.try_lock() {
+        motion.hide(&NativeFlyout(window), reduced_motion())?
     } else {
         None
     };
-    if let Some(sequence) = sequence {
-        schedule_hide_fallback(window, sequence);
-    }
+    schedule_animation(window, animation);
     Ok(())
+}
+
+fn hide_window(window: &WebviewWindow) -> tauri::Result<()> {
+    let target = window.clone();
+    window.run_on_main_thread(move || {
+        if let Err(error) = hide_window_on_main(&target) {
+            eprintln!("could not hide Nexo: {error}");
+        }
+    })
 }
 
 #[tauri::command]
@@ -391,49 +366,39 @@ struct FocusState {
     tray_focus_loss: Mutex<Option<Instant>>,
 }
 
-fn place_flyout(window: &WebviewWindow) -> tauri::Result<()> {
-    let Some(monitor) = window.primary_monitor()? else {
-        return Ok(());
-    };
-    let work = monitor.work_area();
-    let area = WorkArea {
-        x: work.position.x,
-        y: work.position.y,
-        width: work.size.width,
-        height: work.size.height,
-    };
-    let bounds = flyout_bounds(&area, monitor.scale_factor());
-    let size = PhysicalSize::new(bounds.width, bounds.height);
-    let position = PhysicalPosition::new(bounds.x, bounds.y);
-    if window.inner_size()? != size {
-        window.set_size(size)?;
-    }
-    if window.outer_position()? != position {
-        window.set_position(position)?;
-    }
-    Ok(())
-}
-
 fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
-        if let Ok(mut lost) = app.state::<FocusState>().tray_focus_loss.lock() {
-            *lost = None;
-        }
-        if let Ok(mut motion) = app.state::<MotionState>().0.lock() {
-            motion.show(&NativeFlyout(&window))?;
-        }
-        window.set_focus()?;
+        let target = window.clone();
+        return window.run_on_main_thread(move || {
+            let app = target.app_handle();
+            if let Ok(mut lost) = app.state::<FocusState>().tray_focus_loss.lock() {
+                *lost = None;
+            }
+            let result = (|| {
+                let animation = if let Ok(mut motion) = app.state::<MotionState>().0.try_lock() {
+                    motion.show(&NativeFlyout(&target), reduced_motion())?
+                } else {
+                    None
+                };
+                schedule_animation(&target, animation);
+                target.set_focus()
+            })();
+            if let Err(error) = result {
+                eprintln!("could not show Nexo: {error}");
+            }
+        });
     }
     Ok(())
 }
 
+// Tray callbacks are delivered on Tauri's UI thread.
 fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         let state = app.state::<MotionState>();
-        let Ok(mut motion) = state.0.lock() else {
+        let Ok(mut motion) = state.0.try_lock() else {
             return Ok(());
         };
-        let reopening = !window.is_visible()? || motion.pending_hide.is_some();
+        let reopening = !window.is_visible()? || motion.is_exiting();
         // The click that caused a blur must not also reopen the exiting window.
         let just_hidden = reopening
             && app
@@ -445,11 +410,9 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
                         .is_some_and(|at| at.elapsed() < Duration::from_millis(250))
                 })
                 .unwrap_or(false);
-        let sequence = motion.toggle(&NativeFlyout(&window), just_hidden)?;
+        let animation = motion.toggle(&NativeFlyout(&window), reduced_motion(), just_hidden)?;
         drop(motion);
-        if let Some(sequence) = sequence {
-            schedule_hide_fallback(&window, sequence);
-        }
+        schedule_animation(&window, animation);
         if reopening && !just_hidden {
             window.set_focus()?;
         }
@@ -494,8 +457,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
             get_flyout_state,
-            get_flyout_motion,
-            finish_flyout_hide,
             hide_flyout,
             catalog_cache::read_catalog_cache,
             catalog_cache::read_catalog_v2_cache,
@@ -533,8 +494,6 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
         get_flyout_state,
-        get_flyout_motion,
-        finish_flyout_hide,
         hide_flyout,
         catalog_cache::read_catalog_cache,
         catalog_cache::read_catalog_v2_cache,
@@ -675,133 +634,6 @@ pub fn run() {
                 hub.shutdown();
             }
         });
-}
-
-#[cfg(test)]
-mod motion_tests {
-    use super::{FlyoutMotion, FlyoutSurface, MotionCoordinator, handle_close_request};
-    use std::cell::{Cell, RefCell};
-
-    #[derive(Default)]
-    struct Surface {
-        visible: Cell<bool>,
-        events: RefCell<Vec<String>>,
-    }
-
-    impl FlyoutSurface for Surface {
-        type Error = ();
-
-        fn is_visible(&self) -> Result<bool, Self::Error> {
-            Ok(self.visible.get())
-        }
-        fn show(&self) -> Result<(), Self::Error> {
-            self.visible.set(true);
-            self.events.borrow_mut().push("show".into());
-            Ok(())
-        }
-        fn hide(&self) -> Result<(), Self::Error> {
-            self.visible.set(false);
-            self.events.borrow_mut().push("hide".into());
-            Ok(())
-        }
-        fn visibility(&self, visible: bool) {
-            self.events.borrow_mut().push(format!("visible:{visible}"));
-        }
-        fn emit(&self, event: FlyoutMotion) {
-            self.events
-                .borrow_mut()
-                .push(format!("{}:{}", event.phase, event.sequence));
-        }
-    }
-
-    #[test]
-    fn tray_shortcut_close_and_blur_each_emit_before_hiding_and_reopen() {
-        let surface = Surface::default();
-        let mut motion = MotionCoordinator::default();
-
-        // Tray click opens; the next click starts an exit, but does not hide yet.
-        motion.toggle(&surface, false).unwrap();
-        let tray_exit = motion.toggle(&surface, false).unwrap().unwrap();
-        assert!(surface.visible.get());
-        assert_eq!(
-            surface.events.borrow().as_slice(),
-            ["show", "visible:true", "enter:1", "exit:2"]
-        );
-        motion.finish(&surface, tray_exit).unwrap();
-        assert!(!surface.visible.get());
-
-        // A second instance/shortcut reopens, and a native close is prevented.
-        motion.show(&surface).unwrap();
-        let prevented = Cell::new(false);
-        let mut close_exit = None;
-        handle_close_request(
-            "main",
-            || prevented.set(true),
-            || {
-                close_exit = motion.hide(&surface)?;
-                Ok::<_, ()>(())
-            },
-        )
-        .unwrap();
-        assert!(prevented.get());
-        assert!(surface.visible.get());
-        motion.finish(&surface, close_exit.unwrap()).unwrap();
-
-        // Reopening after close, then focus loss, uses the same exit protocol.
-        motion.toggle(&surface, false).unwrap();
-        let blur_exit = motion.hide(&surface).unwrap().unwrap();
-        assert!(surface.visible.get());
-        motion.finish(&surface, blur_exit).unwrap();
-        motion.show(&surface).unwrap();
-        assert_eq!(
-            surface.events.borrow().as_slice(),
-            [
-                "show",
-                "visible:true",
-                "enter:1",
-                "exit:2",
-                "hide",
-                "visible:false",
-                "hidden:3",
-                "show",
-                "visible:true",
-                "enter:4",
-                "exit:5",
-                "hide",
-                "visible:false",
-                "hidden:6",
-                "show",
-                "visible:true",
-                "enter:7",
-                "exit:8",
-                "hide",
-                "visible:false",
-                "hidden:9",
-                "show",
-                "visible:true",
-                "enter:10",
-            ]
-        );
-    }
-
-    #[test]
-    fn reopening_cancels_stale_completion_and_the_tray_blur_click_does_not_reopen() {
-        let surface = Surface::default();
-        let mut motion = MotionCoordinator::default();
-        motion.show(&surface).unwrap();
-        let exit = motion.hide(&surface).unwrap().unwrap();
-        assert_eq!(motion.toggle(&surface, true).unwrap(), None);
-        assert_eq!(motion.hide(&surface).unwrap(), None);
-        motion.show(&surface).unwrap();
-        motion.finish(&surface, exit).unwrap();
-        assert!(surface.visible.get());
-        assert_eq!(
-            surface.events.borrow().as_slice(),
-            ["show", "visible:true", "enter:1", "exit:2", "enter:3"]
-        );
-        motion.show(&surface).unwrap();
-        assert_eq!(surface.events.borrow().len(), 5);
-    }
 }
 
 #[cfg(test)]
