@@ -1,4 +1,4 @@
-import type { Catalog } from '../catalog/format';
+import type { Catalog, CatalogNews } from '../catalog/format';
 import { projectCatalog } from '../catalog/mapping';
 import type { NewsItem } from '../model';
 import { t } from '../i18n';
@@ -19,6 +19,15 @@ function compare(a: Instant, b: Instant): number {
   const length = Math.max(a.fraction.length, b.fraction.length);
   const left = a.fraction.padEnd(length, '0'), right = b.fraction.padEnd(length, '0');
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/** Latest explicit catalog news, without the popup's age window or synthetic entries. */
+export function latestCatalogNews(news: CatalogNews[]): CatalogNews | undefined {
+  return news.reduce<CatalogNews | undefined>((latest, item) => {
+    if (!latest) return item;
+    const order = compare(instant(item.publishedAt), instant(latest.publishedAt));
+    return order > 0 || (order === 0 && item.id < latest.id) ? item : latest;
+  }, undefined);
 }
 
 /** Call only with a validated official catalog, never local sources. */

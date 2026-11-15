@@ -4,7 +4,7 @@ use crate::install_approval::{
 };
 #[cfg(not(windows))]
 use crate::install_approval::{ApprovalDecision, InstallApproval, NativeInstallApproval};
-use crate::install_approval::{ApprovalRequest, approval_text};
+use crate::install_approval::{ApprovalRequest, approval_text, update_approval_text};
 
 fn request(language: &str) -> ApprovalRequest<'_> {
     ApprovalRequest {
@@ -30,6 +30,69 @@ fn confirmation_substitutes_every_field_in_both_languages() {
         es.body,
         "¿Descargar e instalar Antena, versión 1.2.3, desde github.com?"
     );
+}
+
+#[test]
+fn update_confirmation_shows_both_versions_and_host_in_both_languages() {
+    let en = update_approval_text(&request("en"), "1.0.0").expect("English update");
+    assert_eq!(en.title, "Confirm update");
+    assert_eq!(
+        en.body,
+        "Download and update Antena: 1.0.0 → 1.2.3 from github.com?"
+    );
+    let es = update_approval_text(&request("es"), "1.0.0").expect("Spanish update");
+    assert_eq!(es.title, "Confirmar actualización");
+    assert_eq!(
+        es.body,
+        "¿Descargar y actualizar Antena: 1.0.0 → 1.2.3 desde github.com?"
+    );
+    assert_eq!(update_approval_text(&request("unknown"), "1.0.0"), Some(en));
+}
+
+#[test]
+fn update_confirmation_preserves_values_and_rejects_nul() {
+    let injected = ApprovalRequest {
+        app_name: "App {currentVersion}",
+        version: "{host}",
+        publisher_host: "github.com/{version}",
+        language: "en",
+    };
+    let text = update_approval_text(&injected, "{app}").unwrap();
+    assert_eq!(
+        text.body,
+        "Download and update App {currentVersion}: {app} → {host} from github.com/{version}?"
+    );
+    for bad in [
+        ApprovalRequest {
+            app_name: "app\0",
+            ..request("en")
+        },
+        ApprovalRequest {
+            version: "1.2.3\0",
+            ..request("en")
+        },
+        ApprovalRequest {
+            publisher_host: "github.com\0",
+            ..request("en")
+        },
+    ] {
+        assert_eq!(update_approval_text(&bad, "1.0.0"), None);
+    }
+    assert_eq!(update_approval_text(&request("en"), "1.0.0\0"), None);
+}
+
+#[test]
+fn update_translation_keys_include_all_required_placeholders() {
+    let messages: serde_json::Value =
+        serde_json::from_str(include_str!("../../src/i18n/messages.json")).unwrap();
+    for language in ["en", "es"] {
+        let confirm = &messages[language]["update"]["confirm"];
+        assert!(!confirm["title"].as_str().unwrap().is_empty());
+        let body = confirm["body"].as_str().unwrap();
+        for placeholder in ["{app}", "{currentVersion}", "{version}", "{host}"] {
+            assert!(body.contains(placeholder), "{language}: {placeholder}");
+        }
+    }
 }
 
 #[test]
@@ -155,6 +218,52 @@ fn windows_dialog_approves_only_yes_and_uses_default_no() {
             calls[0].flags,
             MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND | MB_DEFBUTTON2
         );
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_update_dialog_uses_default_no_and_rejects_invalid_text() {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        IDNO, IDYES, MB_DEFBUTTON2, MB_ICONQUESTION, MB_SETFOREGROUND, MB_YESNO,
+    };
+    for (response, expected) in [
+        (IDYES, ApprovalDecision::Approved),
+        (IDNO, ApprovalDecision::Denied),
+    ] {
+        let approval = DialogInstallApproval {
+            dialog: FakeDialog {
+                response,
+                calls: Default::default(),
+            },
+        };
+        assert_eq!(approval.confirm_update(&request("en"), "1.0.0"), expected);
+        let calls = approval.dialog.calls.borrow();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(
+            calls[0].title,
+            "Confirm update"
+                .encode_utf16()
+                .chain(Some(0))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            calls[0].body,
+            "Download and update Antena: 1.0.0 → 1.2.3 from github.com?"
+                .encode_utf16()
+                .chain(Some(0))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            calls[0].flags,
+            MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND | MB_DEFBUTTON2
+        );
+        drop(calls);
+        assert_eq!(
+            approval.confirm_update(&request("en"), "1.0.0\0"),
+            ApprovalDecision::Denied
+        );
+        assert_eq!(approval.dialog.calls.borrow().len(), 1);
     }
 }
 

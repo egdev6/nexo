@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { cancelInstall, installApp, onInstallProgress } from './index';
+import { cancelInstall, installApp, onInstallProgress, updateApp } from './index';
 
 const native = vi.hoisted(() => ({ invoke: vi.fn(), listen: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: native.invoke }));
@@ -17,6 +17,16 @@ describe('install client', () => {
     expect(native.invoke).toHaveBeenCalledWith('install_app', { id: 'minimal' });
     native.invoke.mockRejectedValueOnce('native error');
     await expect(installApp('minimal')).rejects.toBe('native error');
+  });
+  it('passes only the official id to updates and preserves native outcomes', async () => {
+    for (const result of [{ status: 'updated', version: '2.0.0' }, { status: 'upToDate', version: '3.0.0' }, { status: 'versionMismatch', version: '4.0.0' }, { status: 'appStillRunning' }, { status: 'detectionUnknown' }, { status: 'notDetected' }]) {
+      native.invoke.mockResolvedValueOnce(result);
+      await expect(updateApp('minimal')).resolves.toEqual(result);
+    }
+    expect(native.invoke).toHaveBeenCalledTimes(6);
+    expect(native.invoke).toHaveBeenCalledWith('update_app', { id: 'minimal' });
+    native.invoke.mockRejectedValueOnce('native error');
+    await expect(updateApp('minimal')).rejects.toBe('native error');
   });
   it('passes cancellation through without confusing the native outcomes', async () => {
     for (const result of ['cancelled', 'tooLate', 'notRunning', 'cleanupFailed']) {

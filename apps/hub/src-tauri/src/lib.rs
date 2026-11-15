@@ -36,6 +36,9 @@ mod runtime;
 #[cfg(any(windows, test))]
 mod tray;
 mod tray_icon;
+pub mod update_close;
+#[cfg(test)]
+mod update_service_tests;
 
 use position::{WorkArea, flyout_bounds};
 use std::sync::{
@@ -80,6 +83,34 @@ async fn install_app(
             &id,
             language,
             std::sync::Arc::new(NativeInstallProgress(app)),
+        )
+        .await)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn update_app(
+    app: AppHandle,
+    window: WebviewWindow,
+    service: State<'_, install_service::NativeService>,
+    hub: State<'_, ipc::Hub>,
+    id: String,
+) -> Result<install_service::InstallResult, String> {
+    if window.label() != "main" {
+        return Ok(install_service::InstallResult::NotAvailable);
+    }
+    let language = match config::bootstrap_locale(&app) {
+        i18n::Locale::Es => "es",
+        i18n::Locale::En => "en",
+    };
+    Ok(service
+        .update_app_with_progress(
+            &id,
+            language,
+            std::sync::Arc::new(NativeInstallProgress(app)),
+            std::sync::Arc::new(install_service::NativeUpdateCloser::new(
+                hub.inner().clone(),
+            )),
         )
         .await)
 }
@@ -280,9 +311,11 @@ pub fn run() {
                 .build(),
         );
     #[cfg(windows)]
+    let hub = ipc::Hub::new();
+    #[cfg(windows)]
     let builder = builder
-        .manage(install_service::native().expect("install HTTP client"))
-        .manage(ipc::Hub::new())
+        .manage(install_service::native(hub.clone()).expect("install HTTP client"))
+        .manage(hub)
         .manage(runtime::Routes::default())
         .manage(local_catalog::RefreshFence::default())
         .invoke_handler(tauri::generate_handler![
@@ -303,6 +336,7 @@ pub fn run() {
             apps::open_official_app,
             apps::close_connected_app,
             install_app,
+            update_app,
             cancel_install,
             local_apps::windows::local_apps_list,
             local_apps::windows::local_app_add,

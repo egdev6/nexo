@@ -19,6 +19,14 @@ pub enum ApprovalDecision {
 
 pub trait InstallApproval {
     fn confirm(&self, req: &ApprovalRequest<'_>) -> ApprovalDecision;
+
+    fn confirm_update(
+        &self,
+        _req: &ApprovalRequest<'_>,
+        _current_version: &str,
+    ) -> ApprovalDecision {
+        ApprovalDecision::Denied
+    }
 }
 
 pub struct NativeInstallApproval;
@@ -41,6 +49,28 @@ impl<D: ApprovalDialog> InstallApproval for DialogInstallApproval<D> {
         };
 
         let Some(text) = approval_text(req) else {
+            return ApprovalDecision::Denied;
+        };
+        let title: Vec<u16> = text.title.encode_utf16().chain(Some(0)).collect();
+        let body: Vec<u16> = text.body.encode_utf16().chain(Some(0)).collect();
+        let response = self.dialog.show(
+            &body,
+            &title,
+            MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND | MB_DEFBUTTON2,
+        );
+        if response == IDYES {
+            ApprovalDecision::Approved
+        } else {
+            ApprovalDecision::Denied
+        }
+    }
+
+    fn confirm_update(&self, req: &ApprovalRequest<'_>, current_version: &str) -> ApprovalDecision {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            IDYES, MB_DEFBUTTON2, MB_ICONQUESTION, MB_SETFOREGROUND, MB_YESNO,
+        };
+
+        let Some(text) = update_approval_text(req, current_version) else {
             return ApprovalDecision::Denied;
         };
         let title: Vec<u16> = text.title.encode_utf16().chain(Some(0)).collect();
@@ -79,6 +109,13 @@ impl InstallApproval for NativeInstallApproval {
         }
         .confirm(req)
     }
+
+    fn confirm_update(&self, req: &ApprovalRequest<'_>, current_version: &str) -> ApprovalDecision {
+        DialogInstallApproval {
+            dialog: WindowsDialog,
+        }
+        .confirm_update(req, current_version)
+    }
 }
 
 #[cfg(not(windows))]
@@ -92,6 +129,53 @@ impl InstallApproval for NativeInstallApproval {
 pub struct ApprovalText {
     pub title: String,
     pub body: String,
+}
+
+pub fn update_approval_text(
+    req: &ApprovalRequest<'_>,
+    current_version: &str,
+) -> Option<ApprovalText> {
+    if [
+        req.app_name,
+        req.version,
+        req.publisher_host,
+        current_version,
+    ]
+    .iter()
+    .any(|value| value.contains('\0'))
+    {
+        return None;
+    }
+    let messages: serde_json::Value =
+        serde_json::from_str(include_str!("../../src/i18n/messages.json")).ok()?;
+    let language = if req.language == "es" { "es" } else { "en" };
+    let confirm = messages.get(language)?.get("update")?.get("confirm")?;
+    let title = confirm.get("title")?.as_str()?;
+    let body = confirm.get("body")?.as_str()?;
+    if title.is_empty()
+        || !["{app}", "{currentVersion}", "{version}", "{host}"]
+            .iter()
+            .all(|placeholder| body.contains(placeholder))
+    {
+        return None;
+    }
+    // Render each template segment before inserting the current version: no supplied
+    // value is reinterpreted as a placeholder.
+    let render_update = |template: &str| {
+        template
+            .split("{currentVersion}")
+            .map(|part| render(part, req))
+            .collect::<Vec<_>>()
+            .join(current_version)
+    };
+    let text = ApprovalText {
+        title: render_update(title),
+        body: render_update(body),
+    };
+    if text.title.contains('\0') || text.body.contains('\0') {
+        return None;
+    }
+    Some(text)
 }
 
 pub fn approval_text(req: &ApprovalRequest<'_>) -> Option<ApprovalText> {

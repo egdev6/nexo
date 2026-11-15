@@ -76,10 +76,32 @@ function updaterKey(value: unknown): void {
     if (btoa(key) !== lines[1] || key.length !== 42 || !key.startsWith('Ed')) return fail();
   } catch { fail(); }
 }
-function semver(value: unknown): void {
-  if (typeof value !== 'string') return fail();
+function parseSemver(value: unknown): RegExpExecArray | null {
+  if (typeof value !== 'string') return null;
   const match = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.exec(value);
-  if (!match || match[0] !== value || match.slice(1, 4).some(n => BigInt(n) > 18446744073709551615n) || match[4]?.split('.').some(part => /^0[0-9]+$/.test(part))) fail();
+  return !match || match[0] !== value || match.slice(1, 4).some(n => BigInt(n) > 18446744073709551615n) || match[4]?.split('.').some(part => /^0[0-9]+$/.test(part)) ? null : match;
+}
+function semver(value: unknown): void { if (!parseSemver(value)) fail(); }
+
+/** SemVer precedence, using the same strict validation as the catalog and native service. */
+export function compareSemver(left: unknown, right: unknown): number | undefined {
+  const a = parseSemver(left), b = parseSemver(right);
+  if (!a || !b) return undefined;
+  for (let i = 1; i <= 3; i++) {
+    const x = BigInt(a[i]), y = BigInt(b[i]);
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  if (!a[4] || !b[4]) return a[4] === b[4] ? 0 : a[4] ? -1 : 1;
+  const x = a[4].split('.'), y = b[4].split('.');
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    if (x[i] === undefined || y[i] === undefined) return x[i] === undefined ? -1 : 1;
+    if (x[i] === y[i]) continue;
+    const nx = /^[0-9]+$/.test(x[i]), ny = /^[0-9]+$/.test(y[i]);
+    if (nx && ny) return x[i].length !== y[i].length ? (x[i].length < y[i].length ? -1 : 1) : (x[i] < y[i] ? -1 : 1);
+    if (nx !== ny) return nx ? -1 : 1;
+    return x[i] < y[i] ? -1 : 1;
+  }
+  return 0;
 }
 function timestamp(value: unknown): void {
   if (typeof value !== 'string') return fail();
