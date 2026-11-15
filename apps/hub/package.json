@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run --dir src",
+    "canvas": "vitest run --config vitest.canvas.config.ts",
     "tauri": "tauri",
     "app:dev": "tauri dev"
   },
