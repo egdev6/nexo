@@ -93,7 +93,9 @@ impl Coordinator {
         let (geometry, from) = if visible {
             (self.geometry, surface.position()?.0)
         } else {
-            let geometry = surface.geometry()?;
+            // A previously hidden window may still be offscreen if monitor data
+            // is temporarily unavailable. Keep the last usable placement.
+            let geometry = surface.geometry()?.or(self.geometry);
             if let Some(bounds) = geometry {
                 surface.set_size(bounds.width, bounds.height)?;
                 surface.set_position(
@@ -208,20 +210,10 @@ impl Coordinator {
         surface.hide()?;
         self.phase = Phase::Hidden;
         self.next_generation();
-        // Restore only after hiding, including if reduced motion was enabled mid-entry.
-        let restored = if let Some(bounds) = self.geometry {
-            surface.position().and_then(|position| {
-                if position != (bounds.x, bounds.y) {
-                    surface.set_position(bounds.x, bounds.y)
-                } else {
-                    Ok(())
-                }
-            })
-        } else {
-            Ok(())
-        };
+        // Do not move the hidden window while the compositor may still be
+        // displaying its last frame. The next show positions it before showing.
         surface.visibility(false);
-        restored
+        Ok(())
     }
 
     pub(crate) fn abort<S: Surface>(&mut self, surface: &S) -> Result<(), S::Error> {

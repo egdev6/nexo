@@ -274,6 +274,33 @@ impl Surface for NativeFlyout<'_> {
 }
 
 #[cfg(windows)]
+fn disable_dwm_transitions(window: &WebviewWindow) {
+    use windows_sys::Win32::{
+        Foundation::TRUE,
+        Graphics::Dwm::{DWMWA_TRANSITIONS_FORCEDISABLED, DwmSetWindowAttribute},
+    };
+
+    match window.hwnd() {
+        Ok(hwnd) => {
+            // SAFETY: the window owns this valid HWND, and TRUE is a BOOL with
+            // the size required by DWMWA_TRANSITIONS_FORCEDISABLED.
+            let result = unsafe {
+                DwmSetWindowAttribute(
+                    hwnd.0.cast(),
+                    DWMWA_TRANSITIONS_FORCEDISABLED as u32,
+                    std::ptr::from_ref(&TRUE).cast(),
+                    std::mem::size_of_val(&TRUE) as u32,
+                )
+            };
+            if result < 0 {
+                eprintln!("could not disable Nexo DWM transitions: {result:#010x}");
+            }
+        }
+        Err(error) => eprintln!("could not get Nexo window handle for DWM: {error}"),
+    }
+}
+
+#[cfg(windows)]
 fn reduced_motion() -> bool {
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         SPI_GETCLIENTAREAANIMATION, SystemParametersInfoW,
@@ -375,11 +402,12 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
                 *lost = None;
             }
             let result = (|| {
-                let animation = if let Ok(mut motion) = app.state::<MotionState>().0.try_lock() {
-                    motion.show(&NativeFlyout(&target), reduced_motion())?
-                } else {
-                    None
+                let state = app.state::<MotionState>();
+                let Ok(mut motion) = state.0.try_lock() else {
+                    return Ok(());
                 };
+                let animation = motion.show(&NativeFlyout(&target), reduced_motion())?;
+                drop(motion);
                 schedule_animation(&target, animation);
                 target.set_focus()
             })();
@@ -560,6 +588,7 @@ pub fn run() {
             // the CSS blur slider does not control either native effect's radius.
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
+                disable_dwm_transitions(&window);
                 let applied = window_vibrancy::apply_mica(&window, None)
                     .or_else(|_| window_vibrancy::apply_acrylic(&window, None))
                     .is_ok();
