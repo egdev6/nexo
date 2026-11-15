@@ -120,14 +120,19 @@ impl State {
     fn observe(&self, observations: Vec<Detection>) {
         *self.observations.lock().unwrap() = observations.into();
     }
+    /// Waits for a boundary event with a wall-clock deadline. A fixed number of
+    /// yields is not enough under load: spawned work may not have been polled yet.
     async fn until(&self, event: &str) {
-        for _ in 0..10_000 {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
             if self.events().iter().any(|seen| seen == event) {
                 return;
             }
-            tokio::task::yield_now().await;
+            if std::time::Instant::now() >= deadline {
+                panic!("missing event {event}: {:?}", self.events());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         }
-        panic!("missing event {event}: {:?}", self.events());
     }
 }
 struct Feed(Arc<State>);
@@ -934,13 +939,18 @@ async fn late_cleanup_failure_after_timeout_or_wait_error_is_emitted() {
             assert!(!state.events().contains(&"cleanup".into()));
             state.exited.add_permits(1);
             state.until("cleanup").await;
-            for _ in 0..1000 {
-                if sink.0.lock().unwrap().iter().any(|event| {
+            // Wait for the post-exit flow to finish: the warning when cleanup fails,
+            // otherwise the release of the per-app claim. Bounded by wall-clock time.
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+            while std::time::Instant::now() < deadline {
+                let warned = sink.0.lock().unwrap().iter().any(|event| {
                     serde_json::to_value(event).unwrap().get("cleanupFailed") == Some(&json!(true))
-                }) {
+                });
+                let released = state.active.load(Ordering::SeqCst) == 0;
+                if (cleanup_failure && warned) || (!cleanup_failure && released) {
                     break;
                 }
-                tokio::task::yield_now().await;
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
             }
             let warnings: Vec<_> = sink
                 .0

@@ -92,14 +92,18 @@ impl State {
     fn observe(&self, values: Vec<UpdateDetection>) {
         *self.observations.lock().unwrap() = values.into();
     }
+    /// Wall-clock deadline instead of a yield count, which is flaky under load.
     async fn until(&self, event: &str) {
-        for _ in 0..10000 {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
             if self.events().iter().any(|seen| seen == event) {
                 return;
             }
-            tokio::task::yield_now().await;
+            if std::time::Instant::now() >= deadline {
+                panic!("missing {event}: {:?}", self.events());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         }
-        panic!("missing {event}: {:?}", self.events());
     }
 }
 struct BodyBytes(Option<Vec<u8>>);
@@ -630,4 +634,40 @@ async fn cancellation_after_update_spawn_is_too_late_and_monitor_retains_claim()
         json!({"status":"updated","version":"1.0.0"})
     );
     assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+const PARITY: &[(&str, &str, Option<i8>)] = &[
+    ("1.0.0-alpha", "1.0.0-alpha.1", Some(-1)),
+    ("1.0.0-alpha.1", "1.0.0-alpha.beta", Some(-1)),
+    ("1.0.0-beta.2", "1.0.0-beta.11", Some(-1)),
+    ("1.0.0-1", "1.0.0-a", Some(-1)),
+    ("1.0.0-A", "1.0.0-a", Some(-1)),
+    ("1.0.0-a-b", "1.0.0-a", Some(1)),
+    (
+        "1.0.0-99999999999999999999",
+        "1.0.0-100000000000000000000",
+        Some(-1),
+    ),
+    ("1.0.0-rc.1+x", "1.0.0-rc.1", Some(0)),
+    ("1.0.0+001", "1.0.0", Some(0)),
+    ("18446744073709551615.0.0", "1.0.0", Some(1)),
+    ("1.0.0-0", "1.0.0-00a", Some(-1)),
+    ("1.0.0-01", "1.0.0", None),
+    ("18446744073709551616.0.0", "1.0.0", None),
+    ("1.0.0+", "1.0.0", None),
+    ("1.0.0-a..b", "1.0.0", None),
+    (" 1.0.0", "1.0.0", None),
+    ("1.0.0-ä", "1.0.0", None),
+];
+
+/// Same table as `apps/hub/src/catalog/format.semver.test.ts`: UI and native precedence must agree.
+#[test]
+fn semver_precedence_matches_the_ui_table() {
+    for &(a, b, want) in PARITY {
+        let got = match (semver::Version::parse(a), semver::Version::parse(b)) {
+            (Ok(x), Ok(y)) => Some(x.cmp_precedence(&y) as i8),
+            _ => None,
+        };
+        assert_eq!(got, want, "{a} vs {b}");
+    }
 }
