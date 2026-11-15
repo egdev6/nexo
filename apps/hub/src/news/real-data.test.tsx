@@ -78,11 +78,11 @@ it('selects only qualifying official events, inclusive boundaries, feature fallb
     app('synthetic', '2026-05-30T01:00:00Z'),
   ]);
   await start(); const dialog = await open();
-  expect(titles(dialog)).toEqual(['update', 'synthetic', 'feature-update', 'release', 'featured']);
+  expect(titles(dialog)).toEqual(['update', 'synthetic', 'feature-update', 'release']);
   expect(within(dialog).getAllByText('Actualización').length).toBeGreaterThan(0);
-  expect(within(dialog).getAllByText('Sin ver')).toHaveLength(4);
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   expect(within(dialog).getAllByText('Sin ver')).toHaveLength(3);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+  expect(within(dialog).getAllByText('Sin ver')).toHaveLength(2);
   expect(dialog.textContent).not.toMatch(/old-update|future-app|future|outside/);
   expect(dialog.textContent).toMatch(/copia guardada|desactualizada/i);
 });
@@ -135,14 +135,13 @@ it('records the current slide when hide and the next show arrive in the same Rea
   await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:one:first']));
 });
 
-it('caps each show at ten unseen items without consuming the overflow', async () => {
+it('caps each show at four unseen items without consuming the overflow', async () => {
   cache = catalog(Array.from({ length: 12 }, (_, index) => app(`app-${String(index).padStart(2, '0')}`, today)));
   await start(); const dialog = await open();
-  expect(titles(dialog)).toHaveLength(10);
-  expect(titles(dialog)[0]).toBe('app-00');
-  for (let index = 1; index < 10; index++) fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
-  close(); await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toHaveLength(10));
-  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-10', 'app-11']);
+  expect(titles(dialog)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
+  for (let index = 1; index < 4; index++) fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+  close(); await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:app-00', 'a:app-01', 'a:app-02', 'a:app-03']));
+  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-04', 'app-05', 'app-06', 'app-07']);
 });
 
 it('keeps the last confirmed marker on save failure and retries the seen keys together with settings', async () => {

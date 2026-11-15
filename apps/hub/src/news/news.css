@@ -5,6 +5,14 @@
 .news-header h2 { margin: 0 auto 0 0; font: 700 var(--text-body-default)/1.2 var(--font-sans); }
 .news-mark { display: block; width: var(--space-6); height: var(--space-6); flex: none; }
 .news-carousel { min-width: 0; padding: var(--space-5) var(--space-5) 0; }
+/* Keep the Foundation track scrollable for buttons, keys and touch, without native scrollbars. */
+.news-carousel .eg-carousel > .overflow-x-auto { display: flex; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.news-carousel .eg-carousel > .overflow-x-auto::-webkit-scrollbar { display: none; }
+.news-carousel .eg-carousel > .overflow-x-auto > [role='group'] { flex: 0 0 100%; min-width: 0; }
+.news-indicators { display: flex; justify-content: center; align-items: center; }
+.news-indicator { min-width: var(--space-14); min-height: var(--space-14); }
+.news-indicator svg { width: var(--space-4); height: var(--space-4); fill: var(--color-fg-muted); }
+.news-indicator[aria-current='true'] svg { fill: var(--color-fg-brand-default); }
 .news-slide { padding: var(--space-2); }
 .news-hero { display: grid; place-items: center; min-height: calc(var(--space-20) + var(--space-16)); margin-bottom: var(--space-4); overflow: hidden; border-radius: var(--radius-md); background: var(--color-surface-3); }
 .news-hero-window { position: relative; display: grid; align-content: center; gap: var(--space-3); width: calc(var(--space-20) * 2.5); max-width: 80%; height: calc(var(--space-20) + var(--space-5)); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-20); border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-1); box-shadow: var(--shadow-elev-1); }
