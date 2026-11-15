@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App, { FlyoutPanel } from '../../App';
 import { parseCatalog, type Catalog } from '../format';
+import { availableUpdate } from '../update';
 import { defaultSettings } from '../../sample';
 import type { HubApp, Language } from '../../model';
 import type { InstallProgress } from './index';
@@ -23,6 +24,11 @@ const catalog = (version = '2.0.0'): Catalog => parseCatalog({ schemaVersion: 3,
   { id: 'newer', title: 'New notes', text: '<b>Plain text</b>', publishedAt: '2025-01-01T10:00:00+01:00', kind: 'update' },
   { id: 'older', title: 'Old notes', text: 'Old', publishedAt: '2025-01-01T08:30:00Z', kind: 'update' },
 ] }] });
+const unkeyedCatalog = (schemaVersion: 1 | 2 | 3 = 3, version = '2.0.0'): Catalog => {
+  const result = catalog(version);
+  delete result.apps[0].updaterPublicKey;
+  return parseCatalog({ ...result, schemaVersion });
+};
 const installed = (version: string | undefined = '1.0.0'): HubApp => ({ id: 'antena', name: 'Antena', description: 'Test', installed: true, running: false, source: 'official', statusKnown: true, installationState: 'installed', integration: 'complete', version, canOpen: true });
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
 const button = () => screen.queryByRole('button', { name: /Actualizar Antena a v|Update Antena to v/ });
@@ -73,15 +79,12 @@ it('implements strict SemVer precedence including prerelease, metadata, numeric 
   expect(native.update).not.toHaveBeenCalled();
 });
 
-it('requires a known official installation and v3 key, and labels stale availability without allowing an update', async () => {
+it('requires a known official installation and labels stale availability without allowing an update', async () => {
   const { rerender, refresh } = await show();
   const check = (app: HubApp, state: { status: 'ready' | 'offline' | 'loading'; catalog: Catalog; stale?: boolean }) => rerender(<FlyoutPanel apps={[app]} news={[]} catalogState={state} onAppsRefresh={refresh} />);
   check({ ...installed(), statusKnown: false, installationState: 'unknown' }, { status: 'ready', catalog: catalog() }); expect(button()).toBeNull();
   check({ ...installed(), source: 'local' }, { status: 'ready', catalog: catalog() }); expect(button()).toBeNull();
   check({ ...installed(), version: undefined }, { status: 'ready', catalog: catalog() }); expect(button()).toBeNull();
-  const noKey = catalog(); delete noKey.apps[0].updaterPublicKey;
-  check(installed(), { status: 'ready', catalog: noKey }); expect(button()).toBeNull();
-  check(installed(), { status: 'ready', catalog: { ...catalog(), schemaVersion: 2 } }); expect(button()).toBeNull();
   check(installed(), { status: 'offline', catalog: catalog(), stale: true });
   expect((button() as HTMLButtonElement).disabled).toBe(true);
   expect(screen.getByText('Catálogo desactualizado; actualízalo antes de actualizar la app.')).toBeTruthy();
@@ -90,6 +93,96 @@ it('requires a known official installation and v3 key, and labels stale availabi
   check(installed(), { status: 'offline', catalog: catalog(), stale: true });
   expect(button()?.textContent).toBe('Update to v2.0.0');
   expect(screen.getByText('Outdated catalog; refresh it before updating the app.')).toBeTruthy();
+});
+
+it('distinguishes a verifiable update from newer unkeyed or legacy entries', () => {
+  expect(availableUpdate(installed(), catalog())).toMatchObject({ status: 'available', version: '2.0.0' });
+  for (const version of [1, 2, 3] as const) {
+    expect(availableUpdate(installed(), unkeyedCatalog(version))).toMatchObject({ status: 'unverifiable', version: '2.0.0' });
+  }
+  expect(availableUpdate(installed(), { ...catalog(), schemaVersion: 2 })).toMatchObject({ status: 'unverifiable', version: '2.0.0' });
+});
+
+it.each([1, 2, 3] as const)('shows an unkeyed v%i update disabled with an accessible explanation in both languages', async schemaVersion => {
+  const fixture = unkeyedCatalog(schemaVersion);
+  const { rerender, refresh } = await show(installed(), { status: 'ready', catalog: fixture });
+  const action = button() as HTMLButtonElement;
+  expect(action.textContent).toBe('Actualizar a v2.0.0');
+  expect(action.disabled).toBe(true);
+  const reason = screen.getByText('Esta versión no se puede actualizar desde Nexo: falta la clave de verificación en el catálogo.');
+  expect(action.getAttribute('aria-describedby')).toBe(reason.id);
+  expect(screen.getByText('New notes')).toBeTruthy();
+  fireEvent.click(action);
+  expect(native.update).not.toHaveBeenCalled();
+  expect(native.install).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+  expect(screen.getByText('Instalada: 1.0.0')).toBeTruthy();
+  native.locale = 'en';
+  rerender(<FlyoutPanel apps={[installed()]} news={[]} catalogState={{ status: 'ready', catalog: fixture }} onAppsRefresh={refresh} />);
+  const englishAction = button() as HTMLButtonElement;
+  expect(englishAction.textContent).toBe('Update to v2.0.0');
+  expect(englishAction.disabled).toBe(true);
+  const englishReason = screen.getByText('This version cannot be updated from Nexo: the verification key is missing from the catalog.');
+  expect(englishAction.getAttribute('aria-describedby')).toBe(englishReason.id);
+  fireEvent.click(englishAction);
+  expect(native.update).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+  expect(screen.getByText('Installed: 1.0.0')).toBeTruthy();
+});
+
+it('labels stale unkeyed updates and explains the missing key in both languages', async () => {
+  const fixture = unkeyedCatalog();
+  const { rerender, refresh } = await show(installed(), { status: 'offline', catalog: fixture, stale: true });
+  expect((button() as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText('Catálogo desactualizado; actualízalo antes de actualizar la app. Esta versión no se puede actualizar desde Nexo: falta la clave de verificación en el catálogo.')).toBeTruthy();
+  fireEvent.click(button()!);
+  native.locale = 'en';
+  rerender(<FlyoutPanel apps={[installed()]} news={[]} catalogState={{ status: 'offline', catalog: fixture, stale: true }} onAppsRefresh={refresh} />);
+  expect((button() as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText('Outdated catalog; refresh it before updating the app. This version cannot be updated from Nexo: the verification key is missing from the catalog.')).toBeTruthy();
+  fireEvent.click(button()!);
+  expect(native.update).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it('does not show unkeyed updates for equal or older catalog versions', async () => {
+  const { rerender, refresh } = await show();
+  for (const schemaVersion of [1, 2, 3] as const) for (const version of ['2.0.0', '2.1.0']) {
+    const fixture = unkeyedCatalog(schemaVersion);
+    expect(availableUpdate(installed(version), fixture)).toBeUndefined();
+    rerender(<FlyoutPanel apps={[installed(version)]} news={[]} catalogState={{ status: 'ready', catalog: fixture }} onAppsRefresh={refresh} />);
+    expect(button()).toBeNull();
+    expect(screen.queryByText(/Esta versión no se puede actualizar/)).toBeNull();
+    expect(screen.queryByText('New notes')).toBeNull();
+  }
+  expect(native.update).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it('keeps the version on a disabled unkeyed action after an earlier update error', async () => {
+  native.update.mockResolvedValueOnce({ status: 'feedFailed' });
+  const { rerender, refresh } = await show();
+  expect((button() as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(button()!);
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  rerender(<FlyoutPanel apps={[installed()]} news={[]} catalogState={{ status: 'ready', catalog: unkeyedCatalog() }} onAppsRefresh={refresh} />);
+  expect((button() as HTMLButtonElement).disabled).toBe(true);
+  expect(button()?.textContent).toBe('Actualizar a v2.0.0');
+  expect(screen.getByText('Esta versión no se puede actualizar desde Nexo: falta la clave de verificación en el catálogo.')).toBeTruthy();
+  fireEvent.click(button()!);
+  expect(native.update).toHaveBeenCalledExactlyOnceWith('antena');
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it('shows unkeyed updates disabled on connected official rows', async () => {
+  const { refresh } = await show(installed(), { status: 'ready', catalog: unkeyedCatalog(2) });
+  act(() => native.publish!({ revision: 1, apps: [{ app: { id: 'antena', name: 'Antena', version: '99.0.0' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  expect((button() as HTMLButtonElement).disabled).toBe(true);
+  expect(button()?.textContent).toBe('Actualizar a v2.0.0');
+  expect(screen.getByText('Esta versión no se puede actualizar desde Nexo: falta la clave de verificación en el catálogo.')).toBeTruthy();
+  fireEvent.click(button()!);
+  expect(native.update).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
 });
 
 it('requires a working progress subscription before starting an update', async () => {

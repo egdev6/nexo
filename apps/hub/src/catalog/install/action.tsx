@@ -7,7 +7,7 @@ import { compareSemver } from '../format';
 import type { CatalogInstalls } from './use-installs';
 
 /** Shared presentation for the native install and update transaction. */
-export function InstallAction({ app, reason, installs, focused = false, mode = 'install', version }: { app: HubApp; reason?: MessageKey; installs?: CatalogInstalls; focused?: boolean; mode?: 'install' | 'update'; version?: string }) {
+export function InstallAction({ app, reason, installs, focused = false, mode = 'install', version, unverifiable = false }: { app: HubApp; reason?: MessageKey; installs?: CatalogInstalls; focused?: boolean; mode?: 'install' | 'update'; version?: string; unverifiable?: boolean }) {
   const locale = useLocale();
   const id = useId();
   const current = installs?.entries.get(app.id);
@@ -32,6 +32,7 @@ export function InstallAction({ app, reason, installs, focused = false, mode = '
   const message = error ? t(locale, `install.error.${error.status}`, params) : undefined;
   const result = entry?.status === 'updated' || entry?.status === 'upToDate' ? entry : undefined;
   const canOffer = mode === 'install' || (!!version && (!result || compareSemver(result.version, version) === -1));
+  const retry = !!error && !unverifiable;
   if (mode === 'update' && !canOffer && !entry) return null;
   return <div className="catalog-install">
     {message && <div role="alert" className="catalog-install-error">{message}</div>}
@@ -39,8 +40,8 @@ export function InstallAction({ app, reason, installs, focused = false, mode = '
     {entry?.status === 'error' && entry.cleanupFailed && error?.status !== 'cleanupFailed' && <div role="alert" className="catalog-install-error">{t(locale, 'install.error.cleanupFailed')}</div>}
     {reason && canOffer && <div id={id} className="catalog-install-reason">{t(locale, reason)}</div>}
     {canOffer && (!focused || !reason) && <Button type="button" size="sm" variant="primary" disabled={!!reason || !installs} aria-describedby={reason ? id : undefined}
-      aria-label={error ? t(locale, 'install.retryFor', { name: app.name }) : mode === 'update' ? t(locale, 'update.actionFor', { name: app.name, version: version! }) : t(locale, 'install.installFor', { name: app.name })}
-      onClick={() => mode === 'update' ? installs?.startUpdate(app.id) : installs?.start(app.id)}>{error ? t(locale, 'common.retry') : mode === 'update' ? t(locale, 'update.action', { version: version! }) : t(locale, 'common.install')}</Button>}
+      aria-label={retry ? t(locale, 'install.retryFor', { name: app.name }) : mode === 'update' ? t(locale, 'update.actionFor', { name: app.name, version: version! }) : t(locale, 'install.installFor', { name: app.name })}
+      onClick={() => mode === 'update' ? installs?.startUpdate(app.id) : installs?.start(app.id)}>{retry ? t(locale, 'common.retry') : mode === 'update' ? t(locale, 'update.action', { version: version! }) : t(locale, 'common.install')}</Button>}
     {installs?.connection === 'error' && (reason === 'install.progressUnavailable' || reason === 'update.progressUnavailable') && <Button type="button" size="sm" variant="neutral" onClick={installs.retryConnection}>{t(locale, 'common.retry')}</Button>}
   </div>;
 }

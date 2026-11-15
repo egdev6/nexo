@@ -23,7 +23,7 @@
     },
     "update": {
       "confirm": { "title": "Confirmar actualización", "body": "¿Descargar y actualizar {app}: {currentVersion} → {version} desde {host}?" },
-      "action": "Actualizar a v{version}", "actionFor": "Actualizar {name} a v{version}", "stale": "Catálogo desactualizado; actualízalo antes de actualizar la app.", "unavailable": "Actualiza el catálogo antes de actualizar la app.", "progressUnavailable": "No se puede seguir el progreso de actualización. Reintenta la conexión.", "updated": "Actualizada a v{version}.", "upToDate": "La app ya está actualizada: v{version}."
+      "action": "Actualizar a v{version}", "actionFor": "Actualizar {name} a v{version}", "stale": "Catálogo desactualizado; actualízalo antes de actualizar la app.", "unverifiable": "Esta versión no se puede actualizar desde Nexo: falta la clave de verificación en el catálogo.", "unverifiableStale": "Catálogo desactualizado; actualízalo antes de actualizar la app. Esta versión no se puede actualizar desde Nexo: falta la clave de verificación en el catálogo.", "unavailable": "Actualiza el catálogo antes de actualizar la app.", "progressUnavailable": "No se puede seguir el progreso de actualización. Reintenta la conexión.", "updated": "Actualizada a v{version}.", "upToDate": "La app ya está actualizada: v{version}."
     },
     "install": {
       "confirm": { "title": "Confirmar instalación", "body": "¿Descargar e instalar {app}, versión {version}, desde {host}?" },
@@ -62,7 +62,7 @@
     },
     "update": {
       "confirm": { "title": "Confirm update", "body": "Download and update {app}: {currentVersion} → {version} from {host}?" },
-      "action": "Update to v{version}", "actionFor": "Update {name} to v{version}", "stale": "Outdated catalog; refresh it before updating the app.", "unavailable": "Refresh the catalog before updating the app.", "progressUnavailable": "Update progress is unavailable. Retry the connection.", "updated": "Updated to v{version}.", "upToDate": "The app is already up to date: v{version}."
+      "action": "Update to v{version}", "actionFor": "Update {name} to v{version}", "stale": "Outdated catalog; refresh it before updating the app.", "unverifiable": "This version cannot be updated from Nexo: the verification key is missing from the catalog.", "unverifiableStale": "Outdated catalog; refresh it before updating the app. This version cannot be updated from Nexo: the verification key is missing from the catalog.", "unavailable": "Refresh the catalog before updating the app.", "progressUnavailable": "Update progress is unavailable. Retry the connection.", "updated": "Updated to v{version}.", "upToDate": "The app is already up to date: v{version}."
     },
     "install": {
       "confirm": { "title": "Confirm installation", "body": "Download and install {app} version {version} from {host}?" },

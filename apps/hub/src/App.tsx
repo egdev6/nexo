@@ -63,8 +63,9 @@ function UpdateControl({ app, catalogState, installs }: { app: HubApp; catalogSt
   const update = availableUpdate(app, catalogState?.catalog);
   const entry = installs.entries.get(app.id);
   if (!update && entry?.operation !== 'update') return null;
-  const reason = catalogState?.stale ? 'update.stale' : catalogState?.status !== 'ready' ? 'update.unavailable' : installs.connection !== 'ready' ? 'update.progressUnavailable' : undefined;
-  return <InstallAction app={app} installs={installs} mode="update" version={update?.version} reason={reason} />;
+  const unverifiable = update?.status === 'unverifiable';
+  const reason = unverifiable ? (catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable') : catalogState?.stale ? 'update.stale' : catalogState?.status !== 'ready' ? 'update.unavailable' : installs.connection !== 'ready' ? 'update.progressUnavailable' : undefined;
+  return <InstallAction app={app} installs={installs} mode="update" version={update?.version} reason={reason} unverifiable={unverifiable} />;
 }
 
 function UpdateNotes({ app, catalogState }: { app: HubApp; catalogState?: CatalogState }) {
