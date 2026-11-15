@@ -24,11 +24,16 @@ fn open_with(url: &str, opener: impl FnOnce(&str) -> Result<(), String>) -> Resu
     }
     match parsed.host_str() {
         Some("github.com")
-            if parsed
-                .path()
-                .strip_prefix("/egdev6/")
-                .is_some_and(|rest| !rest.is_empty()) => {}
+            if parsed.path() == "/egdev6"
+                || parsed
+                    .path()
+                    .strip_prefix("/egdev6/")
+                    .is_some_and(|rest| !rest.is_empty()) => {}
         Some("www.youtube.com" | "youtube.com") => {}
+        Some("twitch.tv") if matches!(parsed.path(), "/egdev6" | "/egdev6/") => {}
+        Some("x.com") if matches!(parsed.path(), "/egdev66" | "/egdev66/") => {}
+        Some("www.linkedin.com") if matches!(parsed.path(), "/in/egdev6" | "/in/egdev6/") => {}
+        Some("www.instagram.com") if matches!(parsed.path(), "/egdev6" | "/egdev6/") => {}
         _ => return Err(refused()),
     }
     opener(parsed.as_str())
@@ -130,6 +135,62 @@ mod tests {
                 "{input:?}"
             );
             assert!(opened.borrow().is_empty(), "{input:?}");
+        }
+    }
+
+    #[test]
+    fn author_profiles_open_once_and_other_handles_are_refused() {
+        for url in [
+            "https://www.youtube.com/@egdev6",
+            "https://twitch.tv/egdev6",
+            "https://x.com/egdev66",
+            "https://www.linkedin.com/in/egdev6/",
+            "https://www.instagram.com/egdev6/",
+            "https://github.com/egdev6",
+        ] {
+            let opened = RefCell::new(Vec::new());
+            assert_eq!(
+                open_with(url, |value| {
+                    opened.borrow_mut().push(value.to_owned());
+                    Ok(())
+                }),
+                Ok(()),
+                "{url}"
+            );
+            assert_eq!(*opened.borrow(), [url]);
+        }
+        for url in [
+            "https://twitch.tv/other",
+            "https://twitch.tv/egdev6evil",
+            "https://twitch.tv/egdev6/other",
+            "https://x.com/egdev6",
+            "https://x.com/egdev66evil",
+            "https://x.com/egdev66/status/1",
+            "https://www.linkedin.com/in/other/",
+            "https://www.linkedin.com/in/egdev6evil/",
+            "https://www.instagram.com/other/",
+            "https://www.instagram.com/egdev6evil/",
+            "https://github.com/egdev6evil",
+            "http://twitch.tv/egdev6",
+            "https://twitch.tv.evil.example/egdev6",
+            "https://www.twitch.tv/egdev6",
+            "https://linkedin.com/in/egdev6/",
+            "https://instagram.com/egdev6/",
+            "https://user@x.com/egdev66",
+            "https://@x.com/egdev66",
+            "https://x.com:443/egdev66",
+            "https://x.com:8443/egdev66",
+        ] {
+            let opened = RefCell::new(Vec::new());
+            assert_eq!(
+                open_with(url, |value| {
+                    opened.borrow_mut().push(value.to_owned());
+                    Ok(())
+                }),
+                Err("nexo.external.refused".into()),
+                "{url}"
+            );
+            assert!(opened.borrow().is_empty(), "{url}");
         }
     }
 

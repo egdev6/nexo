@@ -89,7 +89,7 @@ it('completes onboarding only after the language and flag are saved, with retry 
   expect(stored.firstRunComplete).toBe(true);
 });
 
-it('restores appearance, skips onboarding and renders configured sources', async () => {
+it('restores appearance, skips onboarding and preserves configured sources', async () => {
   stored = { ...stored, firstRunComplete: true, showNewsOnOpen: false, accent: '#3b82f6', compact: true, opacity: 0, blur: 40,
     sources: [official, { id: 'local-1', label: 'Trabajo', kind: 'local' }] };
   render(<App />);
@@ -101,10 +101,11 @@ it('restores appearance, skips onboarding and renders configured sources', async
   expect(main.style.getPropertyValue('--hub-density')).toBe('0.8');
   expect(main.style.getPropertyValue('--hub-opacity')).toBe('0');
   expect(main.style.getPropertyValue('--hub-blur')).toBe('40px');
-  await openSettings(); tab('Fuentes del catálogo');
-  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-  await waitFor(() => expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(false));
+  await openSettings(); tab('Apps locales');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Añadir app' }).hasAttribute('disabled')).toBe(false));
+  expect(screen.queryByText('Catálogo oficial egdev')).toBeNull();
+  expect(screen.queryByText('Trabajo')).toBeNull();
+  expect(stored.sources).toEqual([official, { id: 'local-1', label: 'Trabajo', kind: 'local' }]);
 });
 
 it('persists the popup opt-out and shares it with settings after a restart', async () => {

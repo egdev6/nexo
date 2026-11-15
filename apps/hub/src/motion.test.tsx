@@ -52,6 +52,8 @@ it('leaves content stationary and does not subscribe to the old animation protoc
 it('keeps the close button and Escape requests routed through native hide', async () => {
   await start();
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
+  expect(screen.getByRole('region', { name: 'Ajustes' })).toBeTruthy();
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(bridge.invoke.mock.calls.filter(([command]) => command === 'hide_flyout')).toHaveLength(2);
   expect(bridge.invoke).not.toHaveBeenCalledWith('finish_flyout_hide', expect.anything());

@@ -63,7 +63,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 function setup(locale: Language = 'es') {
   const result = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} sources={[official, source]} /></LocaleProvider>);
-  const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Fuentes del catálogo' : 'Catalog sources' });
+  const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Apps locales' : 'Local apps' });
   fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
   return result;
 }
@@ -80,25 +80,14 @@ it('does not hard-code visible copy or accessible labels in the local settings v
   expect(found).toEqual([]);
 });
 
-it.each(['toString', '__proto__'])('treats source ID %s as opaque when displaying and recovering a source error', async id => {
+it.each(['toString', '__proto__'])('preserves local catalog refresh and reports errors for opaque source ID %s', async id => {
   sources = [official, { ...source, id }];
   fail.local_catalog_refresh = 'nexo.local.catalogInvalid';
   setup();
   expect((await screen.findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
+  expect(await screen.findByText('Editor')).toBeTruthy();
   expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_refresh', { sourceId: id });
-  delete fail.local_catalog_refresh;
-  fireEvent.click(screen.getByRole('button', { name: 'Actualizar fuente Trabajo' }));
-  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-});
-
-it('places a failed source selection beside its source controls', async () => {
-  setup(); await screen.findByText('Editor');
-  fail.local_catalog_set = 'nexo.local.catalogInvalid';
-  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
-  const area = screen.getByRole('region', { name: 'Fuentes del catálogo' });
-  expect((await within(area).findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
-  expect(screen.getByText('Trabajo')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /fuente/i })).toBeNull();
 });
 
 it('offers localized English controls and keyboard cancellation of an inline edit', async () => {
@@ -125,8 +114,8 @@ it('lists manual and catalog entries with their state, but only manual entries a
   expect(within(section).getByText('Ejecutable sin seleccionar')).toBeTruthy();
   expect(within(section).queryByRole('button', { name: 'Renombrar Catálogo App' })).toBeNull();
   expect(within(section).queryByRole('button', { name: 'Eliminar Catálogo App' })).toBeNull();
-  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
-  expect(screen.getByText('Trabajo')).toBeTruthy();
+  expect(screen.queryByText('Catálogo oficial egdev')).toBeNull();
+  expect(screen.queryByRole('button', { name: /fuente/i })).toBeNull();
 });
 
 it('adds through the native picker, leaves cancellation unchanged, warns about duplicates and survives reopening', async () => {
@@ -200,76 +189,5 @@ it('requires confirmation to remove an app and leaves it intact on cancel or fai
   fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar app' }));
   await waitFor(() => expect(screen.queryByText('Editor')).toBeNull());
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_remove', { id: 'manual-1' });
-  expect(bridge.invoke.mock.calls.some(([name]) => /kill|terminate|delete_file/.test(name))).toBe(false);
-});
-
-it('selects or replaces a local catalog via native picker while preserving existing sources on cancel or rejection', async () => {
-  setup(); await screen.findByText('Editor');
-  cancel = 'local_catalog_set';
-  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_set', { sourceId: null }));
-  await waitFor(() => expect((screen.getByRole('button', { name: 'Añadir fuente local' }) as HTMLButtonElement).disabled).toBe(false));
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-  fail.local_catalog_set = 'nexo.local.catalogInvalid';
-  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
-  expect((await screen.findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-  delete fail.local_catalog_set;
-  fireEvent.click(screen.getByRole('button', { name: 'Añadir fuente local' }));
-  expect(await screen.findByRole('button', { name: 'Cambiar archivo de Local' })).toBeTruthy();
-  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
-  cancel = 'local_catalog_set';
-  fireEvent.click(screen.getByRole('button', { name: 'Cambiar archivo de Trabajo' }));
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_set', { sourceId: 'source-1' }));
-  await waitFor(() => expect((screen.getByRole('button', { name: 'Cambiar archivo de Trabajo' }) as HTMLButtonElement).disabled).toBe(false));
-  expect(sources.find(item => item.id === 'source-1')?.location).toBe('C:\\catalog.json');
-  fireEvent.click(screen.getByRole('button', { name: 'Cambiar archivo de Trabajo' }));
-  await waitFor(() => expect(sources.find(item => item.id === 'source-1')?.location).toBe('C:\\replacement.json'));
-  cleanup(); setup();
-  expect(await screen.findByRole('button', { name: 'Cambiar archivo de Local' })).toBeTruthy();
-});
-
-it.each([
-  ['es', 'nexo.local.catalogUnreadable', 'No se pudo leer la fuente local.'],
-  ['es', 'nexo.local.catalogInvalid', 'El catálogo local no es válido.'],
-  ['es', 'nexo.local.catalogLaunchOnly', 'El catálogo local solo puede contener apps de apertura.'],
-  ['en', 'nexo.local.catalogUnreadable', 'Could not read the local source.'],
-  ['en', 'nexo.local.catalogInvalid', 'The local catalog is invalid.'],
-  ['en', 'nexo.local.catalogLaunchOnly', 'The local catalog can only contain launch-only apps.'],
-] as const)('maps refresh error %s %s and permits recovery', async (locale, code, message) => {
-  setup(locale); await screen.findByText('Editor');
-  fail.local_catalog_refresh = code;
-  const label = locale === 'es' ? 'Actualizar fuente Trabajo' : 'Refresh source Trabajo';
-  fireEvent.click(screen.getByRole('button', { name: label }));
-  expect((await screen.findByRole('alert')).textContent).toBe(message);
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-  await waitFor(() => expect(screen.queryByText('Catálogo App')).toBeNull());
-  delete fail.local_catalog_refresh;
-  fireEvent.click(screen.getByRole('button', { name: label }));
-  expect(await screen.findByText('Catálogo App')).toBeTruthy();
-  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-  expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_refresh', { sourceId: 'source-1' });
-});
-
-it('confirms source removal, preserving the official source and manual apps on cancel, failure and success', async () => {
-  setup(); await screen.findByText('Editor');
-  fireEvent.click(screen.getByRole('button', { name: 'Eliminar fuente Trabajo' }));
-  let confirm = screen.getByRole('group', { name: 'Confirmar eliminación de la fuente Trabajo' });
-  fireEvent.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
-  expect(bridge.invoke).not.toHaveBeenCalledWith('local_catalog_clear', expect.anything());
-  fireEvent.click(screen.getByRole('button', { name: 'Eliminar fuente Trabajo' }));
-  confirm = screen.getByRole('group', { name: 'Confirmar eliminación de la fuente Trabajo' });
-  expect(within(confirm).getByText('Se quitará la fuente y sus vínculos, no los archivos.')).toBeTruthy();
-  fail.local_catalog_clear = 'nexo.config.save.future';
-  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar fuente' }));
-  expect((await screen.findByRole('alert')).textContent).toBe('Los ajustes pertenecen a una versión más reciente y son de solo lectura.');
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-  delete fail.local_catalog_clear;
-  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar fuente' }));
-  await waitFor(() => expect(screen.queryByText('Trabajo')).toBeNull());
-  await waitFor(() => expect(screen.queryByText('Catálogo App')).toBeNull());
-  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
-  expect(screen.getByText('Editor')).toBeTruthy();
-  expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_clear', { sourceId: 'source-1' });
   expect(bridge.invoke.mock.calls.some(([name]) => /kill|terminate|delete_file/.test(name))).toBe(false);
 });
