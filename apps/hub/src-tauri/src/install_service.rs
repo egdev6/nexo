@@ -26,10 +26,24 @@ pub(crate) enum Detection {
     Unknown,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum UpdateDetection {
+    Installed {
+        version: Option<String>,
+        executable: std::path::PathBuf,
+    },
+    NotInstalled,
+    Unknown,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub(crate) enum InstallResult {
     Installed { version: Option<String> },
+    Updated { version: String },
+    UpToDate { version: String },
+    VersionMismatch { version: String },
+    AppStillRunning,
     AlreadyInstalled,
     Busy,
     Cancelled,
@@ -67,6 +81,7 @@ pub(crate) enum ProgressPhase {
     AwaitingApproval,
     Downloading,
     Verifying,
+    Closing,
     Installing,
     Detecting,
 }
@@ -191,14 +206,26 @@ pub(crate) struct Operation {
     state: Mutex<OperationState>,
     cancelled: watch::Sender<bool>,
     finished: watch::Sender<Option<InstallResult>>,
+    update: bool,
+    spawn_check: Mutex<Option<Box<dyn Fn() -> bool + Send + Sync>>>,
+    spawn_rejected: AtomicBool,
 }
 impl Operation {
-    fn new() -> Self {
+    fn new(update: bool) -> Self {
         Self {
             state: Mutex::new(OperationState::Pending),
             cancelled: watch::channel(false).0,
             finished: watch::channel(None).0,
+            update,
+            spawn_check: Mutex::new(None),
+            spawn_rejected: AtomicBool::new(false),
         }
+    }
+    fn set_spawn_check(&self, check: impl Fn() -> bool + Send + Sync + 'static) {
+        *self
+            .spawn_check
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some(Box::new(check));
     }
     fn is_cancelled(&self) -> bool {
         *self.cancelled.borrow()
@@ -219,6 +246,16 @@ impl Operation {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         if *state != OperationState::Pending {
+            return None;
+        }
+        if self
+            .spawn_check
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .as_ref()
+            .is_some_and(|check| !check())
+        {
+            self.spawn_rejected.store(true, Ordering::SeqCst);
             return None;
         }
         let result = run();
@@ -357,6 +394,26 @@ pub(crate) trait InstallDetector: Send + Sync {
         catalog: &FreshCatalog,
         app: &CatalogApp,
     ) -> impl Future<Output = Detection> + Send;
+
+    fn detect_update(
+        &self,
+        _catalog: &FreshCatalog,
+        _app: &CatalogApp,
+    ) -> impl Future<Output = UpdateDetection> + Send {
+        async { UpdateDetection::Unknown }
+    }
+}
+
+pub(crate) trait UpdateCloser: Send + Sync {
+    fn close(
+        &self,
+        id: &str,
+        executable: &std::path::Path,
+    ) -> impl Future<Output = crate::update_close::CloseOutcome> + Send;
+    fn is_running(
+        &self,
+        executable: &std::path::Path,
+    ) -> Result<bool, crate::update_close::ProbeError>;
 }
 pub(crate) trait Monitor: Send {
     fn wait(&mut self) -> impl Future<Output = Result<(), LaunchError>> + Send;
@@ -371,7 +428,12 @@ pub(crate) trait InstallLauncher<I: Installer>: Send + Sync {
     ) -> impl Future<Output = Result<Self::Running, LaunchError>> + Send;
 }
 
-type Claims = Arc<Mutex<HashMap<String, Arc<Operation>>>>;
+#[derive(Default)]
+struct ClaimState {
+    operations: HashMap<String, Arc<Operation>>,
+    openings: HashMap<String, usize>,
+}
+type Claims = Arc<Mutex<ClaimState>>;
 struct Boundaries<F, N, W, A, L, D> {
     feed: F,
     network: N,
@@ -391,7 +453,37 @@ impl Drop for Claim {
         self.claims
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .operations
             .remove(&self.id);
+    }
+}
+
+pub(crate) struct OpenClaim {
+    id: String,
+    claims: Claims,
+}
+impl Drop for OpenClaim {
+    fn drop(&mut self) {
+        let mut state = self
+            .claims
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(count) = state.openings.get_mut(&self.id) {
+            *count -= 1;
+            if *count == 0 {
+                state.openings.remove(&self.id);
+            }
+        }
+    }
+}
+
+struct NoUpdateCloser;
+impl UpdateCloser for NoUpdateCloser {
+    async fn close(&self, _: &str, _: &std::path::Path) -> crate::update_close::CloseOutcome {
+        crate::update_close::CloseOutcome::StillRunning
+    }
+    fn is_running(&self, _: &std::path::Path) -> Result<bool, crate::update_close::ProbeError> {
+        Err(crate::update_close::ProbeError::Unsupported)
     }
 }
 
@@ -424,7 +516,7 @@ where
                 approval,
                 launcher,
                 detector,
-                claims: Arc::new(Mutex::new(HashMap::new())),
+                claims: Arc::new(Mutex::new(ClaimState::default())),
             }),
         }
     }
@@ -441,6 +533,7 @@ where
             .claims
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .operations
             .get(id)
             .cloned();
         match operation {
@@ -449,22 +542,76 @@ where
         }
     }
 
+    pub(crate) fn begin_open(&self, id: &str) -> Option<OpenClaim> {
+        let claims = self.boundaries.claims.clone();
+        {
+            let mut state = claims.lock().ok()?;
+            if state
+                .operations
+                .get(id)
+                .is_some_and(|operation| operation.update)
+            {
+                return None;
+            }
+            *state.openings.entry(id.to_owned()).or_default() += 1;
+        }
+        Some(OpenClaim {
+            id: id.into(),
+            claims,
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn update_app<C: UpdateCloser + 'static>(
+        &self,
+        id: &str,
+        language: &str,
+        closer: Arc<C>,
+    ) -> InstallResult {
+        self.update_app_with_progress(id, language, Arc::new(NoProgress), closer)
+            .await
+    }
+
+    pub(crate) async fn update_app_with_progress<C: UpdateCloser + 'static>(
+        &self,
+        id: &str,
+        language: &str,
+        sink: Arc<dyn ProgressSink>,
+        closer: Arc<C>,
+    ) -> InstallResult {
+        self.run_with_progress(id, language, sink, Some(closer))
+            .await
+    }
+
     pub(crate) async fn install_app_with_progress(
         &self,
         id: &str,
         language: &str,
         sink: Arc<dyn ProgressSink>,
     ) -> InstallResult {
+        self.run_with_progress(id, language, sink, None::<Arc<NoUpdateCloser>>)
+            .await
+    }
+
+    async fn run_with_progress<C: UpdateCloser + 'static>(
+        &self,
+        id: &str,
+        language: &str,
+        sink: Arc<dyn ProgressSink>,
+        closer: Option<Arc<C>>,
+    ) -> InstallResult {
         let claims = self.boundaries.claims.clone();
-        let operation = Arc::new(Operation::new());
+        let operation = Arc::new(Operation::new(closer.is_some()));
         {
             let Ok(mut active) = claims.lock() else {
                 return InstallResult::Busy;
             };
-            if active.contains_key(id) {
+            if active.operations.contains_key(id)
+                || (closer.is_some() && active.openings.contains_key(id))
+            {
                 return InstallResult::Busy;
             }
-            active.insert(id.to_owned(), operation.clone());
+            active.operations.insert(id.to_owned(), operation.clone());
         }
         let claim = Claim {
             id: id.into(),
@@ -484,6 +631,7 @@ where
                 &mut sender,
                 &operation,
                 progress,
+                closer,
             )
             .await;
             let result = operation.finish(result);
@@ -537,13 +685,47 @@ fn cancelled(sender: &Option<oneshot::Sender<InstallResult>>, operation: &Operat
     operation.is_cancelled() || sender.as_ref().is_none_or(oneshot::Sender::is_closed)
 }
 
-async fn transaction<F, N, W, A, L, D>(
+#[derive(Clone)]
+struct UpdateInfo {
+    version: String,
+    executable: std::path::PathBuf,
+}
+
+fn check_update(
+    detection: UpdateDetection,
+    target: &semver::Version,
+    previous: Option<&UpdateInfo>,
+) -> Result<UpdateInfo, InstallResult> {
+    let UpdateDetection::Installed {
+        version: Some(version),
+        executable,
+    } = detection
+    else {
+        return Err(InstallResult::DetectionUnknown);
+    };
+    let parsed = semver::Version::parse(&version).map_err(|_| InstallResult::DetectionUnknown)?;
+    if parsed.cmp_precedence(target) != std::cmp::Ordering::Less {
+        return Err(InstallResult::UpToDate { version });
+    }
+    let info = UpdateInfo {
+        version,
+        executable,
+    };
+    if previous.is_some_and(|old| old.version != info.version || old.executable != info.executable)
+    {
+        return Err(InstallResult::ReleaseChanged);
+    }
+    Ok(info)
+}
+
+async fn transaction<F, N, W, A, L, D, C>(
     boundaries: Arc<Boundaries<F, N, W, A, L, D>>,
     id: &str,
     language: &str,
     sender: &mut Option<oneshot::Sender<InstallResult>>,
     operation: &Arc<Operation>,
     progress: Arc<ProgressReporter>,
+    closer: Option<Arc<C>>,
 ) -> InstallResult
 where
     F: CatalogFeed + Send + 'static,
@@ -552,6 +734,7 @@ where
     A: InstallApproval + Send + Sync + 'static,
     L: InstallLauncher<W::Installer> + 'static,
     D: InstallDetector + 'static,
+    C: UpdateCloser + 'static,
 {
     progress.phase(ProgressPhase::Fetching);
     let catalog = tokio::select! {
@@ -564,18 +747,44 @@ where
     };
     let selection = match catalog.select(id) {
         Ok(selection) => selection,
+        Err(crate::install_feed::SelectionError::MissingKey) if closer.is_some() => {
+            return InstallResult::KeyMissing;
+        }
         Err(_) => return InstallResult::NotAvailable,
     };
-    let detection = tokio::select! {
-        biased;
-        _ = operation.cancelled() => return InstallResult::Cancelled,
-        result = boundaries.detector.detect(&catalog, selection.app()) => result,
+    let mut update_info = None;
+    let target = if closer.is_some() {
+        let Some(target) = selection
+            .app()
+            .version
+            .as_deref()
+            .and_then(|version| semver::Version::parse(version).ok())
+        else {
+            return InstallResult::NotAvailable;
+        };
+        let detection = tokio::select! {
+            biased;
+            _ = operation.cancelled() => return InstallResult::Cancelled,
+            result = boundaries.detector.detect_update(&catalog, selection.app()) => result,
+        };
+        update_info = match check_update(detection, &target, None) {
+            Ok(info) => Some(info),
+            Err(result) => return result,
+        };
+        Some(target)
+    } else {
+        let detection = tokio::select! {
+            biased;
+            _ = operation.cancelled() => return InstallResult::Cancelled,
+            result = boundaries.detector.detect(&catalog, selection.app()) => result,
+        };
+        match detection {
+            Detection::Installed { .. } => return InstallResult::AlreadyInstalled,
+            Detection::Unknown => return InstallResult::DetectionUnknown,
+            Detection::NotInstalled => {}
+        }
+        None
     };
-    match detection {
-        Detection::Installed { .. } => return InstallResult::AlreadyInstalled,
-        Detection::Unknown => return InstallResult::DetectionUnknown,
-        Detection::NotInstalled => {}
-    }
     if cancelled(sender, operation) {
         return InstallResult::Cancelled;
     }
@@ -586,6 +795,7 @@ where
     let language = language.to_owned();
     let approval_boundaries = boundaries.clone();
     let approval_operation = operation.clone();
+    let current_version = update_info.as_ref().map(|info| info.version.clone());
     progress.phase(ProgressPhase::AwaitingApproval);
     // A native modal cannot be cancelled by dropping its blocking task. Keep the claim
     // until it closes so a retry cannot leave behind or overlap an approval dialog.
@@ -593,12 +803,18 @@ where
         if approval_operation.is_cancelled() {
             return ApprovalDecision::Denied;
         }
-        approval_boundaries.approval.confirm(&ApprovalRequest {
+        let request = ApprovalRequest {
             app_name: &app_name,
             version: &version,
             publisher_host: "github.com",
             language: &language,
-        })
+        };
+        match current_version {
+            Some(current) => approval_boundaries
+                .approval
+                .confirm_update(&request, &current),
+            None => approval_boundaries.approval.confirm(&request),
+        }
     })
     .await;
     if !matches!(approved, Ok(ApprovalDecision::Approved)) || cancelled(sender, operation) {
@@ -634,25 +850,82 @@ where
         Ok(selection) => selection,
         Err(_) => return cleanup(installer, InstallResult::ReleaseChanged),
     };
-    let detection = tokio::select! {
-        biased;
-        _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
-        result = boundaries.detector.detect(&current, selection.app()) => result,
-    };
-    match detection {
-        Detection::Installed { .. } => return cleanup(installer, InstallResult::AlreadyInstalled),
-        Detection::Unknown => return cleanup(installer, InstallResult::DetectionUnknown),
-        Detection::NotInstalled => {}
+    if let (Some(info), Some(target)) = (&update_info, &target) {
+        let detection = tokio::select! {
+            biased;
+            _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
+            result = boundaries.detector.detect_update(&current, selection.app()) => result,
+        };
+        if let Err(result) = check_update(detection, target, Some(info)) {
+            return cleanup(installer, result);
+        }
+    } else {
+        let detection = tokio::select! {
+            biased;
+            _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
+            result = boundaries.detector.detect(&current, selection.app()) => result,
+        };
+        match detection {
+            Detection::Installed { .. } => {
+                return cleanup(installer, InstallResult::AlreadyInstalled);
+            }
+            Detection::Unknown => return cleanup(installer, InstallResult::DetectionUnknown),
+            Detection::NotInstalled => {}
+        }
     }
     if cancelled(sender, operation) {
         return cleanup(installer, InstallResult::Cancelled);
     }
+    let (current, selection) =
+        if let (Some(closer), Some(info), Some(target)) = (&closer, &update_info, &target) {
+            progress.phase(ProgressPhase::Closing);
+            // Do not drop an in-flight IPC quit: it owns correlated request cleanup.
+            let outcome = closer.close(id, &info.executable).await;
+            if cancelled(sender, operation) {
+                return cleanup(installer, InstallResult::Cancelled);
+            }
+            if outcome != crate::update_close::CloseOutcome::Closed {
+                return cleanup(installer, InstallResult::AppStillRunning);
+            }
+            let latest = tokio::select! {
+                biased;
+                _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
+                result = boundaries.feed.fetch() => match result {
+                    Ok(catalog) => catalog,
+                    Err(_) => return cleanup(installer, InstallResult::FeedFailed),
+                },
+            };
+            let selected = match selection.revalidate(&latest) {
+                Ok(selection) => selection,
+                Err(_) => return cleanup(installer, InstallResult::ReleaseChanged),
+            };
+            let detection = tokio::select! {
+                biased;
+                _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
+                result = boundaries.detector.detect_update(&latest, selected.app()) => result,
+            };
+            if let Err(result) = check_update(detection, target, Some(info)) {
+                return cleanup(installer, result);
+            }
+            if cancelled(sender, operation) {
+                return cleanup(installer, InstallResult::Cancelled);
+            }
+            let closer = closer.clone();
+            let executable = info.executable.clone();
+            operation.set_spawn_check(move || closer.is_running(&executable) == Ok(false));
+            (latest, selected)
+        } else {
+            (current, selection)
+        };
     let mut running = match boundaries
         .launcher
         .launch(&installer, operation.clone())
         .await
     {
         Ok(running) => running,
+        Err(_) if operation.spawn_rejected.load(Ordering::SeqCst) => {
+            return cleanup(installer, InstallResult::AppStillRunning);
+        }
         Err(_) => return cleanup(installer, InstallResult::SpawnFailed),
     };
     progress.phase(ProgressPhase::Installing);
@@ -678,9 +951,31 @@ where
     let result = match (first, exit) {
         (Ok(()), Ok(())) => {
             progress.phase(ProgressPhase::Detecting);
-            match boundaries.detector.detect(&current, selection.app()).await {
-                Detection::Installed { version } => InstallResult::Installed { version },
-                Detection::NotInstalled | Detection::Unknown => InstallResult::NotDetected,
+            if let Some(target) = &target {
+                match boundaries
+                    .detector
+                    .detect_update(&current, selection.app())
+                    .await
+                {
+                    UpdateDetection::Installed {
+                        version: Some(version),
+                        ..
+                    } => match semver::Version::parse(&version) {
+                        Ok(actual)
+                            if actual.cmp_precedence(target) == std::cmp::Ordering::Equal =>
+                        {
+                            InstallResult::Updated { version }
+                        }
+                        Ok(_) => InstallResult::VersionMismatch { version },
+                        Err(_) => InstallResult::NotDetected,
+                    },
+                    _ => InstallResult::NotDetected,
+                }
+            } else {
+                match boundaries.detector.detect(&current, selection.app()).await {
+                    Detection::Installed { version } => InstallResult::Installed { version },
+                    Detection::NotInstalled | Detection::Unknown => InstallResult::NotDetected,
+                }
             }
         }
         (Err(LaunchError::Exit(code)), _) => InstallResult::InstallerFailed { code },
@@ -717,7 +1012,7 @@ impl<N: Network + Send> InstallWorkspace<N> for crate::install_workspace::Privat
 }
 
 #[cfg(windows)]
-pub(crate) struct NativeDetector;
+pub(crate) struct NativeDetector(crate::ipc::Hub);
 #[cfg(windows)]
 impl InstallDetector for NativeDetector {
     async fn detect(&self, catalog: &FreshCatalog, app: &CatalogApp) -> Detection {
@@ -726,6 +1021,57 @@ impl InstallDetector for NativeDetector {
         tokio::task::spawn_blocking(move || crate::apps::detect_catalog_app(&catalog, &app))
             .await
             .unwrap_or(Detection::Unknown)
+    }
+    async fn detect_update(&self, catalog: &FreshCatalog, app: &CatalogApp) -> UpdateDetection {
+        let catalog = catalog.catalog().clone();
+        let app = app.clone();
+        let hub = self.0.clone();
+        tokio::task::spawn_blocking(move || {
+            crate::apps::detect_catalog_update(&catalog, &app, &hub)
+        })
+        .await
+        .unwrap_or(UpdateDetection::Unknown)
+    }
+}
+
+#[cfg(windows)]
+pub(crate) struct NativeUpdateCloser(crate::ipc::Hub);
+#[cfg(windows)]
+impl NativeUpdateCloser {
+    pub(crate) fn new(hub: crate::ipc::Hub) -> Self {
+        Self(hub)
+    }
+}
+#[cfg(windows)]
+impl UpdateCloser for NativeUpdateCloser {
+    async fn close(
+        &self,
+        id: &str,
+        executable: &std::path::Path,
+    ) -> crate::update_close::CloseOutcome {
+        let id = id.to_owned();
+        let executable = executable.to_owned();
+        let hub = self.0.clone();
+        tokio::task::spawn_blocking(move || {
+            tokio::runtime::Handle::current().block_on(crate::update_close::close_for_update(
+                &id,
+                &executable,
+                &hub,
+                &crate::update_close::SystemProcessProbe,
+                Duration::from_secs(5),
+            ))
+        })
+        .await
+        .unwrap_or(crate::update_close::CloseOutcome::StillRunning)
+    }
+    fn is_running(
+        &self,
+        executable: &std::path::Path,
+    ) -> Result<bool, crate::update_close::ProbeError> {
+        crate::update_close::ProcessProbe::is_running(
+            &crate::update_close::SystemProcessProbe,
+            executable,
+        )
     }
 }
 
@@ -792,13 +1138,13 @@ pub(crate) type NativeService = InstallService<
 >;
 
 #[cfg(windows)]
-pub(crate) fn native() -> Result<NativeService, reqwest::Error> {
+pub(crate) fn native(hub: crate::ipc::Hub) -> Result<NativeService, reqwest::Error> {
     Ok(InstallService::new(
         crate::install_feed::NativeFeed::new(crate::install_http::HttpTransport::new()?),
         crate::install_http::HttpTransport::new()?,
         crate::install_workspace::PrivateFactory::system(),
         crate::install_approval::NativeInstallApproval,
         NativeLauncher,
-        NativeDetector,
+        NativeDetector(hub),
     ))
 }

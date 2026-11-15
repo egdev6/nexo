@@ -60,8 +60,12 @@ pub(crate) async fn open_official_app(
     app: tauri::AppHandle,
     id: String,
     hub: tauri::State<'_, crate::ipc::Hub>,
+    service: tauri::State<'_, crate::install_service::NativeService>,
 ) -> Result<String, String> {
     let locale = crate::config::bootstrap_locale(&app);
+    let open = service
+        .begin_open(&id)
+        .ok_or_else(|| crate::i18n::text(locale, "unavailable").to_string())?;
     let catalog =
         official_catalog(app).map_err(|error| crate::i18n::app_message(locale, &error))?;
     if !catalog.apps.iter().any(|app| app.id == id) {
@@ -80,6 +84,8 @@ pub(crate) async fn open_official_app(
         return Ok(crate::i18n::text(locale, "appShowRequested").into());
     }
     tauri::async_runtime::spawn_blocking(move || {
+        // Retain the fence even if the command waiter is dropped before launch finishes.
+        let _open = open;
         open_official(
             &catalog,
             &windows::CurrentUserRegistry,
@@ -423,6 +429,85 @@ pub(crate) fn detect_catalog_app(
     install_detection(catalog, app, &windows::CurrentUserRegistry)
 }
 
+fn update_detection(
+    catalog: &Catalog,
+    app: &nexo_catalog::CatalogApp,
+    registry: &impl Registry,
+    launcher: &impl Launcher,
+) -> crate::install_service::UpdateDetection {
+    use crate::install_service::UpdateDetection;
+    if !catalog.apps.iter().any(|candidate| candidate == app) {
+        return UpdateDetection::Unknown;
+    }
+    let Some((observation, entry)) = matched_apps(catalog, registry)
+        .into_iter()
+        .find(|(observation, _)| observation.id == app.id)
+    else {
+        return UpdateDetection::Unknown;
+    };
+    match observation.state {
+        InstallState::NotInstalled => UpdateDetection::NotInstalled,
+        InstallState::Unknown => UpdateDetection::Unknown,
+        InstallState::Installed => {
+            let executable = entry.and_then(|entry| {
+                let location = identity(entry.install_location.as_deref())?;
+                let relative = &app.detection.as_ref()?.windows.executable_relative_path;
+                launcher.resolve(location, relative).ok()
+            });
+            match executable {
+                Some(executable) => UpdateDetection::Installed {
+                    version: observation.version,
+                    executable,
+                },
+                None => UpdateDetection::Unknown,
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn detect_catalog_update(
+    catalog: &Catalog,
+    app: &nexo_catalog::CatalogApp,
+    hub: &crate::ipc::Hub,
+) -> crate::install_service::UpdateDetection {
+    update_detection(
+        catalog,
+        app,
+        &windows::CurrentUserRegistry,
+        &windows::SystemLauncher { hub, id: &app.id },
+    )
+}
+
+#[cfg(windows)]
+impl crate::update_close::PluginQuit for crate::ipc::Hub {
+    async fn quit(&self, id: &str) -> crate::update_close::QuitAnswer {
+        use crate::update_close::QuitAnswer;
+        let Some(entry) = self
+            .snapshot()
+            .apps
+            .into_iter()
+            .find(|entry| entry.app.id == id)
+        else {
+            return QuitAnswer::NotConnected;
+        };
+        if !entry.responsive
+            || !entry
+                .capabilities
+                .contains(&nexo_protocol::Capability::Quit)
+        {
+            return QuitAnswer::Timeout;
+        }
+        match self.quit_responsive(id, entry.generation).await {
+            crate::ipc::QuitOutcome::Accepted => QuitAnswer::Accepted,
+            crate::ipc::QuitOutcome::Refused(_) => QuitAnswer::Refused,
+            crate::ipc::QuitOutcome::Timeout
+            | crate::ipc::QuitOutcome::Unavailable
+            | crate::ipc::QuitOutcome::Disconnected => QuitAnswer::Timeout,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -600,6 +685,40 @@ mod tests {
             self.launched.borrow_mut().push(executable.to_path_buf());
             Ok(())
         }
+    }
+
+    #[test]
+    fn update_detection_requires_the_unique_registry_match_and_a_resolved_executable() {
+        use crate::install_service::UpdateDetection;
+        let catalog = catalog();
+        let app = &catalog.apps[0];
+        let launcher = FakeLauncher::default();
+        assert_eq!(
+            update_detection(&catalog, app, &fake(Ok(vec![entry("a")])), &launcher),
+            UpdateDetection::Installed {
+                version: Some("1.4.7".into()),
+                executable: "resolved-example.exe".into()
+            }
+        );
+        assert_eq!(
+            update_detection(&catalog, app, &fake(Ok(vec![])), &launcher),
+            UpdateDetection::NotInstalled
+        );
+        assert_eq!(
+            update_detection(
+                &catalog,
+                app,
+                &fake(Ok(vec![entry("a"), entry("b")])),
+                &launcher
+            ),
+            UpdateDetection::Unknown
+        );
+        launcher.fail_resolution.set(true);
+        assert_eq!(
+            update_detection(&catalog, app, &fake(Ok(vec![entry("a")])), &launcher),
+            UpdateDetection::Unknown
+        );
+        assert!(launcher.launched.borrow().is_empty());
     }
 
     #[test]
