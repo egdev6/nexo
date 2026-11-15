@@ -1,18 +1,14 @@
 use super::*;
-use crate::local_apps::{self, FileKind, FsError, Picker, catalog, icons};
-use crate::local_catalog::{LocalCatalogError, LocalCatalogReader};
+use crate::local_apps::{self, FileKind, FsError, Picker, icons};
 use serde_json::{Value, json};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 const EXE: &str = "C:\\Apps\\App.exe";
 const ICON: &str = "C:\\Apps\\selected.png";
-const CATALOG: &str = "C:\\Catalog\\apps.json";
-const FULL: &str = include_str!("../../../../../crates/nexo-catalog/fixtures/full.json");
 
 struct FakeFs(RefCell<HashMap<String, Result<FileKind, FsError>>>);
 impl FakeFs {
@@ -20,10 +16,8 @@ impl FakeFs {
         Self(RefCell::new(HashMap::from([
             ("C:\\".into(), Ok(FileKind::Directory)),
             ("C:\\Apps".into(), Ok(FileKind::Directory)),
-            ("C:\\Catalog".into(), Ok(FileKind::Directory)),
             (EXE.into(), Ok(FileKind::File)),
             (ICON.into(), Ok(FileKind::File)),
-            (CATALOG.into(), Ok(FileKind::File)),
         ])))
     }
     fn set(&self, path: &str, value: Result<FileKind, FsError>) {
@@ -68,23 +62,10 @@ impl icons::IconPicker for IconPicker {
         Ok(Some(ICON.into()))
     }
 }
-struct CatalogPicker;
-impl catalog::CatalogPicker for CatalogPicker {
-    fn pick_catalog(&self) -> Result<Option<String>, String> {
-        Ok(Some(CATALOG.into()))
-    }
-}
-struct Reader(String);
-impl LocalCatalogReader for Reader {
-    fn open(&self, _: &str) -> io::Result<impl io::Read> {
-        Ok(io::Cursor::new(self.0.as_bytes().to_vec()))
-    }
-}
 struct Fixture {
     directory: PathBuf,
     store: Store,
     lock: ConfigLock,
-    fence: RefreshFence,
     fs: FakeFs,
 }
 impl Fixture {
@@ -99,7 +80,6 @@ impl Fixture {
             store: Store::new(directory.join("config.json")),
             directory,
             lock: ConfigLock::default(),
-            fence: RefreshFence::default(),
             fs: FakeFs::new(),
         }
     }
@@ -112,57 +92,16 @@ impl Fixture {
         local_apps::update(&self.store, &id, name).unwrap();
         id
     }
-    fn reader(&self) -> Reader {
-        let mut doc: Value = serde_json::from_str(FULL).unwrap();
-        doc["apps"][0]["integrationLevel"] = json!("launch");
-        Reader(doc.to_string())
-    }
-    fn catalog(&self) -> String {
-        catalog::set(
-            &self.store,
-            &self.lock,
-            &self.fs,
-            &self.reader(),
-            &CatalogPicker,
-            &self.fence,
-            None,
-        )
-        .unwrap()
-        .unwrap()
-        .source_id
-    }
-    fn bind(&self, source: &str) {
-        catalog::bind(
-            &self.store,
-            &self.lock,
-            &self.fs,
-            &self.reader(),
-            &ExecPicker,
-            &self.fence,
-            &crate::local_catalog::LocalEntryKey {
-                source_id: source.into(),
-                app_id: "example-app".into(),
-            },
-        )
-        .unwrap();
-    }
     fn list(
         &self,
         official: &[OfficialCandidate],
         icon: &impl Fn(&str) -> Option<String>,
     ) -> Vec<Value> {
-        list(
-            &self.store,
-            &self.lock,
-            &self.fs,
-            &self.fence,
-            official,
-            icon,
-        )
-        .unwrap()
-        .iter()
-        .map(|row| serde_json::to_value(row).unwrap())
-        .collect()
+        list(&self.store, &self.lock, &self.fs, official, icon)
+            .unwrap()
+            .iter()
+            .map(|row| serde_json::to_value(row).unwrap())
+            .collect()
     }
 }
 impl Drop for Fixture {
@@ -179,13 +118,11 @@ fn empty_local_data_returns_no_rows_or_settings_writes() {
 }
 
 #[test]
-fn lists_source_scoped_rows_and_warns_on_official_name_or_executable_matches() {
+fn lists_manual_rows_and_warns_on_official_name_or_executable_matches() {
     let f = Fixture::new();
     let manual = f.manual("Private");
+    let second = f.manual("Example App");
     icons::pick_icon(&f.store, &f.fs, &IconPicker, &manual).unwrap();
-    let work = f.catalog();
-    let personal = f.catalog();
-    f.bind(&work);
     let official = [
         OfficialCandidate {
             id: "official-name".into(),
@@ -201,74 +138,45 @@ fn lists_source_scoped_rows_and_warns_on_official_name_or_executable_matches() {
     let icon =
         |name: &str| (name == "icon-1.png").then(|| "C:\\Nexo\\local-icons\\icon-1.png".into());
     let rows = f.list(&official, &icon);
-    assert_eq!(rows.len(), 3);
+    assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["source"], "local");
     assert_eq!(rows[0]["state"], "ready");
     assert_eq!(rows[0]["executable"], EXE);
-    assert_eq!(rows[1]["executable"], EXE);
-    assert!(rows[2].get("executable").is_none());
     assert_eq!(rows[0]["origin"], json!({"kind":"manual", "id":manual}));
+    assert_eq!(rows[1]["origin"], json!({"kind":"manual", "id":second}));
     assert_eq!(rows[0]["iconPath"], "C:\\Nexo\\local-icons\\icon-1.png");
     assert_eq!(rows[0]["duplicateOf"], "official-path");
-    assert_eq!(
-        rows[1]["origin"],
-        json!({"kind":"catalog", "sourceId":work, "sourceLabel":"Local", "appId":"example-app"})
-    );
-    assert_eq!(
-        rows[2]["origin"],
-        json!({"kind":"catalog", "sourceId":personal, "sourceLabel":"Local", "appId":"example-app"})
-    );
-    assert_eq!(rows[1]["state"], "ready");
-    assert_eq!(rows[2]["state"], "unbound");
-    for row in &rows[1..] {
-        assert_eq!(row["source"], "local");
-        assert_eq!(row["name"], "Example App");
-        assert_eq!(row["duplicateOf"], "official-name");
-        assert!(row.get("iconPath").is_none());
-        assert!(row.to_string().find("https://").is_none());
-    }
-    let ids: Vec<&str> = rows.iter().map(|row| row["id"].as_str().unwrap()).collect();
-    assert!(
-        ids.iter()
-            .all(|id| id.starts_with("local:") && id.contains(':'))
-    );
-    assert_ne!(ids[0], ids[1]);
-    assert_ne!(ids[1], ids[2]);
+    assert_eq!(rows[1]["duplicateOf"], "official-name");
+    assert_ne!(rows[0]["id"], rows[1]["id"]);
     assert_eq!(rows, f.list(&official, &icon));
     assert!(f.list(&official, &|_| None)[0].get("iconPath").is_none());
 }
 
 #[test]
-fn missing_executables_and_invalid_sources_do_not_erase_other_rows_or_bindings() {
+fn legacy_catalog_data_never_adds_rows_or_changes_a_read() {
     let f = Fixture::new();
-    f.manual("Private");
-    let work = f.catalog();
-    let personal = f.catalog();
-    f.bind(&work);
-    let before = std::fs::read(f.directory.join("config.json")).unwrap();
+    let manual = f.manual("Private");
+    let path = f.directory.join("config.json");
+    let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    document["version"] = json!(3);
+    document["sources"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"work", "label":"Work", "kind":"local", "location":"C:\\work.json"}));
+    document["localBindings"] = json!([{"sourceId":"work", "appId":"app", "executable":EXE}]);
+    std::fs::write(&path, document.to_string()).unwrap();
+    let before = std::fs::read(&path).unwrap();
     f.fs.set(EXE, Err(FsError::Missing));
     let rows = f.list(&[], &|_| None);
-    assert_eq!(
-        rows.iter()
-            .map(|row| row["state"].as_str().unwrap())
-            .collect::<Vec<_>>(),
-        ["missingExecutable", "missingExecutable", "unbound"]
-    );
-    let ticket = f.fence.begin(&work);
-    assert!(f.fence.finish(ticket, Err(LocalCatalogError::Invalid)));
-    let rows = f.list(&[], &|_| None);
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0]["name"], "Private");
-    assert_eq!(rows[1]["origin"]["sourceId"], personal);
-    assert_eq!(rows[1]["state"], "unbound");
-    assert_eq!(
-        std::fs::read(f.directory.join("config.json")).unwrap(),
-        before
-    );
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["origin"], json!({"kind":"manual", "id":manual}));
+    assert_eq!(rows[0]["state"], "missingExecutable");
+    assert!(rows[0].get("duplicateOf").is_none());
+    assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
 #[test]
-fn a_source_invalidated_during_inspection_cannot_return_stale_ready_rows() {
+fn a_manual_record_changed_during_inspection_cannot_return_stale_rows() {
     use std::sync::mpsc;
     use std::time::Duration;
 
@@ -291,9 +199,7 @@ fn a_source_invalidated_during_inspection_cannot_return_stale_ready_rows() {
         }
     }
     let f = Fixture::new();
-    let source = f.catalog();
-    f.bind(&source);
-    let before = std::fs::read(f.directory.join("config.json")).unwrap();
+    let manual = f.manual("Private");
     let (entered_tx, entered_rx) = mpsc::channel();
     let (resume_tx, resume_rx) = mpsc::channel();
     let fs = BlockingFs {
@@ -305,36 +211,26 @@ fn a_source_invalidated_during_inspection_cannot_return_stale_ready_rows() {
     std::thread::scope(|scope| {
         let store = &f.store;
         let lock = &f.lock;
-        let fence = &f.fence;
-        let worker = scope.spawn(move || list(store, lock, &fs, fence, &[], &|_| None));
+        let worker = scope.spawn(move || list(store, lock, &fs, &[], &|_| None));
         entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-        let result = catalog::refresh(
-            &f.store,
-            &f.lock,
-            &f.fs,
-            &Reader("{".into()),
-            &f.fence,
-            &source,
-        );
+        f.lock
+            .with_store(&f.store, |store| {
+                local_apps::update(store, &manual, "Changed")
+            })
+            .unwrap();
         resume_tx.send(()).unwrap();
-        assert_eq!(result, Err("nexo.local.catalogInvalid".into()));
         assert_eq!(worker.join().unwrap(), Err("nexo.local.refused".into()));
     });
-    assert_eq!(
-        std::fs::read(f.directory.join("config.json")).unwrap(),
-        before
-    );
-    assert!(f.list(&[], &|_| None).is_empty());
+    assert_eq!(f.list(&[], &|_| None)[0]["name"], "Changed");
 }
 
 #[test]
-fn duplicate_local_rows_remain_distinct_and_all_warn_without_an_official_match() {
+fn duplicate_manual_rows_remain_distinct_and_all_warn_without_an_official_match() {
     let f = Fixture::new();
     f.manual("example app");
-    f.catalog();
-    f.catalog();
+    f.manual("example app");
     let rows = f.list(&[], &|_| None);
-    assert_eq!(rows.len(), 3);
+    assert_eq!(rows.len(), 2);
     for row in &rows {
         let duplicate = row["duplicateOf"].as_str().unwrap();
         assert_ne!(duplicate, row["id"].as_str().unwrap());

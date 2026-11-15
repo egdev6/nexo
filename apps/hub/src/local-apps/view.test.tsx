@@ -16,7 +16,6 @@ const official: HubApp = { id: 'official-id', name: 'Official Example', descript
 const rows: LocalAppRow[] = [
   { id: 'local:manual:1', source: 'local', name: 'Work', state: 'ready', origin: { kind: 'manual', id: 'manual-1' }, duplicateOf: 'official-id' },
   { id: 'local:manual:2', source: 'local', name: 'Broken', state: 'missingExecutable', origin: { kind: 'manual', id: 'manual-2' } },
-  { id: 'local:catalog:1:2', source: 'local', name: 'Catalog App', state: 'unbound', origin: { kind: 'catalog', sourceId: 'source-1', sourceLabel: 'Work catalog', appId: 'app-2' } },
 ];
 
 beforeEach(() => {
@@ -40,11 +39,11 @@ function expand(name: string) {
   if (trigger.getAttribute('aria-expanded') === 'false') fireEvent.click(trigger);
 }
 
-it('shows separate source-labelled local rows after official apps with duplicate and availability warnings', async () => {
+it('shows manual local rows after official apps with duplicate and availability warnings', async () => {
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
   await screen.findByText('Work');
   const names = Array.from(document.querySelectorAll('.app-card strong')).map(node => node.textContent);
-  expect(names).toEqual(['Official Example', 'Work', 'Broken', 'Catalog App']);
+  expect(names).toEqual(['Official Example', 'Work', 'Broken']);
   expect(card('Work').getByText('Local')).toBeTruthy();
   expand('Work');
   expect(card('Work').getByText('Added manually')).toBeTruthy();
@@ -55,12 +54,7 @@ it('shows separate source-labelled local rows after official apps with duplicate
   expect(card('Broken').getByText('Executable missing or inaccessible')).toBeTruthy();
   expect((card('Broken').getByRole('button', { name: 'Open Broken' }) as HTMLButtonElement).disabled).toBe(true);
   expect(card('Broken').getByRole('button', { name: 'Repair Broken' })).toBeTruthy();
-  expand('Catalog App');
-  expect(card('Catalog App').getByText('Work catalog')).toBeTruthy();
-  expect(card('Catalog App').getByText('Executable not selected')).toBeTruthy();
-  expect((card('Catalog App').getByRole('button', { name: 'Open Catalog App' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(card('Catalog App').getByRole('button', { name: 'Bind Catalog App' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: /Close (Work|Broken|Catalog App)/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Close (Work|Broken)/ })).toBeNull();
   expect(bridge.invoke).toHaveBeenCalledWith('local_apps_list');
 });
 
@@ -83,22 +77,19 @@ it('localizes launch failures and keeps the stored rows unchanged', async () => 
   fireEvent.click(await screen.findByRole('button', { name: 'Open Work' }));
   expect((await screen.findByRole('alert')).textContent).toBe('Could not start the local app.');
   expect(card('Work').getByText('Running status unknown')).toBeTruthy();
-  expect(rows).toHaveLength(3);
+  expect(rows).toHaveLength(2);
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_open', { id: 'manual-1' });
   expect(bridge.invoke.mock.calls.some(([command]) => /update|remove|bind/.test(command))).toBe(false);
 });
 
-it('uses native pickers for repair and catalog binding and preserves cancellation', async () => {
+it('uses the native picker for repair and preserves cancellation', async () => {
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Repair Broken' }));
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_repair', { id: 'manual-2' }));
   await waitFor(() => expect((card('Broken').getByRole('button', { name: 'Repair Broken' }) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(card('Catalog App').getByRole('button', { name: 'Bind Catalog App' }));
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_bind', { key: { sourceId: 'source-1', appId: 'app-2' } }));
   expand('Broken');
   expect(card('Broken').getByText('Executable missing or inaccessible')).toBeTruthy();
-  expand('Catalog App');
-  expect(card('Catalog App').getByText('Executable not selected')).toBeTruthy();
+  expect(bridge.invoke.mock.calls.some(([command]) => command.startsWith('local_catalog_'))).toBe(false);
 });
 
 it('refreshes local state and ignores an older list result', async () => {

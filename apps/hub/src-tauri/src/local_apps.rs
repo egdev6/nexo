@@ -101,10 +101,7 @@ fn selection(app: LocalApp, settings: &Settings) -> Selection {
     let duplicate = settings.local_apps.iter().any(|other| {
         other.id != app.id
             && (same(&other.name, &app.name) || same(&other.executable, &app.executable))
-    }) || settings
-        .local_bindings
-        .iter()
-        .any(|binding| same(&binding.executable, &app.executable));
+    });
     Selection { app, duplicate }
 }
 
@@ -242,7 +239,6 @@ fn open(
     launcher.spawn(&path)
 }
 
-mod catalog;
 mod icons;
 pub(crate) mod projection;
 

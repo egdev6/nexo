@@ -13,26 +13,20 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => t
 
 type App = { id: string; name: string; executable: string; icon: string | null };
 const official: CatalogSource = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
-const source: CatalogSource = { id: 'source-1', label: 'Trabajo', kind: 'local', location: 'C:\\catalog.json' };
 const initialApp: App = { id: 'manual-1', name: 'Editor', executable: 'C:\\Editor.exe', icon: null };
 let apps: App[];
-let sources: CatalogSource[];
 let fail: Record<string, string>;
 let cancel: string | null;
 let duplicate: boolean;
-let catalogVisible: boolean;
 
 beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
 beforeEach(() => {
-  apps = [structuredClone(initialApp)]; sources = [official, source]; fail = {}; cancel = null; duplicate = false; catalogVisible = true;
+  apps = [structuredClone(initialApp)]; fail = {}; cancel = null; duplicate = false;
   bridge.invoke.mockReset();
-  bridge.invoke.mockImplementation(async (command: string, args?: { id?: string; name?: string; sourceId?: string | null }) => {
-    if (fail[command]) { if (command === 'local_catalog_refresh') catalogVisible = false; throw fail[command]; }
-    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, sources: structuredClone(sources) } };
-    if (command === 'local_apps_list') return [
-      ...apps.map(app => ({ id: `manual:${app.id}`, name: app.name, source: 'local', state: 'missingExecutable', origin: { kind: 'manual', id: app.id } })),
-      ...(catalogVisible && sources.some(item => item.id === 'source-1') ? [{ id: 'catalog:1', name: 'Catálogo App', source: 'local', state: 'unbound', origin: { kind: 'catalog', sourceId: 'source-1', sourceLabel: 'Trabajo', appId: 'catalog-app' } }] : []),
-    ];
+  bridge.invoke.mockImplementation(async (command: string, args?: { id?: string; name?: string }) => {
+    if (fail[command]) throw fail[command];
+    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, sources: [official, { id: 'source-1', label: 'Trabajo', kind: 'local' }] } };
+    if (command === 'local_apps_list') return apps.map(app => ({ id: `manual:${app.id}`, name: app.name, source: 'local', state: 'missingExecutable', origin: { kind: 'manual', id: app.id } }));
     if (cancel === command) { cancel = null; return null; }
     if (command === 'local_app_add') {
       const app = { id: 'manual-2', name: 'Paint', executable: 'C:\\Paint.exe', icon: null };
@@ -49,20 +43,13 @@ beforeEach(() => {
       apps = apps.map(item => item.id === app.id ? app : item); return { app, duplicate };
     }
     if (command === 'local_app_remove') { apps = apps.filter(item => item.id !== args?.id); return; }
-    if (command === 'local_catalog_set') {
-      if (args?.sourceId) sources = sources.map(item => item.id === args.sourceId ? { ...item, location: 'C:\\replacement.json' } : item);
-      else sources = [...sources, { id: 'source-2', label: 'Local', kind: 'local', location: 'C:\\new.json' }];
-      return { sourceId: args?.sourceId ?? 'source-2', entries: [] };
-    }
-    if (command === 'local_catalog_refresh') { catalogVisible = true; return { sourceId: args?.sourceId, entries: [] }; }
-    if (command === 'local_catalog_clear') { sources = sources.filter(item => item.id !== args?.sourceId); return; }
     throw new Error(`Unexpected command ${command}`);
   });
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 function setup(locale: Language = 'es') {
-  const result = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} sources={[official, source]} /></LocaleProvider>);
+  const result = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} sources={[official]} /></LocaleProvider>);
   const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Apps locales' : 'Local apps' });
   fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
   return result;
@@ -80,13 +67,11 @@ it('does not hard-code visible copy or accessible labels in the local settings v
   expect(found).toEqual([]);
 });
 
-it.each(['toString', '__proto__'])('preserves local catalog refresh and reports errors for opaque source ID %s', async id => {
-  sources = [official, { ...source, id }];
-  fail.local_catalog_refresh = 'nexo.local.catalogInvalid';
+it('lists manual apps without requesting catalog sources or commands', async () => {
   setup();
-  expect((await screen.findByRole('alert')).textContent).toBe('El catálogo local no es válido.');
   expect(await screen.findByText('Editor')).toBeTruthy();
-  expect(bridge.invoke).toHaveBeenCalledWith('local_catalog_refresh', { sourceId: id });
+  expect(bridge.invoke).toHaveBeenCalledWith('local_apps_list');
+  expect(bridge.invoke.mock.calls.some(([command]) => command === 'get_settings' || command.startsWith('local_catalog_'))).toBe(false);
   expect(screen.queryByRole('button', { name: /fuente/i })).toBeNull();
 });
 
@@ -104,16 +89,14 @@ it('offers localized English controls and keyboard cancellation of an inline edi
   expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_update', expect.anything());
 });
 
-it('lists manual and catalog entries with their state, but only manual entries are editable', async () => {
+it('lists manual entries with their state and editable controls', async () => {
   setup();
   const section = await screen.findByRole('region', { name: 'Apps locales' });
   expect(within(section).getByText('Editor')).toBeTruthy();
   expect(within(section).getByText('Ejecutable ausente o inaccesible')).toBeTruthy();
-  expect(within(section).getByText('Catálogo App')).toBeTruthy();
-  expect(within(section).getByText('Catálogo local: Trabajo')).toBeTruthy();
-  expect(within(section).getByText('Ejecutable sin seleccionar')).toBeTruthy();
-  expect(within(section).queryByRole('button', { name: 'Renombrar Catálogo App' })).toBeNull();
-  expect(within(section).queryByRole('button', { name: 'Eliminar Catálogo App' })).toBeNull();
+  expect(within(section).getByRole('button', { name: 'Renombrar Editor' })).toBeTruthy();
+  expect(within(section).getByRole('button', { name: 'Eliminar Editor' })).toBeTruthy();
+  expect(within(section).queryByText('Catálogo App')).toBeNull();
   expect(screen.queryByText('Catálogo oficial egdev')).toBeNull();
   expect(screen.queryByRole('button', { name: /fuente/i })).toBeNull();
 });

@@ -5,13 +5,12 @@ type IconEntry = { id: string; path: string | undefined; revision: number; url: 
 
 /** Cache only per mounted row; a changed path or successful picker invalidates the entry. */
 function useLocalAppIcon(row: LocalAppRow, revision: number) {
-  const id = row.origin.kind === 'manual' ? row.origin.id : undefined;
+  const id = row.origin.id;
   const path = row.iconPath;
   const cache = useRef(new Map<string, IconEntry>());
   const [result, setResult] = useState<IconEntry | null>(null);
 
   useEffect(() => {
-    if (id === undefined) return;
     const cached = cache.current.get(id);
     if (cached && cached.path === path && cached.revision === revision) {
       setResult(cached);
@@ -19,7 +18,7 @@ function useLocalAppIcon(row: LocalAppRow, revision: number) {
     }
     let active = true;
     function finish(value: unknown) {
-      if (!active || id === undefined) return;
+      if (!active) return;
       // Only the native command's PNG/ICO base64 data can reach an image element.
       const url = typeof value === 'string' && /^data:image\/(?:png|x-icon);base64,[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : null;
       const entry = { id, path, revision, url };

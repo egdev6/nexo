@@ -1,11 +1,10 @@
 import { Button, Input } from '@egdev/ui';
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
-import { addLocalApp, listLocalApps, pickLocalAppIcon, refreshLocalCatalog, removeLocalApp, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
+import { addLocalApp, listLocalApps, pickLocalAppIcon, removeLocalApp, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
 import { LocalAppIcon } from '../local-apps/icon';
-import type { CatalogSource } from '../model';
 
 const errors: Readonly<Record<string, MessageKey>> = {
   'nexo.local.missing': 'localApps.errorMissing',
@@ -19,10 +18,6 @@ const errors: Readonly<Record<string, MessageKey>> = {
   'nexo.local.iconReadFailed': 'localApps.errorIconRead',
   'nexo.local.iconWriteFailed': 'localApps.errorIconWrite',
   'nexo.local.iconCleanupFailed': 'localApps.errorIconCleanup',
-  'nexo.local.catalogUnreadable': 'localApps.errorCatalogUnreadable',
-  'nexo.local.catalogInvalid': 'localApps.errorCatalogInvalid',
-  'nexo.local.catalogLaunchOnly': 'localApps.errorCatalogLaunchOnly',
-  'nexo.local.unbound': 'localApps.unbound',
   'nexo.config.save.corrupt': 'settings.saveBlockedCorrupt',
   'nexo.config.save.unreadable': 'settings.saveBlockedUnreadable',
   'nexo.config.save.future': 'settings.saveBlockedFuture',
@@ -32,7 +27,6 @@ function errorKey(error: unknown): MessageKey {
   return Object.hasOwn(errors, code) ? errors[code] : 'localApps.errorUnknown';
 }
 
-type Snapshot = { settings: { sources: CatalogSource[] } };
 type Confirmation = { kind: 'app'; id: string } | null;
 
 export function LocalManagement() {
@@ -50,11 +44,6 @@ export function LocalManagement() {
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [iconRevisions, setIconRevisions] = useState<Map<string, number>>(() => new Map());
 
-  async function readSources() {
-    const snapshot = await invoke<Snapshot>('get_settings');
-    if (!Array.isArray(snapshot.settings.sources)) throw new Error('nexo.local.refused');
-    return snapshot.settings.sources;
-  }
   async function refreshRows() {
     try { setRows(await listLocalApps()); setListError(null); }
     catch (failure) { setListError(errorKey(failure)); }
@@ -63,16 +52,6 @@ export function LocalManagement() {
     if (!native) return;
     let active = true;
     void (async () => {
-      try {
-        const current = await readSources();
-        if (!active) return;
-        // Preserve existing catalog app snapshots until their migration in T10.
-        for (const source of current.filter(item => item.kind === 'local')) {
-          try { await refreshLocalCatalog(source.id); }
-          catch (failure) { if (active) setError(errorKey(failure)); }
-          if (!active) return;
-        }
-      } catch (failure) { if (active) setError(errorKey(failure)); }
       try {
         const result = await listLocalApps();
         if (active) { setRows(result); setListError(null); }
@@ -110,12 +89,6 @@ export function LocalManagement() {
       {duplicate && <p role="status" className="settings__hint">{t(locale, 'settingsLocal.duplicate')}</p>}
       {!loading && !rows.length && !listError && <p className="settings__hint">{t(locale, 'settingsLocal.emptyAll')}</p>}
       {rows.map(row => {
-        if (row.origin.kind === 'catalog') return <div className="settings__local-entry" key={row.id}>
-          <div className="settings__row"><div className="row-label"><LocalAppIcon row={row} /><div><strong>{row.name}</strong>
-            <span>{t(locale, 'settingsLocal.catalogSource', { source: row.origin.sourceLabel })}</span>
-            {row.state !== 'ready' && <span>{t(locale, row.state === 'unbound' ? 'localApps.unbound' : 'localApps.missing')}</span>}
-          </div></div></div>
-        </div>;
         const appId = row.origin.id;
         const params = { name: row.name };
         return <div className="settings__local-entry" key={row.id}>

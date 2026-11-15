@@ -1,6 +1,5 @@
 use super::{ExecutableFs, validate_executable};
-use crate::config::{ConfigLock, Settings, Source, Store};
-use crate::local_catalog::{LocalCatalogSnapshot, RefreshFence};
+use crate::config::{ConfigLock, Store};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct OfficialCandidate {
@@ -19,16 +18,9 @@ pub(crate) struct LocalRow {
     origin: LocalOrigin,
     #[serde(skip_serializing_if = "Option::is_none")]
     icon_path: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    executable: Option<String>,
+    executable: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     duplicate_of: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tagline: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tags: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -36,24 +28,12 @@ pub(crate) struct LocalRow {
 enum LocalState {
     Ready,
     MissingExecutable,
-    Unbound,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(
-    tag = "kind",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "kind", rename_all = "camelCase")]
 enum LocalOrigin {
-    Manual {
-        id: String,
-    },
-    Catalog {
-        source_id: String,
-        source_label: String,
-        app_id: String,
-    },
+    Manual { id: String },
 }
 
 fn encoded(value: &str) -> String {
@@ -77,103 +57,35 @@ fn same_path(left: &str, right: &str) -> bool {
     normalized(left) == normalized(right)
 }
 
-fn state(fs: &impl ExecutableFs, executable: Option<&str>) -> LocalState {
-    match executable {
-        None => LocalState::Unbound,
-        Some(path) if validate_executable(fs, path).is_ok() => LocalState::Ready,
-        Some(_) => LocalState::MissingExecutable,
-    }
-}
-
-fn snapshots(settings: &Settings, fence: &RefreshFence) -> Vec<(Source, LocalCatalogSnapshot)> {
-    settings
-        .sources
-        .iter()
-        .filter(|source| source.kind == "local")
-        .filter_map(|source| {
-            fence
-                .current(&source.id)
-                .and_then(Result::ok)
-                .map(|snapshot| (source.clone(), snapshot))
-        })
-        .collect()
-}
-
 pub(super) fn list(
     store: &Store,
     lock: &ConfigLock,
     fs: &impl ExecutableFs,
-    fence: &RefreshFence,
     official: &[OfficialCandidate],
     icon: &impl Fn(&str) -> Option<String>,
 ) -> Result<Vec<LocalRow>, String> {
-    let (settings, source_snapshots) = lock.with_store(store, |store| {
-        let settings = store.local_settings()?;
-        let source_snapshots = snapshots(&settings, fence);
-        Ok((settings, source_snapshots))
-    })?;
-    let expected_snapshots = source_snapshots.clone();
-    let mut rows: Vec<(LocalRow, Option<String>)> = Vec::new();
-    for app in &settings.local_apps {
-        rows.push((
-            LocalRow {
-                id: format!("local:manual:{}", encoded(&app.id)),
-                source: "local",
-                name: app.name.clone(),
-                state: state(fs, Some(&app.executable)),
-                origin: LocalOrigin::Manual { id: app.id.clone() },
-                icon_path: app.icon.as_deref().and_then(icon),
-                executable: None,
-                duplicate_of: None,
-                tagline: None,
-                description: None,
-                tags: None,
+    let settings = lock.with_store(store, |store| store.local_settings())?;
+    let mut rows: Vec<LocalRow> = settings
+        .local_apps
+        .iter()
+        .map(|app| LocalRow {
+            id: format!("local:manual:{}", encoded(&app.id)),
+            source: "local",
+            name: app.name.clone(),
+            state: if validate_executable(fs, &app.executable).is_ok() {
+                LocalState::Ready
+            } else {
+                LocalState::MissingExecutable
             },
-            Some(app.executable.clone()),
-        ));
-    }
-    for (source, snapshot) in source_snapshots {
-        for entry in snapshot.entries {
-            let executable = settings
-                .local_bindings
-                .iter()
-                .find(|binding| {
-                    binding.source_id == entry.key.source_id && binding.app_id == entry.key.app_id
-                })
-                .map(|binding| binding.executable.clone());
-            rows.push((
-                LocalRow {
-                    id: format!(
-                        "local:catalog:{}:{}",
-                        encoded(&entry.key.source_id),
-                        encoded(&entry.key.app_id)
-                    ),
-                    source: "local",
-                    name: entry.name,
-                    state: state(fs, executable.as_deref()),
-                    origin: LocalOrigin::Catalog {
-                        source_id: entry.key.source_id,
-                        source_label: source.label.clone(),
-                        app_id: entry.key.app_id,
-                    },
-                    icon_path: None,
-                    executable: None,
-                    duplicate_of: None,
-                    tagline: Some(entry.tagline),
-                    description: Some(entry.description),
-                    tags: Some(entry.tags),
-                },
-                executable,
-            ));
-        }
-    }
+            origin: LocalOrigin::Manual { id: app.id.clone() },
+            icon_path: app.icon.as_deref().and_then(icon),
+            executable: app.executable.clone(),
+            duplicate_of: None,
+        })
+        .collect();
     lock.with_store(store, |store| {
         let current = store.local_settings()?;
-        if current.sources != settings.sources
-            || current.local_apps != settings.local_apps
-            || current.local_bindings != settings.local_bindings
-            || snapshots(&current, fence) != expected_snapshots
-        {
+        if current.sources != settings.sources || current.local_apps != settings.local_apps {
             return Err("nexo.local.refused".into());
         }
         Ok(())
@@ -181,13 +93,10 @@ pub(super) fn list(
     let duplicates: Vec<Option<String>> = rows
         .iter()
         .enumerate()
-        .map(|(index, (row, executable))| {
+        .map(|(index, row)| {
             let matches = |name: &str, other: Option<&str>| {
                 same_name(&row.name, name)
-                    || executable
-                        .as_deref()
-                        .zip(other)
-                        .is_some_and(|(left, right)| same_path(left, right))
+                    || other.is_some_and(|other| same_path(&row.executable, other))
             };
             official
                 .iter()
@@ -196,22 +105,17 @@ pub(super) fn list(
                 .or_else(|| {
                     rows.iter()
                         .enumerate()
-                        .find(|(other_index, (other, path))| {
-                            *other_index != index && matches(&other.name, path.as_deref())
+                        .find(|(other_index, other)| {
+                            *other_index != index && matches(&other.name, Some(&other.executable))
                         })
-                        .map(|(_, (other, _))| other.id.clone())
+                        .map(|(_, other)| other.id.clone())
                 })
         })
         .collect();
-    Ok(rows
-        .into_iter()
-        .zip(duplicates)
-        .map(|((mut row, executable), duplicate)| {
-            row.executable = executable;
-            row.duplicate_of = duplicate;
-            row
-        })
-        .collect())
+    for (row, duplicate) in rows.iter_mut().zip(duplicates) {
+        row.duplicate_of = duplicate;
+    }
+    Ok(rows)
 }
 
 #[cfg(test)]

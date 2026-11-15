@@ -8,7 +8,6 @@ beforeEach(() => { invoke.mockReset(); });
 it('lists local rows without sending paths and rejects a malformed native response', async () => {
   const rows = [
     { id: 'local:manual:31', source: 'local', name: 'App', state: 'ready', origin: { kind: 'manual', id: '1' }, iconPath: 'C:\\Nexo\\icon-1.png', duplicateOf: 'official-app' },
-    { id: 'local:catalog:31:32', source: 'local', name: 'Catalog app', state: 'unbound', origin: { kind: 'catalog', sourceId: '1', sourceLabel: 'Work', appId: '2' }, tagline: 'Tag', description: 'Description', tags: [] },
     { id: 'local:manual:32', source: 'local', name: 'Missing', state: 'missingExecutable', origin: { kind: 'manual', id: '2' } },
   ] satisfies LocalAppRow[];
   invoke.mockResolvedValueOnce(rows).mockResolvedValueOnce({});

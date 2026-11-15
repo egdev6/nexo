@@ -34,7 +34,6 @@ beforeEach(() => {
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
     if (command === 'get_settings') return load ?? { settings: stored, state };
     if (command === 'local_apps_list') return [];
-    if (command === 'local_catalog_refresh') return { sourceId: 'local-1', entries: [] };
     if (command === 'get_flyout_state') return { visible, sequence: visible ? 1 : 0, cycle: visible ? 1 : 0, at: Date.now() };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
@@ -239,8 +238,8 @@ it('flushes pending settings before a tray-requested hub-only exit', async () =>
 });
 
 it.each([
-  ['es', 'Ajustes', 'English', 'Las fuentes locales deben cambiarse mediante la selección nativa.'],
-  ['en', 'Settings', 'Español', 'Local sources must be changed using native selection.'],
+  ['es', 'Ajustes', 'English', 'No se puede cambiar la fuente del catálogo de esta manera.'],
+  ['en', 'Settings', 'Español', 'The catalog source cannot be changed this way.'],
 ])('localizes a rejected source change in %s without saving', async (language, settingsLabel, choice, message) => {
   stored.language = language; stored.firstRunComplete = true; stored.showNewsOnOpen = false;
   const normalInvoke = bridge.invoke.getMockImplementation()!;

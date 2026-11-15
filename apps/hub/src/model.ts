@@ -63,11 +63,11 @@ export interface HubSettings {
   blur: number;
 }
 
-// #16 stores and displays descriptors; #9 owns creation and consumption.
+// Stored descriptors refer to the official catalog only.
 export interface CatalogSource {
   id: string;
   label: string;
-  kind: 'official' | 'local';
+  kind: 'official';
   location?: string;
 }
 

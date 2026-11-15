@@ -42,7 +42,6 @@ beforeEach(() => {
     if (command === 'installed_apps') return [];
     if (command === 'local_apps_list') return [
       { id: 'local:manual:31', source: 'local', name: secrets[0], state: 'ready', origin: { kind: 'manual', id: 'manual' }, iconPath: secrets[3] },
-      { id: 'local:catalog:31:32', source: 'local', name: secrets[0], state: 'unbound', origin: { kind: 'catalog', sourceId: 'private', sourceLabel: secrets[0], appId: 'example-app' }, description: localDocument.apps[0].description },
     ];
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
@@ -59,10 +58,10 @@ it('leaves the official projection byte-identical when there are no local rows',
   expect(JSON.stringify(projectCatalog(parseCatalog(official)))).toBe(before);
 });
 
-it('keeps local records and catalog metadata out of News inputs, requests and official cache writes', async () => {
+it('keeps manual records and legacy metadata out of News inputs, requests and official cache writes', async () => {
   const fetcher = vi.fn(async (url: string, _options: unknown) => ({ ok: true, redirected: false, url, text: async () => officialText }));
   vi.stubGlobal('fetch', fetcher);
-  expect(await listLocalApps()).toHaveLength(2);
+  expect(await listLocalApps()).toHaveLength(1);
   render(<App />);
   await waitFor(() => expect(officialCache).toBe(officialText));
   await waitFor(() => expect(selectOfficialNews).toHaveBeenCalled());
