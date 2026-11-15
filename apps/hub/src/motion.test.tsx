@@ -28,6 +28,7 @@ beforeEach(() => {
     if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false } };
     if (command === 'get_flyout_motion') return { phase: 'hidden', sequence: 0 };
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
+    if (command === 'plugin:autostart|is_enabled') return false;
     return null;
   });
 });
@@ -54,6 +55,19 @@ it('keeps the close button and Escape requests routed through native hide', asyn
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(bridge.invoke.mock.calls.filter(([command]) => command === 'hide_flyout')).toHaveLength(2);
   expect(bridge.invoke).not.toHaveBeenCalledWith('finish_flyout_hide', expect.anything());
+});
+
+it('hides on X without quitting, while a tray quit request invokes the definitive exit', async () => {
+  await start();
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
+  expect(bridge.invoke).toHaveBeenCalledWith('hide_flyout');
+  expect(bridge.invoke).not.toHaveBeenCalledWith('quit_after_settings');
+  expect(bridge.invoke).not.toHaveBeenCalledWith('hub_only_exit');
+
+  await waitFor(() => expect(bridge.listeners.has('quit-requested')).toBe(true));
+  bridge.listeners.get('quit-requested')?.({ payload: 'all' });
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('quit_after_settings'));
+  expect(bridge.invoke).not.toHaveBeenCalledWith('hub_only_exit');
 });
 
 it('has no flyout slide or hidden transform while retaining reduced-motion protection', () => {

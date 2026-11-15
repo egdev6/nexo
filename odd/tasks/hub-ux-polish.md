@@ -12,7 +12,7 @@
 
 ## Tasks
 
-- T1 (S1) Closing the hub keeps it in the tray; the tray menu offers the definitive exit — route: writer, test-first; status: done (automated; Windows app check pending).
+- T1 (S1, L5) Closing the hub keeps it in the tray; the tray menu offers the definitive exit — route: writer, test-first; status: reopened (L5: the in-panel X exits the process).
 - T2 (S2, L3) Entry animation slides from right to left — native window slide (no gray backdrop) — route: writer; status: in progress (Rust checks pass; frontend and Windows app checks pending).
 - T3 (S3) News slider: no scrollbar, working navigation, up to the 4 latest items, adapts to fewer, a single item is static — route: writer (same unit); status: pending.
 - T4 (S4) Canvas design reproducing the current hub UI for gentle-design iteration — route: design writer; status: pending.
@@ -27,3 +27,5 @@
 - L2: T4 design created at `design/nexo-hub-actual/` (current-state capture, no chosen artboard): 01-mis-apps, 02-catalogo, 03-novedades (pre-T3 carousel), 04-ajustes, 05-primer-uso, 600x820. Barlow replaced by system font stacks per gentle-design rules.
 - L3 (verbatim): "deja un fondo gris antes de aparacer la animación. Habría que quitarlo o hacer transparente fondo y bordes". Parent decision: the gray is the native window backdrop shown at its final position while the content slides in via CSS; slide the whole native window instead (the backdrop travels with the content, desktop blur preserved), replacing the CSS slide; reduced motion keeps no movement. T2 reopened.
 - L4 (verbatim): "la animación de salida la hace bien pero una vez oculta hace un parpadeo que la muestra en su estado abierto". Parent hypothesis: after the exit slide the window is restored to its final position around the hide, flashing it open; restore must never happen while visible.
+- L5 (verbatim): "al cerrar en l abandeja se cerró nexo. recompila en windows" and, asked how it was closed: "con la X". Parent evidence: the in-panel X calls `hidePanel` → `requestFlyoutHide` → `invoke('hide_flyout')`; after that the nexo-hub.exe process was gone (no process when the parent's rebuild started; a later relaunch with redirected stderr also exited within 6 s with an empty log). T1 reopened.
+- L6 (verbatim): "animación perfecta" — T2 native slide verified by the user on Windows.
