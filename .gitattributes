@@ -1,0 +1,2 @@
+# Keep bundled license texts byte-identical to upstream on every OS.
+apps/hub/src-tauri/licenses/*.txt text eol=lf

@@ -72,6 +72,8 @@ it('allows fonts only from the application origin', () => {
 it('bundles the unchanged license and copyright notices for both font families', () => {
   const resources: string[] = JSON.parse(tauriConfig).bundle.resources;
   expect(resources).toEqual(['licenses/Barlow-OFL.txt', 'licenses/Barlow-Condensed-OFL.txt']);
-  expect(barlowLicense).toBe(upstreamBarlowLicense);
-  expect(condensedLicense).toBe(upstreamCondensedLicense);
+  // Compare text, not line endings: a Windows checkout may convert either side to CRLF.
+  const lf = (text: string) => text.replace(/\r\n/g, '\n');
+  expect(lf(barlowLicense)).toBe(lf(upstreamBarlowLicense));
+  expect(lf(condensedLicense)).toBe(lf(upstreamCondensedLicense));
 });
