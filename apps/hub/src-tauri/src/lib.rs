@@ -409,6 +409,30 @@ fn hide_flyout(window: WebviewWindow) -> Result<(), String> {
 struct FocusState {
     pointer_over_tray: AtomicBool,
     tray_focus_loss: Mutex<Option<Instant>>,
+    #[cfg(windows)]
+    native_pickers: std::sync::atomic::AtomicUsize,
+}
+
+// Owned native pickers temporarily take focus; that is not an outside click.
+#[cfg(windows)]
+struct NativePickerGuard(AppHandle);
+#[cfg(windows)]
+impl NativePickerGuard {
+    fn new(app: &AppHandle) -> Self {
+        app.state::<FocusState>()
+            .native_pickers
+            .fetch_add(1, Ordering::SeqCst);
+        Self(app.clone())
+    }
+}
+#[cfg(windows)]
+impl Drop for NativePickerGuard {
+    fn drop(&mut self) {
+        self.0
+            .state::<FocusState>()
+            .native_pickers
+            .fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
@@ -499,6 +523,7 @@ pub fn run() {
         .manage(install_service::native(hub.clone()).expect("install HTTP client"))
         .manage(hub)
         .manage(runtime::Routes::default())
+        .manage(local_apps::windows::SelectionState::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
             get_flyout_state,
@@ -521,7 +546,10 @@ pub fn run() {
             update_app,
             cancel_install,
             local_apps::windows::local_apps_list,
-            local_apps::windows::local_app_add,
+            local_apps::windows::local_app_pick_executable,
+            local_apps::windows::local_app_pick_icon_file,
+            local_apps::windows::local_app_cancel_selection,
+            local_apps::windows::local_app_create,
             local_apps::windows::local_app_update,
             local_apps::windows::local_app_remove,
             local_apps::windows::local_app_repair,
@@ -570,6 +598,21 @@ pub fn run() {
             if window.label() == "main"
                 && matches!(event, WindowEvent::Focused(false))
                 && window.is_visible().unwrap_or(false)
+                && {
+                    #[cfg(windows)]
+                    {
+                        window
+                            .app_handle()
+                            .state::<FocusState>()
+                            .native_pickers
+                            .load(Ordering::SeqCst)
+                            == 0
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        true
+                    }
+                }
             {
                 let state = window.app_handle().state::<FocusState>();
                 if let Ok(mut lost) = state.tray_focus_loss.lock() {

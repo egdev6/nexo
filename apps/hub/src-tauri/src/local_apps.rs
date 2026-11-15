@@ -128,6 +128,7 @@ fn valid_name(name: &str) -> Result<&str, String> {
     Ok(name)
 }
 
+#[cfg(test)]
 fn add(
     store: &Store,
     fs: &impl ExecutableFs,
@@ -138,7 +139,18 @@ fn add(
     };
     let executable = validate_executable(fs, &path)?;
     let filename = executable.rsplit('\\').next().expect("validated filename");
-    let name = valid_name(filename.rsplit_once('.').expect("validated extension").0)?.to_owned();
+    let name = valid_name(filename.rsplit_once('.').expect("validated extension").0)?;
+    save_new(store, executable.clone(), name, None).map(Some)
+}
+
+// All manual additions use the same ID, duplicate detection and config mutation.
+fn save_new(
+    store: &Store,
+    executable: String,
+    name: &str,
+    icon: Option<String>,
+) -> Result<Selection, String> {
+    let name = valid_name(name)?.to_owned();
     store.mutate_local_apps(|entries, settings| {
         let id = loop {
             let nanos = SystemTime::now()
@@ -161,11 +173,11 @@ fn add(
             id,
             name,
             executable,
-            icon: None,
+            icon,
         };
         let result = selection(app.clone(), settings);
         entries.push(json!(app));
-        Ok(Some(result))
+        Ok(result)
     })
 }
 
@@ -241,6 +253,7 @@ fn open(
 
 mod icons;
 pub(crate) mod projection;
+mod selection_tokens;
 
 #[cfg(windows)]
 pub(crate) mod windows;

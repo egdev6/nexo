@@ -22,7 +22,10 @@ pub(super) trait IconFs: ExecutableFs {
 
 // Only fixed-disk, absolute paths without reparse points are read. As with
 // executable selection, do not canonicalize through links or access a UNC path.
-fn selected_file(fs: &impl ExecutableFs, path: &str) -> Result<(String, &'static str), String> {
+pub(super) fn selected_file(
+    fs: &impl ExecutableFs,
+    path: &str,
+) -> Result<(String, &'static str), String> {
     let path = path.replace('/', "\\");
     let bytes = path.as_bytes();
     if bytes.len() < 4 || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' || bytes[2] != b'\\' {
@@ -198,7 +201,7 @@ fn valid_ico(bytes: &[u8]) -> Option<()> {
     Some(())
 }
 
-fn valid_icon(bytes: &[u8], extension: &str) -> bool {
+pub(super) fn valid_icon(bytes: &[u8], extension: &str) -> bool {
     bytes.len() <= MAX_ICON_BYTES
         && match extension {
             "png" => valid_png(bytes).is_some(),
@@ -207,7 +210,7 @@ fn valid_icon(bytes: &[u8], extension: &str) -> bool {
         }
 }
 
-fn delete_owned(fs: &impl IconFs, name: Option<&str>) -> Result<(), String> {
+pub(super) fn delete_owned(fs: &impl IconFs, name: Option<&str>) -> Result<(), String> {
     if let Some(name) = name.filter(|name| managed_name(name)) {
         fs.delete_icon(name)?;
     }
@@ -228,10 +231,7 @@ pub(super) fn pick_icon(
     if !valid_icon(&bytes, extension) {
         return Err("nexo.local.invalidIcon".into());
     }
-    let name = fs.save_icon(&bytes, extension)?;
-    if !managed_name(&name) {
-        return Err("nexo.local.iconWriteFailed".into());
-    }
+    let name = save_valid_icon(fs, &bytes, extension)?;
     let saved = store.mutate_local_apps(|entries, settings| {
         let index = entry_index(entries, settings, id)?;
         let mut app = settings
@@ -267,6 +267,22 @@ pub(super) fn pick_icon(
     }
 }
 
+// Shared by existing icon replacement and creation, preserving managed-name checks.
+pub(super) fn save_valid_icon(
+    fs: &impl IconFs,
+    bytes: &[u8],
+    extension: &str,
+) -> Result<String, String> {
+    if !valid_icon(bytes, extension) {
+        return Err("nexo.local.invalidIcon".into());
+    }
+    let name = fs.save_icon(bytes, extension)?;
+    if !managed_name(&name) {
+        return Err("nexo.local.iconWriteFailed".into());
+    }
+    Ok(name)
+}
+
 pub(super) fn icon_data(store: &Store, fs: &impl IconFs, id: &str) -> Option<String> {
     let settings = store.local_settings().ok()?;
     let name = settings
@@ -283,6 +299,10 @@ pub(super) fn icon_data(store: &Store, fs: &impl IconFs, id: &str) -> Option<Str
     if !valid_icon(&bytes, extension) {
         return None;
     }
+    icon_data_url(&bytes, extension)
+}
+
+pub(super) fn icon_data_url(bytes: &[u8], extension: &str) -> Option<String> {
     let mime = match extension {
         "png" => "image/png",
         "ico" => "image/x-icon",

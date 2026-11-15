@@ -28,8 +28,13 @@ export async function listLocalApps(): Promise<LocalAppRow[]> {
   return rows;
 }
 
-// Only native pickers can select executables; callers pass opaque IDs, never paths.
-export function addLocalApp(): Promise<LocalAppSelection | null> { return invoke('local_app_add'); }
+export interface ExecutablePick { token: string; path: string; suggestedName: string }
+export interface IconPick { token: string; preview: string }
+// Paths are display-only. Creation accepts only native-issued, short-lived tokens.
+export function pickLocalExecutable(): Promise<ExecutablePick | null> { return invoke('local_app_pick_executable'); }
+export function pickLocalIconFile(): Promise<IconPick | null> { return invoke('local_app_pick_icon_file'); }
+export function cancelLocalSelection(): Promise<void> { return invoke('local_app_cancel_selection'); }
+export function createLocalApp(token: string, name: string, iconToken?: string): Promise<LocalAppSelection> { return invoke('local_app_create', { token, name, iconToken }); }
 export function updateLocalApp(id: string, name: string): Promise<LocalAppSelection> { return invoke('local_app_update', { id, name }); }
 export function removeLocalApp(id: string): Promise<void> { return invoke('local_app_remove', { id }); }
 export function repairLocalApp(id: string): Promise<LocalAppSelection | null> { return invoke('local_app_repair', { id }); }

@@ -28,8 +28,10 @@ beforeEach(() => {
     if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, sources: [official, { id: 'source-1', label: 'Trabajo', kind: 'local' }] } };
     if (command === 'local_apps_list') return apps.map(app => ({ id: `manual:${app.id}`, name: app.name, source: 'local', state: 'missingExecutable', origin: { kind: 'manual', id: app.id } }));
     if (cancel === command) { cancel = null; return null; }
-    if (command === 'local_app_add') {
-      const app = { id: 'manual-2', name: 'Paint', executable: 'C:\\Paint.exe', icon: null };
+    if (command === 'local_app_pick_executable') return { token: 'exe-token', path: 'C:\\Paint.exe', suggestedName: 'Paint' };
+    if (command === 'local_app_cancel_selection') return;
+    if (command === 'local_app_create') {
+      const app = { id: 'manual-2', name: args?.name ?? 'Paint', executable: 'C:\\Paint.exe', icon: null };
       apps = [...apps, app]; return { app, duplicate };
     }
     if (command === 'local_app_update') {
@@ -101,20 +103,23 @@ it('lists manual entries with their state and editable controls', async () => {
   expect(screen.queryByRole('button', { name: /fuente/i })).toBeNull();
 });
 
-it('adds through the native picker, leaves cancellation unchanged, warns about duplicates and survives reopening', async () => {
+it('adds through the dialog, leaves picker cancellation unchanged, warns about duplicates and survives reopening', async () => {
   setup(); await screen.findByText('Editor');
-  cancel = 'local_app_add';
+  cancel = 'local_app_pick_executable';
   fireEvent.click(screen.getByRole('button', { name: 'Añadir app' }));
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_add'));
+  const dialog = await screen.findByRole('dialog', { name: 'Añadir app local' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Examinar…' }));
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_pick_executable'));
   expect(screen.queryByText('Paint')).toBeNull();
   duplicate = true;
-  await waitFor(() => expect((screen.getByRole('button', { name: 'Añadir app' }) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button', { name: 'Añadir app' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Examinar…' }));
+  await waitFor(() => expect((within(dialog).getByRole('textbox', { name: 'Nombre' }) as HTMLInputElement).value).toBe('Paint'));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir' }));
   expect(await screen.findByText('Paint')).toBeTruthy();
   expect(screen.getByText('Puede existir otra app con el mismo nombre o ejecutable.')).toBeTruthy();
   cleanup(); setup();
   expect(await screen.findByText('Paint')).toBeTruthy();
-  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'local_app_add')).toEqual([['local_app_add'], ['local_app_add']]);
+  expect(bridge.invoke).toHaveBeenCalledWith('local_app_create', { token: 'exe-token', name: 'Paint', iconToken: undefined });
 });
 
 it('renames inline, retains the previous entry on validation or save failure, and permits editing a missing app', async () => {

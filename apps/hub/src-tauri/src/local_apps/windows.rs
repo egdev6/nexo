@@ -1,10 +1,13 @@
 use super::{
     ExecutableFs, FileKind, FsError, Launcher, Picker, Selection,
     icons::{self, IconFs, IconPicker, MAX_ICON_BYTES},
+    selection_tokens::{ExecutableSelection, IconSelection, PendingSelections},
 };
 use std::io::{Read, Write};
 use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::Instant;
 use tauri::{AppHandle, Manager, WebviewWindow};
 use windows_sys::Win32::{
     Storage::FileSystem::{
@@ -16,6 +19,9 @@ use windows_sys::Win32::{
         OFN_NOCHANGEDIR, OFN_NODEREFERENCELINKS, OFN_PATHMUSTEXIST, OPENFILENAMEW,
     },
 };
+
+#[derive(Default)]
+pub(crate) struct SelectionState(Mutex<PendingSelections>);
 
 struct SystemFs;
 impl ExecutableFs for SystemFs {
@@ -281,17 +287,103 @@ pub(crate) async fn local_apps_list(
 }
 
 #[tauri::command]
-pub(crate) async fn local_app_add(
+pub(crate) async fn local_app_pick_executable(
     app: AppHandle,
     window: WebviewWindow,
-) -> Result<Option<Selection>, String> {
+) -> Result<Option<ExecutableSelection>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        // The modal picker must never hold the shared settings lock.
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let state = app.state::<SelectionState>();
+        let generation = state
+            .0
+            .lock()
+            .map_err(|_| "nexo.local.refused")?
+            .generation();
+        // Never hold a state or settings lock while the native dialog is open.
+        let _guard = crate::NativePickerGuard::new(&app);
         let Some(path) = selected_path(&window)? else {
             return Ok(None);
         };
+        state
+            .0
+            .lock()
+            .map_err(|_| "nexo.local.refused")?
+            .pick_executable(&SystemFs, &SelectedPath(path), generation, Instant::now())
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn local_app_pick_icon_file(
+    app: AppHandle,
+    window: WebviewWindow,
+) -> Result<Option<IconSelection>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let state = app.state::<SelectionState>();
+        let generation = state
+            .0
+            .lock()
+            .map_err(|_| "nexo.local.refused")?
+            .generation();
+        let owner = window.hwnd().map_err(|_| "nexo.local.dialogFailed")?.0 as isize;
+        let _guard = crate::NativePickerGuard::new(&app);
+        let Some(path) = SystemIconPicker(owner).pick_icon()? else {
+            return Ok(None);
+        };
+        let fs = SystemIconFs::new(&app)?;
+        state.0.lock().map_err(|_| "nexo.local.refused")?.pick_icon(
+            &fs,
+            &SelectedIconPath(path),
+            generation,
+            Instant::now(),
+        )
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
+}
+
+#[tauri::command]
+pub(crate) fn local_app_cancel_selection(
+    window: WebviewWindow,
+    state: tauri::State<'_, SelectionState>,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("nexo.local.refused".into());
+    }
+    state.0.lock().map_err(|_| "nexo.local.refused")?.cancel();
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn local_app_create(
+    app: AppHandle,
+    window: WebviewWindow,
+    token: String,
+    name: String,
+    icon_token: Option<String>,
+) -> Result<Selection, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let fs = SystemIconFs::new(&app)?;
+        let state = app.state::<SelectionState>();
+        let mut pending = state.0.lock().map_err(|_| "nexo.local.refused")?;
         crate::config::with_locked_store(&app, &window, |store| {
-            super::add(store, &SystemFs, &SelectedPath(path))
+            pending.create(
+                store,
+                &fs,
+                &token,
+                &name,
+                icon_token.as_deref(),
+                Instant::now(),
+            )
         })
     })
     .await

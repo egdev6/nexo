@@ -3,8 +3,9 @@ import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
-import { addLocalApp, listLocalApps, pickLocalAppIcon, removeLocalApp, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
+import { listLocalApps, pickLocalAppIcon, removeLocalApp, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
 import { LocalAppIcon } from '../local-apps/icon';
+import { AddLocalDialog } from './add-local-dialog';
 
 const errors: Readonly<Record<string, MessageKey>> = {
   'nexo.local.missing': 'localApps.errorMissing',
@@ -119,7 +120,7 @@ export function LocalManagement() {
           </div>}
         </div>;
       })}
-      <div className="settings__actions"><Button variant="neutral" size="sm" type="button" disabled={disabled} onClick={() => void run(async () => selected(await addLocalApp()))}>{t(locale, 'settingsLocal.addApp')}</Button>
+      <div className="settings__actions"><AddLocalDialog disabled={disabled} errorKey={errorKey} onAdded={async result => { await selected(result); }} />
         {native && <Button variant="neutral" size="sm" type="button" disabled={disabled} onClick={() => void run(async () => { await refreshRows(); return true; })}>{t(locale, 'localApps.refresh')}</Button>}</div>
     </section>
     <p className="settings__foot">{t(locale, 'settingsLocal.localFoot')}</p>

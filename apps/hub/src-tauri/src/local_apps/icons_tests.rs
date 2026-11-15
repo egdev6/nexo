@@ -280,6 +280,22 @@ fn icon_data_is_id_scoped_and_returns_revalidated_owned_png_and_ico() {
 }
 
 #[test]
+fn existing_icon_picker_and_icon_lookup_still_return_the_copied_image() {
+    let f = Fixture::new();
+    let fs = FakeFs::default();
+    fs.selected("C:\\Images\\one.png", PNG);
+    let result = pick_icon(&f.store, &fs, &pick("C:\\Images\\one.png"), "manual-1")
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.app.icon.as_deref(), Some("icon-1.png"));
+    assert_eq!(fs.copies.borrow()["icon-1.png"], PNG);
+    assert_eq!(
+        icon_data(&f.store, &fs, "manual-1"),
+        Some(expected_url("image/png", PNG))
+    );
+}
+
+#[test]
 fn icon_data_never_reads_a_stored_path_or_unmanaged_name() {
     let f = Fixture::new();
     let fs = FakeFs::default();
