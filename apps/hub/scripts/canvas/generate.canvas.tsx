@@ -6,6 +6,7 @@ import { expect, it } from 'vitest';
 import { buildArtboards } from './build';
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+const contrastCss = readFileSync(resolve('scripts/canvas/egdev-family-contrast.css'), 'utf8');
 const expectedFonts = [
   ...[400, 500, 600, 700, 800].map(weight => ({ family: 'Barlow', packageName: 'barlow', weight })),
   ...[400, 600, 700, 800].map(weight => ({ family: 'Barlow Condensed', packageName: 'barlow-condensed', weight })),
@@ -47,7 +48,9 @@ it('generates self-contained Windows captures for each real component state and 
     });
     expect(fonts).toHaveLength(expectedFonts.length);
     expect(fonts).toEqual(expectedFonts);
-    expect(css).toMatch(/#root\.win-frame\s*\{[^}]*top: 13px; right: 13px; width: 600px; height: 1006px/);
+    expect(css.endsWith(contrastCss)).toBe(true);
+    expect(contrastCss).toMatch(/#root\.win-frame\s*\{[^}]*top: 0; right: 0; width: 600px; height: 1032px; border-radius: 0;/);
+    expect(contrastCss).toMatch(/\.win-frame \.flyout\s*\{[^}]*border: 0; border-radius: 0;/);
     expect(boards[index].html.replaceAll('http://www.w3.org/2000/svg', '')).not.toMatch(/https?:\/\//);
     expect(doc.querySelector('img[src],link[href],script[src]')).toBeNull();
   }

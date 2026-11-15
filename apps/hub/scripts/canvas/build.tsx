@@ -86,6 +86,7 @@ if (!fontCount) throw new Error('No bundled font faces found');
 const fontCss = fontSheet.toString();
 const appIcon = read('apps/hub/src-tauri/app-icon.svg');
 const trayIcon = read('design/nexo-logo/tray.svg');
+const contrastCss = read('apps/hub/scripts/canvas/egdev-family-contrast.css');
 const cssPaths = [
   'apps/hub/node_modules/@egdev/tokens/dist/tokens.css', 'apps/hub/node_modules/@egdev/ui/dist/styles.css',
   'apps/hub/src/style.css', 'apps/hub/src/catalog/catalog.css', 'apps/hub/src/news/news.css',
@@ -165,7 +166,7 @@ function wrap(title: string, flyout: string) {
 .win-taskbar svg { width: 16px; height: 16px; flex: none; }
 .win-clock { text-align: right; line-height: 1.4; font-variant-numeric: tabular-nums; }
 `;
-  return `<!doctype html>\n<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title} · Nexo</title><style>\n${css}\n${frameCss}</style></head><body><div class="desktop"><div id="root" class="win-frame">${flyout}</div><div class="win-taskbar" aria-label="Barra de tareas de Windows">${trayGlyph('<path d="m6 12 4-4 4 4"/>')}${trayIcon}${trayGlyph('<path d="M2 8c4-4 12-4 16 0M5 11c3-3 7-3 10 0M8 14c1-1 3-1 4 0M10 17h.01"/>')}${trayGlyph('<path d="M3 8h3l4-3v10l-4-3H3zM13 7c2 2 2 4 0 6M15 5c3 3 3 7 0 10"/>')}<div class="win-clock">11:42<br>15/11/2026</div></div></div></body></html>\n`;
+  return `<!doctype html>\n<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title} · Nexo</title><style>\n${css}\n${frameCss}\n${contrastCss}</style></head><body><div class="desktop"><div id="root" class="win-frame">${flyout}</div><div class="win-taskbar" aria-label="Barra de tareas de Windows">${trayGlyph('<path d="m6 12 4-4 4 4"/>')}${trayIcon}${trayGlyph('<path d="M2 8c4-4 12-4 16 0M5 11c3-3 7-3 10 0M8 14c1-1 3-1 4 0M10 17h.01"/>')}${trayGlyph('<path d="M3 8h3l4-3v10l-4-3H3zM13 7c2 2 2 4 0 6M15 5c3 3 3 7 0 10"/>')}<div class="win-clock">11:42<br>15/11/2026</div></div></div></body></html>\n`;
 }
 
 export async function buildArtboards(): Promise<{ file: string; html: string }[]> {
