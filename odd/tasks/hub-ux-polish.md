@@ -13,7 +13,7 @@
 ## Tasks
 
 - T1 (S1) Closing the hub keeps it in the tray; the tray menu offers the definitive exit — route: writer, test-first; status: done (automated; Windows app check pending).
-- T2 (S2) Entry animation slides from right to left — route: writer (same unit as T1/T3); status: pending.
+- T2 (S2) Entry animation slides from right to left — route: writer (same unit as T1/T3); status: done (automated; Windows app check pending).
 - T3 (S3) News slider: no scrollbar, working navigation, up to the 4 latest items, adapts to fewer, a single item is static — route: writer (same unit); status: pending.
 - T4 (S4) Canvas design reproducing the current hub UI for gentle-design iteration — route: design writer; status: pending.
 

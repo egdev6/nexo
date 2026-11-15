@@ -22,6 +22,7 @@ import { SettingsView } from './settings';
 import { derivePalette } from './settings/palette';
 import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
+import { useFlyoutMotion } from './shell/motion';
 import { noticeText } from './shell/notice';
 import type { RegistryApp, RegistrySnapshot } from './shell/registry';
 import { backdropAvailable, hideFlyout } from './window';
@@ -170,6 +171,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const firstRun = !settings?.firstRunComplete;
   const usable = store.fileState === 'ready' || store.fileState === 'missing';
   const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(finishNews);
+  const motion = useFlyoutMotion();
   const refreshAppsRef = useRef(onAppsRefresh);
   refreshAppsRef.current = onAppsRefresh;
   const installs = useCatalogInstalls(isTauri() && !!onAppsRefresh, apps, onAppsRefresh);
@@ -295,7 +297,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const errorLocale = usable && firstRun ? previewLanguage : locale;
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <LocaleProvider locale={locale}><main className={hasBackdrop ? 'flyout has-native-backdrop' : 'flyout'} aria-labelledby="panel-title" style={panelStyle}>
+  return <LocaleProvider locale={locale}><main className={`flyout ${motion.className}${hasBackdrop ? ' has-native-backdrop' : ''}`} onAnimationEnd={motion.onAnimationEnd} aria-labelledby="panel-title" style={panelStyle}>
     <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">
