@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import postcss from 'postcss';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
@@ -71,6 +71,23 @@ const news: NewsItem[] = [
 ];
 const root = resolve('../..');
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+// Derive the embedded faces from the exact same imports as the application.
+const fontImports = [...read('apps/hub/src/fonts.ts').matchAll(/^import\s+['"](@fontsource\/[a-z-]+\/latin-\d+\.css)['"];?$/gm)].map(match => match[1]);
+if (!fontImports.length) throw new Error('No bundled font imports found');
+const fontCss = fontImports.map(specifier => {
+  const path = resolve(root, 'apps/hub/node_modules', specifier);
+  const sheet = postcss.parse(readFileSync(path, 'utf8'), { from: path });
+  let found = false;
+  sheet.walkAtRules('font-face', face => face.walkDecls('src', declaration => {
+    const match = declaration.value.match(/url\((['"]?)(\.\/files\/[^'")]+\.woff2)\1\)\s*format\(['"]woff2['"]\)/);
+    if (!match) throw new Error(`No WOFF2 source in ${specifier}`);
+    const data = readFileSync(resolve(dirname(path), match[2])).toString('base64');
+    declaration.value = `url(data:font/woff2;base64,${data}) format('woff2')`;
+    found = true;
+  }));
+  if (!found) throw new Error(`No font face in ${specifier}`);
+  return sheet.toString();
+}).join('\n');
 const appIcon = read('apps/hub/src-tauri/app-icon.svg');
 const trayIcon = read('design/nexo-logo/tray.svg');
 const cssPaths = [
@@ -142,7 +159,7 @@ async function mount(firstRun = false, withNews = false) {
 
 const trayGlyph = (paths: string) => `<svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 function wrap(title: string, flyout: string) {
-  const css = prunedCss(flyout);
+  const css = `${fontCss}\n${prunedCss(flyout)}`;
   if (/https?:\/\//.test(css)) throw new Error('Unexpected URL in inlined CSS');
   const frameCss = `
 .desktop { position: relative; width: ${boardWidth}px; height: ${boardHeight}px; overflow: hidden; background: radial-gradient(ellipse at 35% 20%, #687d8e 0%, transparent 47%), radial-gradient(ellipse at 90% 75%, #526775 0%, transparent 48%), linear-gradient(135deg, #273f50, #667887 55%, #293d4c); }

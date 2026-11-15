@@ -1,7 +1,21 @@
-import { writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import postcss from 'postcss';
 import { expect, it } from 'vitest';
 import { buildArtboards } from './build';
+
+const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+const expectedFonts = [
+  ...[400, 500, 600, 700, 800].map(weight => ({ family: 'Barlow', packageName: 'barlow', weight })),
+  ...[400, 600, 700, 800].map(weight => ({ family: 'Barlow Condensed', packageName: 'barlow-condensed', weight })),
+].map(({ family, packageName, weight }) => ({
+  family,
+  style: 'normal',
+  display: 'swap',
+  weight: String(weight),
+  src: digest(`url(data:font/woff2;base64,${readFileSync(resolve(`node_modules/@fontsource/${packageName}/files/${packageName}-latin-${weight}-normal.woff2`)).toString('base64')}) format('woff2')`),
+}));
 
 it('generates self-contained Windows captures for each real component state and settings tab', async () => {
   const boards = await buildArtboards();
@@ -17,6 +31,20 @@ it('generates self-contained Windows captures for each real component state and 
     expect(doc.querySelector('.win-taskbar svg')).toBeTruthy();
     const css = doc.querySelector('style')?.textContent ?? '';
     expect(css).toContain('--font-sans: "Barlow", system-ui, sans-serif');
+    const fonts: { family: string; style: string; display: string; weight: string; src: string }[] = [];
+    postcss.parse(css).walkAtRules('font-face', face => {
+      const declarations: Record<string, string> = {};
+      face.walkDecls(declaration => { declarations[declaration.prop] = declaration.value; });
+      fonts.push({
+        family: declarations['font-family']?.replace(/^['"]|['"]$/g, ''),
+        style: declarations['font-style'],
+        display: declarations['font-display'],
+        weight: declarations['font-weight'],
+        src: digest(declarations.src ?? ''),
+      });
+    });
+    expect(fonts).toHaveLength(expectedFonts.length);
+    expect(fonts).toEqual(expectedFonts);
     expect(css).toMatch(/#root\.win-frame\s*\{[^}]*top: 13px; right: 13px; width: 600px; height: 1006px/);
     expect(boards[index].html.replaceAll('http://www.w3.org/2000/svg', '')).not.toMatch(/https?:\/\//);
     expect(doc.querySelector('img[src],link[href],script[src]')).toBeNull();
