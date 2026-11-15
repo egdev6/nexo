@@ -298,6 +298,19 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+// The window event supplies the native prevent-close and hide operations.
+fn handle_close_request<E>(
+    label: &str,
+    prevent: impl FnOnce(),
+    hide: impl FnOnce() -> Result<(), E>,
+) -> Result<(), E> {
+    if label == "main" {
+        prevent();
+        hide()?;
+    }
+    Ok(())
+}
+
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(FocusState::default())
@@ -376,6 +389,21 @@ pub fn run() {
             }
         }))
         .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && let Err(error) = handle_close_request(
+                    window.label(),
+                    || api.prevent_close(),
+                    || {
+                        if let Some(flyout) = window.app_handle().get_webview_window("main") {
+                            hide_window(&flyout)
+                        } else {
+                            window.hide()
+                        }
+                    },
+                )
+            {
+                eprintln!("could not hide Nexo: {error}");
+            }
             if window.label() == "main"
                 && matches!(event, WindowEvent::Focused(false))
                 && window.is_visible().unwrap_or(false)
@@ -479,4 +507,55 @@ pub fn run() {
                 hub.shutdown();
             }
         });
+}
+
+#[cfg(test)]
+mod close_tests {
+    use super::handle_close_request;
+    use std::cell::RefCell;
+
+    #[test]
+    fn main_close_prevents_destruction_then_hides() {
+        let events = RefCell::new(Vec::new());
+        let result = handle_close_request(
+            "main",
+            || events.borrow_mut().push("prevent"),
+            || {
+                events.borrow_mut().push("hide");
+                Ok::<_, &str>(())
+            },
+        );
+        assert_eq!(result, Ok(()));
+        assert_eq!(*events.borrow(), ["prevent", "hide"]);
+    }
+
+    #[test]
+    fn main_close_is_still_prevented_when_hiding_fails() {
+        let events = RefCell::new(Vec::new());
+        let result = handle_close_request(
+            "main",
+            || events.borrow_mut().push("prevent"),
+            || {
+                events.borrow_mut().push("hide");
+                Err::<(), _>("hide failed")
+            },
+        );
+        assert_eq!(result, Err("hide failed"));
+        assert_eq!(*events.borrow(), ["prevent", "hide"]);
+    }
+
+    #[test]
+    fn other_windows_keep_their_normal_close_behavior() {
+        let events = RefCell::new(Vec::new());
+        let result = handle_close_request(
+            "other",
+            || events.borrow_mut().push("prevent"),
+            || {
+                events.borrow_mut().push("hide");
+                Ok::<_, &str>(())
+            },
+        );
+        assert_eq!(result, Ok(()));
+        assert!(events.borrow().is_empty());
+    }
 }
