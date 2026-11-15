@@ -39,7 +39,10 @@ function record(value: unknown, required: string[], optional: string[] = []): Re
   return object;
 }
 function text(value: unknown): void { if (typeof value !== 'string' || !/[^\s\u0085]/u.test(value)) fail(); }
-function id(value: unknown): void { if (typeof value !== 'string' || !value || /[^a-z0-9-]/.test(value)) fail(); }
+export function isCatalogId(value: unknown): value is string {
+  return typeof value === 'string' && !!value && !/[^a-z0-9-]/.test(value);
+}
+function id(value: unknown): void { if (!isCatalogId(value)) fail(); }
 export function isHttpsUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.startsWith('https://') || /[\s\u0000-\u001f\u007f-\u009f]/u.test(value) || /%(?![0-9a-f]{2})/i.test(value)) return false;
   const authority = value.slice(8).split(/[/?#]/, 1)[0];

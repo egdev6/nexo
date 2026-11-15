@@ -117,7 +117,8 @@ it('hydrates a saved English preference before showing English chrome, without t
   fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
   const card = screen.getByRole('article', { name: 'Exterior' });
   expect(within(card).getByText('Texto original')).toBeTruthy();
-  expect(within(card).getByText('Etiqueta original')).toBeTruthy();
+  expect(within(card).queryByText('Etiqueta original')).toBeNull();
+  expect(external.tags).toEqual(['Etiqueta original']);
 });
 
 it('only exposes the list after saving the English first-run choice and restores it on restart', async () => {

@@ -98,6 +98,18 @@ it('shows version links, badge-first update, social links and plugin close in de
   await waitFor(() => expect(native.invoke).toHaveBeenCalledWith('close_connected_app', { id: 'plugin' }));
 });
 
+it('preserves shared external-link errors and clears them on a later successful social click', async () => {
+  await show();
+  fireEvent.click(toggle('Official'));
+  const details = card('Official');
+  native.invoke.mockRejectedValueOnce(new Error('private diagnostic'));
+  fireEvent.click(details.getByRole('link', { name: '1.0.0' }));
+  expect((await details.findByRole('alert')).textContent).toBe('No se pudo abrir el enlace.');
+  fireEvent.click(details.getByRole('link', { name: /GitHub/i }));
+  await waitFor(() => expect(details.queryByRole('alert')).toBeNull());
+  expect(native.invoke).toHaveBeenLastCalledWith('open_external', { url: 'https://github.com/egdev6/official' });
+});
+
 it('does not offer updates for equal, older or unkeyed versions and explains unverifiable versions', async () => {
   const refresh = vi.fn();
   const state = { ...catalog, apps: catalog.apps.map(item => ({ ...item, updaterPublicKey: undefined })) };

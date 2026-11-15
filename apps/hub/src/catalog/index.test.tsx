@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
-import type { HubApp } from '../model';
-import { CatalogView } from './index';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import type { HubApp, Language } from '../model';
+import { CatalogView, catalogBannerUrl } from './index';
+// @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
+import { readFileSync } from 'node:fs';
+// @ts-ignore Vitest's root is apps/hub.
+import { cwd } from 'node:process';
+const css = readFileSync(`${cwd()}/src/catalog/catalog.css`, 'utf8') as string;
 
+const native = vi.hoisted(() => ({ invoke: vi.fn(), locale: 'es' as Language }));
+vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: native.invoke }));
+vi.mock('../i18n/use-locale', () => ({ useLocale: () => native.locale }));
+beforeEach(() => { native.locale = 'es'; native.invoke.mockReset(); native.invoke.mockResolvedValue(null); });
 afterEach(cleanup);
 
 const apps: HubApp[] = [
@@ -12,39 +21,106 @@ const apps: HubApp[] = [
   { id: 'local', name: 'Local', installed: true, running: false, integration: 'local', description: 'Local' },
 ];
 
-it('shows visual catalog cards with their supplied metadata and only available discovery buttons', () => {
+it('shows metadata without tag badges and preserves the sample install action', () => {
+  const before = JSON.stringify(apps);
   render(<CatalogView apps={apps} />);
   const pizarra = screen.getByRole('article', { name: 'Pizarra' });
   expect(within(pizarra).getByText('Ideas a la vista')).toBeTruthy();
-  expect(within(pizarra).getByText('Ideas')).toBeTruthy();
-  expect(within(pizarra).getByText('Organización')).toBeTruthy();
+  expect(within(pizarra).queryByText('Ideas')).toBeNull();
+  expect(within(pizarra).queryByText('Organización')).toBeNull();
   expect(within(pizarra).getByText(/1\.2\.3/)).toBeTruthy();
-  expect(within(pizarra).getByRole('button', { name: 'Código en GitHub de Pizarra · muestra' })).toBeTruthy();
-  expect(within(pizarra).getByRole('button', { name: 'Ver en YouTube: Pizarra · muestra' })).toBeTruthy();
-  const cadencia = screen.getByRole('article', { name: 'Cadencia' });
-  expect(within(cadencia).getByText('Tu ritmo')).toBeTruthy();
-  expect(within(cadencia).getByText('Flujo')).toBeTruthy();
-  expect(within(cadencia).getByRole('button', { name: 'Código en GitHub de Cadencia · muestra' })).toBeTruthy();
-  expect(within(cadencia).queryByRole('button', { name: /YouTube/ })).toBeNull();
-  expect(within(cadencia).queryByText(/Versión/)).toBeNull();
+  fireEvent.click(within(pizarra).getByRole('button', { name: 'Instalar Pizarra · muestra' }));
+  expect(JSON.stringify(apps)).toBe(before);
+  expect(native.invoke).not.toHaveBeenCalled();
   expect(screen.queryByRole('article', { name: 'Local' })).toBeNull();
 });
 
-it('marks install and discovery as illustrative and leaves data and location unchanged', () => {
-  const before = JSON.stringify(apps);
-  const location = window.location.href;
-  const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+it.each(['pizarra', 'app-42', '0', '-'])('builds the exact banner URL for valid id %s', id => {
+  expect(catalogBannerUrl(id)).toBe(`https://egdev6.github.io/nexo-catalog/banners/${id}.webp`);
+});
+
+it.each(['', '../secret', 'App', 'app/other', 'app?x', 'app%2fother', 'app\n', ' app', 'á'])('rejects invalid banner id %j', id => {
+  expect(catalogBannerUrl(id)).toBeUndefined();
+});
+
+it('loads the conventional banner, never the old artwork, and replaces a missing banner with the initial', () => {
+  const app = { ...apps[0], source: 'official' as const, artUrl: 'https://example.com/art.png', iconUrl: 'https://example.com/icon.png' };
+  render(<CatalogView apps={[app]} />);
+  const card = screen.getByRole('article', { name: 'Pizarra' });
+  const image = card.querySelector('img');
+  expect(image?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/pizarra.webp');
+  expect(image?.getAttribute('alt')).toBe('');
+  fireEvent.error(image!);
+  expect(card.querySelector('img')).toBeNull();
+  expect(within(card).getByText('P')).toBeTruthy();
+});
+
+it('removes a broken image and shows the app initial', () => {
+  render(<CatalogView apps={[{ ...apps[0], artUrl: 'https://example.com/old.png' }]} />);
+  const card = screen.getByRole('article', { name: 'Pizarra' });
+  const image = card.querySelector('img');
+  expect(image).toBeTruthy();
+  fireEvent.error(image!);
+  expect(card.querySelector('img')).toBeNull();
+  expect(within(card).getByText('P')).toBeTruthy();
+});
+
+it('uses the initial without requesting a banner for an invalid id', () => {
+  render(<CatalogView apps={[{ ...apps[0], id: '../escape' }]} />);
+  const card = screen.getByRole('article', { name: 'Pizarra' });
+  expect(card.querySelector('img')).toBeNull();
+  expect(within(card).getByText('P')).toBeTruthy();
+});
+
+it('uses equal-height cards, cover banners and bottom-pinned actions', () => {
   render(<CatalogView apps={apps} />);
   const card = screen.getByRole('article', { name: 'Pizarra' });
-  fireEvent.click(within(card).getByRole('button', { name: 'Instalar Pizarra · muestra' }));
-  fireEvent.click(within(card).getByRole('button', { name: 'Código en GitHub de Pizarra · muestra' }));
-  fireEvent.click(within(card).getByRole('button', { name: 'Ver en YouTube: Pizarra · muestra' }));
-  expect(JSON.stringify(apps)).toBe(before);
+  expect(card.querySelector('.catalog-art')).toBeTruthy();
+  expect(card.querySelector('.catalog-card-body > .catalog-actions')).toBeTruthy();
+  expect(css).toMatch(/\.catalog-grid\s*\{[^}]*grid-auto-rows:\s*1fr/s);
+  expect(css).toMatch(/\.catalog-card\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
+  expect(css).toMatch(/\.catalog-art\s*\{[^}]*width:\s*100%[^}]*height:\s*var\(--space-24\)/s);
+  expect(css).toMatch(/\.catalog-art img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/s);
+  expect(css).toMatch(/\.catalog-card-body\s*\{[^}]*display:\s*flex[^}]*flex:\s*1[^}]*flex-direction:\s*column/s);
+  expect(css).toMatch(/\.catalog-actions\s*\{[^}]*margin-top:\s*auto/s);
+});
+
+it('opens only present social links through the native policy for official and sample cards', async () => {
+  const official = { ...apps[0], source: 'official' as const, statusKnown: false };
+  const empty = { ...apps[0], id: 'no-links', name: 'No Links', links: undefined };
+  const location = window.location.href;
+  render(<CatalogView apps={[official, apps[1], empty]} />);
+  const pizarra = screen.getByRole('article', { name: 'Pizarra' });
+  const social = within(pizarra).getByRole('list', { name: 'Enlaces sociales' });
+  expect(pizarra.querySelector('p')!.compareDocumentPosition(social) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(social.compareDocumentPosition(pizarra.querySelector('.catalog-actions')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(fireEvent.click(within(social).getByRole('link', { name: /GitHub/i }))).toBe(false);
+  expect(fireEvent.click(within(social).getByRole('link', { name: /YouTube/i }))).toBe(false);
+  const cadencia = screen.getByRole('article', { name: 'Cadencia' });
+  expect(within(cadencia).queryByRole('link', { name: /YouTube/i })).toBeNull();
+  fireEvent.click(within(cadencia).getByRole('link', { name: /GitHub/i }));
+  await waitFor(() => expect(native.invoke).toHaveBeenCalledTimes(3));
+  expect(native.invoke).toHaveBeenNthCalledWith(1, 'open_external', { url: apps[0].links!.github });
+  expect(native.invoke).toHaveBeenNthCalledWith(2, 'open_external', { url: apps[0].links!.youtube });
+  expect(native.invoke).toHaveBeenNthCalledWith(3, 'open_external', { url: apps[1].links!.github });
+  const noLinks = screen.getByRole('article', { name: 'No Links' });
+  expect(within(noLinks).queryByRole('list', { name: /social/i })).toBeNull();
+  expect(within(noLinks).queryByRole('link')).toBeNull();
+  expect(within(noLinks).getAllByRole('button')).toHaveLength(1);
   expect(window.location.href).toBe(location);
-  expect(open).not.toHaveBeenCalled();
-  expect(within(card).getByRole('button', { name: 'Instalar Pizarra · muestra' })).toBeTruthy();
-  expect(screen.getByText(/acciones.*ilustrativas/i)).toBeTruthy();
-  open.mockRestore();
+});
+
+it.each([['es', 'No se pudo abrir el enlace.'], ['en', 'Could not open the link.']] as const)('reports native social-link failures in %s and clears them on retry', async (locale, message) => {
+  native.locale = locale;
+  native.invoke.mockRejectedValueOnce(new Error('private diagnostic'));
+  render(<CatalogView apps={[apps[0]]} />);
+  const card = screen.getByRole('article', { name: 'Pizarra' });
+  const link = within(card).getByRole('link', { name: /GitHub/i });
+  fireEvent.click(link);
+  expect((await within(card).findByRole('alert')).textContent).toBe(message);
+  fireEvent.click(link);
+  await waitFor(() => expect(within(card).queryByRole('alert')).toBeNull());
+  expect(native.invoke).toHaveBeenCalledTimes(2);
 });
 
 it.each([{ entries: [] }, { entries: [apps[2]] }])('shows the empty catalog without fabricating an error or install action', ({ entries }) => {
@@ -87,11 +163,10 @@ it('does not enable official installation without a validated v3 catalog', () =>
   expect(screen.getByText('La instalación requiere un catálogo oficial v3.')).toBeTruthy();
 });
 
-it('renders validated official artwork and real discovery links without an install action', () => {
-  const app: HubApp = { ...apps[0], source: 'official', statusKnown: false, artUrl: 'https://example.com/art.png' };
+it('preserves the disabled official install action alongside discovery links', () => {
+  const app: HubApp = { ...apps[0], source: 'official', statusKnown: false };
   render(<CatalogView apps={[app]} state="ready" />);
   const card = screen.getByRole('article', { name: 'Pizarra' });
-  expect(card.querySelector('img')?.getAttribute('src')).toBe('https://example.com/art.png');
-  expect(within(card).getByRole('link', { name: 'Código en GitHub de Pizarra' }).getAttribute('href')).toBe(app.links?.github);
   expect((within(card).getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(within(card).getByRole('link', { name: /GitHub/i }).getAttribute('href')).toBe(app.links?.github);
 });
