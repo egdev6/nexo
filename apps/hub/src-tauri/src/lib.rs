@@ -36,6 +36,7 @@ mod runtime;
 #[cfg(any(windows, test))]
 mod tray;
 mod tray_icon;
+pub mod update_close;
 
 use position::{WorkArea, flyout_bounds};
 use std::sync::{
