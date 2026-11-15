@@ -237,9 +237,10 @@
       "excerpt": "Elige tu idioma",
       "comment": "esto puedce ir en una linea separada por -",
       "createdAt": "2026-11-15T15:18:02.355Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:18:23.163Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-15T15:23:22.697Z",
+      "resolution": "Título y subtítulo bilingües en una sola línea separados por « - » (separador decorativo, lang conservado)."
     },
     {
       "id": "7lokn53m",
@@ -248,8 +249,76 @@
       "excerpt": "Puedes cambiarlo después en Ajustes.",
       "comment": "esto puede ir en una linea separado por -",
       "createdAt": "2026-11-15T15:18:14.366Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:18:23.163Z",
+      "resolvedAt": "2026-11-15T15:23:22.697Z",
+      "resolution": "Título y subtítulo bilingües en una sola línea separados por « - » (separador decorativo, lang conservado)."
+    },
+    {
+      "id": "h4bgzv4s",
+      "file": "04d-ajustes-acerca-de.html",
+      "selector": "#radix-_r_14_-content-about > p",
+      "excerpt": "Muestra de diseño · búsqueda de actualizaciones aún no disponible.",
+      "comment": "añade otra card Autor, con botones tipo socialButtons con mis redes sociales",
+      "createdAt": "2026-11-15T15:23:29.994Z",
+      "status": "open",
+      "sentAt": "2026-11-15T15:46:34.283Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "7fac0zva",
+      "file": "04c-ajustes-fuentes-del-catalogo.html",
+      "selector": "#root > main > div > section > header > button:nth-of-type(2)",
+      "excerpt": "Cerrar ajustes",
+      "comment": "este botón quitalo, se cierra con el <-",
+      "createdAt": "2026-11-15T15:24:21.147Z",
+      "status": "open",
+      "sentAt": "2026-11-15T15:46:34.283Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "jdn8rei1",
+      "file": "04c-ajustes-fuentes-del-catalogo.html",
+      "selector": "#radix-_r_14_-content-sources > section:nth-of-type(2)",
+      "excerpt": "FUENTES DEL CATÁLOGO Catálogo oficial egdev Fuente oficial Catálogo de trabajo Fuente local configurada C:\\Nexo\\catalogo.json Actualizar Cambiar archivo Eliminar No se pudo leer la fuente local. Añadir fuente local Recargar fuentes",
+      "comment": "El catálogo se nutre del repo público. este bloque tiene sentido?",
+      "createdAt": "2026-11-15T15:25:33.953Z",
+      "status": "open",
+      "sentAt": "2026-11-15T15:46:34.283Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "x038tw81",
+      "file": "04c-ajustes-fuentes-del-catalogo.html",
+      "selector": "#radix-_r_14_-content-sources > section:nth-of-type(1) > div:nth-of-type(4) > button:nth-of-type(1)",
+      "excerpt": "Añadir app",
+      "comment": "a donde lleva este click?",
+      "createdAt": "2026-11-15T15:25:47.356Z",
+      "status": "resolved",
+      "sentAt": "2026-11-15T15:46:34.283Z",
+      "resolvedAt": "2026-11-15T15:47:26.233Z",
+      "resolution": "Respondido en el chat: «Añadir app» abre el selector nativo de archivos de Windows (.exe) y la app queda como app local; sin cambio en el artboard."
+    },
+    {
+      "id": "wiuifvvv",
+      "file": "02-catalogo.html",
+      "selector": "#radix-_r_0_-content-catalog > section > div:nth-of-type(2) > article:nth-of-type(1)",
+      "excerpt": "P Ideas Organización Pizarra Tus ideas de un vistazo. Instalar",
+      "comment": "-quita badges\n-la imagen superior con este tamaño fijo (altura y anchura) la imagen añadida de adapta al espacio. Habría que añadir el banner que tenemos en github de las apps.\n-Acciones ancladas en la parte inferior de la card.\nEntre descripción y acciones poner los socialButtons con github y youtube",
+      "createdAt": "2026-11-15T15:29:16.357Z",
+      "status": "open",
+      "sentAt": "2026-11-15T15:46:34.283Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "wydp58rm",
+      "file": "03-novedades.html",
+      "selector": "#root > main > div:nth-of-type(2) > div",
+      "excerpt": "",
+      "comment": "centrar en vertical el popup",
+      "createdAt": "2026-11-15T15:46:18.084Z",
+      "status": "open",
+      "sentAt": "2026-11-15T15:46:34.283Z",
       "resolvedAt": null
     }
   ]

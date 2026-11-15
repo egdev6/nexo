@@ -4173,7 +4173,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 /* src/news/news.css */
 .news-overlay { position: absolute; inset: 0; z-index: 10; }
 .news-scrim { position: absolute; inset: 0; background: var(--color-surface-overlay); backdrop-filter: blur(var(--blur-overlay)) saturate(150%); }
-.news-dialog { position: absolute; top: var(--space-4); left: var(--space-4); right: var(--space-4); max-height: calc(100% - var(--space-8)); overflow: auto; border: 1px solid var(--color-border-hairline-strong); border-radius: var(--radius-lg); background: var(--gradient-sheen), var(--color-surface-1); box-shadow: var(--shadow-edge-strong), var(--shadow-elev-3); }
+.news-dialog { position: absolute; top: 50%; left: var(--space-4); right: var(--space-4); transform: translateY(-50%); max-height: calc(100% - var(--space-8)); overflow: auto; border: 1px solid var(--color-border-hairline-strong); border-radius: var(--radius-lg); background: var(--gradient-sheen), var(--color-surface-1); box-shadow: var(--shadow-edge-strong), var(--shadow-elev-3); }
 .news-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen), var(--color-surface-2); }
 .news-header h2 { margin: 0 auto 0 0; font: 700 var(--text-body-default)/1.2 var(--font-sans); }
 .news-mark { display: block; width: var(--space-6); height: var(--space-6); flex: none; }
