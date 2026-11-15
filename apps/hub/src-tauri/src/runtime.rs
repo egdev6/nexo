@@ -9,8 +9,7 @@ use crate::{
     config,
     i18n::{self, Locale, Presentation},
     ipc::{
-        Hub, NoticeDetail, NoticeFailure, NoticeOutcome, QuitOutcome, Snapshot,
-        windows::{self, Listener},
+        Hub, NoticeDetail, NoticeFailure, NoticeOutcome, QuitOutcome, Snapshot, windows::Listener,
     },
     registry_presentation,
     tray::{self, Command},
@@ -240,9 +239,11 @@ pub(crate) fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let listener = match tauri::async_runtime::block_on(async { Listener::acquire() }) {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("Nexo pipe ownership failed: {error}");
-            windows::report_startup_error(&error, config::bootstrap_locale(app));
-            return Err(error.into());
+            return Err(std::io::Error::new(
+                error.kind(),
+                format!("Nexo pipe ownership failed: {error}"),
+            )
+            .into());
         }
     };
     let hub = app.state::<Hub>().inner().clone();

@@ -490,7 +490,7 @@ pub(crate) fn with_locked_store<T>(
         .with_store(&store(app, window)?, action)
 }
 
-fn store_locale(store: &Store) -> crate::i18n::Locale {
+pub(crate) fn store_locale(store: &Store) -> crate::i18n::Locale {
     crate::i18n::Locale::from_language(&store.read().settings.language)
 }
 

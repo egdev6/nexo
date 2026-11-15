@@ -1,5 +1,4 @@
 use super::{Hub, NoticeDetail};
-use crate::i18n::{self, Locale};
 use nexo_protocol::pipe_name;
 use std::{ffi::c_void, io, ptr};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
@@ -9,7 +8,6 @@ use windows_sys::Win32::{
         Authorization::{ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1},
         SECURITY_ATTRIBUTES,
     },
-    UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW},
 };
 
 struct Descriptor(*mut c_void);
@@ -50,25 +48,6 @@ fn bind(name: &str, sid: &str, first: bool) -> io::Result<NamedPipeServer> {
                 name,
                 (&mut attrs as *mut SECURITY_ATTRIBUTES).cast(),
             )
-    }
-}
-
-pub(crate) fn report_startup_error(error: &io::Error, locale: Locale) {
-    let message: Vec<u16> = format!(
-        "{}\0",
-        i18n::text(locale, "startupError").replace("{error}", &error.to_string())
-    )
-    .encode_utf16()
-    .collect();
-    let title: Vec<u16> = "Nexo\0".encode_utf16().collect();
-    // SAFETY: both strings are NUL terminated and live until the dialog returns.
-    unsafe {
-        MessageBoxW(
-            ptr::null_mut(),
-            message.as_ptr(),
-            title.as_ptr(),
-            MB_OK | MB_ICONERROR,
-        );
     }
 }
 
