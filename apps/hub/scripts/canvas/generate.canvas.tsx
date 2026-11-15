@@ -14,6 +14,7 @@ const expectedFonts = [
   style: 'normal',
   display: 'swap',
   weight: String(weight),
+  range: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
   src: digest(`url(data:font/woff2;base64,${readFileSync(resolve(`node_modules/@fontsource/${packageName}/files/${packageName}-latin-${weight}-normal.woff2`)).toString('base64')}) format('woff2')`),
 }));
 
@@ -31,7 +32,7 @@ it('generates self-contained Windows captures for each real component state and 
     expect(doc.querySelector('.win-taskbar svg')).toBeTruthy();
     const css = doc.querySelector('style')?.textContent ?? '';
     expect(css).toContain('--font-sans: "Barlow", system-ui, sans-serif');
-    const fonts: { family: string; style: string; display: string; weight: string; src: string }[] = [];
+    const fonts: { family: string; style: string; display: string; weight: string; range: string; src: string }[] = [];
     postcss.parse(css).walkAtRules('font-face', face => {
       const declarations: Record<string, string> = {};
       face.walkDecls(declaration => { declarations[declaration.prop] = declaration.value; });
@@ -40,6 +41,7 @@ it('generates self-contained Windows captures for each real component state and 
         style: declarations['font-style'],
         display: declarations['font-display'],
         weight: declarations['font-weight'],
+        range: declarations['unicode-range'],
         src: digest(declarations.src ?? ''),
       });
     });
@@ -78,6 +80,7 @@ it('generates self-contained Windows captures for each real component state and 
   expect(docs[5].body.textContent).toMatch(/Editor de vídeo/);
   expect(docs[5].body.textContent).toMatch(/Ejecutable ausente o inaccesible/);
   expect(docs[6].body.textContent).toMatch(/Versión 0\.1\.0/);
+  expect(docs[6].body.textContent).toContain('Tipografía Barlow · SIL Open Font License 1.1');
   expect(docs[7].querySelector('.eg-radio-group')).toBeTruthy();
   expect(docs[7].body.textContent).toMatch(/Continuar/);
   for (const board of boards) writeFileSync(resolve('../../design/nexo-hub-actual', board.file), board.html);

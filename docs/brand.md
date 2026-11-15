@@ -4,7 +4,7 @@ El símbolo elegido es **Panel, un solo lugar**: cuatro aplicaciones reunidas en
 
 ## Tipografía
 
-El hub incluye Barlow (pesos 400, 500, 600, 700 y 800) y Barlow Condensed (400, 600, 700 y 800), estilo normal y subconjunto latino. Proceden de `@fontsource/barlow` y `@fontsource/barlow-condensed` 5.3.0 y están bajo la licencia SIL Open Font License 1.1 (OFL 1.1). Las láminas del canvas llevan las mismas fuentes WOFF2 embebidas.
+El hub incluye Barlow (pesos 400, 500, 600, 700 y 800) y Barlow Condensed (400, 600, 700 y 800), estilo normal y subconjunto latino. Proceden de `@fontsource/barlow` y `@fontsource/barlow-condensed` 5.3.0 y se distribuyen solo en WOFF2. Están bajo la licencia SIL Open Font License 1.1 (OFL 1.1): el paquete incluye los avisos originales de [Barlow](../apps/hub/src-tauri/licenses/Barlow-OFL.txt) y [Barlow Condensed](../apps/hub/src-tauri/licenses/Barlow-Condensed-OFL.txt), y Ajustes → Acerca de muestra el crédito. Las láminas del canvas llevan las mismas fuentes WOFF2 embebidas.
 
 ## Bandeja
 

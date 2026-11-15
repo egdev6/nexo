@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import postcss from 'postcss';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
@@ -71,23 +71,19 @@ const news: NewsItem[] = [
 ];
 const root = resolve('../..');
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
-// Derive the embedded faces from the exact same imports as the application.
-const fontImports = [...read('apps/hub/src/fonts.ts').matchAll(/^import\s+['"](@fontsource\/[a-z-]+\/latin-\d+\.css)['"];?$/gm)].map(match => match[1]);
-if (!fontImports.length) throw new Error('No bundled font imports found');
-const fontCss = fontImports.map(specifier => {
-  const path = resolve(root, 'apps/hub/node_modules', specifier);
-  const sheet = postcss.parse(readFileSync(path, 'utf8'), { from: path });
-  let found = false;
-  sheet.walkAtRules('font-face', face => face.walkDecls('src', declaration => {
-    const match = declaration.value.match(/url\((['"]?)(\.\/files\/[^'")]+\.woff2)\1\)\s*format\(['"]woff2['"]\)/);
-    if (!match) throw new Error(`No WOFF2 source in ${specifier}`);
-    const data = readFileSync(resolve(dirname(path), match[2])).toString('base64');
-    declaration.value = `url(data:font/woff2;base64,${data}) format('woff2')`;
-    found = true;
-  }));
-  if (!found) throw new Error(`No font face in ${specifier}`);
-  return sheet.toString();
-}).join('\n');
+// Embed the same WOFF2 sources and font-face declarations as the application.
+const fontPath = resolve(root, 'apps/hub/src/fonts.css');
+const fontSheet = postcss.parse(readFileSync(fontPath, 'utf8'), { from: fontPath });
+let fontCount = 0;
+fontSheet.walkAtRules('font-face', face => face.walkDecls('src', declaration => {
+  const match = declaration.value.match(/^url\((['"]?)(@fontsource\/[a-z-]+\/files\/[a-z0-9-]+\.woff2)\1\)\s*format\(['"]woff2['"]\)$/);
+  if (!match) throw new Error('Expected exactly one bundled WOFF2 font source');
+  const data = readFileSync(resolve(root, 'apps/hub/node_modules', match[2])).toString('base64');
+  declaration.value = `url(data:font/woff2;base64,${data}) format('woff2')`;
+  fontCount += 1;
+}));
+if (!fontCount) throw new Error('No bundled font faces found');
+const fontCss = fontSheet.toString();
 const appIcon = read('apps/hub/src-tauri/app-icon.svg');
 const trayIcon = read('design/nexo-logo/tray.svg');
 const cssPaths = [
@@ -151,7 +147,7 @@ async function mount(firstRun = false, withNews = false) {
   bridge.saved = { ...defaultSettings, firstRunComplete: !firstRun, showNewsOnOpen: withNews, startWithWindows: true, sources };
   render(<App apps={apps} news={withNews ? news : []} catalogState={{ status: 'ready', catalog }} onAppsRefresh={() => {}} />);
   await waitFor(() => {
-    if (!document.querySelector('.flyout--open')) throw new Error('Waiting for motion');
+    if (!document.querySelector('.flyout')) throw new Error('Waiting for flyout');
     if (firstRun ? !screen.queryByRole('button', { name: 'Continuar' }) : !screen.queryByRole('button', { name: 'Ajustes' })) throw new Error('Waiting for settings');
   });
   if (!firstRun) await waitFor(() => { if (!screen.queryByText('OBS Studio') || !bridge.receive) throw new Error('Waiting for local apps and progress'); });

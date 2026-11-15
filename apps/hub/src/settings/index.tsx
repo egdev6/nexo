@@ -92,6 +92,7 @@ export function SettingsView({ settings, onChange, onClose, sources: configuredS
       <h2 id={`${id}-about`}>{tr('settings.about')}</h2>
       <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: '0.1.0' })}</span></div>
         <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.updates')}</Button></div>
+      <p className="settings__hint">{tr('settings.fontCredit')}</p>
     </section>
     <p className="settings__foot">{tr('settings.aboutFoot')}</p>
   </>;
