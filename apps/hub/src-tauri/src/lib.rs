@@ -274,10 +274,13 @@ impl Surface for NativeFlyout<'_> {
 }
 
 #[cfg(windows)]
-fn disable_dwm_transitions(window: &WebviewWindow) {
+fn configure_dwm_window(window: &WebviewWindow) {
     use windows_sys::Win32::{
         Foundation::TRUE,
-        Graphics::Dwm::{DWMWA_TRANSITIONS_FORCEDISABLED, DwmSetWindowAttribute},
+        Graphics::Dwm::{
+            DWMWA_TRANSITIONS_FORCEDISABLED, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+            DwmSetWindowAttribute,
+        },
     };
 
     match window.hwnd() {
@@ -294,6 +297,20 @@ fn disable_dwm_transitions(window: &WebviewWindow) {
             };
             if result < 0 {
                 eprintln!("could not disable Nexo DWM transitions: {result:#010x}");
+            }
+            let preference = DWMWCP_DONOTROUND;
+            // SAFETY: the HWND is valid and the preference is the DWORD-sized
+            // DWM_WINDOW_CORNER_PREFERENCE value required by this attribute.
+            let result = unsafe {
+                DwmSetWindowAttribute(
+                    hwnd.0.cast(),
+                    DWMWA_WINDOW_CORNER_PREFERENCE as u32,
+                    std::ptr::from_ref(&preference).cast(),
+                    std::mem::size_of_val(&preference) as u32,
+                )
+            };
+            if result < 0 {
+                eprintln!("could not disable Nexo DWM rounded corners: {result:#010x}");
             }
         }
         Err(error) => eprintln!("could not get Nexo window handle for DWM: {error}"),
@@ -588,7 +605,7 @@ pub fn run() {
             // the CSS blur slider does not control either native effect's radius.
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
-                disable_dwm_transitions(&window);
+                configure_dwm_window(&window);
                 let applied = window_vibrancy::apply_mica(&window, None)
                     .or_else(|_| window_vibrancy::apply_acrylic(&window, None))
                     .is_ok();

@@ -300,8 +300,8 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">
-        {usable && !firstRun && !showSettings && <IconButton label={t(locale, 'common.settings')} title={t(locale, 'common.settings')} variant="secondary" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
-        <IconButton label={t(locale, 'app.closePanel')} title={t(locale, 'app.closePanel')} variant="secondary" icon={<Icon name="close" />} onClick={hidePanel} />
+        {usable && !firstRun && !showSettings && <IconButton label={t(locale, 'common.settings')} title={t(locale, 'common.settings')} variant="ghost" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
+        <IconButton label={t(locale, 'app.closePanel')} title={t(locale, 'app.closePanel')} variant="ghost" icon={<Icon name="close" />} onClick={hidePanel} />
       </div>
     </div></header>
     {visibilityError && <div className="registry-notice" role="alert">{t(locale, 'app.visibilityError', { error: visibilityError })}</div>}

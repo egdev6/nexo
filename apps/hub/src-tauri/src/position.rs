@@ -25,20 +25,13 @@ pub fn flyout_bounds(area: &WorkArea, scale: f64) -> FlyoutBounds {
     } else {
         1.0
     };
-    let margin = (12.8 * scale).round() as u32;
-    let margin_x = margin.min(area.width.saturating_sub(1) / 2);
-    let margin_y = margin.min(area.height.saturating_sub(1) / 2);
-    let available_width = area.width.saturating_sub(margin_x * 2).max(1);
-    let available_height = area.height.saturating_sub(margin_y * 2).max(1);
-    let width = ((600.0 * scale).round() as u32).max(1).min(available_width);
-    let height = available_height;
-    let x = i64::from(area.x) + i64::from(area.width) - i64::from(margin_x) - i64::from(width);
-    let y = i64::from(area.y) + i64::from(area.height) - i64::from(margin_y) - i64::from(height);
+    let width = ((600.0 * scale).round() as u32).max(1).min(area.width);
+    let x = i64::from(area.x) + i64::from(area.width) - i64::from(width);
     FlyoutBounds {
         x: x.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
-        y: y.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        y: area.y,
         width,
-        height,
+        height: area.height,
     }
 }
 
@@ -71,10 +64,10 @@ mod tests {
         assert_eq!(
             flyout_bounds(&area, 1.0),
             FlyoutBounds {
-                x: 1307,
-                y: 13,
+                x: 1320,
+                y: 0,
                 width: 600,
-                height: 1014
+                height: 1040
             }
         );
     }
@@ -90,10 +83,46 @@ mod tests {
         assert_eq!(
             flyout_bounds(&area, 1.5),
             FlyoutBounds {
-                x: -919,
-                y: 59,
+                x: -900,
+                y: 40,
                 width: 900,
-                height: 1282
+                height: 1320
+            }
+        );
+    }
+
+    #[test]
+    fn falls_back_to_unit_scale_and_handles_a_zero_sized_area() {
+        let area = WorkArea {
+            x: -30,
+            y: 20,
+            width: 800,
+            height: 600,
+        };
+        for scale in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                flyout_bounds(&area, scale),
+                FlyoutBounds {
+                    x: 170,
+                    y: 20,
+                    width: 600,
+                    height: 600
+                }
+            );
+        }
+        let empty = WorkArea {
+            x: 100,
+            y: -50,
+            width: 0,
+            height: 0,
+        };
+        assert_eq!(
+            flyout_bounds(&empty, 1.0),
+            FlyoutBounds {
+                x: 100,
+                y: -50,
+                width: 0,
+                height: 0
             }
         );
     }
@@ -109,10 +138,10 @@ mod tests {
         assert_eq!(
             flyout_bounds(&area, 1.0),
             FlyoutBounds {
-                x: 113,
-                y: -37,
-                width: 474,
-                height: 274
+                x: 100,
+                y: -50,
+                width: 500,
+                height: 300
             }
         );
     }

@@ -122,6 +122,69 @@ fn show_starts_beyond_work_area_before_showing_and_arrives_exactly() {
 }
 
 #[test]
+fn reopening_recomputes_flush_and_offscreen_positions_for_changed_work_area() {
+    use super::position::{WorkArea, flyout_bounds, work_area_right_edge};
+
+    fn geometry(area: &WorkArea, scale: f64) -> Geometry {
+        let bounds = flyout_bounds(area, scale);
+        Geometry {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            offscreen_x: work_area_right_edge(area),
+        }
+    }
+
+    let first = WorkArea {
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1040,
+    };
+    let second = WorkArea {
+        x: -1920,
+        y: 40,
+        width: 1920,
+        height: 1320,
+    };
+    let surface = FakeSurface::default();
+    surface.geometry.set(Some(geometry(&first, 1.0)));
+    let mut motion = Coordinator::default();
+    let entry = motion.show(&surface, false).unwrap().unwrap();
+    assert_eq!((entry.from, entry.to, entry.y), (1920, 1320, 0));
+    motion
+        .advance(&surface, &entry, Duration::from_secs(1))
+        .unwrap();
+    let exit = motion.hide(&surface, false).unwrap().unwrap();
+    assert_eq!((exit.from, exit.to), (1320, 1920));
+    motion
+        .advance(&surface, &exit, Duration::from_secs(1))
+        .unwrap();
+    surface.geometry.set(Some(geometry(&second, 1.5)));
+    let entry = motion.show(&surface, false).unwrap().unwrap();
+    assert_eq!((entry.from, entry.to, entry.y), (0, -900, 40));
+    motion
+        .advance(&surface, &entry, Duration::from_secs(1))
+        .unwrap();
+    assert_eq!(surface.position.get(), (-900, 40));
+    let events = surface.events.borrow();
+    assert_eq!(
+        &events[events.len() - 5..],
+        [
+            "size:900,1320",
+            "position:0,40",
+            "show",
+            "visible:true",
+            "position:-900,40"
+        ]
+    );
+    drop(events);
+    let exit = motion.hide(&surface, false).unwrap().unwrap();
+    assert_eq!((exit.from, exit.to, exit.y), (-900, 0, 40));
+}
+
+#[test]
 fn exit_hides_offscreen_without_restoring_and_stale_frames_cannot_move_it() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
