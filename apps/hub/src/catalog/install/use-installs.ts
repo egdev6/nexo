@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HubApp } from '../../model';
-import { cancelInstall, installApp, onInstallProgress, type InstallError, type InstallPhase, type InstallProgress } from './index';
+import { cancelInstall, installApp, updateApp, onInstallProgress, type InstallError, type InstallPhase, type InstallProgress } from './index';
 
-type DisplayError = InstallError | { status: 'unexpected' };
-type Running = { status: 'running'; progress: InstallProgress; cancelling: boolean; cancelError?: 'cancelFailed' | 'cleanupFailed'; cleanupFailed?: boolean };
-export type InstallEntry = Running | { status: 'error'; error: DisplayError; cleanupFailed?: boolean } | { status: 'installed' };
-type Claim = { phase: InstallPhase; cancelling: boolean; cancelError?: Running['cancelError']; cleanupFailed?: boolean };
-const phases: InstallPhase[] = ['fetching', 'awaitingApproval', 'downloading', 'verifying', 'installing', 'detecting'];
+type Operation = 'install' | 'update';
+type DisplayError = InstallError | { status: 'unexpected' | 'appStillRunning' } | { status: 'versionMismatch'; version: string };
+type Running = { status: 'running'; operation: Operation; progress: InstallProgress; cancelling: boolean; cancelError?: 'cancelFailed' | 'cleanupFailed'; cleanupFailed?: boolean };
+export type InstallEntry = Running | { status: 'error'; operation: Operation; error: DisplayError; cleanupFailed?: boolean } | { status: 'installed'; operation: 'install' } | { status: 'updated' | 'upToDate'; operation: 'update'; version: string };
+type Claim = { operation: Operation; phase: InstallPhase; cancelling: boolean; cancelError?: Running['cancelError']; cleanupFailed?: boolean };
+const phases: InstallPhase[] = ['fetching', 'awaitingApproval', 'downloading', 'verifying', 'closing', 'installing', 'detecting'];
 
 /** Owned by the flyout, not the unmounting catalog tab; native remains the authority. */
 export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?: () => void) {
@@ -45,12 +46,12 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
         if (claim) claim.cleanupFailed = true;
         const current = entriesRef.current.get(progress.id);
         if (current?.status === 'running' || current?.status === 'error') put(progress.id, { ...current, cleanupFailed: true });
-        else if (current?.status === 'installed') put(progress.id, { status: 'error', error: { status: 'cleanupFailed' } });
+        else if (current) put(progress.id, { status: 'error', operation: current.operation, error: { status: 'cleanupFailed' } });
         return;
       }
       if (!claim || phases.indexOf(progress.phase) < phases.indexOf(claim.phase)) return;
       claim.phase = progress.phase;
-      put(progress.id, { status: 'running', progress, cancelling: claim.cancelling, cancelError: claim.cancelError, cleanupFailed: claim.cleanupFailed });
+      put(progress.id, { status: 'running', operation: claim.operation, progress, cancelling: claim.cancelling, cancelError: claim.cancelError, cleanupFailed: claim.cleanupFailed });
     }).then(unlisten => {
       if (disposed) unlisten();
       else { stop = unlisten; setConnection('ready'); }
@@ -70,27 +71,30 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
     }
   }, [apps]);
 
-  function start(id: string) {
+  function start(id: string, operation: Operation = 'install') {
     if (connection !== 'ready' || claims.current.has(id)) return;
-    const claim: Claim = { phase: 'fetching', cancelling: false };
+    const claim: Claim = { operation, phase: 'fetching', cancelling: false };
     claims.current.set(id, claim);
-    put(id, { status: 'running', progress: { id, phase: 'fetching' }, cancelling: false });
-    void installApp(id).then(result => {
+    put(id, { status: 'running', operation, progress: { id, phase: 'fetching' }, cancelling: false });
+    const request = operation === 'update' ? updateApp(id) : installApp(id);
+    void request.then(result => {
       if (claims.current.get(id) !== claim) return;
       claims.current.delete(id);
-      if (result.status === 'installed') {
-        put(id, claim.cleanupFailed ? { status: 'error', error: { status: 'cleanupFailed' } } : { status: 'installed' });
+      if (result.status === 'installed' || result.status === 'updated' || result.status === 'upToDate') {
+        if (claim.cleanupFailed) put(id, { status: 'error', operation, error: { status: 'cleanupFailed' } });
+        else if (result.status === 'installed') put(id, { status: 'installed', operation: 'install' });
+        else put(id, { status: result.status, operation: 'update', version: result.version });
         refresh.current?.();
       } else if (result.status === 'cancelled') {
-        if (claim.cleanupFailed) put(id, { status: 'error', error: { status: 'cleanupFailed' } });
+        if (claim.cleanupFailed) put(id, { status: 'error', operation, error: { status: 'cleanupFailed' } });
         else remove(id);
       } else {
-        put(id, { status: 'error', error: result, cleanupFailed: claim.cleanupFailed });
-        if (result.status === 'alreadyInstalled' || result.status === 'detectionUnknown' || result.status === 'notDetected') refresh.current?.();
+        put(id, { status: 'error', operation, error: result, cleanupFailed: claim.cleanupFailed });
+        if (result.status === 'alreadyInstalled' || result.status === 'detectionUnknown' || result.status === 'notDetected' || result.status === 'versionMismatch') refresh.current?.();
       }
     }).catch(() => {
       if (claims.current.get(id) !== claim) return;
-      claims.current.delete(id); put(id, { status: 'error', error: { status: 'unexpected' }, cleanupFailed: claim.cleanupFailed });
+      claims.current.delete(id); put(id, { status: 'error', operation, error: { status: 'unexpected' }, cleanupFailed: claim.cleanupFailed });
     });
   }
 
@@ -116,6 +120,6 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
     });
   }
 
-  return { entries, connection: enabled ? connection : 'error' as const, start, cancel, retryConnection: () => setAttempt(value => value + 1) };
+  return { entries, connection: enabled ? connection : 'error' as const, start, startUpdate: (id: string) => start(id, 'update'), cancel, retryConnection: () => setAttempt(value => value + 1) };
 }
 export type CatalogInstalls = ReturnType<typeof useCatalogInstalls>;

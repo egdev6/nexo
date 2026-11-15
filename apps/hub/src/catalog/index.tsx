@@ -1,44 +1,14 @@
-import { useEffect, useId, useRef } from 'react';
-import { Badge, Button, Icon, IconButton, ProgressBar } from '@egdev/ui';
+import { useEffect, useRef } from 'react';
+import { Badge, Button, Icon, IconButton } from '@egdev/ui';
 import type { CatalogViewProps, HubApp } from '../model';
 import { formatNumber, t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import type { Catalog } from './format';
 import type { CatalogInstalls } from './install/use-installs';
+import { InstallAction } from './install/action';
 import './catalog.css';
 
 type Props = CatalogViewProps & { catalog?: Catalog; installs?: CatalogInstalls };
-
-function InstallAction({ app, reason, installs, focused }: { app: HubApp; reason?: MessageKey; installs?: CatalogInstalls; focused: boolean }) {
-  const locale = useLocale();
-  const id = useId();
-  const entry = installs?.entries.get(app.id);
-  if (entry?.status === 'running') {
-    const { progress, cancelling, cancelError } = entry;
-    const afterSpawn = progress.phase === 'installing' || progress.phase === 'detecting';
-    const percent = progress.phase === 'downloading' && progress.total !== undefined && progress.total > 0 && progress.received !== undefined
-      ? Math.max(0, Math.min(100, Math.round(progress.received / progress.total * 100))) : undefined;
-    return <div className="catalog-install">
-      <div role="status" className="catalog-install-status">{t(locale, `install.phase.${progress.phase}`)}
-        {afterSpawn && <span>{t(locale, 'install.cancelUnavailable')}</span>}</div>
-      {progress.phase === 'downloading' && <div className="catalog-progress"><ProgressBar size="lg" value={percent ?? NaN} label={t(locale, 'install.downloadFor', { name: app.name })} />
-        {percent !== undefined && <span>{t(locale, 'install.percent', { percent: formatNumber(locale, percent) })}</span>}</div>}
-      {cancelError && <div role="alert" className="catalog-install-error">{t(locale, `install.error.${cancelError}`)}</div>}
-      {entry.cleanupFailed && cancelError !== 'cleanupFailed' && <div role="alert" className="catalog-install-error">{t(locale, 'install.error.cleanupFailed')}</div>}
-      {!afterSpawn && <Button type="button" size="sm" variant="neutral" disabled={cancelling} aria-label={t(locale, 'install.cancelFor', { name: app.name })} onClick={() => installs?.cancel(app.id)}>{t(locale, 'install.cancel')}</Button>}
-    </div>;
-  }
-  const error = entry?.status === 'error' ? entry.error : undefined;
-  const message = error ? t(locale, `install.error.${error.status}`, error.status === 'installerFailed' ? { code: error.code } : undefined) : undefined;
-  return <div className="catalog-install">
-    {message && <div role="alert" className="catalog-install-error">{message}</div>}
-    {entry?.status === 'error' && entry.cleanupFailed && error?.status !== 'cleanupFailed' && <div role="alert" className="catalog-install-error">{t(locale, 'install.error.cleanupFailed')}</div>}
-    {reason && <div id={id} className="catalog-install-reason">{t(locale, reason)}</div>}
-    {(!focused || !reason) && <Button type="button" size="sm" variant="primary" disabled={!!reason || !installs} aria-describedby={reason ? id : undefined}
-      aria-label={t(locale, error ? 'install.retryFor' : 'install.installFor', { name: app.name })} onClick={() => installs?.start(app.id)}>{t(locale, error ? 'common.retry' : 'common.install')}</Button>}
-    {installs?.connection === 'error' && reason === 'install.progressUnavailable' && <Button type="button" size="sm" variant="neutral" onClick={installs.retryConnection}>{t(locale, 'common.retry')}</Button>}
-  </div>;
-}
 
 function CatalogCard({ app, focused = false, reason, installs }: { app: HubApp; focused?: boolean; reason?: MessageKey; installs?: CatalogInstalls }) {
   const locale = useLocale();
@@ -82,7 +52,8 @@ export function CatalogView({ apps, state = 'ready', stale = false, reason, inst
   const locale = useLocale();
   const target = targetAppId ? apps.find(app => app.id === targetAppId && app.source === 'official') : undefined;
   const available = apps.filter(app => {
-    const entry = app.source === 'official' ? installs?.entries.get(app.id) : undefined;
+    const current = app.source === 'official' ? installs?.entries.get(app.id) : undefined;
+    const entry = current?.operation === 'install' ? current : undefined;
     return entry?.status !== 'installed' && (entry?.status === 'running' || (entry?.status === 'error' && (entry.cleanupFailed || entry.error.status === 'cleanupFailed')) || app === target || (app.integration === 'catalog' && (!app.installed || app.statusKnown === false)));
   });
   const failed = state === 'offline' || state === 'error';
