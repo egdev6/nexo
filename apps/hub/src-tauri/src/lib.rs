@@ -34,6 +34,7 @@ mod position;
 mod registry_presentation;
 #[cfg(windows)]
 mod runtime;
+mod startup_log;
 #[cfg(any(windows, test))]
 mod tray;
 mod tray_icon;
@@ -504,6 +505,11 @@ fn handle_close_request<E>(
 }
 
 pub fn run() {
+    startup_log::log(&format!(
+        "starting Nexo {} (pid {})",
+        env!("CARGO_PKG_VERSION"),
+        std::process::id()
+    ));
     let builder = tauri::Builder::default()
         .manage(FocusState::default())
         .manage(VisibilityState::default())
@@ -520,7 +526,11 @@ pub fn run() {
     let hub = ipc::Hub::new();
     #[cfg(windows)]
     let builder = builder
-        .manage(install_service::native(hub.clone()).expect("install HTTP client"))
+        .manage(
+            install_service::native(hub.clone()).unwrap_or_else(|error| {
+                startup_log::fail(&format!("install HTTP client: {error}"))
+            }),
+        )
         .manage(hub)
         .manage(runtime::Routes::default())
         .manage(local_apps::windows::SelectionState::default())
@@ -573,6 +583,8 @@ pub fn run() {
         config::quit_after_settings,
         apply_saved_language
     ]);
+    #[cfg(windows)]
+    startup_log::log_handoff();
     builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
@@ -705,10 +717,11 @@ pub fn run() {
             {
                 runtime::start(app.handle())?;
             }
+            startup_log::log("setup complete");
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building Nexo")
+        .unwrap_or_else(|error| startup_log::fail(&format!("error while building Nexo: {error}")))
         .run(|_app, _event| {
             #[cfg(windows)]
             if matches!(_event, tauri::RunEvent::Exit)

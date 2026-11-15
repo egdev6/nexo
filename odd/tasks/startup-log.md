@@ -9,7 +9,7 @@
 
 ## Tasks
 
-- T1 (S1) Startup log file + handoff notice + setup-error reporting — route: writer, test-first; status: authorized.
+- T1 (S1) Startup log file + handoff notice + setup-error reporting — route: writer, test-first; status: done.
 
 ## Log
 
