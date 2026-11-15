@@ -21,6 +21,9 @@
     "catalog": {
       "version": "Versión: {version}", "publishedVersion": "Versión publicada: {version}", "installUnavailable": "Instalación aún no disponible", "installSample": "Instalar {name} · muestra", "installTitle": "Instalación ilustrativa", "github": "Código en GitHub de {name}", "githubSample": "Código en GitHub de {name} · muestra", "githubTitle": "Código en GitHub · muestra", "youtube": "Ver en YouTube: {name}", "youtubeSample": "Ver en YouTube: {name} · muestra", "youtubeTitle": "Ver en YouTube · muestra", "countCatalog": "{count} en el catálogo", "countUninstalled": "{count} sin instalar", "loading": "Cargando catálogo…", "offline": "Sin conexión con el catálogo o el servidor rechazó la solicitud.", "unconfigured": "La fuente oficial del catálogo aún no está configurada.", "error": "Error al cargar o guardar el catálogo.", "stale": "Se muestra la copia guardada, que puede estar desactualizada.", "empty": "No hay aplicaciones disponibles en el catálogo.", "targetUnavailable": "Esta aplicación ya no está disponible en el catálogo.", "retryCatalog": "Reintentar catálogo", "sampleFoot": "Muestra de diseño · acciones ilustrativas y enlaces de muestra."
     },
+    "update": {
+      "confirm": { "title": "Confirmar actualización", "body": "¿Descargar y actualizar {app}: {currentVersion} → {version} desde {host}?" }
+    },
     "install": {
       "confirm": { "title": "Confirmar instalación", "body": "¿Descargar e instalar {app}, versión {version}, desde {host}?" },
       "installFor": "Instalar {name}", "retryFor": "Reintentar {name}", "cancel": "Cancelar", "cancelFor": "Cancelar {name}", "downloadFor": "Descarga de {name}", "percent": "{percent} %",
@@ -55,6 +58,9 @@
     },
     "catalog": {
       "version": "Version: {version}", "publishedVersion": "Published version: {version}", "installUnavailable": "Installation not yet available", "installSample": "Install {name} · sample", "installTitle": "Illustrative installation", "github": "GitHub code for {name}", "githubSample": "GitHub code for {name} · sample", "githubTitle": "GitHub code · sample", "youtube": "View on YouTube: {name}", "youtubeSample": "View on YouTube: {name} · sample", "youtubeTitle": "View on YouTube · sample", "countCatalog": "{count} in the catalog", "countUninstalled": "{count} not installed", "loading": "Loading catalog…", "offline": "The catalog is offline or the server rejected the request.", "unconfigured": "The official catalog source is not yet configured.", "error": "Could not load or save the catalog.", "stale": "Showing the saved copy, which may be outdated.", "empty": "No applications are available in the catalog.", "targetUnavailable": "This application is no longer available in the catalog.", "retryCatalog": "Retry catalog", "sampleFoot": "Design sample · illustrative actions and sample links."
+    },
+    "update": {
+      "confirm": { "title": "Confirm update", "body": "Download and update {app}: {currentVersion} → {version} from {host}?" }
     },
     "install": {
       "confirm": { "title": "Confirm installation", "body": "Download and install {app} version {version} from {host}?" },
