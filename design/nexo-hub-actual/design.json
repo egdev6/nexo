@@ -1,0 +1,12 @@
+{
+  "title": "Nexo · Hub actual",
+  "brief": "Captura del hub actual de 600 × 820 px para futuras iteraciones, no una nueva dirección. Datos y versiones ilustrativos; textos de interfaz en español. CSS del hub y recetas vendidas de @egdev/ui adaptados en línea. El sistema declara Barlow, Barlow Condensed y JetBrains Mono, pero no se encontraron archivos de fuente en el hub: las láminas usan exclusivamente sus alternativas de sistema. El degradado de progreso usa el botón primario documentado en design/system.md. Los controles nativos y acciones de las aplicaciones son ilustrativos; las pestañas y la vista previa de apariencia funcionan sin persistencia. Novedades captura el carrusel anterior a T3, con pista desplazable y sin simular la corrección de navegación. La transparencia/Mica real depende del escritorio anfitrión.",
+  "feature": "odd/tasks/hub-ux-polish.md",
+  "artboards": [
+    { "file": "01-mis-apps.html", "title": "Mis apps", "tradeoff": "Filas reales y detalle plegable; los estados locales adicionales requieren desplazar el panel.", "width": 600, "height": 820 },
+    { "file": "02-catalogo.html", "title": "Catálogo", "tradeoff": "La cuadrícula incluye instalación, descarga y causa de indisponibilidad; la tercera tarjeta queda más abajo.", "width": 600, "height": 820 },
+    { "file": "03-novedades.html", "title": "Novedades", "tradeoff": "Captura del modal y pista del carrusel actuales; conserva el desplazamiento anterior a la corrección T3.", "width": 600, "height": 820 },
+    { "file": "04-ajustes.html", "title": "Ajustes", "tradeoff": "Las pestañas reproducen General, Apariencia, Fuentes del catálogo y Acerca de; parte del contenido requiere desplazamiento.", "width": 600, "height": 820 },
+    { "file": "05-primer-uso.html", "title": "Primer uso", "tradeoff": "Selección bilingüe como en el primer inicio; acciones nativas ilustrativas.", "width": 600, "height": 820 }
+  ]
+}
