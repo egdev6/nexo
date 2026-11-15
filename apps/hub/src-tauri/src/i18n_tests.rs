@@ -33,8 +33,8 @@ fn shared_native_catalog_has_matching_nonempty_keys_and_placeholders() {
         assert_eq!(text(Locale::Es, key), spanish);
         assert_eq!(text(Locale::En, key), english);
     }
-    assert_eq!(text(Locale::Es, "quit"), "Salir");
-    assert_eq!(text(Locale::En, "quit"), "Quit");
+    assert_eq!(text(Locale::Es, "quit"), "Salir de Nexo y cerrar apps");
+    assert_eq!(text(Locale::En, "quit"), "Quit Nexo and close apps");
 }
 
 #[test]

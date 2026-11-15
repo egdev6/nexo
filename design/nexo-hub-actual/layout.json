@@ -1,0 +1,29 @@
+{
+  "arrangement": "row",
+  "positions": {
+    "system": {
+      "x": 0,
+      "y": 0
+    },
+    "01-mis-apps.html": {
+      "x": 1520,
+      "y": 0
+    },
+    "02-catalogo.html": {
+      "x": 2386,
+      "y": 0
+    },
+    "03-novedades.html": {
+      "x": 3252,
+      "y": 0
+    },
+    "04-ajustes.html": {
+      "x": 4118,
+      "y": 0
+    },
+    "05-primer-uso.html": {
+      "x": 4984,
+      "y": 0
+    }
+  }
+}

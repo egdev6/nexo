@@ -1,13 +1,13 @@
 use super::{
     ExecutableFs, FileKind, FsError, Launcher, Picker, Selection,
-    catalog::{self, CatalogPicker},
     icons::{self, IconFs, IconPicker, MAX_ICON_BYTES},
+    selection_tokens::{ExecutableSelection, IconSelection, PendingSelections},
 };
-use crate::config::LocalBinding;
-use crate::local_catalog::{LocalCatalogReader, LocalCatalogSnapshot, LocalEntryKey, RefreshFence};
 use std::io::{Read, Write};
 use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::Instant;
 use tauri::{AppHandle, Manager, WebviewWindow};
 use windows_sys::Win32::{
     Storage::FileSystem::{
@@ -19,6 +19,9 @@ use windows_sys::Win32::{
         OFN_NOCHANGEDIR, OFN_NODEREFERENCELINKS, OFN_PATHMUSTEXIST, OPENFILENAMEW,
     },
 };
+
+#[derive(Default)]
+pub(crate) struct SelectionState(Mutex<PendingSelections>);
 
 struct SystemFs;
 impl ExecutableFs for SystemFs {
@@ -81,56 +84,6 @@ impl Picker for SystemPicker {
             .ok_or("nexo.local.refused")?;
         let selected = String::from_utf16(&path[..length]).map_err(|_| "nexo.local.refused")?;
         Ok(Some(selected))
-    }
-}
-
-struct SystemCatalogPicker(isize);
-impl CatalogPicker for SystemCatalogPicker {
-    fn pick_catalog(&self) -> Result<Option<String>, String> {
-        let filter: Vec<u16> = "JSON\0*.json\0\0".encode_utf16().collect();
-        let mut path = vec![0_u16; 32768];
-        let mut dialog = OPENFILENAMEW {
-            lStructSize: std::mem::size_of::<OPENFILENAMEW>() as u32,
-            hwndOwner: self.0 as _,
-            lpstrFilter: filter.as_ptr(),
-            nFilterIndex: 1,
-            lpstrFile: path.as_mut_ptr(),
-            nMaxFile: path.len() as u32,
-            Flags: OFN_FILEMUSTEXIST
-                | OFN_PATHMUSTEXIST
-                | OFN_NOCHANGEDIR
-                | OFN_NODEREFERENCELINKS
-                | OFN_DONTADDTORECENT,
-            ..Default::default()
-        };
-        if unsafe { GetOpenFileNameW(&mut dialog) } == 0 {
-            return if unsafe { CommDlgExtendedError() } == 0 {
-                Ok(None)
-            } else {
-                Err("nexo.local.dialogFailed".into())
-            };
-        }
-        let length = path
-            .iter()
-            .position(|word| *word == 0)
-            .ok_or("nexo.local.refused")?;
-        Ok(Some(
-            String::from_utf16(&path[..length]).map_err(|_| "nexo.local.refused")?,
-        ))
-    }
-}
-
-struct SelectedCatalogPath(String);
-impl CatalogPicker for SelectedCatalogPath {
-    fn pick_catalog(&self) -> Result<Option<String>, String> {
-        Ok(Some(self.0.clone()))
-    }
-}
-
-struct SystemCatalogReader;
-impl LocalCatalogReader for SystemCatalogReader {
-    fn open(&self, location: &str) -> std::io::Result<impl Read> {
-        std::fs::File::open(location)
     }
 }
 
@@ -322,11 +275,10 @@ pub(crate) async fn local_apps_list(
     tauri::async_runtime::spawn_blocking(move || {
         let store = crate::config::store(&app, &window)?;
         let lock = app.state::<crate::config::ConfigLock>();
-        let fence = app.state::<RefreshFence>();
         let hub = app.state::<crate::ipc::Hub>();
         let official = crate::apps::duplicate_candidates(app.clone(), &hub);
         let icons = SystemIconFs::new(&app).ok();
-        super::projection::list(&store, &lock, &SystemFs, &fence, &official, &|name| {
+        super::projection::list(&store, &lock, &SystemFs, &official, &|name| {
             icons.as_ref().and_then(|fs| fs.owned_path(name))
         })
     })
@@ -335,17 +287,103 @@ pub(crate) async fn local_apps_list(
 }
 
 #[tauri::command]
-pub(crate) async fn local_app_add(
+pub(crate) async fn local_app_pick_executable(
     app: AppHandle,
     window: WebviewWindow,
-) -> Result<Option<Selection>, String> {
+) -> Result<Option<ExecutableSelection>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        // The modal picker must never hold the shared settings lock.
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let state = app.state::<SelectionState>();
+        let generation = state
+            .0
+            .lock()
+            .map_err(|_| "nexo.local.refused")?
+            .generation();
+        // Never hold a state or settings lock while the native dialog is open.
+        let _guard = crate::NativePickerGuard::new(&app);
         let Some(path) = selected_path(&window)? else {
             return Ok(None);
         };
+        state
+            .0
+            .lock()
+            .map_err(|_| "nexo.local.refused")?
+            .pick_executable(&SystemFs, &SelectedPath(path), generation, Instant::now())
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn local_app_pick_icon_file(
+    app: AppHandle,
+    window: WebviewWindow,
+) -> Result<Option<IconSelection>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let state = app.state::<SelectionState>();
+        let generation = state
+            .0
+            .lock()
+            .map_err(|_| "nexo.local.refused")?
+            .generation();
+        let owner = window.hwnd().map_err(|_| "nexo.local.dialogFailed")?.0 as isize;
+        let _guard = crate::NativePickerGuard::new(&app);
+        let Some(path) = SystemIconPicker(owner).pick_icon()? else {
+            return Ok(None);
+        };
+        let fs = SystemIconFs::new(&app)?;
+        state.0.lock().map_err(|_| "nexo.local.refused")?.pick_icon(
+            &fs,
+            &SelectedIconPath(path),
+            generation,
+            Instant::now(),
+        )
+    })
+    .await
+    .map_err(|_| "nexo.local.refused".to_string())?
+}
+
+#[tauri::command]
+pub(crate) fn local_app_cancel_selection(
+    window: WebviewWindow,
+    state: tauri::State<'_, SelectionState>,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("nexo.local.refused".into());
+    }
+    state.0.lock().map_err(|_| "nexo.local.refused")?.cancel();
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn local_app_create(
+    app: AppHandle,
+    window: WebviewWindow,
+    token: String,
+    name: String,
+    icon_token: Option<String>,
+) -> Result<Selection, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if window.label() != "main" {
+            return Err("nexo.local.refused".into());
+        }
+        let fs = SystemIconFs::new(&app)?;
+        let state = app.state::<SelectionState>();
+        let mut pending = state.0.lock().map_err(|_| "nexo.local.refused")?;
         crate::config::with_locked_store(&app, &window, |store| {
-            super::add(store, &SystemFs, &SelectedPath(path))
+            pending.create(
+                store,
+                &fs,
+                &token,
+                &name,
+                icon_token.as_deref(),
+                Instant::now(),
+            )
         })
     })
     .await
@@ -449,171 +487,6 @@ pub(crate) async fn local_app_open(
         crate::config::with_locked_store(&app, &window, |store| {
             super::open(store, &SystemFs, &SystemLauncher, &id)
         })
-    })
-    .await
-    .map_err(|_| "nexo.local.refused".to_string())?
-}
-
-pub(crate) fn start_local_catalogs(app: &AppHandle) {
-    let Some(window) = app.get_webview_window("main") else {
-        return;
-    };
-    let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let result = (|| -> Result<(), String> {
-            let store = crate::config::store(&app, &window)?;
-            let lock = app.state::<crate::config::ConfigLock>();
-            let fence = app.state::<RefreshFence>();
-            let sources = lock.with_store(&store, |store| Ok(store.local_settings()?.sources))?;
-            for source in sources.iter().filter(|source| source.kind == "local") {
-                let _ = catalog::refresh(
-                    &store,
-                    &lock,
-                    &SystemFs,
-                    &SystemCatalogReader,
-                    &fence,
-                    &source.id,
-                );
-            }
-            Ok(())
-        })();
-        if let Err(error) = result {
-            eprintln!("could not initialize local catalogs: {error}");
-        }
-    });
-}
-
-#[tauri::command]
-pub(crate) async fn local_catalog_set(
-    app: AppHandle,
-    window: WebviewWindow,
-    source_id: Option<String>,
-) -> Result<Option<LocalCatalogSnapshot>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        if window.label() != "main" {
-            return Err("nexo.local.refused".into());
-        }
-        let owner = window.hwnd().map_err(|_| "nexo.local.dialogFailed")?.0 as isize;
-        let Some(path) = SystemCatalogPicker(owner).pick_catalog()? else {
-            return Ok(None);
-        };
-        let store = crate::config::store(&app, &window)?;
-        let lock = app.state::<crate::config::ConfigLock>();
-        let fence = app.state::<RefreshFence>();
-        catalog::set(
-            &store,
-            &lock,
-            &SystemFs,
-            &SystemCatalogReader,
-            &SelectedCatalogPath(path),
-            &fence,
-            source_id.as_deref(),
-        )
-    })
-    .await
-    .map_err(|_| "nexo.local.refused".to_string())?
-}
-
-#[tauri::command]
-pub(crate) async fn local_catalog_refresh(
-    app: AppHandle,
-    window: WebviewWindow,
-    source_id: String,
-) -> Result<LocalCatalogSnapshot, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let store = crate::config::store(&app, &window)?;
-        let lock = app.state::<crate::config::ConfigLock>();
-        let fence = app.state::<RefreshFence>();
-        catalog::refresh(
-            &store,
-            &lock,
-            &SystemFs,
-            &SystemCatalogReader,
-            &fence,
-            &source_id,
-        )
-    })
-    .await
-    .map_err(|_| "nexo.local.refused".to_string())?
-}
-
-#[tauri::command]
-pub(crate) async fn local_catalog_clear(
-    app: AppHandle,
-    window: WebviewWindow,
-    source_id: String,
-) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let store = crate::config::store(&app, &window)?;
-        let lock = app.state::<crate::config::ConfigLock>();
-        let fence = app.state::<RefreshFence>();
-        catalog::clear(&store, &lock, &fence, &source_id)
-    })
-    .await
-    .map_err(|_| "nexo.local.refused".to_string())?
-}
-
-#[tauri::command]
-pub(crate) async fn local_catalog_bind(
-    app: AppHandle,
-    window: WebviewWindow,
-    key: LocalEntryKey,
-) -> Result<Option<LocalBinding>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(path) = selected_path(&window)? else {
-            return Ok(None);
-        };
-        let store = crate::config::store(&app, &window)?;
-        let lock = app.state::<crate::config::ConfigLock>();
-        let fence = app.state::<RefreshFence>();
-        catalog::bind(
-            &store,
-            &lock,
-            &SystemFs,
-            &SystemCatalogReader,
-            &SelectedPath(path),
-            &fence,
-            &key,
-        )
-    })
-    .await
-    .map_err(|_| "nexo.local.refused".to_string())?
-}
-
-#[tauri::command]
-pub(crate) async fn local_catalog_unbind(
-    app: AppHandle,
-    window: WebviewWindow,
-    key: LocalEntryKey,
-) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let store = crate::config::store(&app, &window)?;
-        let lock = app.state::<crate::config::ConfigLock>();
-        catalog::unbind(&store, &lock, &key)
-    })
-    .await
-    .map_err(|_| "nexo.local.refused".to_string())?
-}
-
-#[tauri::command]
-pub(crate) async fn local_catalog_open(
-    app: AppHandle,
-    window: WebviewWindow,
-    key: LocalEntryKey,
-) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let store = crate::config::store(&app, &window)?;
-        let lock = app.state::<crate::config::ConfigLock>();
-        let fence = app.state::<RefreshFence>();
-        catalog::open(
-            &store,
-            &lock,
-            &SystemFs,
-            &SystemCatalogReader,
-            &SystemLauncher,
-            &fence,
-            &key,
-        )
     })
     .await
     .map_err(|_| "nexo.local.refused".to_string())?

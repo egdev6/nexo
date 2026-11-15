@@ -8,8 +8,8 @@ export function FirstRun({ onChoose, onPreview }: FirstRunProps) {
   const [language, setLanguage] = useState<Language>('es');
   return <section className="first-run" aria-label={t('es', 'firstRun.label')}>
     <p className="first-run__eyebrow"><span lang="es">{t('es', 'firstRun.eyebrowEs')}</span> <span lang="en">{t('es', 'firstRun.eyebrowEn')}</span></p>
-    <h1><span lang="es">{t('es', 'firstRun.titleEs')}</span> <span lang="en">{t('es', 'firstRun.titleEn')}</span></h1>
-    <p className="first-run__description"><span lang="es">{t('es', 'firstRun.hintEs')}</span><br /><span lang="en">{t('es', 'firstRun.hintEn')}</span></p>
+    <h1><span lang="es">{t('es', 'firstRun.titleEs')}</span> <span aria-hidden="true">-</span> <span lang="en">{t('es', 'firstRun.titleEn')}</span></h1>
+    <p className="first-run__description"><span lang="es">{t('es', 'firstRun.hintEs')}</span> <span aria-hidden="true">-</span> <span lang="en">{t('es', 'firstRun.hintEn')}</span></p>
     <div className="first-run__legend"><span lang="es">{t('es', 'firstRun.languageEs')}</span> <span lang="en">{t('es', 'firstRun.languageEn')}</span></div>
     <RadioGroup className="first-run__choices" label={t('es', 'firstRun.label')} orientation="horizontal" value={language}
       options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]}

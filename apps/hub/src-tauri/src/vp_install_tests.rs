@@ -37,7 +37,20 @@ fn vp_redirect_accepts_only_exact_asset_hosts_after_normalization() {
     }
 }
 #[test]
-fn vp_local_catalogs_reject_v3_even_when_valid() {
+fn official_parser_still_accepts_full_integration_and_projects_news() {
+    let official = nexo_catalog::parse_catalog(include_str!(
+        "../../../../crates/nexo-catalog/fixtures/full.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        official.apps[0].integration_level,
+        nexo_catalog::IntegrationLevel::Full
+    );
+    assert_eq!(official.apps[0].news.len(), 1);
+}
+
+#[test]
+fn vp_official_catalogs_validate_v3_keys_and_reject_them_in_v2() {
     use base64::{Engine, engine::general_purpose::STANDARD};
     let mut raw = [0_u8; 42];
     raw[..2].copy_from_slice(b"Ed");
@@ -53,7 +66,5 @@ fn vp_local_catalogs_reject_v3_even_when_valid() {
         serde_json::json!({"schemaVersion": version, "apps": [app]}).to_string()
     };
     assert!(nexo_catalog::parse_catalog(&doc(3, Some(&key))).is_ok());
-    assert!(crate::local_catalog::parse_local_catalog("s", &doc(3, Some(&key))).is_err());
-    assert!(crate::local_catalog::parse_local_catalog("s", &doc(3, None)).is_err());
     assert!(nexo_catalog::parse_catalog(&doc(2, Some(&key))).is_err());
 }

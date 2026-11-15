@@ -182,7 +182,7 @@ fn add_uses_picker_defaults_to_stem_warns_on_duplicate_and_preserves_existing_da
     assert_eq!(raw["unknown"], 42);
     assert_eq!(raw["sources"][0]["metadata"]["keep"], 1);
     assert_eq!(raw["localApps"][0]["metadata"]["keep"], 2);
-    assert_eq!(raw["localBindings"][0]["metadata"]["keep"], 3);
+    assert!(raw.get("localBindings").is_none());
     assert!(reloaded.compact);
 }
 
@@ -251,7 +251,7 @@ fn remove_changes_only_the_selected_entry_and_never_the_selected_files() {
     assert_eq!(std::fs::read(&icon).unwrap(), b"icon fixture");
     let raw = f.json();
     assert_eq!(raw["localApps"], json!([]));
-    assert_eq!(raw["localBindings"][0]["metadata"]["keep"], 3);
+    assert!(raw.get("localBindings").is_none());
     assert_eq!(raw["sources"][0]["metadata"]["keep"], 1);
     let original = f.raw();
     assert_eq!(
@@ -282,7 +282,10 @@ fn repair_preserves_record_on_cancel_or_failure_and_updates_only_selected_path()
         .unwrap();
     assert_eq!(result.app.name, "Original");
     assert_eq!(result.app.executable, "C:\\Apps\\Other.exe");
-    assert!(result.duplicate);
+    assert!(
+        !result.duplicate,
+        "discarded catalog bindings do not mark duplicates"
+    );
     assert_eq!(result.app.icon.as_deref(), Some("C:\\icon.png"));
     assert_eq!(f.json()["localApps"][0]["metadata"]["keep"], 2);
 }
@@ -387,5 +390,5 @@ fn concurrent_local_add_and_settings_patch_share_the_same_lock() {
     let settings = f.store.read().settings;
     assert_eq!(settings.language, "es");
     assert_eq!(settings.local_apps.len(), 2);
-    assert_eq!(settings.local_bindings.len(), 1);
+    assert!(f.json().get("localBindings").is_none());
 }

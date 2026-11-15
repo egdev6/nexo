@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
-import type { HubSettings } from '../model';
+import type { HubSettings, Language } from '../model';
 import { SettingsView } from './index';
 import { LocaleProvider } from '../i18n/use-locale';
 
@@ -21,14 +21,14 @@ const initial: HubSettings = {
   accent: '#ff0036', compact: false, opacity: 85, blur: 24,
 };
 
-function setup() {
+function setup(locale: Language = 'es') {
   const onChange = vi.fn();
   const onClose = vi.fn();
   function Harness() {
     const [settings, setSettings] = useState(initial);
     return <SettingsView settings={settings} onClose={onClose} onChange={next => { onChange(next); setSettings(next); }} />;
   }
-  render(<LocaleProvider locale="es"><Harness /></LocaleProvider>);
+  render(<LocaleProvider locale={locale}><Harness /></LocaleProvider>);
   return { onChange, onClose };
 }
 
@@ -50,15 +50,24 @@ it('switches the four settings sections with the keyboard and shows their conten
   expect(appearance.getAttribute('aria-selected')).toBe('true');
   expect(screen.getByText('Color de acento')).toBeTruthy();
   fireEvent.keyDown(appearance, { key: 'ArrowRight' });
-  const sources = screen.getByRole('tab', { name: 'Fuentes del catálogo' });
-  await waitFor(() => expect(document.activeElement).toBe(sources));
-  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
-  expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(true);
-  fireEvent.keyDown(sources, { key: 'ArrowRight' });
+  const localApps = screen.getByRole('tab', { name: 'Apps locales' });
+  await waitFor(() => expect(document.activeElement).toBe(localApps));
+  expect(screen.getByText('No hay apps locales.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Añadir app' }).hasAttribute('disabled')).toBe(true);
+  fireEvent.keyDown(localApps, { key: 'ArrowRight' });
   const about = screen.getByRole('tab', { name: 'Acerca de' });
   await waitFor(() => expect(document.activeElement).toBe(about));
   expect(screen.getByText(/Versión 0\.1\.0/)).toBeTruthy();
   expect(screen.getByRole('button', { name: /Buscar actualizaciones/ }).hasAttribute('disabled')).toBe(true);
+});
+
+it.each([
+  ['es', 'Acerca de', 'Tipografía Barlow · SIL Open Font License 1.1'],
+  ['en', 'About', 'Barlow typeface · SIL Open Font License 1.1'],
+] as const)('shows the font license credit in About (%s)', (locale, label, credit) => {
+  setup(locale);
+  tab(label);
+  expect(screen.getByText(credit)).toBeTruthy();
 });
 
 it('selects each preset with a visible selected state and emits full settings', () => {
@@ -135,9 +144,8 @@ it('changes language in General and retains all other settings', () => {
   expect(onChange).toHaveBeenLastCalledWith(initial);
 });
 
-it('keeps the existing back action and offers a close action', () => {
+it('keeps the existing back action', () => {
   const { onClose } = setup();
   fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes' }));
-  expect(onClose).toHaveBeenCalledTimes(2);
+  expect(onClose).toHaveBeenCalledOnce();
 });

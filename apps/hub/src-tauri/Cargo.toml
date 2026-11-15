@@ -35,7 +35,7 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 tauri-plugin-nexo = { path = "../../../crates/tauri-plugin-nexo" }
 tokio = { version = "1", features = ["net"] }
-windows-sys = { version = "0.61", features = ["Wdk_System_Registry", "Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Controls_Dialogs", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Wdk_System_Registry", "Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Dwm", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Controls_Dialogs", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 winreg = "0.56"
 # Tauri's effect helper does not report whether the OS applied the backdrop.
 window-vibrancy = "0.8.1"

@@ -12,7 +12,6 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => t
 const png = 'data:image/png;base64,iVBORw0KGgo=';
 const ico = 'data:image/x-icon;base64,AAABAA==';
 const path = 'C:\\Nexo\\local-icons\\icon-old.png';
-const catalog: LocalAppRow = { id: 'local:catalog:1', source: 'local', name: 'Catalog', state: 'unbound', origin: { kind: 'catalog', sourceId: 'source', sourceLabel: 'Local source', appId: 'catalog' } };
 let row: LocalAppRow;
 let iconResponse: string | null;
 let cancel: boolean;
@@ -24,7 +23,7 @@ beforeEach(() => {
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string) => {
     if (command === 'get_settings') return { settings: { sources: [] } };
-    if (command === 'local_apps_list') return [{ ...row }, catalog];
+    if (command === 'local_apps_list') return [{ ...row }];
     if (command === 'local_app_icon') return iconResponse;
     if (command === 'local_app_pick_icon') {
       if (cancel) return null;
@@ -64,13 +63,11 @@ it('requests native icon data using only the opaque app ID', async () => {
   expect(await localAppIcon('manual-1')).toBeNull();
 });
 
-it.each(['apps', 'settings'] as const)('%s renders PNG and ICO local icons as decorative images and keeps catalog fallback', async view => {
+it.each(['apps', 'settings'] as const)('%s renders PNG and ICO local icons as decorative images', async view => {
   mount(view);
   const editor = await loaded(view);
   await waitFor(() => expect(editor.querySelector('img')?.getAttribute('src')).toBe(png));
   expect(editor.querySelector('img')?.getAttribute('alt')).toBe('');
-  expect(avatar('Catalog', view).textContent).toBe('C');
-  expect(entry('Catalog', view).querySelector('img')).toBeNull();
   expect(bridge.invoke.mock.calls.filter(([command]) => command === 'local_app_icon')).toEqual([['local_app_icon', { id: 'manual-1' }]]);
   cleanup();
   iconResponse = ico;

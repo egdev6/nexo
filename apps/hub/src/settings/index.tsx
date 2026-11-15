@@ -1,20 +1,22 @@
-import { Button, Field, Icon, IconButton, RadioGroup, Slider, Switch, Tabs } from '@egdev/ui';
+import { Button, Field, Icon, IconButton, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
 import { formatNumber, t, type MessageKey, type Params } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { ACCENT_PRESETS, DEFAULT_ACCENT, derivePalette, normalizeHex } from './palette';
+import { useExternalLinks } from '../apps/details';
 import { LocalManagement } from './local-management';
 import './settings.css';
 
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
 
-export function SettingsView({ settings, onChange, onClose, sources: configuredSources, autostart, languagePending }: SettingsViewProps) {
+export function SettingsView({ settings, onChange, onClose, autostart, languagePending }: SettingsViewProps) {
   const locale = useLocale();
   const tr = (key: MessageKey, params?: Params) => t(locale, key, params);
   const id = useId();
+  const { open, failed } = useExternalLinks();
   const selected = normalizeHex(settings.accent);
   const tones = derivePalette(selected);
   const update = <K extends keyof HubSettings>(key: K, value: HubSettings[K]) => onChange({ ...settings, [key]: value });
@@ -85,13 +87,27 @@ export function SettingsView({ settings, onChange, onClose, sources: configuredS
     <p className="settings__foot">{tr('settings.appearanceFoot')}</p>
   </>;
 
-  const sources = <LocalManagement initialSources={configuredSources} />;
+  const localApps = <LocalManagement />;
 
   const about = <>
     <section className="settings__group" aria-labelledby={`${id}-about`}>
       <h2 id={`${id}-about`}>{tr('settings.about')}</h2>
       <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: '0.1.0' })}</span></div>
         <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.updates')}</Button></div>
+      <p className="settings__hint">{tr('settings.fontCredit')}</p>
+    </section>
+    <section className="settings__group" aria-labelledby={`${id}-author`}>
+      <h2 id={`${id}-author`}>{tr('settings.author')}</h2>
+      <p className="settings__author-name">{tr('settings.authorName')}</p>
+      <SocialLinks label={tr('settings.authorLinks')} caption={null} variant="ghost" size="md" onClick={open} items={[
+        { id: 'youtube', href: 'https://www.youtube.com/@egdev6', label: tr('app.youtube'), icon: <Icon name="youtube" /> },
+        { id: 'twitch', href: 'https://twitch.tv/egdev6', label: tr('settings.twitch'), icon: <Icon name="twitch" /> },
+        { id: 'x', href: 'https://x.com/egdev66', label: tr('settings.x'), icon: <Icon name="x" /> },
+        { id: 'linkedin', href: 'https://www.linkedin.com/in/egdev6/', label: tr('settings.linkedin'), icon: <Icon name="linkedin" /> },
+        { id: 'instagram', href: 'https://www.instagram.com/egdev6/', label: tr('settings.instagram'), icon: <Icon name="instagram" /> },
+        { id: 'github', href: 'https://github.com/egdev6', label: tr('app.github'), icon: <Icon name="github" /> },
+      ]} />
+      {failed && <p role="alert" className="status-warning">{tr('app.externalError')}</p>}
     </section>
     <p className="settings__foot">{tr('settings.aboutFoot')}</p>
   </>;
@@ -100,12 +116,11 @@ export function SettingsView({ settings, onChange, onClose, sources: configuredS
     <header className="settings__header">
       <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
       <div><h1>{tr('common.settings')}</h1><p>{tr('settings.subtitle')}</p></div>
-      <IconButton label={tr('settings.close')} title={tr('settings.close')} icon={<Icon name="close" />} variant="secondary" onClick={onClose} />
     </header>
     <Tabs className="settings__tabs" variant="segmented" label={tr('settings.sections')} items={[
       { value: 'general', label: tr('settings.general'), content: general },
       { value: 'appearance', label: tr('settings.appearance'), content: appearance },
-      { value: 'sources', label: tr('settings.sources'), content: sources },
+      { value: 'local-apps', label: tr('localApps.heading'), content: localApps },
       { value: 'about', label: tr('settings.about'), content: about },
     ]} />
   </section>;

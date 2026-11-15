@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 
-const VERSION: u64 = 3;
+const VERSION: u64 = 4;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -40,14 +40,6 @@ pub struct LocalApp {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct LocalBinding {
-    pub source_id: String,
-    pub app_id: String,
-    pub executable: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub language: String,
     pub start_with_windows: bool,
@@ -60,7 +52,6 @@ pub struct Settings {
     pub sources: Vec<Source>,
     pub news_visit: Option<NewsVisit>,
     pub local_apps: Vec<LocalApp>,
-    pub local_bindings: Vec<LocalBinding>,
 }
 
 impl Default for Settings {
@@ -76,7 +67,6 @@ impl Default for Settings {
             first_run_complete: false,
             news_visit: None,
             local_apps: Vec::new(),
-            local_bindings: Vec::new(),
             sources: vec![Source {
                 id: "official".into(),
                 label: "Catálogo oficial egdev".into(),
@@ -151,7 +141,7 @@ fn sanitize_sources(raw: &Value, fallback: Vec<Source>) -> Vec<Source> {
         };
         if source.id.trim().is_empty()
             || source.label.trim().is_empty()
-            || !matches!(source.kind.as_str(), "official" | "local")
+            || source.kind != "official"
             || result.iter().any(|old: &Source| old.id == source.id)
         {
             continue;
@@ -175,26 +165,6 @@ fn sanitize_local_apps(raw: &Value) -> Vec<LocalApp> {
             continue;
         }
         result.push(app);
-    }
-    result
-}
-
-fn sanitize_local_bindings(raw: &Value) -> Vec<LocalBinding> {
-    let mut result = Vec::new();
-    for value in raw.as_array().into_iter().flatten() {
-        let Ok(binding) = serde_json::from_value::<LocalBinding>(value.clone()) else {
-            continue;
-        };
-        if binding.source_id.trim().is_empty()
-            || binding.app_id.trim().is_empty()
-            || binding.executable.trim().is_empty()
-            || result.iter().any(|old: &LocalBinding| {
-                old.source_id == binding.source_id && old.app_id == binding.app_id
-            })
-        {
-            continue;
-        }
-        result.push(binding);
     }
     result
 }
@@ -249,13 +219,10 @@ fn settings_from(map: &Map<String, Value>) -> Settings {
             .get("newsVisit")
             .and_then(|value| serde_json::from_value(value.clone()).ok());
     }
-    if version >= 3 {
-        if let Some(value) = map.get("localApps") {
-            settings.local_apps = sanitize_local_apps(value);
-        }
-        if let Some(value) = map.get("localBindings") {
-            settings.local_bindings = sanitize_local_bindings(value);
-        }
+    if version >= 3
+        && let Some(value) = map.get("localApps")
+    {
+        settings.local_apps = sanitize_local_apps(value);
     }
     settings
 }
@@ -319,23 +286,13 @@ impl Store {
         if let Some(sources) = patch.sources.as_ref() {
             let previous = settings_from(&map).sources;
             let invalid_change = sources.iter().any(|source| {
-                match previous.iter().find(|old| old.id == source.id) {
-                    Some(old) => old.kind != source.kind || old.location != source.location,
-                    None => source.kind == "local" || source.location.is_some(),
-                }
+                source.kind == "local"
+                    || match previous.iter().find(|old| old.id == source.id) {
+                        Some(old) => old.kind != source.kind || old.location != source.location,
+                        None => source.location.is_some(),
+                    }
             });
-            // Check the same sanitized projection that will be saved, so an
-            // invalid or duplicate descriptor cannot silently remove a source.
-            let sanitized = sanitize_sources(&json!(sources), Vec::new());
-            let removed_local = previous.iter().any(|old| {
-                old.kind == "local"
-                    && !sanitized.iter().any(|source| {
-                        source.id == old.id
-                            && source.kind == old.kind
-                            && source.location == old.location
-                    })
-            });
-            if invalid_change || removed_local {
+            if invalid_change {
                 return Err("nexo.config.sourceSelectionRequired".into());
             }
         }
@@ -347,8 +304,9 @@ impl Store {
         }
         if version < 3 {
             map.remove("localApps");
-            map.remove("localBindings");
         }
+        // Local catalog bindings no longer belong to any settings version.
+        map.remove("localBindings");
         // Source descriptors belong to #9 as well: preserve unrecognized per-source
         // metadata when a known descriptor survives a settings patch.
         let old_sources = map
@@ -377,9 +335,9 @@ impl Store {
         let settings = settings_from(&map);
         let known = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
         for (key, value) in known.as_object().expect("settings is an object") {
-            // Generic settings patches cannot edit local associations. Keep their
+            // Generic settings patches cannot edit manual apps. Keep their
             // original representation, including unknown and rejected entries.
-            if matches!(key.as_str(), "localApps" | "localBindings") && map.contains_key(key) {
+            if key == "localApps" && map.contains_key(key) {
                 continue;
             }
             if key == "sources" {
@@ -394,7 +352,8 @@ impl Store {
                             .iter()
                             .find_map(|old| {
                                 let old = old.as_object()?;
-                                (old.get("id") == id).then(|| old.clone())
+                                (old.get("id") == id && old.get("kind") == fields.get("kind"))
+                                    .then(|| old.clone())
                             })
                             .unwrap_or_default();
                         for known_key in ["id", "label", "kind", "location"] {
@@ -430,15 +389,6 @@ impl Store {
             change(entries, settings)
         })
         .map(|(_, result)| result)
-    }
-
-    #[cfg(any(windows, test))]
-    pub(crate) fn mutate_local_catalog<T>(
-        &self,
-        change: impl FnOnce(&mut Map<String, Value>, &Settings) -> Result<T, String>,
-    ) -> Result<T, String> {
-        self.patch_with(Patch::default(), change)
-            .map(|(_, result)| result)
     }
 
     #[cfg(any(windows, test))]

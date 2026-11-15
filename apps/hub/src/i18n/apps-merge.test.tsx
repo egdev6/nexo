@@ -29,7 +29,9 @@ afterEach(cleanup);
 
 it('localizes installation, open and unknown reasons without translating app data', async () => {
   render(<FlyoutPanel apps={[installed, unknown]} news={[]} onAppsRefresh={() => {}} />);
-  expect(await screen.findByText('Installed: 9.1')).toBeTruthy();
+  await screen.findByText('Example');
+  fireEvent.click(screen.getByRole('button', { name: /Example.*Running status unknown/ }));
+  expect(screen.getByText('9.1')).toBeTruthy();
   expect(screen.getByText('Running status unknown')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Open Example' })).toBeTruthy();
   const region = screen.getByRole('region', { name: 'Installation unknown' });
@@ -40,9 +42,10 @@ it('localizes installation, open and unknown reasons without translating app dat
 
 it('localizes connected controls and preserves the app-provided refusal verbatim', async () => {
   render(<FlyoutPanel apps={[installed]} news={[]} onAppsRefresh={() => {}} />);
-  await screen.findByText('Installed: 9.1');
+  await screen.findByText('Example');
   act(() => bridge.publish!({ revision: 1, apps: [{ app: { id: 'example', name: 'Example', version: '2.0' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
   expect(screen.getByRole('button', { name: 'Open Example' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Example.*Connected/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Close Example' }));
   expect((await screen.findByRole('alert')).textContent).toContain('cambios sin guardar');
   expect(bridge.invoke).toHaveBeenCalledWith('close_connected_app', { id: 'example' });

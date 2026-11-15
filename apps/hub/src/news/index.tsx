@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Badge, Button, Carousel, Checkbox, Icon, IconButton } from '@egdev/ui';
-import type { NewsPopupProps } from '../model';
+import type { NewsItem, NewsPopupProps } from '../model';
 import { formatNumber, t } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import nexoLogo from '../../src-tauri/app-icon.svg';
@@ -16,9 +16,11 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
     instructions: t(locale, 'news.instructions'),
     position: (current: number, total: number, label: string) => t(locale, 'news.position', { current: formatNumber(locale, current), total: formatNumber(locale, total), label }),
   };
-  const [selected, setSelected] = useState(items[0]?.id);
-  const [viewed, setViewed] = useState(() => new Set(items[0] ? [items[0].id] : []));
-  const current = items.find(item => item.id === selected) ?? items[0];
+  // Official news arrives in newest-first order; keep the rest unseen for a later opening.
+  const displayed = items.slice(0, 4);
+  const [selected, setSelected] = useState(displayed[0]?.id);
+  const [viewed, setViewed] = useState(() => new Set(displayed[0] ? [displayed[0].id] : []));
+  const current = displayed.find(item => item.id === selected) ?? displayed[0];
   const cta = current?.cta === t('es', 'news.viewCatalog') ? t(locale, 'news.viewCatalog') : current?.cta;
   const titleId = useId();
   const checkboxId = useId();
@@ -31,8 +33,23 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   onShownRef.current = onShown;
 
   useLayoutEffect(() => {
-    if (current) onShownRef.current?.(current);
+    if (current) {
+      onShownRef.current?.(current);
+      setViewed(previous => previous.has(current.id) ? previous : new Set(previous).add(current.id));
+    }
   }, [current?.id]);
+
+  function select(value: string) {
+    setSelected(value);
+    setViewed(previous => new Set(previous).add(value));
+  }
+
+  function slideContent(item: NewsItem) {
+    return <article className="news-slide">
+      <div className="news-hero" aria-hidden="true"><div className="news-hero-window"><span>{item.title.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div></div>
+      <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge> {!viewed.has(item.id) && <Badge tone="brand">{t(locale, 'news.unseen')}</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
+    </article>;
+  }
 
   // DialogContent is body-portalled; this modal must stay inside the positioned panel.
   useLayoutEffect(() => {
@@ -86,14 +103,14 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
       </header>
       {stale && <p role="status">{t(locale, 'catalog.stale')}</p>}
       <div className="news-carousel">
-        <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id} onValueChange={value => {
-          setSelected(value);
-          setViewed(previous => new Set(previous).add(value));
-        }}
-          items={items.map(item => ({ value: item.id, label: item.title, children: <article className="news-slide">
-            <div className="news-hero" aria-hidden="true"><div className="news-hero-window"><span>{item.title.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div></div>
-            <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge> {!viewed.has(item.id) && <Badge tone="brand">{t(locale, 'news.unseen')}</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
-          </article> }))} />
+        {displayed.length === 1 ? slideContent(displayed[0]) : <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id} onValueChange={select}
+          items={displayed.map(item => ({ value: item.id, label: item.title, children: slideContent(item) }))} />}
+        {displayed.length > 1 && <div className="news-indicators" role="group" aria-label={t(locale, 'news.selectSlide')}>
+          {displayed.map((item, index) => <IconButton key={item.id} type="button" className="news-indicator" size="sm" variant="ghost"
+            label={t(locale, 'news.goTo', { position: messages.position(index + 1, displayed.length, item.title) })}
+            aria-current={current?.id === item.id ? 'true' : undefined} onClick={() => select(item.id)}
+            icon={<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" /></svg>} />)}
+        </div>}
       </div>
       {current && <div className="news-action"><Button type="button" size="sm" variant="primary" data-app-id={current.appId}
         aria-label={t(locale, onCatalog ? 'news.catalogCta' : 'news.sampleCta', { cta: cta ?? '', title: current.title })} title={onCatalog ? undefined : t(locale, 'news.sampleAction')}

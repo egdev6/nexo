@@ -111,12 +111,14 @@ it('hydrates a saved English preference before showing English chrome, without t
   expect(document.documentElement.lang).toBe('en');
   expect(screen.getByRole('button', { name: 'Settings' }).getAttribute('title')).toBe('Settings');
   expect(screen.getByRole('button', { name: 'Close panel' }).getAttribute('title')).toBe('Close panel');
+  fireEvent.click(screen.getByRole('button', { name: /Externa.*Connected/ }));
   expect(screen.getByText(/Pausar original/).textContent).toContain('Pausar original');
   const catalog = screen.getByRole('tab', { name: 'Catalog' });
   fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
   const card = screen.getByRole('article', { name: 'Exterior' });
   expect(within(card).getByText('Texto original')).toBeTruthy();
-  expect(within(card).getByText('Etiqueta original')).toBeTruthy();
+  expect(within(card).queryByText('Etiqueta original')).toBeNull();
+  expect(external.tags).toEqual(['Etiqueta original']);
 });
 
 it('only exposes the list after saving the English first-run choice and restores it on restart', async () => {

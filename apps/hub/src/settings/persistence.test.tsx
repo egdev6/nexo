@@ -34,7 +34,6 @@ beforeEach(() => {
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof initial> }) => {
     if (command === 'get_settings') return load ?? { settings: stored, state };
     if (command === 'local_apps_list') return [];
-    if (command === 'local_catalog_refresh') return { sourceId: 'local-1', entries: [] };
     if (command === 'get_flyout_state') return { visible, sequence: visible ? 1 : 0, cycle: visible ? 1 : 0, at: Date.now() };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
@@ -89,7 +88,7 @@ it('completes onboarding only after the language and flag are saved, with retry 
   expect(stored.firstRunComplete).toBe(true);
 });
 
-it('restores appearance, skips onboarding and renders configured sources', async () => {
+it('restores appearance, skips onboarding and preserves configured sources', async () => {
   stored = { ...stored, firstRunComplete: true, showNewsOnOpen: false, accent: '#3b82f6', compact: true, opacity: 0, blur: 40,
     sources: [official, { id: 'local-1', label: 'Trabajo', kind: 'local' }] };
   render(<App />);
@@ -101,10 +100,11 @@ it('restores appearance, skips onboarding and renders configured sources', async
   expect(main.style.getPropertyValue('--hub-density')).toBe('0.8');
   expect(main.style.getPropertyValue('--hub-opacity')).toBe('0');
   expect(main.style.getPropertyValue('--hub-blur')).toBe('40px');
-  await openSettings(); tab('Fuentes del catálogo');
-  expect(screen.getByText('Catálogo oficial egdev')).toBeTruthy();
-  expect(screen.getByText('Trabajo')).toBeTruthy();
-  await waitFor(() => expect(screen.getByRole('button', { name: /Añadir fuente local/ }).hasAttribute('disabled')).toBe(false));
+  await openSettings(); tab('Apps locales');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Añadir app' }).hasAttribute('disabled')).toBe(false));
+  expect(screen.queryByText('Catálogo oficial egdev')).toBeNull();
+  expect(screen.queryByText('Trabajo')).toBeNull();
+  expect(stored.sources).toEqual([official, { id: 'local-1', label: 'Trabajo', kind: 'local' }]);
 });
 
 it('persists the popup opt-out and shares it with settings after a restart', async () => {
@@ -238,8 +238,8 @@ it('flushes pending settings before a tray-requested hub-only exit', async () =>
 });
 
 it.each([
-  ['es', 'Ajustes', 'English', 'Las fuentes locales deben cambiarse mediante la selección nativa.'],
-  ['en', 'Settings', 'Español', 'Local sources must be changed using native selection.'],
+  ['es', 'Ajustes', 'English', 'No se puede cambiar la fuente del catálogo de esta manera.'],
+  ['en', 'Settings', 'Español', 'The catalog source cannot be changed this way.'],
 ])('localizes a rejected source change in %s without saving', async (language, settingsLabel, choice, message) => {
   stored.language = language; stored.firstRunComplete = true; stored.showNewsOnOpen = false;
   const normalInvoke = bridge.invoke.getMockImplementation()!;

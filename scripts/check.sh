@@ -105,7 +105,8 @@ fi
   cd apps/hub || exit 1
   export npm_config_update_notifier=false
   step tsc npx tsc --noEmit
-  if ! step vitest npx vitest run --reporter=verbose; then
+  # --configLoader runner avoids writing node_modules/.vite-temp, so parallel runs do not collide.
+  if ! step vitest npx vitest run --configLoader runner --reporter=verbose; then
     { echo "## vitest"; grep -E '^\s*(×|FAIL)' "$logs/vitest.log" | sort -u; echo; } >> "$failures"
     grep -E '^\s*(×|FAIL)' "$logs/vitest.log" | sort -u | sed 's/^/      failed: /'
   fi
