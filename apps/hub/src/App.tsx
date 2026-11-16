@@ -322,14 +322,16 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
         <IconButton label={t(locale, 'app.closePanel')} title={t(locale, 'app.closePanel')} variant="ghost" icon={<Icon name="close" />} onClick={hidePanel} />
       </div>
     </div></header>
-    {visibilityError && <Notice tone="danger" summary={t(locale, 'app.visibilityError', { error: visibilityError })} />}
-    {registryFailed && <Notice tone="danger" summary={t(locale, 'app.registryError')} />}
-    {actionMessage && <Notice size="sm" tone={actionMessage.error ? 'danger' : actionMessage.warning ? 'warning' : 'success'} summary={actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text} />}
-    {registry.notice && <Notice tone="danger" summary={noticeText(locale, registry.notice)} actions={registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
-      if (await store.flush()) await exitHubOnly();
-    })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>{t(locale, 'app.hubOnly')}</Button>} />}
-    {store.nativeError && <Notice tone="danger" summary={`${t(locale, 'native.refreshError', { error: store.nativeError })} `} actions={<Button variant="neutral" size="sm" onClick={store.retryNative}>{t(locale, 'native.refreshRetry')}</Button>} />}
-    {store.error && <Notice tone="danger" lang={errorLocale} summary={`${t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : store.error.detail ?? '' })} `} actions={<Button variant="neutral" size="sm" onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}>{t(errorLocale, 'common.retry')}</Button>} />}
+    <div className="panel-notices">
+      {visibilityError && <Notice tone="danger" summary={t(locale, 'app.visibilityError', { error: visibilityError })} />}
+      {registryFailed && <Notice tone="danger" summary={t(locale, 'app.registryError')} />}
+      {actionMessage && <Notice size="sm" tone={actionMessage.error ? 'danger' : actionMessage.warning ? 'warning' : 'success'} summary={actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text} />}
+      {registry.notice && <Notice tone="danger" summary={noticeText(locale, registry.notice)} actions={registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
+        if (await store.flush()) await exitHubOnly();
+      })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>{t(locale, 'app.hubOnly')}</Button>} />}
+      {store.nativeError && <Notice tone="danger" summary={`${t(locale, 'native.refreshError', { error: store.nativeError })} `} actions={<Button variant="neutral" size="sm" onClick={store.retryNative}>{t(locale, 'native.refreshRetry')}</Button>} />}
+      {store.error && <Notice tone="danger" lang={errorLocale} summary={`${t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : store.error.detail ?? '' })} `} actions={<Button variant="neutral" size="sm" onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}>{t(errorLocale, 'common.retry')}</Button>} />}
+    </div>
     {store.fileState === null ? <p role="status" className="settings__foot">{t(locale, 'app.loadingSettings')}</p> : !usable ? <div className="settings__foot">
       {!store.error && <p role="alert">{t(locale, store.fileState === 'future' ? 'app.futureSettings' : 'app.unreadableSettings')}</p>}
       {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>{t(locale, 'app.recoverSettings')}</Button>}

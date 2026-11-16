@@ -195,3 +195,23 @@ it('preserves the disabled official install action alongside discovery links', (
   expect((within(card).getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
   expect(within(card).getByRole('link', { name: /GitHub/i }).getAttribute('href')).toBe(app.links?.github);
 });
+
+it.each([
+  ['es', '¿Te resultan útiles estas apps? Dales una estrella en', 'GitHub'],
+  ['en', 'Find these apps useful? Give them a star on', 'GitHub'],
+] as const)('asks for a GitHub star under the catalog heading in %s and opens the author profile', async (locale, text, link) => {
+  native.locale = locale;
+  render(<CatalogView apps={apps} />);
+  const prompt = screen.getByText(text, { exact: false });
+  expect(prompt.closest('.catalog-star')).toBeTruthy();
+  const anchor = within(prompt.closest('.catalog-star') as HTMLElement).getByRole('link', { name: new RegExp(link) });
+  expect(anchor.getAttribute('href')).toBe('https://github.com/egdev6');
+  fireEvent.click(anchor);
+  await waitFor(() => expect(native.invoke).toHaveBeenCalledWith('open_external', { url: 'https://github.com/egdev6' }));
+  expect(declarationsFor('.catalog-star').color).toBe('var(--color-fg-secondary)');
+});
+
+function declarationsFor(selector: string) {
+  const match = css.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`));
+  return Object.fromEntries((match?.[1] ?? '').split(';').map(part => part.split(':').map(value => value.trim())).filter(pair => pair[0]));
+}
