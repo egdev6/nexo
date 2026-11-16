@@ -10,6 +10,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 @supports (backdrop-filter: blur(20px)) and (background: color-mix(in srgb, black 50%, transparent)) {
   .flyout { background: color-mix(in srgb, var(--color-surface-0) calc(var(--hub-opacity) * 100%), transparent); backdrop-filter: blur(var(--hub-blur)) saturate(150%); }
 }
+.flyout[data-backdrop="opaque"] { background: var(--color-surface-0); backdrop-filter: none; transition: none; }
 .panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
 .heading { display: flex; align-items: center; gap: var(--space-3); }
 .heading h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }

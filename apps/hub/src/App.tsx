@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { flushSync } from 'react-dom';
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, Tabs } from '@egdev/ui';
 import { LinkIcon } from './apps/action-icons';
 import { AppDetails } from './apps/details';
@@ -25,6 +26,7 @@ import { accentVariables, DEFAULT_ACCENT, normalizeHex } from './settings/palett
 import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import { requestFlyoutHide } from './shell/motion';
+import { observeFlyoutFocus } from './shell/focus';
 import { noticeText } from './shell/notice';
 import type { RegistryApp, RegistrySnapshot } from './shell/registry';
 import { backdropAvailable, hideFlyout } from './window';
@@ -163,10 +165,27 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const shown = settings ?? defaultSettings;
   const firstRun = !settings?.firstRunComplete;
   const usable = store.fileState === 'ready' || store.fileState === 'missing';
-  const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(finishNews);
+  const native = isTauri();
+  const [windowFocused, setWindowFocused] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const wasVisible = useRef(false);
+  const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(() => {
+    finishNews();
+    // Ignore the initial hidden snapshot: it can arrive after the first focus event.
+    if (wasVisible.current) flushSync(() => setWindowFocused(false));
+  });
+  useLayoutEffect(() => { if (visibility?.visible) wasVisible.current = true; }, [visibility?.visible]);
+  useEffect(() => observeFlyoutFocus(focused => {
+    flushSync(() => setWindowFocused(focused));
+  }), []);
+  // A refocus during the native exit must not make the backdrop translucent again;
+  // the exit state ends only when the panel is shown for a new cycle.
+  useLayoutEffect(() => {
+    if (visibility?.visible) setExiting(false);
+  }, [visibility?.cycle, visibility?.visible]);
   const refreshAppsRef = useRef(onAppsRefresh);
   refreshAppsRef.current = onAppsRefresh;
-  const installs = useCatalogInstalls(isTauri() && !!onAppsRefresh, apps, onAppsRefresh);
+  const installs = useCatalogInstalls(native && !!onAppsRefresh, apps, onAppsRefresh);
   useEffect(() => {
     if (visibility?.visible) refreshAppsRef.current?.();
   }, [visibility?.cycle, visibility?.visible]);
@@ -228,8 +247,10 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   }
 
   function hidePanel() {
+    // Commit the opaque surface before IPC can start the native exit slide.
+    if (native) flushSync(() => setExiting(true));
     finishNews();
-    if (isTauri()) requestFlyoutHide();
+    if (native) requestFlyoutHide();
     else void hideFlyout();
   }
 
@@ -284,7 +305,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const errorLocale = usable && firstRun ? previewLanguage : locale;
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <LocaleProvider locale={locale}><main className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}`} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle}>
+  return <LocaleProvider locale={locale}><main className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}`} data-backdrop={native && (!windowFocused || exiting) ? 'opaque' : undefined} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle}>
     <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">
