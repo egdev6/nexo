@@ -41,8 +41,13 @@ function OpenAction({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: s
   return <IconButton variant="ghost" size="md" type="button" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.name })} title={title} disabled={!enabled} onClick={() => onOpen?.(app.id)} />;
 }
 
-function AppIcon({ app }: { app: HubApp }) {
-  return <span aria-hidden="true" className={`app-icon ${app.id === 'antena' ? 'brand-icon' : ''}`}>{app.name[0]}</span>;
+// TODO(egdev-design-system#410): Replace with the DS square app identity once it supports image and initials.
+export function AppIcon({ app }: { app: Pick<HubApp, 'id' | 'name' | 'iconUrl'> }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const logo = app.iconUrl && failed !== app.iconUrl ? app.iconUrl : undefined;
+  return <span aria-hidden="true" className={`app-icon ${logo ? 'app-icon--logo' : app.id === 'antena' ? 'brand-icon' : ''}`}>
+    {logo ? <img src={logo} alt="" onError={() => setFailed(logo)} /> : app.name.trim().charAt(0).toUpperCase()}
+  </span>;
 }
 
 function Status({ app }: { app: HubApp }) {
@@ -77,7 +82,7 @@ function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, inst
   const canShow = !!onOpen && !!official && app.responsive && app.capabilities.includes('show') && !busy && !updateRunning(installs, app.app.id);
   return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
     <div className="app-row"><CollapsibleTrigger>
-      <span className="row-label"><span aria-hidden="true" className="app-icon">{app.app.name[0]}</span>
+      <span className="row-label"><AppIcon app={{ id: app.app.id, name: app.app.name, iconUrl: official?.iconUrl }} />
         <span className="app-info"><strong>{app.app.name}</strong>
           {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
         </span>

@@ -41,6 +41,8 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .update-notes { overflow-wrap: anywhere; white-space: pre-wrap; }
 .row-label { display: flex; align-items: center; gap: var(--space-4); }
 .app-icon { display: grid; place-items: center; flex: none; width: var(--space-12); height: var(--space-12); border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-3); font: 800 var(--space-6)/1 var(--font-display); }
+.app-icon--logo { overflow: hidden; padding: 0; background: var(--color-surface-0); }
+.app-icon--logo img { width: 100%; height: 100%; object-fit: cover; }
 .brand-icon { background: var(--color-action-primary-solid-bg); color: var(--color-action-primary-solid-fg); }
 .app-info { min-width: 0; flex: 1; }
 .app-info strong { display: block; margin-bottom: var(--space-1); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
