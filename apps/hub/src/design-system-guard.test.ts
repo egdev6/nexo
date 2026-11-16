@@ -148,3 +148,66 @@ it('accepts visible nexo TBD placeholders without accepting arbitrary issue refe
   expect(result.violations).toEqual([]);
   expect(result.pendingIssueCount).toBe(1);
 });
+
+it('allows a raw element only as the single Slot child of a component with asChild true', () => {
+  const content = [
+    'const allowed = <ListItem variant="editorial" asChild>',
+    '  <a href="/post"><ListItemBody /></a>',
+    '</ListItem>;',
+    'const explicit = <UI.Item asChild={true}><button type="button" /></UI.Item>;',
+    'const lower = <div asChild><a href="/lower" /></div>;',
+    'const disabled = <Card asChild={false}><a href="/off" /></Card>;',
+    'const two = <Card asChild><span /><a href="/two" /></Card>;',
+    'const none = <Card><a href="/none" /></Card>;',
+  ].join('\n');
+  expect(checkDesignSystem([{ file: 'src/slot.tsx', content }], []).violations.map(({ line, snippet }) => [line, snippet])).toEqual([
+    [5, '<a href="/lower" />'],
+    [6, '<a href="/off" />'],
+    [7, '<a href="/two" />'],
+    [8, '<a href="/none" />'],
+  ]);
+});
+
+it('uses the configured local repository for issue references and TBD placeholders', () => {
+  const files = [{ file: 'src/view.tsx', content: 'const a = <button />; const b = <input />;' }];
+  const result = checkDesignSystem(files, [
+    { file: 'src/view.tsx', pattern: '<button />', issue: 'egdev-website#TBD-x', reason: 'Awaiting issue.' },
+    { file: 'src/view.tsx', pattern: '<input />', issue: 'nexo#12', reason: 'Wrong repository.' },
+  ], { localRepo: 'egdev-website' });
+  expect(result.errors).toEqual(['src/view.tsx: invalid issue for allowlist entry <input />']);
+  expect(result.pendingIssueCount).toBe(1);
+});
+
+it('finds component-gap TODO comments after template literals and apostrophes in JSX text', () => {
+  const pattern = '<Cluster gap={4}>';
+  const comment = '// TODO(egdev-design-system#391): Replace with the DS switcher.';
+  const entry = { file: 'src/switch.tsx', pattern, comment, issue: 'egdev6/egdev-design-system#391', reason: 'Gap.', kind: 'component-gap' as const };
+  const content = [
+    'const path = `/${locale}`;',
+    "const intro = <p>Today's live</p>;",
+    'const view = () => {',
+    `  ${comment}`,
+    `  return ${pattern}<a href={path} /></Cluster>;`,
+    '};',
+  ].join('\n');
+  expect(checkDesignSystem([{ file: 'src/switch.tsx', content }], [entry]).errors).toEqual([]);
+});
+
+it('keeps flagging raw elements that are not the single direct Slot child', () => {
+  const content = [
+    'const a = <Card asChild>{ok && <a href="/c" />}</Card>;',
+    'const b = <Card asChild><a href="/n"><button type="button" /></a></Card>;',
+    'const c = <Card asChild="true"><a href="/s" /></Card>;',
+    'const d = <Card asChild><><a href="/f" /></></Card>;',
+    'const e = <Card asChild>{label}<a href="/e" /></Card>;',
+    'const f = <Card {...p}><a href="/p" /></Card>;',
+  ].join('\n');
+  expect(checkDesignSystem([{ file: 'src/slot.tsx', content }], []).violations.map(({ line, snippet }) => [line, snippet])).toEqual([
+    [1, '<a href="/c" />'],
+    [2, '<button type="button" />'],
+    [3, '<a href="/s" />'],
+    [4, '<a href="/f" />'],
+    [5, '<a href="/e" />'],
+    [6, '<a href="/p" />'],
+  ]);
+});
