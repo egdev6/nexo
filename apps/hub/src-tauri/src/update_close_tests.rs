@@ -1,6 +1,6 @@
 use super::{
     CloseOutcome, PluginQuit, ProbeError, ProcessEntry, ProcessProbe, ProcessSnapshot, QuitAnswer,
-    SystemProcessProbe, close_for_update, scan_processes,
+    SystemProcessProbe, close_for_update, scan_process_ids, scan_processes,
 };
 use std::{
     cell::RefCell,
@@ -317,6 +317,53 @@ fn process_probe_fails_closed_on_inaccessible_candidates_and_snapshot_errors() {
         Err(ProbeError::Failed)
     );
     assert!(opened.borrow().is_empty());
+}
+
+#[test]
+fn strict_process_ids_include_only_verified_full_paths_and_reject_inaccessible_candidates() {
+    let (probe, _) = snapshot_probe(
+        vec![
+            entry(1, "example.exe"),
+            entry(2, "example.exe"),
+            entry(3, "example.exe"),
+        ],
+        [
+            (1, image(r"C:\Apps\Example.exe")),
+            (2, image(r"C:\Other\Example.exe")),
+            (3, image(r"c:\apps\EXAMPLE.exe")),
+        ],
+    );
+    let name: Vec<u16> = "example.exe".encode_utf16().collect();
+    let exe: Vec<u16> = r"C:\Apps\Example.exe".encode_utf16().collect();
+    let equal = |a: &[u16], b: &[u16]| {
+        Ok(String::from_utf16_lossy(a).eq_ignore_ascii_case(&String::from_utf16_lossy(b)))
+    };
+    assert_eq!(
+        scan_process_ids(
+            &mut *probe.snapshot.borrow_mut(),
+            &name,
+            &exe,
+            equal,
+            false,
+            false
+        ),
+        Ok(vec![1, 3])
+    );
+    let (probe, _) = snapshot_probe(
+        vec![entry(4, "example.exe")],
+        [(4, Err(ProbeError::Failed))],
+    );
+    assert_eq!(
+        scan_process_ids(
+            &mut *probe.snapshot.borrow_mut(),
+            &name,
+            &exe,
+            equal,
+            false,
+            false
+        ),
+        Err(ProbeError::Failed)
+    );
 }
 
 #[cfg(not(windows))]

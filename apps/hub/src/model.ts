@@ -28,7 +28,7 @@ export interface HubApp {
   statusKnown?: boolean;
   installationState?: 'installed' | 'notInstalled' | 'unknown';
   installationReason?: string;
-  runningState?: 'connected' | 'unknown';
+  runningState?: 'connected' | 'running' | 'notRunning' | 'unknown';
   canOpen?: boolean;
   openReason?: string;
   iconUrl?: string;

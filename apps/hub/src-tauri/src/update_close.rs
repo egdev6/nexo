@@ -8,6 +8,11 @@ pub enum ProbeError {
 
 pub trait ProcessProbe {
     fn is_running(&self, exe: &Path) -> Result<bool, ProbeError>;
+
+    /// Unlike the update safety check, unknown candidates are not proof of running.
+    fn confirmed_running(&self, exe: &Path) -> Result<bool, ProbeError> {
+        self.is_running(exe)
+    }
 }
 
 #[cfg(any(windows, test))]
@@ -57,23 +62,47 @@ fn scan_processes(
     exe: &[u16],
     equal: impl Fn(&[u16], &[u16]) -> Result<bool, ProbeError>,
 ) -> Result<bool, ProbeError> {
+    Ok(!scan_process_ids(snapshot, name, exe, equal, true, true)?.is_empty())
+}
+
+#[cfg(any(windows, test))]
+fn scan_process_ids(
+    snapshot: &mut impl ProcessSnapshot,
+    name: &[u16],
+    exe: &[u16],
+    equal: impl Fn(&[u16], &[u16]) -> Result<bool, ProbeError>,
+    conservative: bool,
+    stop_after_first: bool,
+) -> Result<Vec<u32>, ProbeError> {
     let exe = comparable_path(exe);
+    let mut ids = Vec::new();
     while let Some(entry) = snapshot.next()? {
         if equal(&entry.name, name)? {
             let image = match snapshot.image_path(entry.id) {
                 Ok(image) => image,
-                // An inaccessible matching name could be this executable.
-                Err(_) => return Ok(true),
+                // Updating must fail closed; UI and close targeting require proof.
+                Err(_) if conservative => return Ok(vec![entry.id]),
+                Err(error) => return Err(error),
             };
             if equal(&comparable_path(&image), &exe)? {
-                return Ok(true);
+                ids.push(entry.id);
+                if stop_after_first {
+                    break;
+                }
             }
         }
     }
-    Ok(false)
+    Ok(ids)
 }
 
 pub struct SystemProcessProbe;
+
+#[cfg(windows)]
+impl SystemProcessProbe {
+    pub(crate) fn matching_ids(&self, exe: &Path) -> Result<Vec<u32>, ProbeError> {
+        windows::matching_ids(exe)
+    }
+}
 
 #[cfg(not(windows))]
 impl ProcessProbe for SystemProcessProbe {
@@ -87,11 +116,15 @@ impl ProcessProbe for SystemProcessProbe {
     fn is_running(&self, exe: &Path) -> Result<bool, ProbeError> {
         windows::is_running(exe)
     }
+
+    fn confirmed_running(&self, exe: &Path) -> Result<bool, ProbeError> {
+        Ok(!self.matching_ids(exe)?.is_empty())
+    }
 }
 
 #[cfg(windows)]
 mod windows {
-    use super::{ProbeError, ProcessEntry, ProcessSnapshot, scan_processes};
+    use super::{ProbeError, ProcessEntry, ProcessSnapshot, scan_process_ids, scan_processes};
     use std::{
         mem::size_of,
         os::windows::ffi::{OsStrExt, OsStringExt},
@@ -218,7 +251,7 @@ mod windows {
         }
     }
 
-    pub(super) fn is_running(exe: &Path) -> Result<bool, ProbeError> {
+    fn target(exe: &Path) -> Result<(Vec<u16>, Vec<u16>), ProbeError> {
         if !exe.is_absolute()
             || exe
                 .components()
@@ -241,7 +274,24 @@ mod windows {
         if name.is_empty() || path.contains(&0) {
             return Err(ProbeError::Failed);
         }
+        Ok((name, path))
+    }
+
+    pub(super) fn is_running(exe: &Path) -> Result<bool, ProbeError> {
+        let (name, path) = target(exe)?;
         scan_processes(&mut ToolhelpSnapshot::new()?, &name, &path, equal)
+    }
+
+    pub(super) fn matching_ids(exe: &Path) -> Result<Vec<u32>, ProbeError> {
+        let (name, path) = target(exe)?;
+        scan_process_ids(
+            &mut ToolhelpSnapshot::new()?,
+            &name,
+            &path,
+            equal,
+            false,
+            false,
+        )
     }
 }
 

@@ -10,6 +10,8 @@ import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import type { RegistrySnapshot } from './shell/registry';
 import { defaultSettings } from './sample';
 import fullCatalog from '../../../crates/nexo-catalog/fixtures/full.json';
+import * as catalogLoader from './catalog/loader';
+import { parseCatalog } from './catalog/format';
 
 // Test the shell's public wiring independently of the other area writers.
 vi.mock('./local-apps/view', () => ({ LocalAppsView: () => null }));
@@ -137,6 +139,28 @@ it('shows actual installed and absent observations with a registry version and u
   await waitFor(() => expect(scans()).toBe(2));
   fireEvent.click(screen.getByRole('button', { name: 'Actualizar apps' }));
   await waitFor(() => expect(scans()).toBe(3));
+});
+
+it('projects a native process observation into the official row and refreshes after close', async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
+  vi.spyOn(catalogLoader, 'loadVersionedCatalog').mockResolvedValue({ status: 'ready', catalog: parseCatalog({ schemaVersion: 2, apps: [app] }) });
+  let running = true;
+  vi.mocked(invoke).mockImplementation(((command: string) => {
+    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
+    if (command === 'read_catalog_v2_cache') return Promise.resolve(JSON.stringify({ schemaVersion: 2, apps: [app] }));
+    if (command === 'installed_apps') return Promise.resolve([{ id: 'example-app', state: 'installed', runningState: running ? 'running' : 'notRunning', version: '9.1.0', reason: 'Instalación detectada', canOpen: true }]);
+    if (command === 'close_official_app') { running = false; return Promise.resolve({ status: 'closed', message: 'Example App se ha cerrado.' }); }
+    return Promise.resolve(null);
+  }) as typeof invoke);
+  render(<App />);
+  expect(await screen.findByText('Abierta')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
+  expect(await screen.findByText('Example App se ha cerrado.')).toBeTruthy();
+  expect(await screen.findByText('Cerrada')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Abrir Example App' })).toBeTruthy();
+  expect(invoke).toHaveBeenCalledWith('close_official_app', { id: 'example-app' });
 });
 
 it('ignores an older installation scan that resolves after a newer refresh', async () => {

@@ -94,6 +94,92 @@ impl super::Launcher for SystemLauncher<'_> {
     }
 }
 
+pub(super) struct SystemWindowCloser<'a> {
+    pub hub: &'a crate::ipc::Hub,
+    pub id: &'a str,
+}
+
+impl super::running::WindowCloser for SystemWindowCloser<'_> {
+    fn request_close(
+        &self,
+        executable: &std::path::Path,
+    ) -> Result<usize, crate::update_close::ProbeError> {
+        let mut count = 0;
+        self.hub
+            .while_disconnected(self.id, || {
+                count = close_visible_windows(executable)
+                    .map_err(|_| "nexo.appCloseUnavailable".to_owned())?;
+                Ok(())
+            })
+            .map_err(|_| crate::update_close::ProbeError::Failed)?;
+        Ok(count)
+    }
+}
+
+fn close_visible_windows(
+    executable: &std::path::Path,
+) -> Result<usize, crate::update_close::ProbeError> {
+    use crate::update_close::{ProbeError, SystemProcessProbe};
+    use windows_sys::Win32::{
+        Foundation::{HWND, LPARAM},
+        UI::WindowsAndMessaging::{
+            EnumWindows, GetWindowThreadProcessId, IsWindowVisible, PostMessageW, WM_CLOSE,
+        },
+    };
+
+    struct Enumeration<'a> {
+        executable: &'a std::path::Path,
+        ids: Vec<u32>,
+        count: usize,
+        failed: bool,
+    }
+    unsafe extern "system" fn visit(window: HWND, parameter: LPARAM) -> windows_sys::core::BOOL {
+        // SAFETY: EnumWindows is synchronous and receives a live Enumeration pointer.
+        let context = unsafe { &mut *(parameter as *mut Enumeration<'_>) };
+        // SAFETY: window is supplied by EnumWindows.
+        if unsafe { IsWindowVisible(window) } == 0 {
+            return 1;
+        }
+        let mut id = 0_u32;
+        // SAFETY: id is writable and window is supplied by EnumWindows.
+        if unsafe { GetWindowThreadProcessId(window, &mut id) } == 0 || !context.ids.contains(&id) {
+            return 1;
+        }
+        // Recheck the full image path immediately before posting, to reduce PID reuse races.
+        match SystemProcessProbe.matching_ids(context.executable) {
+            Ok(ids) if ids.contains(&id) => {
+                // SAFETY: the message carries no borrowed data and never forces termination.
+                if unsafe { PostMessageW(window, WM_CLOSE, 0, 0) } == 0 {
+                    context.failed = true;
+                } else {
+                    context.count += 1;
+                }
+            }
+            Ok(_) => {}
+            Err(_) => context.failed = true,
+        }
+        1
+    }
+
+    let ids = SystemProcessProbe.matching_ids(executable)?;
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let mut context = Enumeration {
+        executable,
+        ids,
+        count: 0,
+        failed: false,
+    };
+    // SAFETY: callback and context remain valid for the synchronous enumeration.
+    let completed = unsafe { EnumWindows(Some(visit), std::ptr::from_mut(&mut context) as LPARAM) };
+    if completed == 0 || context.failed {
+        Err(ProbeError::Failed)
+    } else {
+        Ok(context.count)
+    }
+}
+
 pub(crate) fn spawn_detached(executable: &std::path::Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     std::process::Command::new(executable)

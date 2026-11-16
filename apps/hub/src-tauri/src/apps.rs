@@ -3,6 +3,8 @@ use nexo_catalog::Catalog;
 #[cfg(windows)]
 pub(crate) mod windows;
 
+mod running;
+
 #[cfg(windows)]
 #[tauri::command]
 pub(crate) async fn close_connected_app(
@@ -110,10 +112,18 @@ pub(crate) async fn installed_apps(
         official_catalog(app).map_err(|error| crate::i18n::app_message(locale, &error))?;
     let hub = hub.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let connected = hub
+            .snapshot()
+            .apps
+            .into_iter()
+            .map(|entry| entry.app.id)
+            .collect();
         inspect(
             &catalog,
             &windows::CurrentUserRegistry,
             &windows::SystemLauncher { hub: &hub, id: "" },
+            &crate::update_close::SystemProcessProbe,
+            &connected,
         )
         .into_iter()
         .map(|mut observation| {
@@ -127,6 +137,86 @@ pub(crate) async fn installed_apps(
     })
     .await
     .map_err(|error| error.to_string())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OfficialCloseResult {
+    status: &'static str,
+    message: String,
+}
+
+fn close_result(
+    locale: crate::i18n::Locale,
+    name: &str,
+    outcome: running::CloseOutcome,
+) -> OfficialCloseResult {
+    let (status, key) = match outcome {
+        running::CloseOutcome::Closed => ("closed", "appCloseSucceeded"),
+        running::CloseOutcome::StillRunning => ("stillRunning", "appCloseStillRunning"),
+    };
+    OfficialCloseResult {
+        status,
+        message: crate::i18n::text(locale, key).replace("{name}", name),
+    }
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub(crate) async fn close_official_app(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    id: String,
+    hub: tauri::State<'_, crate::ipc::Hub>,
+    service: tauri::State<'_, crate::install_service::NativeService>,
+) -> Result<OfficialCloseResult, String> {
+    let locale = crate::config::bootstrap_locale(&app);
+    if window.label() != "main" {
+        return Err(crate::i18n::text(locale, "appCloseUnavailable").into());
+    }
+    let _claim = service
+        .begin_open(&id)
+        .ok_or_else(|| crate::i18n::text(locale, "appCloseUnavailable").to_string())?;
+    let catalog =
+        official_catalog(app).map_err(|error| crate::i18n::app_message(locale, &error))?;
+    let hub = hub.inner().clone();
+    let resolving_hub = hub.clone();
+    let resolving_id = id.clone();
+    let (executable, name) = tauri::async_runtime::spawn_blocking(move || {
+        let app = catalog
+            .apps
+            .iter()
+            .find(|entry| entry.id == resolving_id)
+            .ok_or("nexo.appNotOfficial")?;
+        let detection = update_detection(
+            &catalog,
+            app,
+            &windows::CurrentUserRegistry,
+            &windows::SystemLauncher {
+                hub: &resolving_hub,
+                id: &resolving_id,
+            },
+        );
+        match detection {
+            crate::install_service::UpdateDetection::Installed { executable, .. } => {
+                Ok((executable, app.name.clone()))
+            }
+            _ => Err("nexo.appNoUnique"),
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| crate::i18n::app_message(locale, error))?;
+    let closer = windows::SystemWindowCloser { hub: &hub, id: &id };
+    let outcome = running::close_windows(
+        &executable,
+        &crate::update_close::SystemProcessProbe,
+        &closer,
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .map_err(|_| crate::i18n::text(locale, "appCloseUnavailable").to_owned())?;
+    Ok(close_result(locale, &name, outcome))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -193,6 +283,7 @@ fn open_official(
 pub(crate) struct Observation {
     id: String,
     state: InstallState,
+    running_state: running::RunningState,
     reason: String,
     version: Option<String>,
     can_open: bool,
@@ -264,10 +355,13 @@ fn inspect(
     catalog: &Catalog,
     registry: &impl Registry,
     launcher: &impl Launcher,
+    probe: &impl crate::update_close::ProcessProbe,
+    connected: &std::collections::HashSet<String>,
 ) -> Vec<Observation> {
     matched_apps(catalog, registry)
         .into_iter()
         .map(|(mut observation, entry)| {
+            let mut executable = None;
             if let Some(entry) = entry {
                 let result = identity(entry.install_location.as_deref())
                     .ok_or_else(|| "nexo.appLocationMissing".to_string())
@@ -281,13 +375,19 @@ fn inspect(
                         launcher.resolve(location, &hint.windows.executable_relative_path)
                     });
                 match result {
-                    Ok(_) => {
+                    Ok(path) => {
                         observation.can_open = true;
                         observation.open_reason = None;
+                        executable = Some(path);
                     }
                     Err(reason) => observation.open_reason = Some(reason),
                 }
             }
+            observation.running_state = running::running_state(
+                connected.contains(&observation.id),
+                executable.as_deref(),
+                probe,
+            );
             observation
         })
         .collect()
@@ -304,6 +404,7 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
                     Observation {
                         id: app.id.clone(),
                         state: InstallState::Unknown,
+                        running_state: running::RunningState::Unknown,
                         reason: reason.into(),
                         version: None,
                         can_open: false,
@@ -355,6 +456,7 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
                     Observation {
                         id: app.id.clone(),
                         state: InstallState::NotInstalled,
+                        running_state: running::RunningState::Unknown,
                         reason: "nexo.appNoMatches".into(),
                         version: None,
                         can_open: false,
@@ -383,6 +485,7 @@ fn matched_apps(catalog: &Catalog, registry: &impl Registry) -> Vec<(Observation
                 Observation {
                     id: app.id.clone(),
                     state: InstallState::Installed,
+                    running_state: running::RunningState::Unknown,
                     reason: "nexo.appInstalled".into(),
                     version: identity(entry.version.as_deref()).map(str::to_owned),
                     can_open: false,
@@ -749,15 +852,131 @@ mod tests {
     fn scan_exposes_open_availability_only_after_path_resolution() {
         let launcher = FakeLauncher::default();
         let registry = fake(Ok(vec![entry("physical-a")]));
-        let result = inspect(&catalog(), &registry, &launcher);
+        let result = inspect(
+            &catalog(),
+            &registry,
+            &launcher,
+            &crate::update_close::SystemProcessProbe,
+            &std::collections::HashSet::new(),
+        );
         assert!(result[0].can_open);
         assert!(result[0].open_reason.is_none());
         assert!(launcher.launched.borrow().is_empty());
         launcher.fail_resolution.set(true);
-        let result = inspect(&catalog(), &registry, &launcher);
+        let result = inspect(
+            &catalog(),
+            &registry,
+            &launcher,
+            &crate::update_close::SystemProcessProbe,
+            &std::collections::HashSet::new(),
+        );
         assert!(!result[0].can_open);
         assert_eq!(result[0].open_reason.as_deref(), Some("unsafe path"));
         assert!(launcher.launched.borrow().is_empty());
+    }
+
+    #[test]
+    fn close_result_localizes_success_and_the_tray_notice() {
+        use crate::i18n::Locale;
+        for (locale, outcome, status, message) in [
+            (
+                Locale::Es,
+                running::CloseOutcome::Closed,
+                "closed",
+                "Quorb se ha cerrado.",
+            ),
+            (
+                Locale::En,
+                running::CloseOutcome::Closed,
+                "closed",
+                "Quorb has closed.",
+            ),
+            (
+                Locale::Es,
+                running::CloseOutcome::StillRunning,
+                "stillRunning",
+                "Quorb sigue abierta: puede que se haya ocultado en la bandeja. Ciérrala desde la propia app.",
+            ),
+            (
+                Locale::En,
+                running::CloseOutcome::StillRunning,
+                "stillRunning",
+                "Quorb is still open: it may have been hidden in the tray. Close it from within the app.",
+            ),
+        ] {
+            let result = serde_json::to_value(close_result(locale, "Quorb", outcome)).unwrap();
+            assert_eq!(result["status"], status);
+            assert_eq!(result["message"], message);
+        }
+    }
+
+    #[test]
+    fn installation_observations_serialize_process_evidence_and_connected_priority() {
+        use crate::update_close::{ProbeError, ProcessProbe};
+        use std::path::Path;
+        struct Probe {
+            answer: Result<bool, ProbeError>,
+            calls: Cell<usize>,
+        }
+        impl ProcessProbe for Probe {
+            fn is_running(&self, _: &Path) -> Result<bool, ProbeError> {
+                self.calls.set(self.calls.get() + 1);
+                self.answer
+            }
+        }
+        for (answer, expected) in [
+            (Ok(true), "running"),
+            (Ok(false), "notRunning"),
+            (Err(ProbeError::Failed), "unknown"),
+        ] {
+            let probe = Probe {
+                answer,
+                calls: Cell::new(0),
+            };
+            let observations = inspect(
+                &catalog(),
+                &fake(Ok(vec![entry("a")])),
+                &FakeLauncher::default(),
+                &probe,
+                &std::collections::HashSet::new(),
+            );
+            assert_eq!(
+                serde_json::to_value(&observations[0]).unwrap()["runningState"],
+                expected
+            );
+            assert_eq!(probe.calls.get(), 1);
+        }
+        let probe = Probe {
+            answer: Ok(false),
+            calls: Cell::new(0),
+        };
+        let connected = ["example-app".to_string()].into_iter().collect();
+        let observations = inspect(
+            &catalog(),
+            &fake(Ok(vec![entry("a")])),
+            &FakeLauncher::default(),
+            &probe,
+            &connected,
+        );
+        assert_eq!(
+            serde_json::to_value(&observations[0]).unwrap()["runningState"],
+            "connected"
+        );
+        assert_eq!(probe.calls.get(), 0);
+        let mut missing = entry("a");
+        missing.install_location = None;
+        let observations = inspect(
+            &catalog(),
+            &fake(Ok(vec![missing])),
+            &FakeLauncher::default(),
+            &probe,
+            &std::collections::HashSet::new(),
+        );
+        assert_eq!(
+            serde_json::to_value(&observations[0]).unwrap()["runningState"],
+            "unknown"
+        );
+        assert_eq!(probe.calls.get(), 0);
     }
 
     #[test]
