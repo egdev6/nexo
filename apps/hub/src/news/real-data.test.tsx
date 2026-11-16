@@ -98,16 +98,14 @@ it('opens the real-shaped v3 updates newest first and navigates both detected an
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 1, cycle: 1, at: timestamp } }));
   const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
-  const groups = within(region).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'slide');
+  const groups = within(region).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'diapositiva');
   expect(groups).toHaveLength(2);
-  const track = groups[0].parentElement!;
   function visible(index: number) {
     const title = index ? 'Quorb 0.8.0' : 'Antena 0.15.0';
-    expect(track.style.transform).toBe(`translateX(${index === 0 ? 0 : -index * 100}%)`);
     expect(groups[index].getAttribute('aria-current')).toBe('true');
-    expect(groups[index].hasAttribute('inert')).toBe(false);
-    expect(groups[1 - index].getAttribute('aria-hidden')).toBe('true');
-    expect(groups[1 - index].hasAttribute('inert')).toBe(true);
+    expect(groups[index].querySelector('article')!.hasAttribute('inert')).toBe(false);
+    expect(groups[1 - index].querySelector('article')!.getAttribute('aria-hidden')).toBe('true');
+    expect(groups[1 - index].querySelector('article')!.hasAttribute('inert')).toBe(true);
     expect(within(dialog).getByRole('group', { name: `${index + 1} de 2: ${title}` })).toBe(groups[index]);
     expect(within(groups[index]).getByRole('heading', { name: title })).toBeTruthy();
     expect(dialog.textContent).toContain(index ? '02 / 02' : '01 / 02');

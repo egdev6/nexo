@@ -89,7 +89,7 @@ it('closes with Escape without propagating it and reopens on the latest item', (
 it('uses manual carousel navigation and associates the external illustrative CTA with the current item', () => {
   setup(); fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
   const carousel = screen.getByRole('region', { name: 'Últimas novedades' });
-  const slides = within(carousel).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'slide');
+  const slides = within(carousel).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'diapositiva');
   const [first, second] = slides;
   expect(first.getAttribute('aria-label')).toBe('1 de 2: Pizarra');
   expect(second.getAttribute('aria-label')).toBe('2 de 2: Cadencia');

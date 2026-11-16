@@ -33,21 +33,36 @@ function open(count: number, onShown = vi.fn()) {
 function slides(dialog: HTMLElement, count: number) {
   const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
   expect(region.getAttribute('aria-roledescription')).toBe('carousel');
-  const groups = within(region).getAllByRole('group', { hidden: true })
-    .filter(group => group.getAttribute('aria-roledescription') === 'slide');
-  expect(groups).toHaveLength(count);
-  groups.forEach((group, index) => expect(group.getAttribute('aria-label')).toBe(`${index + 1} de ${count}: Noticia ${index + 1}`));
-  return groups;
+  const groups = within(region).getAllByRole('group', { hidden: true });
+  return Array.from({ length: count }, (_, index) => {
+    const group = groups.find(candidate => candidate.getAttribute('aria-label') === `${index + 1} de ${count}: Noticia ${index + 1}`);
+    expect(group).toBeTruthy();
+    return group!;
+  });
+}
+
+// JSDOM has no layout: model the viewport and slide positions while exercising real navigation.
+function layout(groups: HTMLElement[]) {
+  let offset = 0;
+  const track = groups[0].parentElement!;
+  const rect = (left: number) => ({ x: left, y: 0, left, right: left + 300, top: 0, bottom: 100, width: 300, height: 100, toJSON() {} });
+  vi.spyOn(track, 'getBoundingClientRect').mockImplementation(() => rect(0));
+  groups.forEach((group, index) => vi.spyOn(group, 'getBoundingClientRect').mockImplementation(() => rect(index * 300 - offset)));
+  track.scrollBy = vi.fn((options: ScrollToOptions) => { offset += options.left ?? 0; }) as typeof track.scrollBy;
+  // The DS Carousel aligns with absolute scrollTo (egdev-design-system#407); model the scroller like a browser.
+  Object.defineProperty(track, 'scrollLeft', { configurable: true, get: () => offset, set: (value: number) => { offset = value; } });
+  track.scrollTo = vi.fn((options: ScrollToOptions) => { offset = options.left ?? offset; }) as typeof track.scrollTo;
+  return { track, offset: () => offset, moveTo: (position: number) => { offset = position; } };
 }
 
 function expectPosition(dialog: HTMLElement, groups: HTMLElement[], index: number) {
   const count = groups.length;
   expect(dialog.textContent).toContain(`${String(index + 1).padStart(2, '0')} / ${String(count).padStart(2, '0')}`);
-  expect(groups[0].parentElement!.style.transform).toBe(`translateX(${index === 0 ? 0 : -index * 100}%)`);
   groups.forEach((group, position) => {
     expect(group.getAttribute('aria-current')).toBe(position === index ? 'true' : null);
-    expect(group.getAttribute('aria-hidden')).toBe(position === index ? null : 'true');
-    expect(group.hasAttribute('inert')).toBe(position !== index);
+    const article = group.querySelector('article')!;
+    expect(!!article.closest('[aria-hidden="true"]')).toBe(position !== index);
+    expect(!!article.closest('[inert]')).toBe(position !== index);
   });
   const visible = within(dialog).getByRole('group', { name: `${index + 1} de ${count}: Noticia ${index + 1}` });
   expect(visible).toBe(groups[index]);
@@ -141,30 +156,32 @@ it('uses the catalog initial without requesting a banner for an invalid app id',
   expect(hero.textContent).toBe('P');
 });
 
-it('moves between every item with arrows, dots and keys without scroll feedback', () => {
+it('moves every item with arrows, dots and keys and stays aligned after scroll feedback', () => {
   const { dialog, onShown } = open(3);
   const groups = slides(dialog, 3);
   const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
-  const track = groups[0].parentElement!;
-  const scrollBy = vi.fn();
-  track.scrollBy = scrollBy;
+  const { track, offset } = layout(groups);
   expect(getComputedStyle(track).display).toBe('flex');
-  expect(getComputedStyle(track.parentElement!).overflow).toBe('clip');
+  expect(getComputedStyle(track).overflowX).toBe('auto');
   expect(getComputedStyle(groups[0]).flex).toBe('0 0 100%');
   expectPosition(dialog, groups, 0);
   for (let index = 1; index < groups.length; index++) {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
     expectPosition(dialog, groups, index);
+    expect(offset()).toBe(index * 300);
     fireEvent.scroll(track); fireEvent(track, new Event('scrollend')); fireEvent(window, new Event('resize'));
     expectPosition(dialog, groups, index);
+    expect(offset()).toBe(index * 300);
   }
   for (let index = groups.length - 2; index >= 0; index--) {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva anterior' }));
     expectPosition(dialog, groups, index);
+    expect(offset()).toBe(index * 300);
   }
   for (let index = 0; index < groups.length; index++) {
     fireEvent.click(within(dialog).getByRole('button', { name: `Ir a ${index + 1} de 3: Noticia ${index + 1}` }));
     expectPosition(dialog, groups, index);
+    expect(offset()).toBe(index * 300);
   }
   region.focus();
   for (let index = groups.length - 2; index >= 0; index--) {
@@ -184,22 +201,33 @@ it('moves between every item with arrows, dots and keys without scroll feedback'
   expect(document.activeElement).toBe(groups[1]);
   fireEvent.keyDown(groups[1], { key: 'ArrowRight' }); expectPosition(dialog, groups, 2);
   expect(document.activeElement).toBe(groups[2]);
-  expect(scrollBy).not.toHaveBeenCalled();
   expect(onShown).toHaveBeenLastCalledWith(items[2]);
   expect(within(dialog).getByRole('button', { name: 'Ver en el catálogo: Noticia 3 · muestra' }).getAttribute('data-app-id')).toBe('app-2');
 });
 
-it('transitions the track normally and disables its transition for reduced motion', () => {
+it('selects the slide reached by direct horizontal scrolling and returns to the first', () => {
+  const { dialog, onShown } = open(2);
+  const groups = slides(dialog, 2);
+  const { track, offset, moveTo } = layout(groups);
+  moveTo(300); fireEvent.scroll(track); fireEvent(track, new Event('scrollend'));
+  expectPosition(dialog, groups, 1);
+  expect(offset()).toBe(300);
+  expect(onShown).toHaveBeenLastCalledWith(items[1]);
+  moveTo(0); fireEvent.scroll(track); fireEvent(track, new Event('scrollend'));
+  expectPosition(dialog, groups, 0);
+  expect(offset()).toBe(0);
+  expect(onShown).toHaveBeenLastCalledWith(items[0]);
+});
+
+it('disables scrolling animations for reduced motion', () => {
   const { dialog } = open(2);
   const track = slides(dialog, 2)[0].parentElement!;
-  // jsdom cannot resolve custom properties in transition shorthands or evaluate media queries.
+  // jsdom cannot evaluate media queries; inspect the matching reduced-motion rule.
   const rules = Array.from(style.sheet!.cssRules);
-  const normal = rules.find((rule): rule is CSSStyleRule => 'selectorText' in rule && (rule as CSSStyleRule).selectorText === '.news-track')!;
-  expect(normal.style.getPropertyValue('transition')).toMatch(/transform/);
   const motion = rules.find(rule => rule instanceof CSSMediaRule && rule.media.mediaText === '(prefers-reduced-motion: reduce)') as CSSMediaRule;
   expect(motion).toBeTruthy();
   const matching = Array.from(motion.cssRules).filter((rule): rule is CSSStyleRule => 'selectorText' in rule && track.matches((rule as CSSStyleRule).selectorText));
-  expect(matching.some(rule => rule.style.getPropertyValue('transition') === 'none' && rule.style.getPropertyPriority('transition') === 'important')).toBe(true);
+  expect(matching.some(rule => rule.style.getPropertyValue('scroll-behavior') === 'auto' && rule.style.getPropertyPriority('scroll-behavior') === 'important')).toBe(true);
 });
 
 it('resets to the newest item when displayed ids change and on reopening', () => {
