@@ -36,4 +36,10 @@ The hub serves the IPC protocol for apps built with `tauri-plugin-nexo` and list
 
 ## Design system
 
-The hub uses vendored EGDEV design-system packages and exposes their MCP server to agents. See [ADR 0001](docs/decisions/0001-adopt-egdev-design-system.md) for the policy, pinned versions and regeneration/update steps.
+The hub uses vendored EGDEV design-system packages and exposes their MCP server to agents. Preview an update from the repository root with:
+
+```sh
+node apps/hub/scripts/ds-vendor.mjs --app apps/hub --commit <sha> --dry-run
+```
+
+Omit `--dry-run` to perform a separately reviewed upgrade; the default DS checkout is `../egdev-design-system` (override with `--ds <path>`). The script checks the commit against `origin/main`, vendors the selected packages and verifies lockfile integrity. Dry runs use the locally cached remote ref and do not fetch. `--allow-unmerged` is temporary testing only and changes `node_modules` rather than vendored files; the script prints the revert command. After an upgrade, restart the dev server with `--force` and regenerate `design/system.md`. See [ADR 0001](docs/decisions/0001-adopt-egdev-design-system.md) for prerequisites, the pinned versions, regeneration details and the full procedure.

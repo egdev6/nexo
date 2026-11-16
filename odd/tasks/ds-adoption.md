@@ -38,8 +38,8 @@ Status: approved (L4).
   - MCP `get_component` usage examples.
 
   Each issue gets an override-registry entry. Route: inline; publishing the issues needs the maintainer's approval. Status: done (approved "Publicar todos": egdev-design-system#408-#421 new, comments on #396 and #404; every `TBD` allowlist entry and TODO now names its real issue; skill request mode: `assets/issue-template.md`, `references/registro.md`; 485 tests).
-- T8 (S4) **adopt/upgrade** mode: script the pack, vendor, lockfile-integrity and restart steps done by hand for 9679f86 and b54222c, with the Q2 vendor naming: `egdev-<pkg>-<version>-<dscommit>.tgz`. Route: inline. Status: pending.
-- T9 (S4) **audit** mode: point `auditar-ui` at the DS source (MCP or tarballs) instead of a hand-written profile, and validate it on Nexo against S5. Route: inline. Status: pending.
+- T8 (S4) **adopt/upgrade** mode: script the pack, vendor, lockfile-integrity and restart steps done by hand for 9679f86 and b54222c, with the Q2 vendor naming: `egdev-<pkg>-<version>-<dscommit>.tgz`. Route: inline. Status: done (`apps/hub/scripts/ds-vendor.mjs`, dry-run at b54222c verified 4 integrities with no changes; copied to the skill as `assets/ds-vendor.mjs` + `references/adoptar.md`; 501 tests).
+- T9 (S4) **audit** mode: point `auditar-ui` at the DS source (MCP or tarballs) instead of a hand-written profile, and validate it on Nexo against S5. Route: inline. Status: done (`auditar-ui/profiles/nexo.md` declares the vendored DS + `@egdev/mcp` as the source of truth; skill `references/auditar.md` combines the instance metric, pattern classification, guard and auditar-ui).
 - T10 (S2) Close: final skill document, the measured adoption after T5 and T6, and a rollout plan for the website, Antena and Quorb (separate work, not done here). Route: inline. Status: pending.
 
 ## Open questions
