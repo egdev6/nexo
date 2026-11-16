@@ -246,7 +246,7 @@ it('localizes catalog-generated news chrome but keeps source content unchanged',
     return normal(command, args);
   });
   render(<App apps={projection.apps} news={projection.news} />);
-  const dialog = await screen.findByRole('dialog', { name: 'News on opening' });
+  const dialog = await screen.findByRole('dialog', { name: 'News' });
   expect(within(dialog).getByText('New')).toBeTruthy();
   expect(within(dialog).getByText('Título original')).toBeTruthy();
   expect(within(dialog).getByText('Noticia original')).toBeTruthy();

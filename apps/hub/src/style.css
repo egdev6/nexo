@@ -1,25 +1,35 @@
 /* Shell and installed apps: EGDEV Foundation tokens are loaded by main.tsx. */
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
-html, body, #root { width: 100%; height: 100%; margin: 0; }
+html, body, #root { width: 100%; height: 100%; margin: 0; background: transparent; }
 body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 var(--font-sans); background: transparent; overflow: hidden; }
 [hidden] { display: none !important; }
 .flyout { position: relative; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--color-surface-0); border-left: var(--border-width) solid var(--color-border-hairline-strong); }
-/* CSS blur filters webview layers, not reliably desktop pixels. Mica/acrylic,
-   when available, is a separate system-controlled fallback with no slider radius. */
+/* The resting panel uses the configured CSS opacity and blur; static ancestors stay transparent. */
 @supports (backdrop-filter: blur(20px)) and (background: color-mix(in srgb, black 50%, transparent)) {
   .flyout { background: color-mix(in srgb, var(--color-surface-0) calc(var(--hub-opacity) * 100%), transparent); backdrop-filter: blur(var(--hub-blur)) saturate(150%); }
 }
-.panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
+.flyout[data-backdrop="opaque"] { background: var(--color-surface-0); backdrop-filter: none; transition: none; }
+/* Only the panel paints during motion, including when a dialog is body-portalled. */
+body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
+.flyout--waiting { transform: translateX(100%); }
+.flyout--entering.flyout, .flyout--exiting.flyout { transition: transform 200ms ease-out; }
+.flyout--entering { transform: translateX(0); }
+.flyout--exiting { transform: translateX(100%); }
+.panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); background: var(--gradient-sheen), var(--color-surface-0); }
 .heading { display: flex; align-items: center; gap: var(--space-3); }
 .heading h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
 .heading p { margin: 0 auto 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .n-mark { display: block; width: var(--space-6); height: var(--space-6); flex: none; }
 .head-actions, .actions { display: flex; gap: var(--space-2); }
 .head-actions { margin-left: auto; }
-.main-tabs { flex: 1; min-height: 0; overflow: hidden; }
-.main-tabs > [role='tablist'] { flex: none; align-self: stretch; margin: var(--space-4) var(--space-6) 0; }
+.main-tabs { flex: 1; min-height: 0; overflow: hidden; isolation: isolate; }
+.main-tabs > [role='tablist'] { position: relative; flex: none; align-self: stretch; margin: var(--space-4) var(--space-6) 0; }
+/* Paint the whole menu row, including the existing outer gutters, behind the tabs. */
+.main-tabs > [role='tablist']::before { content: ''; position: absolute; z-index: -1; inset: calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) calc(-1 * var(--space-4)); background: var(--color-surface-0); pointer-events: none; }
 .main-tabs > [role='tablist'] > [role='tab'] { flex: 1; justify-content: center; }
+/* Keep the selected border and inset highlight, but prevent its outer glow from bleeding above the menu. */
+.main-tabs > [role='tablist'] > [role='tab'][aria-selected='true'] { box-shadow: var(--shadow-edge-strong); }
 .main-tabs > [role='tabpanel'] { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-4) var(--space-6) var(--space-5); }
 .area-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .section-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: var(--space-2) 0 var(--space-3); }
@@ -32,7 +42,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 .update-notes { overflow-wrap: anywhere; white-space: pre-wrap; }
 .row-label { display: flex; align-items: center; gap: var(--space-4); }
 .app-icon { display: grid; place-items: center; flex: none; width: var(--space-12); height: var(--space-12); border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-3); font: 800 var(--space-6)/1 var(--font-display); }
-.brand-icon { background: var(--hub-accent); color: var(--color-action-primary-solid-fg); }
+.brand-icon { background: var(--color-action-primary-solid-bg); color: var(--color-action-primary-solid-fg); }
 .app-info { min-width: 0; flex: 1; }
 .app-info strong { display: block; margin-bottom: var(--space-1); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
 .status-line, .status-running, .status-warning { font-size: var(--text-label-default); font-weight: 600; }
@@ -52,7 +62,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 .foot { color: var(--color-fg-muted); }
 .empty-state { color: var(--color-fg-secondary); padding: var(--space-3) 0; }
 .empty-state p { margin: 0 0 var(--space-3); }
-@media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { margin-left: var(--space-4); margin-right: var(--space-4); } .heading p { display: none; } }
+@media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { margin-left: var(--space-4); margin-right: var(--space-4); } .main-tabs > [role='tablist']::before { left: calc(-1 * var(--space-4)); right: calc(-1 * var(--space-4)); } .heading p { display: none; } }
 @media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } }
 /* My apps: the frame belongs to the card; actions are siblings of the trigger. */
 .app-row:has(> .row-actions) { --header-action-width: var(--space-10); position: relative; padding-right: 0; }
@@ -75,4 +85,4 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 .local-path { overflow-wrap: anywhere; }
 .update-feedback:not(:empty) { padding: var(--space-3) var(--space-4); }
 .update-feedback:empty { display: none; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } .flyout--waiting { transform: none; visibility: hidden; } .flyout--entering, .flyout--exiting { transform: none; } }

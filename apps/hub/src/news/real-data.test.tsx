@@ -32,6 +32,7 @@ function catalog(apps: ReturnType<typeof app>[]) { return JSON.stringify({ schem
 const official = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
 let stored: Record<string, unknown>;
 let cache: string | null;
+let cacheV3: string | null;
 let failSave: boolean;
 let sequence: number;
 let cycle: number;
@@ -41,7 +42,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(today));
   stored = { language: 'es', startWithWindows: false, showNewsOnOpen: true, accent: '#ff0036', compact: false, opacity: 85, blur: 24,
     firstRunComplete: true, sources: [official, { id: 'local', label: 'Local', kind: 'local' }] };
-  cache = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
+  cache = null; cacheV3 = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Record<string, unknown> }) => {
     if (command === 'get_settings') return { state: 'ready', settings: structuredClone(stored) };
     if (command === 'save_settings') {
@@ -49,6 +50,7 @@ beforeEach(() => {
       stored = { ...stored, ...args?.patch }; return structuredClone(stored);
     }
     if (command === 'read_catalog_cache') return cache;
+    if (command === 'read_catalog_v3_cache') return cacheV3;
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
     if (command === 'local_apps_list') return [];
@@ -65,9 +67,62 @@ function visibility(visible: boolean) {
   sequence++; if (visible) cycle++;
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible, sequence, cycle, at: today } }));
 }
-async function open() { visibility(true); return screen.findByRole('dialog', { name: 'Novedades al abrir' }); }
+async function open() { visibility(true); return screen.findByRole('dialog', { name: 'Novedades' }); }
 function titles(dialog: HTMLElement) { return Array.from(dialog.querySelectorAll('.news-slide h3'), node => node.textContent); }
 function close() { fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' })); }
+
+it('opens the real-shaped v3 updates newest first and navigates both detected and unknown apps', async () => {
+  const timestamp = '2026-11-16T12:00:00Z';
+  vi.setSystemTime(new Date(timestamp));
+  const catalogApp = (id: string, name: string, version: string, date: string, featured: boolean) => ({
+    id, name, tagline: `Tag ${name}`, description: `Descripción ${name}`, tags: [],
+    iconUrl: `https://egdev6.github.io/nexo-catalog/icons/${id}.png`,
+    installerUrl: `https://github.com/egdev6/${id}/releases/download/v${version}/setup.exe`,
+    latestJsonUrl: `https://github.com/egdev6/${id}/releases/download/v${version}/latest.json`,
+    integrationLevel: 'update', releasedAt: date, featured, version,
+    news: [{ id: `v${version.replaceAll('.', '-')}`, title: `${name} ${version}`, text: `A new ${name} release is available.`, publishedAt: date, kind: 'update' }],
+  });
+  cacheV3 = JSON.stringify({ schemaVersion: 3, apps: [
+    { ...catalogApp('antena', 'Antena', '0.15.0', '2026-11-14T08:48:36Z', true), detection: { windows: { displayName: 'antena', publisher: 'EGDEV', executableRelativePath: 'antena.exe' } } },
+    catalogApp('quorb', 'Quorb', '0.8.0', '2026-10-28T14:55:56Z', false),
+  ] });
+  const invoke = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'installed_apps' ? [
+    { id: 'antena', state: 'installed', version: '0.15.0', reason: 'Instalación detectada', canOpen: true },
+    { id: 'quorb', state: 'unknown', version: null, reason: 'Sin datos de detección en el catálogo' },
+  ] : invoke(command, args));
+  render(<App />);
+  await screen.findByRole('button', { name: 'Abrir Antena' });
+  expect(bridge.invoke).toHaveBeenCalledWith('installed_apps');
+  expect(screen.queryByRole('button', { name: 'Abrir Quorb' })).toBeNull();
+  act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 1, cycle: 1, at: timestamp } }));
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
+  const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
+  const groups = within(region).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'slide');
+  expect(groups).toHaveLength(2);
+  const track = groups[0].parentElement!;
+  function visible(index: number) {
+    const title = index ? 'Quorb 0.8.0' : 'Antena 0.15.0';
+    expect(track.style.transform).toBe(`translateX(${index === 0 ? 0 : -index * 100}%)`);
+    expect(groups[index].getAttribute('aria-current')).toBe('true');
+    expect(groups[index].hasAttribute('inert')).toBe(false);
+    expect(groups[1 - index].getAttribute('aria-hidden')).toBe('true');
+    expect(groups[1 - index].hasAttribute('inert')).toBe(true);
+    expect(within(dialog).getByRole('group', { name: `${index + 1} de 2: ${title}` })).toBe(groups[index]);
+    expect(within(groups[index]).getByRole('heading', { name: title })).toBeTruthy();
+    expect(dialog.textContent).toContain(index ? '02 / 02' : '01 / 02');
+    expect(within(dialog).getByRole('button', { name: /Ver en el catálogo:/ }).getAttribute('data-app-id')).toBe(index ? 'quorb' : 'antena');
+  }
+  visible(0);
+  const next = within(dialog).getByRole('button', { name: 'Diapositiva siguiente' });
+  next.focus(); fireEvent.click(next); visible(1);
+  const previous = within(dialog).getByRole('button', { name: 'Diapositiva anterior' });
+  previous.focus(); fireEvent.click(previous); visible(0);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 2 de 2: Quorb 0.8.0' })); visible(1);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 1 de 2: Antena 0.15.0' })); visible(0);
+  groups[0].focus(); fireEvent.keyDown(groups[0], { key: 'ArrowRight' }); visible(1);
+  fireEvent.keyDown(groups[1], { key: 'ArrowLeft' }); visible(0);
+});
 
 it('selects only qualifying official events, inclusive boundaries, feature fallbacks and true chronological order', async () => {
   cache = catalog([
@@ -87,6 +142,29 @@ it('selects only qualifying official events, inclusive boundaries, feature fallb
   expect(dialog.textContent).toMatch(/copia guardada|desactualizada/i);
 });
 
+it('shows the two real updates of two apps without adding synthetic release slides', async () => {
+  cache = catalog([
+    { ...app('alpha', '2026-05-29T00:00:00Z', false, [entry('alpha-update', '2026-05-31T11:00:00Z', 'update')]), name: 'Álfa' },
+    { ...app('beta', '2026-05-29T00:00:00Z', true, [entry('beta-update', '2026-05-30T11:00:00Z', 'update')]), name: 'Beta' },
+  ]);
+  await start(); const dialog = await open();
+  expect(titles(dialog)).toEqual(['alpha-update', 'beta-update']);
+  expect(dialog.textContent).toContain('01 / 02');
+  expect(within(dialog).getAllByRole('button', { name: /^Ir a / })).toHaveLength(2);
+  expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('50');
+  const first = within(dialog).getByRole('group', { name: '1 de 2: alpha-update' });
+  const hero = first.querySelector('.news-hero')!;
+  const image = hero.querySelector('img');
+  expect(image?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/alpha.webp');
+  fireEvent.error(image!);
+  expect(hero.textContent).toBe('Á');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+  expect(dialog.textContent).toContain('02 / 02');
+  expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('100');
+  close();
+  await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:alpha:alpha-update', 'n:beta:beta-update']));
+});
+
 it('starts only on an actual show, freezes the snapshot, and records only slides presented', async () => {
   cache = catalog([app('one', '2026-05-30T00:00:00Z', false, [entry('first', today), entry('second', '2026-05-30T00:00:00Z', 'update'), entry('third', '2026-05-29T00:00:00Z', 'update')])]);
   await start();
@@ -97,7 +175,23 @@ it('starts only on an actual show, freezes the snapshot, and records only slides
   await waitFor(() => expect(stored).toMatchObject({ newsVisit: { lastVisitAt: today, seenKeys: ['n:one:first', 'n:one:second'] } }));
   fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
   visibility(false); const again = await open();
-  expect(titles(again)).toEqual(['third']);
+  expect(titles(again)).toEqual(['first', 'second', 'third']);
+  expect(within(again).getAllByText('Sin ver')).toHaveLength(1);
+});
+
+it('reopens already-seen news on each native show, not on focus or dismissal', async () => {
+  stored.newsVisit = { lastVisitAt: '2026-05-30T00:00:00Z', seenKeys: ['a:one'] };
+  cache = catalog([app('one', today)]);
+  await start();
+  const first = await open();
+  expect(titles(first)).toEqual(['one']);
+  expect(within(first).queryByText('Sin ver')).toBeNull();
+  close(); fireEvent.focus(window);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  visibility(false);
+  expect(titles(await open())).toEqual(['one']);
+  close();
+  await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:one']));
 });
 
 it('records an actual show that ended before settings finished hydrating', async () => {
@@ -130,18 +224,20 @@ it('records the current slide when hide and the next show arrive in the same Rea
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: false, sequence: 2, cycle: 1, at: today } });
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 3, cycle: 2, at: today } });
   });
-  const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
-  expect(titles(dialog)).toEqual(['second']);
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
+  expect(titles(dialog)).toEqual(['first', 'second']);
+  expect(within(dialog).getAllByText('Sin ver')).toHaveLength(1);
   await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:one:first']));
 });
 
-it('caps each show at four unseen items without consuming the overflow', async () => {
+it('caps each show at the same four latest items and does not consume overflow', async () => {
   cache = catalog(Array.from({ length: 12 }, (_, index) => app(`app-${String(index).padStart(2, '0')}`, today)));
   await start(); const dialog = await open();
   expect(titles(dialog)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
   for (let index = 1; index < 4; index++) fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   close(); await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:app-00', 'a:app-01', 'a:app-02', 'a:app-03']));
-  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-04', 'app-05', 'app-06', 'app-07']);
+  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
+  expect(within(again).queryByText('Sin ver')).toBeNull();
 });
 
 it('keeps the last confirmed marker on save failure and retries the seen keys together with settings', async () => {
@@ -161,7 +257,7 @@ it('opens late cached data only while visible and does not reopen after dismissa
   bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'read_catalog_cache' ? deferred : normal(command, args));
   await start(); visibility(true); expect(screen.queryByRole('dialog')).toBeNull();
   await act(async () => { resolve(catalog([app('late', today)])); });
-  await screen.findByRole('dialog', { name: 'Novedades al abrir' }); close();
+  await screen.findByRole('dialog', { name: 'Novedades' }); close();
   fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
 });
 

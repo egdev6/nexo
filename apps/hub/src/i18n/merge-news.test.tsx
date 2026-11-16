@@ -36,8 +36,8 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it.each([
-  ['es', 'Novedades al abrir', 'Sin ver', 'Se muestra la copia guardada, que puede estar desactualizada.', 'Diapositiva siguiente', 'Ver en el catálogo: Segundo'],
-  ['en', 'News on opening', 'Unseen', 'Showing the saved copy, which may be outdated.', 'Next slide', 'View in catalog: Segundo'],
+  ['es', 'Novedades', 'Sin ver', 'Se muestra la copia guardada, que puede estar desactualizada.', 'Diapositiva siguiente', 'Ver en el catálogo: Segundo'],
+  ['en', 'News', 'Unseen', 'Showing the saved copy, which may be outdated.', 'Next slide', 'View in catalog: Segundo'],
 ] as const)('localizes real-news chrome and preserves source content in %s', (locale, title, unseen, stale, next, cta) => {
   const onShown = vi.fn(); const onCatalog = vi.fn();
   render(<LocaleProvider locale={locale}><main><NewsPopup items={items} open stale dontShow={false} onClose={() => {}} onDontShowChange={() => {}} onShown={onShown} onCatalog={onCatalog} /></main></LocaleProvider>);
@@ -53,8 +53,8 @@ it.each([
 });
 
 it.each([
-  ['es', 'Mostrar novedades al abrir', 'Solo aparecen novedades no vistas del catálogo oficial.', 'Esta aplicación ya no está disponible en el catálogo.', 'Reintentar catálogo'],
-  ['en', 'Show news on opening', 'Only unseen news from the official catalog appears.', 'This application is no longer available in the catalog.', 'Retry catalog'],
+  ['es', 'Mostrar novedades al abrir', 'Muestra las novedades del catálogo oficial cada vez que abres el panel.', 'Esta aplicación ya no está disponible en el catálogo.', 'Reintentar catálogo'],
+  ['en', 'Show news on opening', 'Shows official catalog news whenever you open the panel.', 'This application is no longer available in the catalog.', 'Retry catalog'],
 ] as const)('localizes the #10 settings hint and missing catalog target in %s', (locale, label, hint, missing, retry) => {
   const retryFn = vi.fn();
   const { unmount } = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={() => {}} onClose={() => {}} /></LocaleProvider>);
@@ -69,7 +69,7 @@ it.each([
 
 it('navigates English real news to its installed official app and persists viewed keys', async () => {
   render(<FlyoutPanel apps={[app]} news={items} />);
-  const dialog = await screen.findByRole('dialog', { name: 'News on opening' });
+  const dialog = await screen.findByRole('dialog', { name: 'News' });
   fireEvent.click(within(dialog).getByRole('button', { name: 'View in catalog: Título original' }));
   const target = await screen.findByRole('article', { name: 'Exterior' });
   await waitFor(() => expect(document.activeElement).toBe(target));
@@ -80,7 +80,7 @@ it('navigates English real news to its installed official app and persists viewe
 
 it('persists the news opt-out and viewed marker across a live language change and restart', async () => {
   const view = render(<FlyoutPanel apps={[app]} news={items} />);
-  const dialog = await screen.findByRole('dialog', { name: 'News on opening' });
+  const dialog = await screen.findByRole('dialog', { name: 'News' });
   fireEvent.click(within(dialog).getByRole('checkbox', { name: "Don't show on opening" }));
   fireEvent.click(within(dialog).getByRole('button', { name: 'Close news' }));
   await waitFor(() => expect(saved).toMatchObject({ showNewsOnOpen: false, newsVisit: { seenKeys: ['n:outside:first'] } }));

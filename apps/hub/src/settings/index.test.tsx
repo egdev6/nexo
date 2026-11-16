@@ -129,11 +129,11 @@ it.each([
   expect(onChange).toHaveBeenLastCalledWith({ ...initial, [field]: value });
 });
 
-it('describes the official unseen-news preference without suggesting a nonexistent news view', () => {
+it('describes news on every panel opening without suggesting a nonexistent news view', () => {
   setup();
   const toggle = screen.getByRole('switch', { name: 'Mostrar novedades al abrir' });
   const description = document.getElementById(toggle.getAttribute('aria-describedby')!);
-  expect(description?.textContent).toBe('Solo aparecen novedades no vistas del catálogo oficial.');
+  expect(description?.textContent).toBe('Muestra las novedades del catálogo oficial cada vez que abres el panel.');
 });
 
 it('changes language in General and retains all other settings', () => {

@@ -41,11 +41,15 @@ mod tray_icon;
 pub mod update_close;
 #[cfg(test)]
 mod update_service_tests;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod window_clip;
 mod window_motion;
 #[cfg(test)]
 mod window_motion_tests;
+#[cfg(windows)]
+mod windows_backdrop;
 
-use position::{WorkArea, flyout_bounds, work_area_right_edge};
+use position::{WorkArea, flyout_bounds};
 use std::sync::{
     Mutex,
     atomic::{AtomicBool, Ordering},
@@ -56,7 +60,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow, WindowEvent,
 };
-use window_motion::{Animation, Coordinator, Geometry, Surface};
+use window_motion::{Coordinator, Geometry, MotionSnapshot, Surface};
 
 #[cfg(windows)]
 struct NativeInstallProgress(AppHandle);
@@ -134,12 +138,56 @@ async fn cancel_install(
     Ok(service.cancel_install(&id).await)
 }
 
-#[derive(Default)]
-struct BackdropState(AtomicBool);
-
 #[tauri::command]
-fn backdrop_available(state: State<'_, BackdropState>) -> bool {
-    state.0.load(Ordering::Relaxed)
+fn backdrop_available() -> bool {
+    cfg!(windows)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn set_surface_clip(
+    window: WebviewWindow,
+    clip: Option<window_clip::Clip>,
+    blur: u8,
+    opacity: u8,
+    generation: u64,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    if let Some(clip) = &clip {
+        clip.validate()?;
+    }
+    window_clip::physical_sigma(blur, opacity, 1.0)?;
+    let (tx, mut rx) = tauri::async_runtime::channel(1);
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let allowed = target
+                .app_handle()
+                .state::<MotionState>()
+                .0
+                .try_lock()
+                .map(|motion| {
+                    let snapshot = motion.snapshot();
+                    snapshot.phase == window_motion::Phase::Open
+                        && snapshot.generation == generation
+                })
+                .unwrap_or(false);
+            let result = if !allowed {
+                Ok(())
+            } else if let Some(clip) = clip {
+                windows_backdrop::apply(&target, clip, blur, opacity)
+            } else {
+                windows_backdrop::hide();
+                Ok(())
+            };
+            let _ = tx.try_send(result);
+        })
+        .map_err(|error| error.to_string())?;
+    rx.recv()
+        .await
+        .ok_or_else(|| "Content backdrop UI callback was dropped".to_string())?
 }
 
 #[tauri::command]
@@ -247,7 +295,6 @@ impl Surface for NativeFlyout<'_> {
             y: bounds.y,
             width: bounds.width,
             height: bounds.height,
-            offscreen_x: work_area_right_edge(&area),
         }))
     }
     fn set_size(&self, width: u32, height: u32) -> tauri::Result<()> {
@@ -257,12 +304,38 @@ impl Surface for NativeFlyout<'_> {
         }
         Ok(())
     }
-    fn position(&self) -> tauri::Result<(i32, i32)> {
-        let position = self.0.outer_position()?;
-        Ok((position.x, position.y))
-    }
     fn set_position(&self, x: i32, y: i32) -> tauri::Result<()> {
         self.0.set_position(PhysicalPosition::new(x, y))
+    }
+    fn set_cloaked(&self, cloaked: bool) -> tauri::Result<()> {
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+
+            let hwnd = self.0.hwnd().inspect_err(|error| {
+                eprintln!("could not get Nexo window handle for DWM cloak: {error}");
+            })?;
+            let value = i32::from(cloaked);
+            // SAFETY: the window owns this HWND; DWMWA_CLOAK takes a BOOL.
+            let result = unsafe {
+                DwmSetWindowAttribute(
+                    hwnd.0.cast(),
+                    DWMWA_CLOAK as u32,
+                    std::ptr::from_ref(&value).cast(),
+                    std::mem::size_of_val(&value) as u32,
+                )
+            };
+            if result < 0 {
+                let error = std::io::Error::other(format!(
+                    "could not set Nexo DWM cloak to {cloaked}: {result:#010x}"
+                ));
+                eprintln!("{error}");
+                return Err(error.into());
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = cloaked;
+        Ok(())
     }
     fn show(&self) -> tauri::Result<()> {
         self.0.show()
@@ -272,6 +345,15 @@ impl Surface for NativeFlyout<'_> {
     }
     fn visibility(&self, visible: bool) {
         record_visibility(self.0.app_handle(), visible);
+    }
+    fn motion(&self, snapshot: MotionSnapshot) {
+        #[cfg(windows)]
+        if snapshot.phase != window_motion::Phase::Open {
+            windows_backdrop::hide();
+        }
+        if let Err(error) = self.0.emit("flyout-motion", snapshot) {
+            eprintln!("could not send flyout motion: {error}");
+        }
     }
 }
 
@@ -342,38 +424,133 @@ fn reduced_motion() -> bool {
     false
 }
 
-// The timer is off-thread, but every coordinator and native-window operation
-// runs on the UI thread. Check the generation there, not before dispatching a
-// frame, so even already-queued frames cannot outlive a newer request.
-fn schedule_animation(window: &WebviewWindow, animation: Option<Animation>) {
-    let Some(animation) = animation else { return };
+// A second animation frame follows the first render opportunity. Waiting for
+// the mounted panel avoids acknowledging an initial about:blank document.
+fn paint_probe_script(generation: u64) -> String {
+    format!(
+        "(() => {{ if (!document.querySelector('#root > .flyout')) return; \
+         requestAnimationFrame(() => requestAnimationFrame(() => {{ \
+         if (!document.querySelector('#root > .flyout')) return; \
+         const bridge = window.__TAURI_INTERNALS__; \
+         if (bridge && bridge.invoke) bridge.invoke('flyout_painted', {{ generation: {generation} }}).catch(() => {{}}); \
+         }})); }})()"
+    )
+}
+
+// Retry across initial navigation and webview reloads. Never reveal a bare
+// backdrop on failure; return to the tray if the renderer cannot acknowledge.
+fn schedule_paint_probe(window: &WebviewWindow, generation: Option<u64>) {
+    let Some(generation) = generation else { return };
     let window = window.clone();
     std::thread::spawn(move || {
         let started = Instant::now();
-        loop {
-            let last = started.elapsed() >= window_motion::DURATION;
+        let active = std::sync::Arc::new(AtomicBool::new(true));
+        while active.load(Ordering::Relaxed) {
             let target = window.clone();
+            let active_on_main = active.clone();
+            let expired = started.elapsed() >= Duration::from_secs(5);
             if let Err(error) = window.run_on_main_thread(move || {
                 let state = target.app_handle().state::<MotionState>();
                 let Ok(mut motion) = state.0.try_lock() else {
                     return;
                 };
-                if let Err(error) =
-                    motion.advance(&NativeFlyout(&target), &animation, started.elapsed())
-                {
-                    eprintln!("could not animate Nexo: {error}");
+                if motion.pending_paint() != Some(generation) {
+                    active_on_main.store(false, Ordering::Relaxed);
+                } else if expired {
+                    eprintln!("Nexo webview did not paint; returning to tray");
                     if let Err(error) = motion.abort(&NativeFlyout(&target)) {
-                        eprintln!("could not hide Nexo after animation failure: {error}");
+                        eprintln!("could not hide Nexo after paint timeout: {error}");
+                    }
+                    active_on_main.store(false, Ordering::Relaxed);
+                } else {
+                    drop(motion);
+                    if let Err(error) = target.eval(paint_probe_script(generation)) {
+                        eprintln!("could not request Nexo webview paint: {error}");
                     }
                 }
             }) {
-                eprintln!("could not schedule Nexo animation: {error}");
+                eprintln!("could not schedule Nexo paint probe: {error}");
                 return;
             }
-            if last {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    });
+}
+
+#[tauri::command]
+fn flyout_painted(window: WebviewWindow, generation: u64) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let state = target.app_handle().state::<MotionState>();
+            let Ok(mut motion) = state.0.try_lock() else {
+                return;
+            };
+            if motion.pending_paint() != Some(generation) {
                 return;
             }
-            std::thread::sleep(Duration::from_millis(16));
+            match motion.painted(&NativeFlyout(&target), generation) {
+                Ok(animation) => {
+                    drop(motion);
+                    schedule_motion_timeout(&target, animation);
+                }
+                Err(error) => {
+                    eprintln!("could not reveal Nexo after paint: {error}");
+                    if let Err(error) = motion.abort(&NativeFlyout(&target)) {
+                        eprintln!("could not hide Nexo after paint failure: {error}");
+                    }
+                }
+            }
+        })
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn get_flyout_motion(state: State<'_, MotionState>) -> Result<MotionSnapshot, String> {
+    state
+        .0
+        .lock()
+        .map(|motion| motion.snapshot())
+        .map_err(|error| error.to_string())
+}
+
+fn finish_motion_on_main(window: &WebviewWindow, generation: u64) {
+    let state = window.app_handle().state::<MotionState>();
+    if let Ok(mut motion) = state.0.lock()
+        && let Err(error) = motion.finish(&NativeFlyout(window), generation)
+    {
+        eprintln!("could not finish Nexo motion: {error}");
+        if let Err(error) = motion.abort(&NativeFlyout(window)) {
+            eprintln!("could not hide Nexo after motion failure: {error}");
+        }
+    }
+}
+
+#[tauri::command]
+fn flyout_motion_finished(window: WebviewWindow, generation: u64) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || finish_motion_on_main(&target, generation))
+        .map_err(|error| error.to_string())
+}
+
+// A stale timeout is harmless: the coordinator checks the generation on the UI thread.
+fn schedule_motion_timeout(window: &WebviewWindow, generation: Option<u64>) {
+    let Some(generation) = generation else { return };
+    let window = window.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(window_motion::TIMEOUT);
+        let target = window.clone();
+        if let Err(error) =
+            window.run_on_main_thread(move || finish_motion_on_main(&target, generation))
+        {
+            eprintln!("could not schedule Nexo motion timeout: {error}");
         }
     });
 }
@@ -385,7 +562,7 @@ fn hide_window_on_main(window: &WebviewWindow) -> tauri::Result<()> {
     } else {
         None
     };
-    schedule_animation(window, animation);
+    schedule_motion_timeout(window, animation);
     Ok(())
 }
 
@@ -449,9 +626,14 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
                 let Ok(mut motion) = state.0.try_lock() else {
                     return Ok(());
                 };
+                let previous_paint = motion.pending_paint();
                 let animation = motion.show(&NativeFlyout(&target), reduced_motion())?;
+                let pending = motion
+                    .pending_paint()
+                    .filter(|id| Some(*id) != previous_paint);
                 drop(motion);
-                schedule_animation(&target, animation);
+                schedule_paint_probe(&target, pending);
+                schedule_motion_timeout(&target, animation);
                 target.set_focus()
             })();
             if let Err(error) = result {
@@ -481,9 +663,14 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
                         .is_some_and(|at| at.elapsed() < Duration::from_millis(250))
                 })
                 .unwrap_or(false);
+        let previous_paint = motion.pending_paint();
         let animation = motion.toggle(&NativeFlyout(&window), reduced_motion(), just_hidden)?;
+        let pending = motion
+            .pending_paint()
+            .filter(|id| Some(*id) != previous_paint);
         drop(motion);
-        schedule_animation(&window, animation);
+        schedule_paint_probe(&window, pending);
+        schedule_motion_timeout(&window, animation);
         if reopening && !just_hidden {
             window.set_focus()?;
         }
@@ -504,17 +691,32 @@ fn handle_close_request<E>(
     Ok(())
 }
 
+// Tauri normally creates configured windows before setup. Defer this one so its
+// Windows-only style can be set on the builder before the HWND is created.
+fn prepare_main_window(config: &mut tauri::Config) -> Result<(), &'static str> {
+    let main = config
+        .app
+        .windows
+        .iter_mut()
+        .find(|window| window.label == "main")
+        .ok_or("Nexo main window config missing")?;
+    main.create = false;
+    main.window_effects = None;
+    Ok(())
+}
+
 pub fn run() {
     startup_log::log(&format!(
         "starting Nexo {} (pid {})",
         env!("CARGO_PKG_VERSION"),
         std::process::id()
     ));
+    let mut context = tauri::generate_context!();
+    prepare_main_window(context.config_mut()).unwrap_or_else(|error| startup_log::fail(error));
     let builder = tauri::Builder::default()
         .manage(FocusState::default())
         .manage(VisibilityState::default())
         .manage(MotionState::default())
-        .manage(BackdropState::default())
         .manage(config::ConfigLock::default())
         .manage(i18n::Presentation::default())
         .plugin(
@@ -536,6 +738,10 @@ pub fn run() {
         .manage(local_apps::windows::SelectionState::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
+            set_surface_clip,
+            flyout_painted,
+            flyout_motion_finished,
+            get_flyout_motion,
             get_flyout_state,
             hide_flyout,
             catalog_cache::read_catalog_cache,
@@ -571,6 +777,9 @@ pub fn run() {
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
+        flyout_painted,
+        flyout_motion_finished,
+        get_flyout_motion,
         get_flyout_state,
         hide_flyout,
         catalog_cache::read_catalog_cache,
@@ -585,13 +794,15 @@ pub fn run() {
     ]);
     #[cfg(windows)]
     startup_log::log_handoff();
-    builder
+    let app = builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");
             }
         }))
         .on_window_event(|window, event| {
+            #[cfg(windows)]
+            windows_backdrop::on_window_event(window, event);
             if let WindowEvent::CloseRequested { api, .. } = event
                 && let Err(error) = handle_close_request(
                     window.label(),
@@ -644,25 +855,30 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            #[cfg(windows)]
+            windows_backdrop::initialize_ui_thread();
             if install_workspace::PrivateFactory::system()
                 .cleanup_stale()
                 .is_err()
             {
                 eprintln!("Could not clean stale installer workspaces");
             }
-            // Keep Mica/acrylic as an optional OS-controlled fallback. If neither
-            // works, the CSS panel can still be transparent and the desktop sharp;
-            // the CSS blur slider does not control either native effect's radius.
-            #[cfg(target_os = "windows")]
-            if let Some(window) = app.get_webview_window("main") {
-                configure_dwm_window(&window);
-                let applied = window_vibrancy::apply_mica(&window, None)
-                    .or_else(|_| window_vibrancy::apply_acrylic(&window, None))
-                    .is_ok();
-                app.state::<BackdropState>()
-                    .0
-                    .store(applied, Ordering::Relaxed);
-            }
+            let window_config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|window| window.label == "main")
+                .ok_or(tauri::Error::WindowNotFound)?;
+            let window_builder = tauri::WebviewWindowBuilder::from_config(app, window_config)?
+                .transparent(true)
+                .shadow(false)
+                .decorations(false);
+            #[cfg(windows)]
+            let window_builder = window_builder.no_redirection_bitmap(true);
+            let _window = window_builder.build()?;
+            #[cfg(windows)]
+            configure_dwm_window(&_window);
             let locale = config::bootstrap_locale(app.handle());
             let quit =
                 MenuItem::with_id(app, "quit", i18n::text(locale, "quit"), true, None::<&str>)?;
@@ -720,22 +936,39 @@ pub fn run() {
             startup_log::log("setup complete");
             Ok(())
         })
-        .build(tauri::generate_context!())
-        .unwrap_or_else(|error| startup_log::fail(&format!("error while building Nexo: {error}")))
-        .run(|_app, _event| {
-            #[cfg(windows)]
-            if matches!(_event, tauri::RunEvent::Exit)
-                && let Some(hub) = _app.try_state::<ipc::Hub>()
-            {
-                hub.shutdown();
+        .build(context)
+        .unwrap_or_else(|error| startup_log::fail(&format!("error while building Nexo: {error}")));
+    #[cfg(windows)]
+    {
+        let exit_code = app.run_return(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                windows_backdrop::begin_shutdown();
+                if let Some(hub) = app.try_state::<ipc::Hub>() {
+                    hub.shutdown();
+                }
             }
         });
+        windows_backdrop::finish_shutdown();
+        if exit_code != 0 {
+            std::process::exit(exit_code);
+        }
+    }
+    #[cfg(not(windows))]
+    app.run(|_, _| {});
 }
 
 #[cfg(test)]
 mod close_tests {
-    use super::handle_close_request;
+    use super::{handle_close_request, paint_probe_script};
     use std::cell::RefCell;
+
+    #[test]
+    fn paint_probe_waits_for_a_mounted_panel_and_two_frames() {
+        let script = paint_probe_script(42);
+        assert_eq!(script.matches("requestAnimationFrame").count(), 2);
+        assert!(script.contains("#root > .flyout"));
+        assert!(script.contains("bridge.invoke('flyout_painted', { generation: 42 })"));
+    }
 
     #[test]
     fn main_close_prevents_destruction_then_hides() {

@@ -110,7 +110,7 @@ it('restores appearance, skips onboarding and preserves configured sources', asy
 it('persists the popup opt-out and shares it with settings after a restart', async () => {
   stored.firstRunComplete = true; visible = true;
   const { unmount } = render(<App />);
-  const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   fireEvent.click(within(dialog).getByRole('checkbox', { name: 'No mostrar al abrir' }));
   await waitFor(() => expect(stored.showNewsOnOpen).toBe(false));
   unmount(); render(<App />);

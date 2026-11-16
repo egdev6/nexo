@@ -63,6 +63,8 @@ impl Network for DocumentNetwork {
 }
 struct State {
     events: Mutex<Vec<String>>,
+    approval_bodies: Mutex<Vec<String>>,
+    approval_decisions: Mutex<VecDeque<bool>>,
     documents: Mutex<VecDeque<Result<Value, FeedError>>>,
     observations: Mutex<VecDeque<Detection>>,
     approved: AtomicBool,
@@ -84,6 +86,8 @@ impl State {
     fn new(first: usize, exited: usize) -> Arc<Self> {
         Arc::new(Self {
             events: Mutex::new(vec![]),
+            approval_bodies: Mutex::new(vec![]),
+            approval_decisions: Mutex::new(VecDeque::new()),
             documents: Mutex::new(VecDeque::new()),
             observations: Mutex::new(
                 [
@@ -291,6 +295,11 @@ impl InstallDetector for Detector {
 struct Approval(Arc<State>);
 impl InstallApproval for Approval {
     fn confirm(&self, request: &ApprovalRequest<'_>) -> ApprovalDecision {
+        self.0.approval_bodies.lock().unwrap().push(
+            crate::install_approval::approval_text(request)
+                .unwrap()
+                .body,
+        );
         self.0.log(format!(
             "approval:{}:{}:{}:{}",
             request.app_name, request.version, request.publisher_host, request.language
@@ -302,7 +311,14 @@ impl InstallApproval for Approval {
                 released = ready.wait(released).unwrap();
             }
         }
-        if self.0.approved.load(Ordering::SeqCst) {
+        if self
+            .0
+            .approval_decisions
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap_or_else(|| self.0.approved.load(Ordering::SeqCst))
+        {
             ApprovalDecision::Approved
         } else {
             ApprovalDecision::Denied
@@ -664,20 +680,305 @@ async fn unknown_id_and_failed_fresh_feed_refuse_without_download_or_spawn() {
 }
 
 #[tokio::test]
-async fn initial_detection_blocks_installed_and_unknown_before_approval() {
-    for (detection, expected) in [
+async fn initial_installed_detection_still_blocks_before_approval() {
+    let state = State::new(1, 1);
+    state.observe(vec![Detection::Installed { version: None }]);
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::AlreadyInstalled
+    );
+    assert_eq!(state.events(), ["feed", "detect:1.0.0"]);
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+fn without_detection_hint(state: &State) {
+    let mut doc = document();
+    doc["apps"][0].as_object_mut().unwrap().remove("detection");
+    *state.documents.lock().unwrap() = [Ok(doc.clone()), Ok(doc)].into();
+}
+
+#[tokio::test]
+async fn unknown_install_runs_the_full_transaction_and_serializes_unverified_success() {
+    let state = State::new(1, 1);
+    without_detection_hint(&state);
+    state.observe(vec![
+        Detection::Unknown,
+        Detection::Unknown,
+        Detection::Unknown,
+    ]);
+    let sink = Arc::new(Events::default());
+    let result = service(&state)
+        .install_app_with_progress("minimal", "es", sink.clone())
+        .await;
+    assert_eq!(
+        serde_json::to_value(result).unwrap(),
+        json!({"status":"installedUnverified"})
+    );
+    assert_eq!(
+        state.events(),
+        [
+            "feed",
+            "detect:1.0.0",
+            "approval:Minimal:1.0.0:github.com:es",
+            "download",
+            "network",
+            "feed",
+            "detect:1.0.0",
+            "launch",
+            "wait",
+            "monitor",
+            "exited",
+            "detect:1.0.0",
+            "cleanup"
+        ]
+    );
+    let mut phases: Vec<_> = sink
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|event| event.phase)
+        .collect();
+    phases.dedup();
+    assert_eq!(
+        phases,
+        [
+            ProgressPhase::Fetching,
+            ProgressPhase::AwaitingApproval,
+            ProgressPhase::Downloading,
+            ProgressPhase::Verifying,
+            ProgressPhase::Installing,
+            ProgressPhase::Detecting
+        ]
+    );
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn unknown_install_native_approval_warns_in_both_languages() {
+    for (language, body) in [
         (
-            Detection::Installed { version: None },
-            InstallResult::AlreadyInstalled,
+            "es",
+            "¿Descargar e instalar Minimal, versión 1.0.0, desde github.com?\nNexo no puede comprobar si la app ya está instalada.",
         ),
-        (Detection::Unknown, InstallResult::DetectionUnknown),
+        (
+            "en",
+            "Download and install Minimal version 1.0.0 from github.com?\nNexo cannot check whether the app is already installed.",
+        ),
+        (
+            "fr",
+            "Download and install Minimal version 1.0.0 from github.com?\nNexo cannot check whether the app is already installed.",
+        ),
     ] {
         let state = State::new(1, 1);
-        state.observe(vec![detection]);
-        assert_eq!(service(&state).install_app("minimal", "en").await, expected);
-        assert_eq!(state.events(), ["feed", "detect:1.0.0"]);
+        without_detection_hint(&state);
+        state.observe(vec![
+            Detection::Unknown,
+            Detection::Unknown,
+            Detection::Unknown,
+        ]);
+        let _ = service(&state).install_app("minimal", language).await;
+        assert_eq!(*state.approval_bodies.lock().unwrap(), [body], "{language}");
+    }
+}
+
+#[tokio::test]
+async fn unknown_during_prespawn_recheck_continues_and_reports_the_fresh_observation() {
+    let state = State::new(1, 1);
+    state.observe(vec![
+        Detection::NotInstalled,
+        Detection::Unknown,
+        Detection::Unknown,
+        Detection::Installed {
+            version: Some("9.2.1".into()),
+        },
+    ]);
+    let result = service(&state).install_app("minimal", "en").await;
+    assert_eq!(
+        serde_json::to_value(result).unwrap(),
+        json!({"status":"installed", "version":"9.2.1"})
+    );
+    assert_eq!(
+        *state.approval_bodies.lock().unwrap(),
+        [
+            "Download and install Minimal version 1.0.0 from github.com?",
+            "Download and install Minimal version 1.0.0 from github.com?\nNexo cannot check whether the app is already installed."
+        ]
+    );
+    assert_eq!(
+        state
+            .events()
+            .iter()
+            .filter(|event| *event == "feed")
+            .count(),
+        3
+    );
+    assert!(state.events().contains(&"launch".into()));
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn unknown_prespawn_requires_warning_approval_and_revalidates_before_launch() {
+    let state = State::new(1, 1);
+    state.observe(vec![Detection::NotInstalled, Detection::Unknown]);
+    *state.approval_decisions.lock().unwrap() = [true, false].into();
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::Cancelled
+    );
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+
+    let state = State::new(1, 1);
+    let mut changed = document();
+    changed["apps"][0]["version"] = json!("2.0.0");
+    *state.documents.lock().unwrap() = [Ok(document()), Ok(document()), Ok(changed)].into();
+    state.observe(vec![Detection::NotInstalled, Detection::Unknown]);
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::ReleaseChanged
+    );
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+
+    let state = State::new(1, 1);
+    state.observe(vec![
+        Detection::NotInstalled,
+        Detection::Unknown,
+        Detection::Installed { version: None },
+    ]);
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::AlreadyInstalled
+    );
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn unknown_after_exit_is_unverified_even_if_initial_detection_was_known() {
+    let state = State::new(1, 1);
+    state.observe(vec![
+        Detection::NotInstalled,
+        Detection::NotInstalled,
+        Detection::Unknown,
+    ]);
+    let result = service(&state).install_app("minimal", "en").await;
+    assert_eq!(
+        serde_json::to_value(result).unwrap(),
+        json!({"status":"installedUnverified"})
+    );
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn unknown_initial_detection_defers_to_known_post_exit_observations() {
+    for (last, expected) in [
+        (Detection::NotInstalled, json!({"status":"notDetected"})),
+        (
+            Detection::Installed {
+                version: Some("9.2.1".into()),
+            },
+            json!({"status":"installed", "version":"9.2.1"}),
+        ),
+    ] {
+        let state = State::new(1, 1);
+        without_detection_hint(&state);
+        state.observe(vec![Detection::Unknown, Detection::Unknown, last]);
+        assert_eq!(
+            serde_json::to_value(service(&state).install_app("minimal", "en").await).unwrap(),
+            expected
+        );
+        assert!(state.events().contains(&"launch".into()));
+        assert_eq!(state.events().last().unwrap(), "cleanup");
         assert_eq!(state.active.load(Ordering::SeqCst), 0);
     }
+}
+
+#[tokio::test]
+async fn unknown_install_keeps_approval_signature_and_revalidation_gates() {
+    let state = State::new(1, 1);
+    without_detection_hint(&state);
+    state.observe(vec![Detection::Unknown]);
+    state.approved.store(false, Ordering::SeqCst);
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::Cancelled
+    );
+    assert!(!state.events().contains(&"download".into()));
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+
+    let state = State::new(1, 1);
+    without_detection_hint(&state);
+    state.observe(vec![Detection::Unknown]);
+    *state.prepare_error.lock().unwrap() = Some(PrepareError {
+        cause: PrepareFailure::Verify(VerifyError::VerificationFailed),
+        cleanup_failed: false,
+    });
+    assert_eq!(
+        serde_json::to_value(service(&state).install_app("minimal", "en").await).unwrap(),
+        json!({"status":"signatureInvalid"})
+    );
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+
+    let state = State::new(1, 1);
+    without_detection_hint(&state);
+    state.observe(vec![
+        Detection::Unknown,
+        Detection::Installed { version: None },
+    ]);
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::AlreadyInstalled
+    );
+    assert!(!state.events().contains(&"launch".into()));
+    assert_eq!(state.events().last().unwrap(), "cleanup");
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn unknown_install_preserves_single_flight_and_post_spawn_cancellation() {
+    let state = State::new(0, 1);
+    without_detection_hint(&state);
+    state.observe(vec![
+        Detection::Unknown,
+        Detection::Unknown,
+        Detection::Unknown,
+    ]);
+    let service = Arc::new(service(&state));
+    let first = {
+        let service = service.clone();
+        tokio::spawn(async move { service.install_app("minimal", "en").await })
+    };
+    state.until("wait").await;
+    assert_eq!(
+        service.install_app("minimal", "en").await,
+        InstallResult::Busy
+    );
+    assert_eq!(
+        service.cancel_install("minimal").await,
+        CancelResult::TooLate
+    );
+    state.first.add_permits(1);
+    assert_eq!(
+        serde_json::to_value(first.await.unwrap()).unwrap(),
+        json!({"status":"installedUnverified"})
+    );
+    assert_eq!(
+        state
+            .events()
+            .iter()
+            .filter(|event| *event == "launch")
+            .count(),
+        1
+    );
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
 }
 
 #[tokio::test]
@@ -755,15 +1056,18 @@ async fn changed_release_key_detection_or_removed_entry_aborts_and_cleans() {
 }
 
 #[tokio::test]
-async fn second_detection_refuses_installed_or_unknown_and_reports_cleanup_failure() {
+async fn second_installed_detection_refuses_and_reports_cleanup_failure() {
     for (detection, expected, cleanup_failure) in [
         (
             Detection::Installed { version: None },
             InstallResult::AlreadyInstalled,
             false,
         ),
-        (Detection::Unknown, InstallResult::DetectionUnknown, false),
-        (Detection::Unknown, InstallResult::CleanupFailed, true),
+        (
+            Detection::Installed { version: None },
+            InstallResult::CleanupFailed,
+            true,
+        ),
     ] {
         let state = State::new(1, 1);
         state
@@ -977,20 +1281,18 @@ async fn late_cleanup_failure_after_timeout_or_wait_error_is_emitted() {
 }
 
 #[tokio::test]
-async fn exit_zero_requires_fresh_installed_observation_and_nonzero_is_reported() {
-    for detection in [Detection::NotInstalled, Detection::Unknown] {
-        let state = State::new(1, 1);
-        state.observe(vec![
-            Detection::NotInstalled,
-            Detection::NotInstalled,
-            detection,
-        ]);
-        assert_eq!(
-            service(&state).install_app("minimal", "en").await,
-            InstallResult::NotDetected
-        );
-        assert_eq!(state.active.load(Ordering::SeqCst), 0);
-    }
+async fn exit_zero_reports_known_absence_and_nonzero_is_reported() {
+    let state = State::new(1, 1);
+    state.observe(vec![
+        Detection::NotInstalled,
+        Detection::NotInstalled,
+        Detection::NotInstalled,
+    ]);
+    assert_eq!(
+        service(&state).install_app("minimal", "en").await,
+        InstallResult::NotDetected
+    );
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
     let state = State::new(1, 1);
     *state.outcome.lock().unwrap() = Err(LaunchError::Exit(42));
     let result = service(&state).install_app("minimal", "en").await;

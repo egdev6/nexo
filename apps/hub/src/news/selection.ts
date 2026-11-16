@@ -37,23 +37,23 @@ export function selectOfficialNews(catalog: Catalog, now = Date.now()): { items:
   const validKeys = new Set<string>();
   const nowInstant = instant(new Date(now).toISOString());
   const cutoff = { ...nowInstant, seconds: nowInstant.seconds - WINDOW_SECONDS };
-  const items: { item: NewsItem; time: Instant }[] = [];
+  const items: { item: NewsItem & { appName: string }; time: Instant }[] = [];
   for (const app of catalog.apps) {
     const appKey = `a:${app.id}`;
     validKeys.add(appKey);
     for (const news of app.news) validKeys.add(`n:${app.id}:${news.id}`);
     const release = instant(app.releasedAt);
     if (compare(release, nowInstant) > 0 || (!app.featured && compare(release, cutoff) < 0)) continue;
-    let explicitRelease = false;
+    let hasNews = false;
     for (const news of app.news) {
       const time = instant(news.publishedAt);
       if (compare(time, cutoff) < 0 || compare(time, nowInstant) > 0) continue;
-      if (news.kind === 'new' || news.kind === 'featured') explicitRelease = true;
+      hasNews = true;
       const item = mapped.get(`${app.id}:${news.id}`)!;
-      items.push({ item: { ...item, id: `n:${app.id}:${news.id}` }, time });
+      items.push({ item: { ...item, id: `n:${app.id}:${news.id}`, appName: app.name }, time });
     }
-    if (!explicitRelease) items.push({
-      item: { id: appKey, appId: app.id, badge: t('es', app.featured ? 'news.featured' : 'news.new') as NewsItem['badge'], title: app.name,
+    if (!hasNews) items.push({
+      item: { id: appKey, appId: app.id, appName: app.name, badge: t('es', app.featured ? 'news.featured' : 'news.new') as NewsItem['badge'], title: app.name,
         text: app.tagline || app.description, cta: t('es', 'news.viewCatalog'), publishedAt: app.releasedAt },
       time: release,
     });

@@ -383,6 +383,15 @@ async fn strict_installed_semver_and_precedence_gate_updates() {
 }
 
 #[tokio::test]
+async fn update_still_refuses_unknown_installation_before_approval() {
+    let state = State::new();
+    state.observe(vec![UpdateDetection::Unknown]);
+    assert_eq!(update(&state).await, json!({"status":"detectionUnknown"}));
+    assert_eq!(state.events(), ["feed", "detect"]);
+    assert_eq!(state.active.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
 async fn absent_key_bad_feed_and_denied_approval_never_download_or_launch() {
     let state = State::new();
     let mut missing = document();

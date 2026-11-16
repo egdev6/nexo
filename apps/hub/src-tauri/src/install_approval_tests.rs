@@ -12,6 +12,7 @@ fn request(language: &str) -> ApprovalRequest<'_> {
         version: "1.2.3",
         publisher_host: "github.com",
         language,
+        installation_unknown: false,
     }
 }
 
@@ -56,6 +57,7 @@ fn update_confirmation_preserves_values_and_rejects_nul() {
         version: "{host}",
         publisher_host: "github.com/{version}",
         language: "en",
+        installation_unknown: false,
     };
     let text = update_approval_text(&injected, "{app}").unwrap();
     assert_eq!(
@@ -102,6 +104,7 @@ fn replacement_does_not_reinterpret_values_as_placeholders() {
         version: "v{app}",
         publisher_host: "github.com/{version}",
         language: "en",
+        installation_unknown: false,
     })
     .expect("confirmation");
     assert_eq!(
@@ -148,6 +151,7 @@ fn nul_in_displayed_values_is_rejected() {
                 version,
                 publisher_host,
                 language: "en",
+                installation_unknown: false,
             }),
             None
         );
@@ -219,6 +223,27 @@ fn windows_dialog_approves_only_yes_and_uses_default_no() {
             MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND | MB_DEFBUTTON2
         );
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_unknown_install_dialog_shows_warning() {
+    let approval = DialogInstallApproval {
+        dialog: FakeDialog {
+            response: windows_sys::Win32::UI::WindowsAndMessaging::IDYES,
+            calls: Default::default(),
+        },
+    };
+    assert_eq!(
+        approval.confirm(&ApprovalRequest {
+            installation_unknown: true,
+            ..request("es")
+        }),
+        ApprovalDecision::Approved
+    );
+    assert_eq!(approval.dialog.calls.borrow()[0].body,
+        "¿Descargar e instalar Antena, versión 1.2.3, desde github.com?\nNexo no puede comprobar si la app ya está instalada."
+            .encode_utf16().chain(Some(0)).collect::<Vec<_>>());
 }
 
 #[cfg(windows)]

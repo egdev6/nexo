@@ -36,7 +36,7 @@ function CatalogCard({ app, focused = false, reason, installs }: { app: HubApp; 
       <AppSocialLinks app={app} onClick={open} />
       {failed && <p role="alert" className="status-warning">{t(locale, 'app.externalError')}</p>}
       <div className="catalog-actions">
-        {official ? <InstallAction app={app} reason={reason} installs={installs} focused={focused} /> : app.statusKnown === false ? <span className="catalog-version">{t(locale, 'catalog.installUnavailable')}</span> :
+        {official ? <InstallAction app={app} reason={reason} warning={app.statusKnown !== true || app.installationState === 'unknown' || !app.installationState ? 'install.unknown' : undefined} installs={installs} focused={focused} /> : app.statusKnown === false ? <span className="catalog-version">{t(locale, 'catalog.installUnavailable')}</span> :
           <Button type="button" size="sm" variant="primary" aria-label={t(locale, 'catalog.installSample', { name: app.name })} title={t(locale, 'catalog.installTitle')}>{t(locale, 'common.install')}</Button>}
       </div>
     </div>
@@ -44,7 +44,6 @@ function CatalogCard({ app, focused = false, reason, installs }: { app: HubApp; 
 }
 
 function disabledReason(app: HubApp, state: Props['state'], stale: boolean, catalog?: Catalog, installs?: CatalogInstalls): MessageKey | undefined {
-  if (app.statusKnown !== true || app.installationState === 'unknown' || !app.installationState) return 'install.unknown';
   if (app.installed || app.installationState === 'installed') return 'install.alreadyInstalled';
   if (stale || state !== 'ready') return 'install.offline';
   if (catalog?.schemaVersion !== 3) return 'install.v3Required';

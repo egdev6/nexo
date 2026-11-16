@@ -5,6 +5,7 @@ import '@egdev/tokens/tokens.css';
 import '@egdev/ui/styles.css';
 import App from './App';
 import './theme/family.css';
+import './theme/accent.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

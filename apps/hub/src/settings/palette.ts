@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 // Ported from /home/egdev/proyectos/quorb/src/lib/palette.ts:4-64.
 export const DEFAULT_ACCENT = '#ff0036';
 export const ACCENT_PRESETS = ['#ff0036', '#ff7a00', '#ffd400', '#22c55e', '#00c2ff', '#3b82f6', '#8b5cf6', '#ff3fb4'];
@@ -48,4 +50,21 @@ export function derivePalette(hex: string): [string, string, string] {
 export function normalizeHex(hex: string | null | undefined): string {
   const rgb = hex ? parseHex(hex) : null;
   return rgb ? toHex(rgb) : DEFAULT_ACCENT;
+}
+
+// The palette already clamps extreme colors. Choose the better black/white ink
+// for its solid tone; CSS mixes towards the opposite color for gradient stops.
+export function accentVariables(hex: string): CSSProperties {
+  const accent = normalizeHex(hex);
+  const [base, light, mid] = derivePalette(accent);
+  const channels = parseHex(base)!.map(channel => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  const darkInk = luminance > Math.sqrt(0.0525) - 0.05;
+  return {
+    '--hub-accent': accent, '--hub-accent-base': base, '--hub-accent-light': light, '--hub-accent-mid': mid,
+    '--hub-accent-on': darkInk ? '#000000' : '#ffffff', '--hub-accent-contrast': darkInk ? '#ffffff' : '#000000',
+  } as CSSProperties;
 }
