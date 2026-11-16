@@ -16,6 +16,7 @@
 - S9 (verbatim): "Antena no se muestra nunca, debe estar rota la navegación?"
 - S10 (verbatim): "Creo que lo mejor es dejar instalar si no detecta no?" (answering the parent's question whether to allow installing apps without detection data, with a warning)
 - S11 (verbatim): "sigue viéndose el cuadrado gris en la salida" — after 3bbbf5f. Parent analysis: the window uses Mica (`window_vibrancy::apply_mica`, lib.rs:804); when the window becomes inactive (closing by clicking outside), Windows replaces Mica with a flat gray fill, visible behind the translucent flyout during the exit slide.
+- S12 (evidence): screen capture at 125 % scaling (frames in target/frames) shows the gray only while the native window moves during the entry slide: the leading edge shows gray blocks and stale content (WebView2 presents a frame late relative to the native window position); static frames and the exit are clean.
 
 ## Tasks
 
@@ -28,6 +29,7 @@
 - T7 (S9) News slider navigation: every item reachable (Antena never shows) — route: writer (frontend), test-first; status: authorized.
 - T8 (S10) Allow installing official apps whose installation cannot be detected, with a warning; the native install transaction no longer refuses `DetectionUnknown` before download (signature, approval and every other check unchanged); success after an unknown install is reported as installed-unverified — route: writer, test-first; status: authorized (after T6, shares Rust files).
 - T9 (S11) Opaque flyout background while the window is inactive or exiting, translucent again when focused — route: writer (frontend), test-first; status: authorized.
+- T10 (S1, S12, L7) Static window, CSS content slide: the window is shown at its final position; the flyout content slides in from the right with a CSS transform (~200 ms, none with reduced motion) and out the same way; during the motion the native backdrop (Mica/Acrylic) is cleared so the window is transparent (desktop visible, never gray) and re-applied when the entry ends; exit hides after the CSS exit. Replaces the native window slide — route: writer (native + frontend), test-first; status: authorized.
 
 ## Log
 
@@ -47,3 +49,4 @@ en catálogo si no está instalada debería de estar el botón dehabilitado no? 
 - L5 (verbatim): "Antena no se muestra nunca, debe estar rota la navegación?
 Creo que lo mejor es dejar instalar si no detecta no?"
 - L6 (verbatim): "sigue viéndose el cuadrado gris en la salida"
+- L7: user chose "Ventana quieta, deslizar el contenido (recomendado)" — static window, CSS slide, Mica cleared during the motion.
