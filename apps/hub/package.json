@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run --dir src",
+    "test:ds-adoption": "vitest run --configLoader runner scripts/ds-adoption-report.test.mjs",
     "canvas": "vitest run --config vitest.canvas.config.ts",
     "tauri": "tauri",
     "app:dev": "tauri dev"
