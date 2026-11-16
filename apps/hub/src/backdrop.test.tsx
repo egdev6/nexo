@@ -13,6 +13,7 @@ const css = readFileSync(`${cwd()}/src/style.css`, 'utf8') as string;
 const bridge = vi.hoisted(() => ({
   native: true,
   opacity: 63,
+  blur: 12,
   invoke: vi.fn(),
   getCurrentWindow: vi.fn(),
   onFocusChanged: vi.fn(),
@@ -28,7 +29,7 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, lis
   return () => bridge.events.delete(name);
 }) }));
 vi.mock('./settings/use-settings', () => ({ useSettings: () => ({
-  settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: bridge.opacity, blur: 12 },
+  settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: bridge.opacity, blur: bridge.blur },
   fileState: 'ready', languageDraft: null, recordVisit: vi.fn(),
 }) }));
 vi.mock('./shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
@@ -38,11 +39,13 @@ vi.mock('./news', () => ({ NewsPopup: () => null }));
 beforeEach(() => {
   bridge.native = true;
   bridge.opacity = 63;
+  bridge.blur = 12;
   bridge.listener = undefined;
   bridge.events.clear();
   bridge.invoke.mockReset().mockImplementation(async (command: string) => {
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0, at: 0 };
     if (command === 'get_flyout_motion') return { phase: 'open', generation: 0, sequence: 0 };
+    if (command === 'backdrop_available') return true;
     return null;
   });
   bridge.stop.mockReset();
@@ -50,7 +53,7 @@ beforeEach(() => {
   bridge.onFocusChanged.mockReset().mockImplementation(async listener => { bridge.listener = listener; return bridge.stop; });
   bridge.getCurrentWindow.mockReset().mockReturnValue({ onFocusChanged: bridge.onFocusChanged, hide: bridge.hide });
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 function visibility(visible: boolean, sequence: number, cycle: number) {
   act(() => bridge.events.get('flyout-visibility')!({ payload: { visible, sequence, cycle, at: 1 } }));
@@ -70,6 +73,56 @@ async function openPanel() {
   visibility(true, 1, 1);
   return screen.getByRole('main');
 }
+
+function measurePanel() {
+  vi.stubGlobal('innerWidth', 480);
+  vi.stubGlobal('innerHeight', 800);
+  vi.stubGlobal('devicePixelRatio', 1.25);
+  const rectangle = (x: number, y: number, width: number, height: number) => ({ x, y, left: x, top: y, right: x + width, bottom: y + height, width, height, toJSON: () => ({}) }) as DOMRect;
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    return this.matches('.main-tabs > [role="tabpanel"], .area-scroll') ? rectangle(0, 140, 480, 660) : rectangle(0, 0, 480, 800);
+  });
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+}
+
+it('sends the physical content-only clip and live blur and opacity settings at rest', async () => {
+  measurePanel();
+  const view = render(<FlyoutPanel apps={[]} news={[]} />);
+  const clip = { width: 600, height: 1000, x: 0, y: 175, contentWidth: 600, contentHeight: 825 };
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', { clip, blur: 12, opacity: 63, generation: 0 }));
+  expect(screen.getByRole('main').style.getPropertyValue('--hub-opacity')).toBe('0.63');
+  bridge.opacity = 60;
+  bridge.blur = 0;
+  view.rerender(<FlyoutPanel apps={[]} news={[]} />);
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', { clip, blur: 0, opacity: 60, generation: 0 }));
+  expect(screen.getByRole('main').style.getPropertyValue('--hub-opacity')).toBe('0.6');
+  expect(screen.getByRole('main').style.getPropertyValue('--hub-blur')).toBe('0px');
+  bridge.blur = 40;
+  view.rerender(<FlyoutPanel apps={[]} news={[]} />);
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', { clip, blur: 40, opacity: 60, generation: 0 }));
+});
+
+it('resends matching geometry after a native resize even if the measured rectangle is unchanged', async () => {
+  measurePanel();
+  await openPanel();
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', expect.objectContaining({ generation: 0 })));
+  const calls = bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length;
+  fireEvent.resize(window);
+  await waitFor(() => expect(bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length).toBeGreaterThan(calls));
+});
+
+it('does not request a visible native backdrop during motion and remeasures on reopening', async () => {
+  measurePanel();
+  await openPanel();
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', expect.objectContaining({ generation: 0 })));
+  motion('exiting', 1);
+  const calls = bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length;
+  motion('hidden', 2);
+  motion('entering', 3);
+  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip')).toHaveLength(calls);
+  motion('open', 4);
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', expect.objectContaining({ generation: 4 })));
+});
 
 it('uses the configured translucent appearance at rest even when no focus event arrives', async () => {
   const panel = await openPanel();

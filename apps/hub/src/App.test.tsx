@@ -56,7 +56,7 @@ vi.mock('./window', () => ({
   hideFlyout: vi.fn().mockResolvedValue(undefined),
 }));
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(isTauri).mockReturnValue(false);
@@ -286,6 +286,32 @@ it('keeps settings, live IPC and late-arriving catalog news together', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Cambiar apariencia' }));
   await waitFor(() => expect(saved.accent).toBe('#3b82f6'));
   expect(screen.getByRole('main').style.getPropertyValue('--hub-blur')).toBe('12px');
+});
+
+it('sends appearance changes from Ajustes to the native content backdrop immediately', async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  vi.mocked(backdropAvailable).mockResolvedValue(true);
+  vi.stubGlobal('devicePixelRatio', 1.25);
+  const rectangle = (y: number, height: number) => ({ x: 0, y, left: 0, top: y, right: 480, bottom: y + height, width: 480, height, toJSON: () => ({}) }) as DOMRect;
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    return this.matches('.main-tabs > [role="tabpanel"]') ? rectangle(140, 660) : this.matches('.area-scroll') ? rectangle(80, 720) : rectangle(0, 800);
+  });
+  let saved = { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false };
+  vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
+    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
+    if (command === 'get_flyout_motion') return Promise.resolve({ phase: 'open', generation: 5, sequence: 5 });
+    if (command === 'get_flyout_state') return Promise.resolve({ visible: true, sequence: 1, cycle: 1, at: Date.now() });
+    if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
+    return Promise.resolve(null);
+  }) as typeof invoke);
+  render(<App apps={[]} news={[]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar apariencia' }));
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith('set_surface_clip', {
+    clip: { width: 600, height: 1000, x: 0, y: 100, contentWidth: 600, contentHeight: 900 },
+    blur: 12, opacity: 63, generation: 5,
+  }));
+  expect(screen.getByRole('main').style.getPropertyValue('--hub-opacity')).toBe('0.63');
 });
 
 it('does not exit only the hub while a pending settings save fails', async () => {

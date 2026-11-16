@@ -25,6 +25,7 @@ import { accentVariables, DEFAULT_ACCENT, normalizeHex } from './settings/palett
 import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import { requestFlyoutHide, useFlyoutMotion } from './shell/motion';
+import { useContentBackdrop } from './shell/backdrop';
 import { noticeText } from './shell/notice';
 import type { RegistryApp, RegistrySnapshot } from './shell/registry';
 import { backdropAvailable, hideFlyout } from './window';
@@ -183,6 +184,8 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const [targetAppId, setTargetAppId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [hasBackdrop, setHasBackdrop] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  useContentBackdrop(panelRef, native && hasBackdrop, motion.phase, motion.generation, shown.blur, shown.opacity);
   const [registry, setRegistry] = useState<RegistrySnapshot>({ revision: 0, apps: [] });
   const [registryFailed, setRegistryFailed] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -288,7 +291,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const errorLocale = usable && firstRun ? previewLanguage : locale;
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <LocaleProvider locale={locale}><main className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}${motion.className}`} data-backdrop={motion.sliding ? 'opaque' : undefined} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle} onTransitionEnd={motion.onTransitionEnd}>
+  return <LocaleProvider locale={locale}><main ref={panelRef} className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}${motion.className}`} data-backdrop={motion.sliding ? 'opaque' : undefined} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle} onTransitionEnd={motion.onTransitionEnd}>
     <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">

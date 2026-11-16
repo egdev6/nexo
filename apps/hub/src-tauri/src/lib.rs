@@ -41,9 +41,13 @@ mod tray_icon;
 pub mod update_close;
 #[cfg(test)]
 mod update_service_tests;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod window_clip;
 mod window_motion;
 #[cfg(test)]
 mod window_motion_tests;
+#[cfg(windows)]
+mod windows_backdrop;
 
 use position::{WorkArea, flyout_bounds};
 use std::sync::{
@@ -134,10 +138,56 @@ async fn cancel_install(
     Ok(service.cancel_install(&id).await)
 }
 
-// Kept for existing frontends: the flyout no longer uses an OS backdrop.
 #[tauri::command]
 fn backdrop_available() -> bool {
-    false
+    cfg!(windows)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn set_surface_clip(
+    window: WebviewWindow,
+    clip: Option<window_clip::Clip>,
+    blur: u8,
+    opacity: u8,
+    generation: u64,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    if let Some(clip) = &clip {
+        clip.validate()?;
+    }
+    window_clip::physical_sigma(blur, opacity, 1.0)?;
+    let (tx, mut rx) = tauri::async_runtime::channel(1);
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let allowed = target
+                .app_handle()
+                .state::<MotionState>()
+                .0
+                .try_lock()
+                .map(|motion| {
+                    let snapshot = motion.snapshot();
+                    snapshot.phase == window_motion::Phase::Open
+                        && snapshot.generation == generation
+                })
+                .unwrap_or(false);
+            let result = if !allowed {
+                Ok(())
+            } else if let Some(clip) = clip {
+                windows_backdrop::apply(&target, clip, blur, opacity)
+            } else {
+                windows_backdrop::hide();
+                Ok(())
+            };
+            let _ = tx.try_send(result);
+        })
+        .map_err(|error| error.to_string())?;
+    rx.recv()
+        .await
+        .ok_or_else(|| "Content backdrop UI callback was dropped".to_string())?
 }
 
 #[tauri::command]
@@ -297,6 +347,10 @@ impl Surface for NativeFlyout<'_> {
         record_visibility(self.0.app_handle(), visible);
     }
     fn motion(&self, snapshot: MotionSnapshot) {
+        #[cfg(windows)]
+        if snapshot.phase != window_motion::Phase::Open {
+            windows_backdrop::hide();
+        }
         if let Err(error) = self.0.emit("flyout-motion", snapshot) {
             eprintln!("could not send flyout motion: {error}");
         }
@@ -684,6 +738,7 @@ pub fn run() {
         .manage(local_apps::windows::SelectionState::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
+            set_surface_clip,
             flyout_painted,
             flyout_motion_finished,
             get_flyout_motion,
@@ -739,13 +794,15 @@ pub fn run() {
     ]);
     #[cfg(windows)]
     startup_log::log_handoff();
-    builder
+    let app = builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = show_flyout(app) {
                 eprintln!("could not show Nexo: {error}");
             }
         }))
         .on_window_event(|window, event| {
+            #[cfg(windows)]
+            windows_backdrop::on_window_event(window, event);
             if let WindowEvent::CloseRequested { api, .. } = event
                 && let Err(error) = handle_close_request(
                     window.label(),
@@ -798,6 +855,8 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            #[cfg(windows)]
+            windows_backdrop::initialize_ui_thread();
             if install_workspace::PrivateFactory::system()
                 .cleanup_stale()
                 .is_err()
@@ -878,15 +937,24 @@ pub fn run() {
             Ok(())
         })
         .build(context)
-        .unwrap_or_else(|error| startup_log::fail(&format!("error while building Nexo: {error}")))
-        .run(|_app, _event| {
-            #[cfg(windows)]
-            if matches!(_event, tauri::RunEvent::Exit)
-                && let Some(hub) = _app.try_state::<ipc::Hub>()
-            {
-                hub.shutdown();
+        .unwrap_or_else(|error| startup_log::fail(&format!("error while building Nexo: {error}")));
+    #[cfg(windows)]
+    {
+        let exit_code = app.run_return(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                windows_backdrop::begin_shutdown();
+                if let Some(hub) = app.try_state::<ipc::Hub>() {
+                    hub.shutdown();
+                }
             }
         });
+        windows_backdrop::finish_shutdown();
+        if exit_code != 0 {
+            std::process::exit(exit_code);
+        }
+    }
+    #[cfg(not(windows))]
+    app.run(|_, _| {});
 }
 
 #[cfg(test)]

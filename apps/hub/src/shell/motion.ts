@@ -73,5 +73,5 @@ export function useFlyoutMotion() {
   function onTransitionEnd(event: TransitionEvent<HTMLElement>) {
     if (event.target === event.currentTarget && event.propertyName === 'transform') acknowledge();
   }
-  return { phase: motion.phase, sliding, className, onTransitionEnd };
+  return { phase: motion.phase, generation: motion.generation, sliding, className, onTransitionEnd };
 }
