@@ -63,10 +63,7 @@ it.each([
   expect(screen.queryByRole('button', { name: /fuente|source/i })).toBeNull();
 });
 
-it('keeps the themed card and header band in every settings section', () => {
-  const theme = readFileSync('src/theme/family.css', 'utf8') as string;
-  expect(theme).toMatch(/\.settings__group,[^{]*\{[^}]*background:/s);
-  expect(theme).toMatch(/\.settings__group > h2\s*\{[^}]*background:[^;]*var\(--color-surface-2\)/s);
+it('exposes each settings region, heading and controls in a banded panel', async () => {
   settings();
   for (const [tab, names] of [
     ['General', ['General']],
@@ -76,9 +73,29 @@ it('keeps the themed card and header band in every settings section', () => {
   ] as const) {
     select(tab);
     for (const name of names) {
-      const card = screen.getByRole('region', { name });
-      expect(card.classList.contains('settings__group')).toBe(true);
-      expect(card.querySelector(':scope > h2')?.textContent).toBe(name);
+      const region = screen.getByRole('region', { name });
+      const heading = within(region).getByRole('heading', { name, level: 2 });
+      expect(heading.closest('[data-variant="banded"]')).toBeTruthy();
+    }
+    if (tab === 'General') {
+      const region = screen.getByRole('region', { name: 'General' });
+      expect(within(region).getByRole('radio', { name: 'Español' })).toBeTruthy();
+      expect(within(region).getByRole('switch', { name: 'Iniciar con Windows' })).toBeTruthy();
+      expect(within(region).getByRole('switch', { name: 'Mostrar novedades al abrir' })).toBeTruthy();
+    } else if (tab === 'Apariencia') {
+      const region = screen.getByRole('region', { name: 'Apariencia' });
+      expect(within(region).getByRole('group', { name: 'Colores de acento' })).toBeTruthy();
+      expect(within(region).getByRole('slider', { name: 'Opacidad del fondo' })).toBeTruthy();
+      expect(within(region).getByRole('slider', { name: 'Desenfoque del fondo' })).toBeTruthy();
+      expect(within(region).getByRole('switch', { name: 'Interfaz compacta' })).toBeTruthy();
+    } else if (tab === 'Apps locales') {
+      const region = screen.getByRole('region', { name: 'Apps locales' });
+      expect(await within(region).findByText('Editor')).toBeTruthy();
+      expect(within(region).getByRole('button', { name: 'Eliminar Editor' })).toBeTruthy();
+      expect(within(region).getByRole('button', { name: 'Añadir app' })).toBeTruthy();
+    } else {
+      expect(within(screen.getByRole('region', { name: 'Acerca de' })).getByText(/Versión 0\.1\.0/)).toBeTruthy();
+      expect(within(screen.getByRole('region', { name: 'Autor' })).getByRole('link', { name: /YouTube/i })).toBeTruthy();
     }
   }
 });
@@ -86,7 +103,7 @@ it('keeps the themed card and header band in every settings section', () => {
 it.each([['es', 'Acerca de', 'Autor'], ['en', 'About', 'Author']] as const)('opens all author profiles through the native policy (%s)', async (locale, about, author) => {
   settings(locale); select(about);
   const card = screen.getByRole('region', { name: author });
-  expect(card.classList.contains('settings__group')).toBe(true);
+  expect(within(card).getByRole('heading', { name: author, level: 2 })).toBeTruthy();
   expect(within(card).getByText('Enrique Gómez Navarro (egdev6)')).toBeTruthy();
   for (const [name, url] of profiles) {
     const link = within(card).getByRole('link', { name: new RegExp(name, 'i') });
@@ -102,7 +119,10 @@ it('reports a failed author link without navigating', async () => {
   settings(); select('Acerca de');
   const link = within(screen.getByRole('region', { name: 'Autor' })).getByRole('link', { name: /Twitch/i });
   expect(fireEvent.click(link)).toBe(false);
-  expect((await screen.findByRole('alert')).textContent).toBe('No se pudo abrir el enlace.');
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('No se pudo abrir el enlace.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
 });
 
 it('renders both first-run lines inline with hidden separators and language tags', () => {

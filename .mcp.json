@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "egdev-design-system": {
+      "command": "node",
+      "args": ["apps/hub/node_modules/@egdev/mcp/dist/index.js"]
+    }
+  }
+}

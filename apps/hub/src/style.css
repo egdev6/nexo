@@ -26,15 +26,14 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .main-tabs { flex: 1; min-height: 0; overflow: hidden; isolation: isolate; }
 .main-tabs > [role='tablist'] { position: relative; flex: none; align-self: stretch; margin: var(--space-4) var(--space-6) 0; }
 /* Paint the whole menu row, including the existing outer gutters, behind the tabs. */
-.main-tabs > [role='tablist']::before { content: ''; position: absolute; z-index: -1; inset: calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) calc(-1 * var(--space-4)); background: var(--color-surface-0); pointer-events: none; }
+.main-tabs > [role='tablist']::before { content: ''; position: absolute; z-index: -1; inset: calc(-1 * var(--space-4) - 1px) calc(-1 * var(--space-6)) calc(-1 * var(--space-4)); background: var(--color-surface-0); pointer-events: none; }
 .main-tabs > [role='tablist'] > [role='tab'] { flex: 1; justify-content: center; }
 /* Keep the selected border and inset highlight, but prevent its outer glow from bleeding above the menu. */
 .main-tabs > [role='tablist'] > [role='tab'][aria-selected='true'] { box-shadow: var(--shadow-edge-strong); }
 .main-tabs > [role='tabpanel'] { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-4) var(--space-6) var(--space-5); }
 .area-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
-.section-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: var(--space-2) 0 var(--space-3); }
-.section-label h2 { margin: 0; font: 700 var(--text-body-default)/1.2 var(--font-sans); }
-.section-label span, .secondary, .meta { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
+.apps-section-header { margin: var(--space-2) 0 var(--space-3); }
+.secondary, .meta { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .app-card { margin-bottom: calc(var(--space-3) * var(--hub-density)); }
 .app-row { display: flex; align-items: center; gap: var(--space-3); padding-right: calc(var(--space-4) * var(--hub-density)); }
 .app-row > .eg-collapsible__trigger { flex: 1; min-width: 0; height: auto; padding: calc(var(--space-4) * var(--hub-density)); }
@@ -45,17 +44,14 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .brand-icon { background: var(--color-action-primary-solid-bg); color: var(--color-action-primary-solid-fg); }
 .app-info { min-width: 0; flex: 1; }
 .app-info strong { display: block; margin-bottom: var(--space-1); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
-.status-line, .status-running, .status-warning { font-size: var(--text-label-default); font-weight: 600; }
+.status-line, .status-warning { font-size: var(--text-label-default); font-weight: 600; }
 .status-line { color: var(--color-fg-secondary); }
-.status-running { color: var(--color-status-success); }
 .status-warning { color: var(--color-status-warning); }
 .detail-grid { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
 .version { color: var(--color-fg-secondary); font: 400 var(--text-label-default)/1.6 var(--font-mono); }
 .meta { margin: var(--space-3) 0; }
 .actions { flex-wrap: wrap; margin-top: var(--space-3); }
 .registry-menu { margin: var(--space-2) 0; padding-left: var(--space-5); color: var(--color-fg-secondary); overflow-wrap: anywhere; }
-.registry-notice { flex: none; padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--color-border-hairline); }
-.registry-notice p { margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
 .catalog-preview { margin-top: var(--space-5); }
 .preview-row { display: flex; align-items: center; gap: var(--space-3); padding: calc(var(--space-3) * var(--hub-density)) 0; border-bottom: 1px solid var(--color-border-hairline); }
 .news-line, .foot { margin: var(--space-4) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
@@ -81,7 +77,6 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .detail-inner .eg-social { margin-bottom: var(--space-2); }
 .eg-social__list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .eg-social__list > li { display: flex; }
-.version-link { text-decoration: underline; text-underline-offset: 2px; }
 .local-path { overflow-wrap: anywhere; }
 .update-feedback:not(:empty) { padding: var(--space-3) var(--space-4); }
 .update-feedback:empty { display: none; }

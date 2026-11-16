@@ -224,7 +224,8 @@ it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opac
   const band = declarations(".main-tabs > [role='tablist']::before");
   expect(band.background).toBe('var(--color-surface-0)');
   // The band also covers the gap between the tabs and the tab content.
-  expect(band.inset).toBe('calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) calc(-1 * var(--space-4))');
+  // The band overlaps the header by 1px so no sub-pixel seam shows the desktop at fractional scaling.
+  expect(band.inset).toBe('calc(-1 * var(--space-4) - 1px) calc(-1 * var(--space-6)) calc(-1 * var(--space-4))');
   expect(band['z-index']).toBe('-1');
   expect(band['pointer-events']).toBe('none');
   const media = postcss.parse(css).nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');

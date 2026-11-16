@@ -134,8 +134,33 @@ it('keeps the selected icon and app unchanged on native picker cancellation or i
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_pick_icon_file'));
   failures.local_app_pick_icon_file = 'nexo.local.invalidIcon';
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
-  expect(await within(dialog).findByText('El icono seleccionado no es válido.')).toBeTruthy();
+  const alert = await within(dialog).findByRole('alert');
+  expect(alert.textContent).toBe('El icono seleccionado no es válido.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
   expect(within(dialog).getByRole('img', { name: /vista previa/i }).textContent).toContain('P');
+  expect(apps).toEqual([]);
+});
+
+it('shows save failures as compact alerts without creating an app', async () => {
+  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  failures.local_app_create = 'nexo.local.invalidName';
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir' }));
+  const alert = await within(dialog).findByRole('alert');
+  expect(alert.textContent).toBe('Introduce un nombre válido.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
+  expect(apps).toEqual([]);
+});
+
+it('shows failed selection cleanup as a compact alert', async () => {
+  const { dialog } = await openDialog();
+  failures.local_app_cancel_selection = 'nexo.local.refused';
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('No se puede usar esta ruta o los datos han cambiado; vuelve a intentar.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
   expect(apps).toEqual([]);
 });
 

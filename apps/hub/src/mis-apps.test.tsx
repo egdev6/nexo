@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Icon, IconButton } from '@egdev/ui';
+import postcss from 'postcss';
 // @ts-ignore The browser tsconfig excludes Node types; Vitest runs in Node.
 import { readFileSync } from 'node:fs';
 // @ts-ignore Vitest's root is apps/hub.
@@ -111,6 +112,19 @@ it('uses sibling icon actions without toggling, starts only keyed updates, and p
   expect(toggle('Local One').getAttribute('aria-expanded')).toBe('false');
 });
 
+it('uses a decorative running StatusDot beside the connected text', async () => {
+  await show();
+  const connected = card('Plugin').getByText('Conectada');
+  expect(connected.querySelector('.eg-status-dot[data-state="running"][aria-hidden="true"]')).toBeTruthy();
+});
+
+it('uses a level-two PageHeader for local app refresh', async () => {
+  await show();
+  const header = screen.getByRole('heading', { name: 'Apps locales', level: 2 }).closest('header');
+  expect(header?.classList.contains('eg-page-header')).toBe(true);
+  expect(within(header!).getByRole('button', { name: 'Actualizar apps locales' })).toBeTruthy();
+});
+
 it('shows version links, badge-first update, social links and plugin close in details only', async () => {
   await show();
   expect(screen.queryByText(/Instalada: 1.0.0/)).toBeNull();
@@ -118,6 +132,7 @@ it('shows version links, badge-first update, social links and plugin close in de
   const details = card('Official');
   expect(details.getByText(/Versión instalada:/)).toBeTruthy();
   const installedLink = details.getByRole('link', { name: '1.0.0' });
+  expect(installedLink.classList.contains('eg-link')).toBe(true);
   expect(installedLink.getAttribute('href')).toBe('https://github.com/egdev6/official/releases/tag/v1.0.0');
   const next = details.getByRole('link', { name: '2.0.0' });
   expect(next.getAttribute('href')).toBe('https://github.com/egdev6/official/releases/tag/v2.0.0');
@@ -139,7 +154,10 @@ it('preserves shared external-link errors and clears them on a later successful 
   const details = card('Official');
   native.invoke.mockRejectedValueOnce(new Error('private diagnostic'));
   fireEvent.click(details.getByRole('link', { name: '1.0.0' }));
-  expect((await details.findByRole('alert')).textContent).toBe('No se pudo abrir el enlace.');
+  const alert = await details.findByRole('alert');
+  expect(alert.textContent).toBe('No se pudo abrir el enlace.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
   fireEvent.click(details.getByRole('link', { name: /GitHub/i }));
   await waitFor(() => expect(details.queryByRole('alert')).toBeNull());
   expect(native.invoke).toHaveBeenLastCalledWith('open_external', { url: 'https://github.com/egdev6/official' });
@@ -175,9 +193,30 @@ it('keeps local path, provenance, warnings and close hint in its detail', async 
 it('removes the catalog preview and news notice and puts refresh in the installed header without counts', async () => {
   const refresh = await show();
   expect(screen.queryByText('También en el catálogo')).toBeNull(); expect(screen.queryByText('Pizarra en Novedades')).toBeNull(); expect(screen.queryByText('Pizarra')).toBeNull();
-  const heading = screen.getByRole('heading', { name: 'Instaladas' }).parentElement!;
+  const heading = screen.getByRole('heading', { name: 'Instaladas', level: 2 }).closest('header')!;
+  expect(heading.classList.contains('eg-page-header')).toBe(true);
   expect(within(heading).getByRole('button', { name: 'Actualizar apps' })).toBeTruthy(); expect(heading.textContent).not.toMatch(/\d/);
+  const localHeader = screen.getByRole('heading', { name: 'Apps locales', level: 2 }).closest('header')!;
+  expect(localHeader.classList.contains('eg-page-header')).toBe(true);
+  expect(within(localHeader).getByRole('button', { name: 'Actualizar apps locales' })).toBeTruthy();
+  const connected = card('Plugin').getByText('Conectada');
+  expect(connected.querySelector('.eg-status-dot[data-state="running"][aria-hidden="true"]')).toBeTruthy();
   fireEvent.click(within(heading).getByRole('button', { name: 'Actualizar apps' })); expect(refresh).toHaveBeenCalledOnce();
+});
+
+it.each([
+  ['Conectadas', 'Plugin'],
+  ['Instaladas', 'Official'],
+  ['Apps locales', 'Local One'],
+])('keeps the %s section header spaced from its app card', async (section, app) => {
+  await show();
+  const header = screen.getByRole('heading', { name: section, level: 2 }).closest('header')!;
+  const wrapper = header.parentElement!;
+  expect(wrapper.classList.contains('apps-section-header')).toBe(true);
+  expect(wrapper.nextElementSibling).toBe(screen.getByText(app).closest('.app-card'));
+  const rule = postcss.parse(css).nodes.find(node => node.type === 'rule' && node.selector === '.apps-section-header');
+  const margin = rule?.type === 'rule' ? rule.nodes.find(node => node.type === 'decl' && node.prop === 'margin') : undefined;
+  expect(margin?.type === 'decl' ? margin.value : undefined).toBe('var(--space-2) 0 var(--space-3)');
 });
 
 it('uses a short disclosure animation with a reduced-motion override', () => {

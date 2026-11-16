@@ -1,4 +1,4 @@
-import { Button, Input } from '@egdev/ui';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogTrigger, Button, Input, Notice, Panel, PanelBody, PanelHeader } from '@egdev/ui';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
@@ -82,12 +82,15 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
   }
   const disabled = !native || loading || busy;
 
+  // TODO(egdev-design-system#404): Preserve compact uppercase headings until the DS offers this size.
   return <>
     <section className="settings__group" aria-labelledby={`${id}-apps`}>
-      <h2 id={`${id}-apps`}>{t(locale, 'localApps.heading')}</h2>
+      <Panel variant="banded">
+        <PanelHeader><h2 id={`${id}-apps`}>{t(locale, 'localApps.heading')}</h2></PanelHeader>
+        <PanelBody><div>
       {loading && <p role="status">{t(locale, 'settingsLocal.loading')}</p>}
-      {listError && <p role="alert" className="settings__error">{t(locale, listError)}</p>}
-      {error && <p role="alert" className="settings__error">{t(locale, error)}</p>}
+      {listError && <Notice tone="danger" size="sm" summary={t(locale, listError)} />}
+      {error && !confirmation && <Notice tone="danger" size="sm" summary={t(locale, error)} />}
       {duplicate && <p role="status" className="settings__hint">{t(locale, 'settingsLocal.duplicate')}</p>}
       {!loading && !rows.length && !listError && <p className="settings__hint">{t(locale, 'settingsLocal.emptyAll')}</p>}
       {rows.map(row => {
@@ -103,7 +106,23 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
                 if (result) setIconRevisions(previous => new Map(previous).set(appId, (previous.get(appId) ?? 0) + 1));
                 return selected(result);
               })}>{t(locale, 'settingsLocal.icon')}</Button>
-              <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.removeFor', params)} onClick={() => { setEditing(null); setConfirmation({ kind: 'app', id: appId }); }}>{t(locale, 'settingsLocal.remove')}</Button>
+              <AlertDialog open={confirmation?.id === appId} onOpenChange={open => {
+                if (busyRef.current) return;
+                if (open) { setEditing(null); setConfirmation({ kind: 'app', id: appId }); }
+                else setConfirmation(null);
+              }}>
+                <AlertDialogTrigger asChild><Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.removeFor', params)}>{t(locale, 'settingsLocal.remove')}</Button></AlertDialogTrigger>
+                <AlertDialogContent tone="danger" title={t(locale, 'settingsLocal.confirmAppFor', params)} description={t(locale, 'settingsLocal.confirmApp')}
+                  actions={<>
+                    <AlertDialogCancel asChild><Button variant="neutral" size="sm" type="button" disabled={disabled}>{t(locale, 'settingsLocal.cancel')}</Button></AlertDialogCancel>
+                    <AlertDialogAction asChild><Button variant="primary" size="sm" type="button" disabled={disabled} onClick={event => {
+                      event.preventDefault();
+                      void run(async () => { await removeLocalApp(appId); setConfirmation(null); setDuplicate(false); await refreshRows(); return true; });
+                    }}>{t(locale, 'settingsLocal.removeApp')}</Button></AlertDialogAction>
+                  </>}>
+                  {error && <Notice tone="danger" size="sm" summary={t(locale, error)} />}
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
           {editing?.id === appId && <form className="settings__inline" onSubmit={event => {
@@ -114,15 +133,12 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
             <Button variant="neutral" size="sm" type="submit" disabled={disabled} aria-label={t(locale, 'settingsLocal.saveNameFor', params)}>{t(locale, 'settingsLocal.save')}</Button>
             <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.cancelEditFor', params)} onClick={() => setEditing(null)}>{t(locale, 'settingsLocal.cancel')}</Button>
           </form>}
-          {confirmation?.kind === 'app' && confirmation.id === appId && <div className="settings__confirmation" role="group" aria-label={t(locale, 'settingsLocal.confirmAppFor', params)}>
-            <p>{t(locale, 'settingsLocal.confirmApp')}</p>
-            <div className="settings__actions"><Button variant="neutral" size="sm" type="button" disabled={disabled} onClick={() => void run(async () => { await removeLocalApp(appId); setConfirmation(null); setDuplicate(false); await refreshRows(); return true; })}>{t(locale, 'settingsLocal.removeApp')}</Button>
-              <Button variant="neutral" size="sm" type="button" disabled={disabled} onClick={() => setConfirmation(null)}>{t(locale, 'settingsLocal.cancel')}</Button></div>
-          </div>}
         </div>;
       })}
       <div className="settings__actions"><AddLocalDialog accent={accent} disabled={disabled} errorKey={errorKey} onAdded={async result => { await selected(result); }} />
         {native && <Button variant="neutral" size="sm" type="button" disabled={disabled} onClick={() => void run(async () => { await refreshRows(); return true; })}>{t(locale, 'localApps.refresh')}</Button>}</div>
+        </div></PanelBody>
+      </Panel>
     </section>
     <p className="settings__foot">{t(locale, 'settingsLocal.localFoot')}</p>
   </>;

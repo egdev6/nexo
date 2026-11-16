@@ -12,7 +12,6 @@
 .catalog-card h3 { margin: var(--space-2) 0; overflow-wrap: anywhere; font: 700 var(--text-body-large)/1.2 var(--font-sans); }
 .catalog-card p { min-height: var(--space-10); margin: 0 0 var(--space-3); overflow-wrap: anywhere; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .catalog-version { color: var(--color-fg-secondary); font: 400 var(--text-code)/1.6 var(--font-mono); }
-.catalog-card .status-warning { min-height: 0; margin: var(--space-2) 0 0; color: var(--color-status-warning); }
 .catalog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-4); }
 .catalog-actions > :first-child { margin-right: auto; }
 .catalog-install { flex: 1 1 100%; display: grid; justify-items: start; gap: var(--space-2); min-width: 0; }
@@ -23,6 +22,4 @@
 .catalog-progress > :first-child { flex: 1; }
 .catalog-foot { margin: var(--space-4) 0 0; }
 .catalog-empty { margin: var(--space-4) 0; }
-.catalog-notice { margin: var(--space-3) 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
-.catalog-notice p { margin: 0 0 var(--space-2); }
 @media (max-width: 390px) { .catalog-grid { grid-template-columns: 1fr; } }

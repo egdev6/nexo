@@ -61,7 +61,9 @@ it('shows manual local rows after official apps with duplicate and availability 
 it('opens only by opaque manual ID and reports a request, not running state', async () => {
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Open Work' }));
-  expect(await screen.findByText('Launch requested; execution is not confirmed')).toBeTruthy();
+  const status = (await screen.findByText('Launch requested; execution is not confirmed')).closest('[role="status"]');
+  expect(status?.classList.contains('eg-notice')).toBe(true);
+  expect(status?.getAttribute('data-tone')).toBe('success');
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_open', { id: 'manual-1' });
   expect(card('Work').getByText('Running status unknown')).toBeTruthy();
   expect(bridge.invoke.mock.calls.some(([command]) => /kill|terminate/.test(command))).toBe(false);
@@ -75,11 +77,28 @@ it('localizes launch failures and keeps the stored rows unchanged', async () => 
   });
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Open Work' }));
-  expect((await screen.findByRole('alert')).textContent).toBe('Could not start the local app.');
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('Could not start the local app.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
   expect(card('Work').getByText('Running status unknown')).toBeTruthy();
   expect(rows).toHaveLength(2);
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_open', { id: 'manual-1' });
   expect(bridge.invoke.mock.calls.some(([command]) => /update|remove|bind/.test(command))).toBe(false);
+});
+
+it('reports a failed local app list as a compact alert', async () => {
+  const original = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string) => {
+    if (command === 'local_apps_list') throw 'nexo.local.spawnFailed';
+    return original(command);
+  });
+  render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('Could not start the local app.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
+  expect(screen.queryByText('Work')).toBeNull();
 });
 
 it('uses the native picker for repair and preserves cancellation', async () => {

@@ -1,4 +1,4 @@
-import { Button, Field, Icon, IconButton, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import { Button, Field, Icon, IconButton, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
@@ -9,6 +9,11 @@ import { useExternalLinks } from '../apps/details';
 import { LocalManagement } from './local-management';
 import './settings.css';
 
+// TODO(egdev-design-system#404): Preserve the General heading until the DS offers this size.
+// TODO(egdev-design-system#404): Preserve the Appearance heading until the DS offers this size.
+// TODO(egdev-design-system#404): Preserve the About heading until the DS offers this size.
+// TODO(egdev-design-system#404): Preserve the Author heading until the DS offers this size.
+// TODO(egdev-design-system#418): Preserve the appearance accent until Panel supports an accent border.
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
 
@@ -28,7 +33,9 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
 
   const general = <>
     <section className="settings__group" aria-labelledby={`${id}-general`}>
-      <h2 id={`${id}-general`}>{tr('settings.general')}</h2>
+      <Panel variant="banded">
+        <PanelHeader><h2 id={`${id}-general`}>{tr('settings.general')}</h2></PanelHeader>
+        <PanelBody><div className="settings__rows">
       <div className="settings__row settings__language">
         <div><strong>{tr('settings.language')}</strong><span>{tr('settings.languageHint')}</span>{languagePending && <span role="status">{tr('settings.languageSaving')}</span>}</div>
         <RadioGroup label={tr('settings.language')} orientation="horizontal" options={languages} value={settings.language}
@@ -38,18 +45,22 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <label htmlFor={`${id}-startup`}><strong>{tr('settings.startup')}</strong><span id={`${id}-startup-hint`}>{tr(autostart?.confirmed === null ? 'settings.startupUnknown' : 'settings.startupHint')}</span></label>
         <Switch id={`${id}-startup`} aria-label={tr('settings.startup')} aria-describedby={`${id}-startup-hint`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
       </div>
-      {autostart?.error && <div className="settings__foot" role="alert">{autostart.error} <Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>{tr('settings.retryStartup')}</Button></div>}
+      {autostart?.error && <Notice tone="danger" summary={`${autostart.error} `} actions={<Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>{tr('settings.retryStartup')}</Button>} />}
       <div className="settings__row">
         <label htmlFor={`${id}-news`}><strong>{tr('settings.news')}</strong><span id={`${id}-news-hint`}>{tr('settings.newsHint')}</span></label>
         <Switch id={`${id}-news`} aria-label={tr('settings.news')} aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
       </div>
+        </div></PanelBody>
+      </Panel>
     </section>
     <p className="settings__foot">{tr('settings.localFoot')}</p>
   </>;
 
   const appearance = <>
     <section className="settings__group settings__appearance" aria-labelledby={`${id}-appearance`}>
-      <h2 id={`${id}-appearance`}>{tr('settings.appearance')}</h2>
+      <Panel variant="banded">
+        <PanelHeader><h2 id={`${id}-appearance`}>{tr('settings.appearance')}</h2></PanelHeader>
+        <PanelBody><div>
       <fieldset className="settings__colors">
         <legend>{tr('settings.accent')}</legend>
         <div className="settings__swatches" role="group" aria-label={tr('settings.accents')}>
@@ -83,6 +94,8 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <label htmlFor={`${id}-compact`}><strong>{tr('settings.compact')}</strong><span id={`${id}-compact-hint`}>{tr('settings.compactHint')}</span></label>
         <Switch id={`${id}-compact`} aria-label={tr('settings.compact')} aria-describedby={`${id}-compact-hint`} checked={settings.compact} onCheckedChange={value => update('compact', value)} />
       </div>
+        </div></PanelBody>
+      </Panel>
     </section>
     <p className="settings__foot">{tr('settings.appearanceFoot')}</p>
   </>;
@@ -91,13 +104,19 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
 
   const about = <>
     <section className="settings__group" aria-labelledby={`${id}-about`}>
-      <h2 id={`${id}-about`}>{tr('settings.about')}</h2>
+      <Panel variant="banded">
+        <PanelHeader><h2 id={`${id}-about`}>{tr('settings.about')}</h2></PanelHeader>
+        <PanelBody><div className="settings__rows">
       <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: '0.1.0' })}</span></div>
         <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.updates')}</Button></div>
       <p className="settings__hint">{tr('settings.fontCredit')}</p>
+        </div></PanelBody>
+      </Panel>
     </section>
     <section className="settings__group" aria-labelledby={`${id}-author`}>
-      <h2 id={`${id}-author`}>{tr('settings.author')}</h2>
+      <Panel variant="banded">
+        <PanelHeader><h2 id={`${id}-author`}>{tr('settings.author')}</h2></PanelHeader>
+        <PanelBody><div>
       <p className="settings__author-name">{tr('settings.authorName')}</p>
       <SocialLinks label={tr('settings.authorLinks')} caption={null} variant="ghost" size="md" onClick={open} items={[
         { id: 'youtube', href: 'https://www.youtube.com/@egdev6', label: tr('app.youtube'), icon: <Icon name="youtube" /> },
@@ -107,7 +126,9 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         { id: 'instagram', href: 'https://www.instagram.com/egdev6/', label: tr('settings.instagram'), icon: <Icon name="instagram" /> },
         { id: 'github', href: 'https://github.com/egdev6', label: tr('app.github'), icon: <Icon name="github" /> },
       ]} />
-      {failed && <p role="alert" className="status-warning">{tr('app.externalError')}</p>}
+      {failed && <Notice tone="danger" size="sm" summary={tr('app.externalError')} />}
+        </div></PanelBody>
+      </Panel>
     </section>
     <p className="settings__foot">{tr('settings.aboutFoot')}</p>
   </>;
