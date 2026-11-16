@@ -87,6 +87,29 @@ it('selects only qualifying official events, inclusive boundaries, feature fallb
   expect(dialog.textContent).toMatch(/copia guardada|desactualizada/i);
 });
 
+it('shows the two real updates of two apps without adding synthetic release slides', async () => {
+  cache = catalog([
+    { ...app('alpha', '2026-05-29T00:00:00Z', false, [entry('alpha-update', '2026-05-31T11:00:00Z', 'update')]), name: 'Álfa' },
+    { ...app('beta', '2026-05-29T00:00:00Z', true, [entry('beta-update', '2026-05-30T11:00:00Z', 'update')]), name: 'Beta' },
+  ]);
+  await start(); const dialog = await open();
+  expect(titles(dialog)).toEqual(['alpha-update', 'beta-update']);
+  expect(dialog.textContent).toContain('01 / 02');
+  expect(within(dialog).getAllByRole('button', { name: /^Ir a / })).toHaveLength(2);
+  expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('50');
+  const first = within(dialog).getByRole('group', { name: '1 de 2: alpha-update' });
+  const hero = first.querySelector('.news-hero')!;
+  const image = hero.querySelector('img');
+  expect(image?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/alpha.webp');
+  fireEvent.error(image!);
+  expect(hero.textContent).toBe('Á');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+  expect(dialog.textContent).toContain('02 / 02');
+  expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('100');
+  close();
+  await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:alpha:alpha-update', 'n:beta:beta-update']));
+});
+
 it('starts only on an actual show, freezes the snapshot, and records only slides presented', async () => {
   cache = catalog([app('one', '2026-05-30T00:00:00Z', false, [entry('first', today), entry('second', '2026-05-30T00:00:00Z', 'update'), entry('third', '2026-05-29T00:00:00Z', 'update')])]);
   await start();

@@ -59,6 +59,8 @@ it('shows one item as static content with no carousel, navigation, indicators or
   expect(within(dialog).getByRole('heading', { name: 'Noticia 1' })).toBeTruthy();
   expect(within(dialog).queryByRole('group', { name: 'Últimas novedades' })).toBeNull();
   expect(within(dialog).queryByRole('button', { name: /Diapositiva (anterior|siguiente)|^Ir a / })).toBeNull();
+  expect(within(dialog).queryByRole('progressbar', { hidden: true })).toBeNull();
+  expect(dialog.textContent).not.toMatch(/\d{2} \/ \d{2}/);
   const article = within(dialog).getByRole('article');
   expect(['auto', 'scroll']).not.toContain(getComputedStyle(article.parentElement!).overflowX);
   expect(onShown).toHaveBeenCalledExactlyOnceWith(items[0]);
@@ -73,11 +75,15 @@ it.each([2, 3, 4])('adapts the carousel, controls and indicators to %i items', c
   const indicators = within(dialog).getAllByRole('button', { name: /^Ir a / });
   expect(indicators).toHaveLength(count);
   expect(indicators[0].getAttribute('aria-current')).toBe('true');
+  expect(dialog.textContent).toContain(`01 / 0${count}`);
+  expect(Number(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow'))).toBeCloseTo(100 / count);
   expect((within(dialog).getByRole('button', { name: 'Diapositiva anterior' }) as HTMLButtonElement).disabled).toBe(true);
   expect((within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }) as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(indicators[count - 1]);
   expect(groups[count - 1].getAttribute('aria-current')).toBe('true');
   expect(indicators[count - 1].getAttribute('aria-current')).toBe('true');
+  expect(dialog.textContent).toContain(`0${count} / 0${count}`);
+  expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('100');
   expect((within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }) as HTMLButtonElement).disabled).toBe(true);
   expect(within(dialog).getByRole('button', { name: `Ver en el catálogo: Noticia ${count} · muestra` })).toBeTruthy();
 });
@@ -90,6 +96,44 @@ it('caps the supplied newest-first items at four without presenting or marking t
   expect(within(dialog).queryByText('Noticia 6')).toBeNull();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 4 de 4: Noticia 4' }));
   expect(onShown.mock.calls.map(([item]) => item.id)).toEqual(['news-0', 'news-3']);
+});
+
+it('uses the catalog banner in a fixed cover area for each news item', () => {
+  const { dialog } = open(2);
+  const heroes = Array.from(dialog.querySelectorAll<HTMLElement>('.news-hero'));
+  expect(heroes).toHaveLength(2);
+  heroes.forEach((hero, index) => {
+    const image = hero.querySelector('img');
+    expect(hero.getAttribute('aria-hidden')).toBe('true');
+    expect(image?.getAttribute('src')).toBe(`https://egdev6.github.io/nexo-catalog/banners/app-${index}.webp`);
+    expect(image?.getAttribute('alt')).toBe('');
+    expect(getComputedStyle(image!).objectFit).toBe('cover');
+  });
+  expect(newsCss).toMatch(/\.news-hero\s*\{[^}]*height:\s*calc\(/s);
+  expect(newsCss).toMatch(/\.news-hero img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/s);
+});
+
+it('replaces a failed banner with the catalog app initial and retries for a changed app', () => {
+  const item = { ...items[0], appId: 'orbit', appName: ' Órbita', title: 'Cambios de versión' };
+  const view = render(<main><NewsPopup items={[item]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
+  const hero = screen.getByRole('article').querySelector('.news-hero')!;
+  const image = hero.querySelector('img');
+  expect(image?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/orbit.webp');
+  fireEvent.error(image!);
+  expect(hero.querySelector('img')).toBeNull();
+  expect(hero.textContent).toBe('Ó');
+  expect(hero.querySelector('.catalog-initial')?.textContent).toBe('Ó');
+  const betaItem = { ...item, appId: 'beta', appName: 'Beta' };
+  view.rerender(<main><NewsPopup items={[betaItem]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
+  expect(screen.getByRole('article').querySelector('.news-hero img')?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/beta.webp');
+});
+
+it('uses the catalog initial without requesting a banner for an invalid app id', () => {
+  const item = { ...items[0], appId: '../escape', appName: ' Pizarra', title: 'Una noticia' };
+  render(<main><NewsPopup items={[item]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
+  const hero = screen.getByRole('article').querySelector('.news-hero')!;
+  expect(hero.querySelector('img')).toBeNull();
+  expect(hero.textContent).toBe('P');
 });
 
 it('hides the scrollbar while keeping a horizontal scrollable slide track', () => {

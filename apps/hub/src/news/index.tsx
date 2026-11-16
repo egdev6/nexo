@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Badge, Button, Carousel, Checkbox, Icon, IconButton } from '@egdev/ui';
 import type { NewsItem, NewsPopupProps } from '../model';
+import { catalogBannerUrl } from '../catalog';
 import { formatNumber, t } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import nexoLogo from '../../src-tauri/app-icon.svg';
@@ -9,6 +10,16 @@ import './news.css';
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type Props = NewsPopupProps & { seenKeys?: ReadonlySet<string> };
+type SlideItem = NewsItem & { appName?: string };
+
+function NewsBanner({ item }: { item: SlideItem }) {
+  const banner = catalogBannerUrl(item.appId);
+  const [failed, setFailed] = useState(false);
+  return <div className="news-hero" aria-hidden="true">
+    {banner && !failed ? <img src={banner} alt="" onError={() => setFailed(true)} /> :
+      <span className="catalog-initial">{(item.appName ?? item.title).trim().charAt(0).toUpperCase()}</span>}
+  </div>;
+}
 
 function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatalog, stale, seenKeys }: Omit<Props, 'open'>) {
   const locale = useLocale();
@@ -48,7 +59,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
 
   function slideContent(item: NewsItem) {
     return <article className="news-slide">
-      <div className="news-hero" aria-hidden="true"><div className="news-hero-window"><span>{item.title.trim().charAt(0).toUpperCase()}</span><i /><i /><i /></div></div>
+      <NewsBanner key={item.appId} item={item} />
       <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge> {!viewed.has(item.id) && <Badge tone="brand">{t(locale, 'news.unseen')}</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
     </article>;
   }
