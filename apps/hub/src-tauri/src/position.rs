@@ -19,6 +19,10 @@ pub fn work_area_right_edge(area: &WorkArea) -> i32 {
         as i32
 }
 
+pub fn virtual_right_edge<'a>(areas: impl IntoIterator<Item = &'a WorkArea>) -> Option<i32> {
+    areas.into_iter().map(work_area_right_edge).max()
+}
+
 pub fn flyout_bounds(area: &WorkArea, scale: f64) -> FlyoutBounds {
     let scale = if scale.is_finite() && scale > 0.0 {
         scale
@@ -37,7 +41,26 @@ pub fn flyout_bounds(area: &WorkArea, scale: f64) -> FlyoutBounds {
 
 #[cfg(test)]
 mod tests {
-    use super::{FlyoutBounds, WorkArea, flyout_bounds, work_area_right_edge};
+    use super::{FlyoutBounds, WorkArea, flyout_bounds, virtual_right_edge, work_area_right_edge};
+
+    #[test]
+    fn virtual_edge_includes_other_monitors_and_taskbar_space() {
+        let primary = WorkArea {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let right = WorkArea {
+            x: 0,
+            y: 100,
+            width: 2560,
+            height: 1440,
+        };
+        assert_eq!(virtual_right_edge([&primary, &right]), Some(2560));
+        assert_eq!(virtual_right_edge([&primary]), Some(0));
+        assert_eq!(virtual_right_edge([]), None);
+    }
 
     #[test]
     fn right_edge_respects_negative_origins_and_saturates() {

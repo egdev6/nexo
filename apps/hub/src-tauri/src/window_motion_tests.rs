@@ -8,6 +8,7 @@ const GEOMETRY: Geometry = Geometry {
     width: 600,
     height: 1014,
     offscreen_x: 1920,
+    park_x: 2500,
 };
 
 struct FakeSurface {
@@ -64,6 +65,32 @@ impl Surface for FakeSurface {
     }
 }
 
+fn show_painted(
+    motion: &mut Coordinator,
+    surface: &FakeSurface,
+    reduced: bool,
+) -> Option<Animation> {
+    let animation = motion.show(surface, reduced).unwrap();
+    match motion.pending_paint() {
+        Some(generation) => motion.painted(surface, generation).unwrap(),
+        None => animation,
+    }
+}
+
+fn toggle_painted(
+    motion: &mut Coordinator,
+    surface: &FakeSurface,
+    reduced: bool,
+    suppress_reopen: bool,
+) -> Option<Animation> {
+    let previous = motion.pending_paint();
+    let animation = motion.toggle(surface, reduced, suppress_reopen).unwrap();
+    match motion.pending_paint().filter(|id| Some(*id) != previous) {
+        Some(generation) => motion.painted(surface, generation).unwrap(),
+        None => animation,
+    }
+}
+
 #[test]
 fn frame_eases_right_to_left_with_exact_endpoints_and_cancels_stale_generations() {
     let animation = Animation {
@@ -98,13 +125,97 @@ fn frame_eases_right_to_left_with_exact_endpoints_and_cancels_stale_generations(
 }
 
 #[test]
+fn entry_waits_for_webview_paint_before_starting_animation() {
+    let surface = FakeSurface::default();
+    let mut motion = Coordinator::default();
+    assert!(motion.show(&surface, false).unwrap().is_none());
+    assert!(surface.visible.get());
+    assert_eq!(surface.position.get(), (GEOMETRY.park_x, GEOMETRY.y));
+    assert_eq!(
+        surface.events.borrow().as_slice(),
+        ["size:600,1014", "position:2500,13", "show", "visible:true"]
+    );
+    let generation = motion.pending_paint().unwrap();
+    let entry = motion.painted(&surface, generation).unwrap().unwrap();
+    assert_eq!((entry.from, entry.to), (1920, 1307));
+    assert_eq!(surface.position.get(), (1920, 13));
+}
+
+#[test]
+fn reduced_motion_waits_for_webview_paint_before_revealing() {
+    let surface = FakeSurface::default();
+    let mut motion = Coordinator::default();
+    assert!(motion.show(&surface, true).unwrap().is_none());
+    assert!(surface.visible.get());
+    assert_eq!(surface.position.get(), (GEOMETRY.park_x, GEOMETRY.y));
+    let generation = motion.pending_paint().unwrap();
+    assert!(motion.painted(&surface, generation).unwrap().is_none());
+    assert_eq!(surface.position.get(), (GEOMETRY.x, GEOMETRY.y));
+    assert_eq!(
+        surface.events.borrow().as_slice(),
+        [
+            "size:600,1014",
+            "position:2500,13",
+            "show",
+            "visible:true",
+            "position:1307,13"
+        ]
+    );
+}
+
+#[test]
+fn hiding_or_aborting_while_waiting_cancels_stale_paint_acknowledgements() {
+    let surface = FakeSurface::default();
+    let mut motion = Coordinator::default();
+    assert!(motion.show(&surface, false).unwrap().is_none());
+    let first = motion.pending_paint().unwrap();
+    assert!(motion.hide(&surface, false).unwrap().is_none());
+    assert!(!surface.visible.get());
+    assert_eq!(surface.position.get(), (2500, 13));
+    let hidden_events = surface.events.borrow().clone();
+    assert!(motion.painted(&surface, first).unwrap().is_none());
+    assert_eq!(*surface.events.borrow(), hidden_events);
+
+    assert!(motion.toggle(&surface, false, false).unwrap().is_none());
+    let second = motion.pending_paint().unwrap();
+    assert_ne!(first, second);
+    let waiting_events = surface.events.borrow().clone();
+    assert!(motion.painted(&surface, first).unwrap().is_none());
+    assert_eq!(*surface.events.borrow(), waiting_events);
+    let entry = motion.painted(&surface, second).unwrap().unwrap();
+    let ready_events = surface.events.borrow().clone();
+    assert!(motion.painted(&surface, second).unwrap().is_none());
+    assert_eq!(*surface.events.borrow(), ready_events);
+    motion.abort(&surface).unwrap();
+    assert!(!surface.visible.get());
+    assert!(
+        !motion
+            .advance(&surface, &entry, Duration::from_secs(1))
+            .unwrap()
+    );
+
+    assert!(motion.show(&surface, false).unwrap().is_none());
+    let third = motion.pending_paint().unwrap();
+    motion.abort(&surface).unwrap();
+    let aborted_events = surface.events.borrow().clone();
+    assert!(motion.painted(&surface, third).unwrap().is_none());
+    assert_eq!(*surface.events.borrow(), aborted_events);
+}
+
+#[test]
 fn show_starts_beyond_work_area_before_showing_and_arrives_exactly() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     assert_eq!(
         surface.events.borrow().as_slice(),
-        ["size:600,1014", "position:1920,13", "show", "visible:true"]
+        [
+            "size:600,1014",
+            "position:2500,13",
+            "show",
+            "visible:true",
+            "position:1920,13"
+        ]
     );
     assert!(
         motion
@@ -133,6 +244,7 @@ fn reopening_recomputes_flush_and_offscreen_positions_for_changed_work_area() {
             width: bounds.width,
             height: bounds.height,
             offscreen_x: work_area_right_edge(area),
+            park_x: work_area_right_edge(area),
         }
     }
 
@@ -151,7 +263,7 @@ fn reopening_recomputes_flush_and_offscreen_positions_for_changed_work_area() {
     let surface = FakeSurface::default();
     surface.geometry.set(Some(geometry(&first, 1.0)));
     let mut motion = Coordinator::default();
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     assert_eq!((entry.from, entry.to, entry.y), (1920, 1320, 0));
     motion
         .advance(&surface, &entry, Duration::from_secs(1))
@@ -162,7 +274,7 @@ fn reopening_recomputes_flush_and_offscreen_positions_for_changed_work_area() {
         .advance(&surface, &exit, Duration::from_secs(1))
         .unwrap();
     surface.geometry.set(Some(geometry(&second, 1.5)));
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     assert_eq!((entry.from, entry.to, entry.y), (0, -900, 40));
     motion
         .advance(&surface, &entry, Duration::from_secs(1))
@@ -188,7 +300,7 @@ fn reopening_recomputes_flush_and_offscreen_positions_for_changed_work_area() {
 fn exit_hides_offscreen_without_restoring_and_stale_frames_cannot_move_it() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(200))
         .unwrap();
@@ -228,7 +340,7 @@ fn exit_hides_offscreen_without_restoring_and_stale_frames_cannot_move_it() {
 fn reopening_during_exit_and_double_click_cancel_only_obsolete_frames() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let entry = toggle_painted(&mut motion, &surface, false, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(200))
         .unwrap();
@@ -264,7 +376,7 @@ fn reopening_during_exit_and_double_click_cancel_only_obsolete_frames() {
 fn reduced_motion_shows_and_hides_in_place_without_frames() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    assert!(motion.show(&surface, true).unwrap().is_none());
+    assert!(show_painted(&mut motion, &surface, true).is_none());
     assert_eq!(surface.position.get(), (1307, 13));
     assert!(surface.visible.get());
     assert!(motion.hide(&surface, true).unwrap().is_none());
@@ -274,9 +386,10 @@ fn reduced_motion_shows_and_hides_in_place_without_frames() {
         surface.events.borrow().as_slice(),
         [
             "size:600,1014",
-            "position:1307,13",
+            "position:2500,13",
             "show",
             "visible:true",
+            "position:1307,13",
             "hide",
             "visible:false"
         ]
@@ -287,7 +400,7 @@ fn reduced_motion_shows_and_hides_in_place_without_frames() {
 fn enabling_reduced_motion_during_entry_hides_in_place_and_cancels_frames() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(100))
         .unwrap();
@@ -308,7 +421,7 @@ fn enabling_reduced_motion_during_entry_hides_in_place_and_cancels_frames() {
 fn tray_single_instance_close_and_blur_preserve_hide_to_tray_and_reopen() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let entry = toggle_painted(&mut motion, &surface, false, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(200))
         .unwrap();
@@ -318,7 +431,7 @@ fn tray_single_instance_close_and_blur_preserve_hide_to_tray_and_reopen() {
         .unwrap();
     assert!(!surface.visible.get());
 
-    let single_instance = motion.show(&surface, false).unwrap().unwrap();
+    let single_instance = show_painted(&mut motion, &surface, false).unwrap();
     motion
         .advance(&surface, &single_instance, Duration::from_millis(200))
         .unwrap();
@@ -340,7 +453,7 @@ fn tray_single_instance_close_and_blur_preserve_hide_to_tray_and_reopen() {
         .unwrap();
     assert!(!surface.visible.get());
 
-    let entry = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let entry = toggle_painted(&mut motion, &surface, false, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(200))
         .unwrap();
@@ -349,7 +462,7 @@ fn tray_single_instance_close_and_blur_preserve_hide_to_tray_and_reopen() {
         .advance(&surface, &blur, Duration::from_millis(200))
         .unwrap();
     assert!(!surface.visible.get());
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(200))
         .unwrap();
@@ -365,7 +478,7 @@ fn tray_single_instance_close_and_blur_preserve_hide_to_tray_and_reopen() {
     for (index, _) in shows {
         assert_eq!(
             &events[index - 2..index],
-            ["size:600,1014", "position:1920,13"]
+            ["size:600,1014", "position:2500,13"]
         );
     }
     assert_eq!(
@@ -388,7 +501,7 @@ fn tray_single_instance_close_and_blur_preserve_hide_to_tray_and_reopen() {
 fn reopen_positions_before_show_even_if_monitor_temporarily_disappears() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_secs(1))
         .unwrap();
@@ -399,19 +512,31 @@ fn reopen_positions_before_show_even_if_monitor_temporarily_disappears() {
     surface.geometry.set(None);
 
     let start = surface.events.borrow().len();
-    assert!(motion.show(&surface, true).unwrap().is_none());
+    assert!(show_painted(&mut motion, &surface, true).is_none());
     assert_eq!(surface.position.get(), (1307, 13));
     assert_eq!(
         &surface.events.borrow()[start..],
-        ["size:600,1014", "position:1307,13", "show", "visible:true"]
+        [
+            "size:600,1014",
+            "position:2500,13",
+            "show",
+            "visible:true",
+            "position:1307,13"
+        ]
     );
     assert!(motion.hide(&surface, true).unwrap().is_none());
 
     let start = surface.events.borrow().len();
-    let entry = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let entry = toggle_painted(&mut motion, &surface, false, false).unwrap();
     assert_eq!(
         &surface.events.borrow()[start..],
-        ["size:600,1014", "position:1920,13", "show", "visible:true"]
+        [
+            "size:600,1014",
+            "position:2500,13",
+            "show",
+            "visible:true",
+            "position:1920,13"
+        ]
     );
     motion
         .advance(&surface, &entry, Duration::from_secs(1))
@@ -423,7 +548,7 @@ fn reopen_positions_before_show_even_if_monitor_temporarily_disappears() {
 fn abort_hides_in_place_without_moving_after_hide() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
-    let entry = motion.show(&surface, false).unwrap().unwrap();
+    let entry = show_painted(&mut motion, &surface, false).unwrap();
     motion
         .advance(&surface, &entry, Duration::from_millis(100))
         .unwrap();
@@ -442,7 +567,7 @@ fn abort_hides_in_place_without_moving_after_hide() {
 }
 
 #[test]
-fn unavailable_monitor_falls_back_to_showing_and_hiding_without_movement() {
+fn unavailable_monitor_does_not_reveal_an_unpainted_window() {
     let surface = FakeSurface {
         geometry: Cell::new(None),
         ..Default::default()
@@ -450,8 +575,7 @@ fn unavailable_monitor_falls_back_to_showing_and_hiding_without_movement() {
     let mut motion = Coordinator::default();
     assert!(motion.show(&surface, false).unwrap().is_none());
     assert!(motion.hide(&surface, false).unwrap().is_none());
-    assert_eq!(
-        surface.events.borrow().as_slice(),
-        ["show", "visible:true", "hide", "visible:false"]
-    );
+    assert!(!surface.visible.get());
+    assert!(motion.pending_paint().is_none());
+    assert!(surface.events.borrow().is_empty());
 }

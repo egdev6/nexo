@@ -9,6 +9,7 @@ pub(crate) struct Geometry {
     pub width: u32,
     pub height: u32,
     pub offscreen_x: i32,
+    pub park_x: i32,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -58,6 +59,7 @@ pub(crate) trait Surface {
 enum Phase {
     #[default]
     Hidden,
+    AwaitingPaint,
     Entering,
     Open,
     Exiting,
@@ -68,6 +70,7 @@ pub(crate) struct Coordinator {
     generation: u64,
     phase: Phase,
     geometry: Option<Geometry>,
+    awaiting_reduced: bool,
 }
 
 impl Coordinator {
@@ -80,6 +83,10 @@ impl Coordinator {
         self.phase == Phase::Exiting
     }
 
+    pub(crate) fn pending_paint(&self) -> Option<u64> {
+        (self.phase == Phase::AwaitingPaint).then_some(self.generation)
+    }
+
     pub(crate) fn show<S: Surface>(
         &mut self,
         surface: &S,
@@ -90,37 +97,22 @@ impl Coordinator {
             return Ok(None);
         }
         let generation = self.next_generation();
-        let (geometry, from) = if visible {
-            (self.geometry, surface.position()?.0)
-        } else {
-            // A previously hidden window may still be offscreen if monitor data
-            // is temporarily unavailable. Keep the last usable placement.
-            let geometry = surface.geometry()?.or(self.geometry);
-            if let Some(bounds) = geometry {
-                surface.set_size(bounds.width, bounds.height)?;
-                surface.set_position(
-                    if reduced {
-                        bounds.x
-                    } else {
-                        bounds.offscreen_x
-                    },
-                    bounds.y,
-                )?;
-            }
-            self.geometry = geometry;
+        if !visible {
+            // A hidden webview may not have painted, even if it painted before
+            // the previous hide. Park beyond the entire desktop while it warms.
+            let Some(bounds) = surface.geometry()?.or(self.geometry) else {
+                return Ok(None);
+            };
+            surface.set_size(bounds.width, bounds.height)?;
+            surface.set_position(bounds.park_x, bounds.y)?;
+            self.geometry = Some(bounds);
             surface.show()?;
+            self.phase = Phase::AwaitingPaint;
+            self.awaiting_reduced = reduced;
             surface.visibility(true);
-            (
-                geometry,
-                geometry.map_or(0, |bounds| {
-                    if reduced {
-                        bounds.x
-                    } else {
-                        bounds.offscreen_x
-                    }
-                }),
-            )
-        };
+            return Ok(None);
+        }
+        let (geometry, from) = (self.geometry, surface.position()?.0);
         if let Some(bounds) = geometry {
             if !reduced && from != bounds.x {
                 self.phase = Phase::Entering;
@@ -140,6 +132,39 @@ impl Coordinator {
         Ok(None)
     }
 
+    pub(crate) fn painted<S: Surface>(
+        &mut self,
+        surface: &S,
+        generation: u64,
+    ) -> Result<Option<Animation>, S::Error> {
+        if self.pending_paint() != Some(generation) {
+            return Ok(None);
+        }
+        let Some(bounds) = self.geometry else {
+            return Ok(None);
+        };
+        let x = if self.awaiting_reduced {
+            bounds.x
+        } else {
+            bounds.offscreen_x
+        };
+        if surface.position()? != (x, bounds.y) {
+            surface.set_position(x, bounds.y)?;
+        }
+        if !self.awaiting_reduced && x != bounds.x {
+            self.phase = Phase::Entering;
+            return Ok(Some(Animation {
+                generation,
+                from: x,
+                to: bounds.x,
+                y: bounds.y,
+                exit: false,
+            }));
+        }
+        self.phase = Phase::Open;
+        Ok(None)
+    }
+
     pub(crate) fn hide<S: Surface>(
         &mut self,
         surface: &S,
@@ -148,9 +173,11 @@ impl Coordinator {
         if !surface.is_visible()? || self.is_exiting() {
             return Ok(None);
         }
+        let awaiting_paint = self.phase == Phase::AwaitingPaint;
         let generation = self.next_generation();
         if let Some(bounds) = self.geometry
             && !reduced
+            && !awaiting_paint
         {
             let from = surface.position()?.0;
             self.phase = Phase::Exiting;

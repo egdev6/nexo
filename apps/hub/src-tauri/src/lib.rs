@@ -45,7 +45,7 @@ mod window_motion;
 #[cfg(test)]
 mod window_motion_tests;
 
-use position::{WorkArea, flyout_bounds, work_area_right_edge};
+use position::{WorkArea, flyout_bounds, virtual_right_edge, work_area_right_edge};
 use std::sync::{
     Mutex,
     atomic::{AtomicBool, Ordering},
@@ -242,12 +242,31 @@ impl Surface for NativeFlyout<'_> {
             height: work.size.height,
         };
         let bounds = flyout_bounds(&area, monitor.scale_factor());
+        // A work-area edge can still be on the taskbar or another monitor.
+        // Park beyond all physical monitors while waiting for the webview.
+        let monitors = self.0.available_monitors()?;
+        let mut screens: Vec<_> = monitors
+            .iter()
+            .map(|screen| WorkArea {
+                x: screen.position().x,
+                y: screen.position().y,
+                width: screen.size().width,
+                height: screen.size().height,
+            })
+            .collect();
+        screens.push(WorkArea {
+            x: monitor.position().x,
+            y: monitor.position().y,
+            width: monitor.size().width,
+            height: monitor.size().height,
+        });
         Ok(Some(Geometry {
             x: bounds.x,
             y: bounds.y,
             width: bounds.width,
             height: bounds.height,
             offscreen_x: work_area_right_edge(&area),
+            park_x: virtual_right_edge(&screens).unwrap_or_else(|| work_area_right_edge(&area)),
         }))
     }
     fn set_size(&self, width: u32, height: u32) -> tauri::Result<()> {
@@ -340,6 +359,90 @@ fn reduced_motion() -> bool {
 #[cfg(not(windows))]
 fn reduced_motion() -> bool {
     false
+}
+
+// A second animation frame follows the first render opportunity. Waiting for
+// the mounted panel avoids acknowledging an initial about:blank document.
+fn paint_probe_script(generation: u64) -> String {
+    format!(
+        "(() => {{ if (!document.querySelector('#root > .flyout')) return; \
+         requestAnimationFrame(() => requestAnimationFrame(() => {{ \
+         if (!document.querySelector('#root > .flyout')) return; \
+         const bridge = window.__TAURI_INTERNALS__; \
+         if (bridge && bridge.invoke) bridge.invoke('flyout_painted', {{ generation: {generation} }}).catch(() => {{}}); \
+         }})); }})()"
+    )
+}
+
+// Retry across initial navigation and webview reloads. Never reveal a bare
+// backdrop on failure; return to the tray if the renderer cannot acknowledge.
+fn schedule_paint_probe(window: &WebviewWindow, generation: Option<u64>) {
+    let Some(generation) = generation else { return };
+    let window = window.clone();
+    std::thread::spawn(move || {
+        let started = Instant::now();
+        let active = std::sync::Arc::new(AtomicBool::new(true));
+        while active.load(Ordering::Relaxed) {
+            let target = window.clone();
+            let active_on_main = active.clone();
+            let expired = started.elapsed() >= Duration::from_secs(5);
+            if let Err(error) = window.run_on_main_thread(move || {
+                let state = target.app_handle().state::<MotionState>();
+                let Ok(mut motion) = state.0.try_lock() else {
+                    return;
+                };
+                if motion.pending_paint() != Some(generation) {
+                    active_on_main.store(false, Ordering::Relaxed);
+                } else if expired {
+                    eprintln!("Nexo webview did not paint; returning to tray");
+                    if let Err(error) = motion.abort(&NativeFlyout(&target)) {
+                        eprintln!("could not hide Nexo after paint timeout: {error}");
+                    }
+                    active_on_main.store(false, Ordering::Relaxed);
+                } else {
+                    drop(motion);
+                    if let Err(error) = target.eval(paint_probe_script(generation)) {
+                        eprintln!("could not request Nexo webview paint: {error}");
+                    }
+                }
+            }) {
+                eprintln!("could not schedule Nexo paint probe: {error}");
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    });
+}
+
+#[tauri::command]
+fn flyout_painted(window: WebviewWindow, generation: u64) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Ventana no autorizada".into());
+    }
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let state = target.app_handle().state::<MotionState>();
+            let Ok(mut motion) = state.0.try_lock() else {
+                return;
+            };
+            if motion.pending_paint() != Some(generation) {
+                return;
+            }
+            match motion.painted(&NativeFlyout(&target), generation) {
+                Ok(animation) => {
+                    drop(motion);
+                    schedule_animation(&target, animation);
+                }
+                Err(error) => {
+                    eprintln!("could not reveal Nexo after paint: {error}");
+                    if let Err(error) = motion.abort(&NativeFlyout(&target)) {
+                        eprintln!("could not hide Nexo after paint failure: {error}");
+                    }
+                }
+            }
+        })
+        .map_err(|error| error.to_string())
 }
 
 // The timer is off-thread, but every coordinator and native-window operation
@@ -449,8 +552,13 @@ fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
                 let Ok(mut motion) = state.0.try_lock() else {
                     return Ok(());
                 };
+                let previous_paint = motion.pending_paint();
                 let animation = motion.show(&NativeFlyout(&target), reduced_motion())?;
+                let pending = motion
+                    .pending_paint()
+                    .filter(|id| Some(*id) != previous_paint);
                 drop(motion);
+                schedule_paint_probe(&target, pending);
                 schedule_animation(&target, animation);
                 target.set_focus()
             })();
@@ -481,8 +589,13 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
                         .is_some_and(|at| at.elapsed() < Duration::from_millis(250))
                 })
                 .unwrap_or(false);
+        let previous_paint = motion.pending_paint();
         let animation = motion.toggle(&NativeFlyout(&window), reduced_motion(), just_hidden)?;
+        let pending = motion
+            .pending_paint()
+            .filter(|id| Some(*id) != previous_paint);
         drop(motion);
+        schedule_paint_probe(&window, pending);
         schedule_animation(&window, animation);
         if reopening && !just_hidden {
             window.set_focus()?;
@@ -536,6 +649,7 @@ pub fn run() {
         .manage(local_apps::windows::SelectionState::default())
         .invoke_handler(tauri::generate_handler![
             backdrop_available,
+            flyout_painted,
             get_flyout_state,
             hide_flyout,
             catalog_cache::read_catalog_cache,
@@ -571,6 +685,7 @@ pub fn run() {
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         backdrop_available,
+        flyout_painted,
         get_flyout_state,
         hide_flyout,
         catalog_cache::read_catalog_cache,
@@ -734,8 +849,16 @@ pub fn run() {
 
 #[cfg(test)]
 mod close_tests {
-    use super::handle_close_request;
+    use super::{handle_close_request, paint_probe_script};
     use std::cell::RefCell;
+
+    #[test]
+    fn paint_probe_waits_for_a_mounted_panel_and_two_frames() {
+        let script = paint_probe_script(42);
+        assert_eq!(script.matches("requestAnimationFrame").count(), 2);
+        assert!(script.contains("#root > .flyout"));
+        assert!(script.contains("bridge.invoke('flyout_painted', { generation: 42 })"));
+    }
 
     #[test]
     fn main_close_prevents_destruction_then_hides() {
