@@ -48,6 +48,41 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it('uses the canvas external-link glyph for installed, connected and local open buttons', async () => {
+  await show();
+  const paths = ['M15 3h6v6', 'M10 14 21 3', 'M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4'];
+  for (const name of ['Official', 'Plugin', 'Local One']) {
+    const svg = card(name).getByRole('button', { name: `Abrir ${name}` }).querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('stroke')).toBe('currentColor');
+    expect(svg.getAttribute('stroke-width')).toBe('2');
+    expect(Array.from(svg.querySelectorAll('path'), path => path.getAttribute('d'))).toEqual(paths);
+  }
+});
+
+it('excludes unknown and absent catalog apps while keeping detected and manual apps', async () => {
+  const unknown = { ...official, id: 'quorb', name: 'Quorb', installed: false, statusKnown: false, installationState: 'unknown' as const, installationReason: 'Sin datos de detección en el catálogo' };
+  const contradictory = { ...unknown, id: 'uncertain', name: 'Uncertain', installed: true, statusKnown: true };
+  render(<FlyoutPanel apps={[official, absent, unknown, contradictory]} news={[]} installedStateKnown={false} onAppsRefresh={() => {}} />);
+  await screen.findByText('Local One');
+  expect(screen.getByText('Official')).toBeTruthy();
+  expect(screen.queryByText('Pizarra')).toBeNull();
+  expect(screen.queryByText('Quorb')).toBeNull();
+  expect(screen.queryByText('Uncertain')).toBeNull();
+});
+
+it('keeps an unknown catalog app when connected without a fabricated installed version', async () => {
+  const unknown = { ...official, id: 'quorb', name: 'Quorb', installed: false, statusKnown: false, installationState: 'unknown' as const, installationReason: 'Sin datos de detección en el catálogo', version: undefined };
+  render(<FlyoutPanel apps={[unknown]} news={[]} installedStateKnown={false} onAppsRefresh={() => {}} />);
+  await waitFor(() => expect(native.publish).toBeTypeOf('function'));
+  act(() => native.publish!({ revision: 1, apps: [{ app: { id: 'quorb', name: 'Quorb', version: '3.0.0' }, capabilities: ['show'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  fireEvent.click(toggle('Quorb'));
+  expect(card('Quorb').getByText(/Versión comunicada: 3.0.0/)).toBeTruthy();
+  expect(card('Quorb').queryByText(/versión no disponible|Apertura no disponible|Sin datos de detección/)).toBeNull();
+  fireEvent.click(card('Quorb').getByRole('button', { name: 'Abrir Quorb' }));
+  await waitFor(() => expect(native.invoke).toHaveBeenCalledWith('open_official_app', { id: 'quorb' }));
+});
+
 it('starts closed and keeps a single open row across connected, installed and local sections', async () => {
   await show();
   for (const name of ['Plugin', 'Official', 'Local One']) expect(toggle(name).getAttribute('aria-expanded')).toBe('false');

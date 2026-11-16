@@ -220,10 +220,11 @@ it('keeps installation unknown on scan failure instead of claiming absence', asy
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
-  expect(await screen.findByRole('region', { name: 'Instalación desconocida' })).toBeTruthy();
-  expect(screen.getByText('Example App')).toBeTruthy();
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith('installed_apps'));
+  expect(await screen.findByText('Estado de instalación no disponible todavía.')).toBeTruthy();
+  expect(screen.queryByText('Example App')).toBeNull();
   expect(screen.queryByText('No hay aplicaciones instaladas.')).toBeNull();
-  expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Abrir Example App' })).toBeNull();
 });
 
 it('disables plugin show without capability and sends only an ID when supported', async () => {

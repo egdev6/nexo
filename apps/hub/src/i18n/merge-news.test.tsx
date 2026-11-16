@@ -53,8 +53,8 @@ it.each([
 });
 
 it.each([
-  ['es', 'Mostrar novedades al abrir', 'Solo aparecen novedades no vistas del catálogo oficial.', 'Esta aplicación ya no está disponible en el catálogo.', 'Reintentar catálogo'],
-  ['en', 'Show news on opening', 'Only unseen news from the official catalog appears.', 'This application is no longer available in the catalog.', 'Retry catalog'],
+  ['es', 'Mostrar novedades al abrir', 'Muestra las novedades del catálogo oficial cada vez que abres el panel.', 'Esta aplicación ya no está disponible en el catálogo.', 'Reintentar catálogo'],
+  ['en', 'Show news on opening', 'Shows official catalog news whenever you open the panel.', 'This application is no longer available in the catalog.', 'Retry catalog'],
 ] as const)('localizes the #10 settings hint and missing catalog target in %s', (locale, label, hint, missing, retry) => {
   const retryFn = vi.fn();
   const { unmount } = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={() => {}} onClose={() => {}} /></LocaleProvider>);

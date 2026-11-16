@@ -34,10 +34,13 @@ it('localizes installation, open and unknown reasons without translating app dat
   expect(screen.getByText('9.1')).toBeTruthy();
   expect(screen.getByText('Running status unknown')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Open Example' })).toBeTruthy();
-  const region = screen.getByRole('region', { name: 'Installation unknown' });
-  expect(within(region).getByText('Missing')).toBeTruthy();
-  expect(within(region).getByText('No detection information in the catalog')).toBeTruthy();
+  expect(screen.queryByText('Missing')).toBeNull();
   expect(screen.getByRole('button', { name: 'Refresh apps' })).toBeTruthy();
+  const tab = screen.getByRole('tab', { name: 'Catalog' });
+  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  const card = screen.getByRole('article', { name: 'Missing' });
+  expect(within(card).getByText('Cannot check whether it is installed.')).toBeTruthy();
+  expect((within(card).getByRole('button', { name: 'Install Missing' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it('localizes connected controls and preserves the app-provided refusal verbatim', async () => {

@@ -31,7 +31,7 @@ export function AppSocialLinks({ app, onClick }: { app?: HubApp; onClick: MouseE
   return items.length > 0 ? <SocialLinks items={items} label={t(locale, 'app.socialLinks')} caption={null} variant="ghost" size="md" onClick={onClick} /> : null;
 }
 
-export function AppDetails({ app, version, newVersion }: { app?: HubApp; version?: string; newVersion?: string }) {
+export function AppDetails({ app, version, newVersion, showInstalledVersion = true }: { app?: HubApp; version?: string; newVersion?: string; showInstalledVersion?: boolean }) {
   const locale = useLocale();
   const { open, failed } = useExternalLinks();
   const versionLink = (value: string) => {
@@ -39,7 +39,7 @@ export function AppDetails({ app, version, newVersion }: { app?: HubApp; version
     return href ? <a className="version-link" href={href} onClick={open}>{value}</a> : <span>{value}</span>;
   };
   return <>
-    <p className="meta">{t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}</p>
+    {showInstalledVersion && <p className="meta">{t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}</p>}
     {newVersion && <p className="meta update-version"><Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}</p>}
     <AppSocialLinks app={app} onClick={open} />
     {failed && <p role="alert" className="status-warning">{t(locale, 'app.externalError')}</p>}

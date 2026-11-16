@@ -222,6 +222,7 @@ it('keeps tracking during an unknown detection and returns to idle after cancell
   fireEvent.click(button()!);
   rerender(<FlyoutPanel apps={[{ ...installed(), statusKnown: false, installationState: 'unknown' }]} news={[]} catalogState={{ status: 'ready', catalog: catalog() }} onAppsRefresh={refresh} />);
   act(() => native.receive!({ id: 'antena', phase: 'downloading', received: 7 }));
+  expect(screen.queryByRole('button', { name: 'Abrir Antena' })).toBeNull();
   expect(screen.getByRole('progressbar').hasAttribute('aria-valuenow')).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: 'Cancelar Antena' }));
   await waitFor(() => expect(native.cancel).toHaveBeenCalledExactlyOnceWith('antena'));

@@ -15,7 +15,7 @@
 
 - T1 (S1) Remove the gray box before the entry slide — route: writer (native), test-first where possible; status: authorized.
 - T2 (S2, S4, S5) Open icon = external-link glyph (square + arrow) as in the canvas; apps whose installation is unknown are not listed in Mis apps (only installed or connected apps); the unknown state reads clearly in the catalog; "Abrir novedades" on by default and the news popup shows every time the panel opens while it is on — route: writer (frontend), test-first; status: authorized.
-- T3 (S3, S4) Quorb detection hint in the official catalog — route: parent; status: pending decision (values must come from a real install or an approved derivation).
+- T3 (S3, S4) Quorb detection hint in the official catalog — status: dropped by the user (L2).
 
 ## Log
 
@@ -25,3 +25,4 @@
 - Catálogo solo muestra Quorb y con mensaje de no se puede verificar instalación
 - En mis apps Quorb sale asi [Image#7]
 - Abrir novedades debe ir activa por defecto y mostrarse cada vez que se abre la app"
+- L2 (verbatim): "no hace falta entendí el motivo" — T3 (Quorb detection hint) dropped for now; it will come with a real Quorb install or with quorb#281 (bundle.publisher).

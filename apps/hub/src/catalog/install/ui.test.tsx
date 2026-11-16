@@ -54,7 +54,7 @@ it('enables only freshly known uninstalled official v3 entries with keys, and ex
   expect(native.install).not.toHaveBeenCalled();
   rerender(<FlyoutPanel apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(card('Alfa').getByText('No se ha podido comprobar si la app está instalada.')).toBeTruthy();
+  expect(card('Alfa').getByText('No se puede comprobar si está instalada.')).toBeTruthy();
   rerender(<FlyoutPanel apps={[alfa]} news={[]} catalogState={{ status: 'offline', stale: true, catalog }} onAppsRefresh={refresh} />);
   expect(card('Alfa').getByText('Actualiza el catálogo conectado antes de instalar.')).toBeTruthy();
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(true);

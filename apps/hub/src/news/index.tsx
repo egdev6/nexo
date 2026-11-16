@@ -8,7 +8,9 @@ import './news.css';
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatalog, stale }: Omit<NewsPopupProps, 'open'>) {
+type Props = NewsPopupProps & { seenKeys?: ReadonlySet<string> };
+
+function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatalog, stale, seenKeys }: Omit<Props, 'open'>) {
   const locale = useLocale();
   const messages = {
     previousSlide: t(locale, 'news.previous'), nextSlide: t(locale, 'news.next'),
@@ -16,10 +18,10 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
     instructions: t(locale, 'news.instructions'),
     position: (current: number, total: number, label: string) => t(locale, 'news.position', { current: formatNumber(locale, current), total: formatNumber(locale, total), label }),
   };
-  // Official news arrives in newest-first order; keep the rest unseen for a later opening.
+  // Official news arrives newest-first; the popup always shows at most four items.
   const displayed = items.slice(0, 4);
   const [selected, setSelected] = useState(displayed[0]?.id);
-  const [viewed, setViewed] = useState(() => new Set(displayed[0] ? [displayed[0].id] : []));
+  const [viewed, setViewed] = useState(() => new Set([...(seenKeys ?? []), ...(displayed[0] ? [displayed[0].id] : [])]));
   const current = displayed.find(item => item.id === selected) ?? displayed[0];
   const cta = current?.cta === t('es', 'news.viewCatalog') ? t(locale, 'news.viewCatalog') : current?.cta;
   const titleId = useId();
@@ -122,6 +124,6 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   </div>;
 }
 
-export function NewsPopup({ open, ...props }: NewsPopupProps) {
+export function NewsPopup({ open, ...props }: Props) {
   return open ? <OpenNews {...props} /> : null;
 }

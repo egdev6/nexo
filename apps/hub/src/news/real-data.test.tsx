@@ -97,7 +97,23 @@ it('starts only on an actual show, freezes the snapshot, and records only slides
   await waitFor(() => expect(stored).toMatchObject({ newsVisit: { lastVisitAt: today, seenKeys: ['n:one:first', 'n:one:second'] } }));
   fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
   visibility(false); const again = await open();
-  expect(titles(again)).toEqual(['third']);
+  expect(titles(again)).toEqual(['first', 'second', 'third']);
+  expect(within(again).getAllByText('Sin ver')).toHaveLength(1);
+});
+
+it('reopens already-seen news on each native show, not on focus or dismissal', async () => {
+  stored.newsVisit = { lastVisitAt: '2026-05-30T00:00:00Z', seenKeys: ['a:one'] };
+  cache = catalog([app('one', today)]);
+  await start();
+  const first = await open();
+  expect(titles(first)).toEqual(['one']);
+  expect(within(first).queryByText('Sin ver')).toBeNull();
+  close(); fireEvent.focus(window);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  visibility(false);
+  expect(titles(await open())).toEqual(['one']);
+  close();
+  await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:one']));
 });
 
 it('records an actual show that ended before settings finished hydrating', async () => {
@@ -131,17 +147,19 @@ it('records the current slide when hide and the next show arrive in the same Rea
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 3, cycle: 2, at: today } });
   });
   const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
-  expect(titles(dialog)).toEqual(['second']);
+  expect(titles(dialog)).toEqual(['first', 'second']);
+  expect(within(dialog).getAllByText('Sin ver')).toHaveLength(1);
   await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:one:first']));
 });
 
-it('caps each show at four unseen items without consuming the overflow', async () => {
+it('caps each show at the same four latest items and does not consume overflow', async () => {
   cache = catalog(Array.from({ length: 12 }, (_, index) => app(`app-${String(index).padStart(2, '0')}`, today)));
   await start(); const dialog = await open();
   expect(titles(dialog)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
   for (let index = 1; index < 4; index++) fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   close(); await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:app-00', 'a:app-01', 'a:app-02', 'a:app-03']));
-  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-04', 'app-05', 'app-06', 'app-07']);
+  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
+  expect(within(again).queryByText('Sin ver')).toBeNull();
 });
 
 it('keeps the last confirmed marker on save failure and retries the seen keys together with settings', async () => {

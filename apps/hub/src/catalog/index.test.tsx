@@ -151,10 +151,19 @@ it('shows an error without pretending an uncached catalog is empty', () => {
   expect(screen.queryByText('No hay aplicaciones disponibles en el catálogo.')).toBeNull();
 });
 
-it('disables official installation when its installation state is unknown', () => {
-  render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: false }]} state="ready" />);
-  expect((screen.getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.getByText('No se ha podido comprobar si la app está instalada.')).toBeTruthy();
+it.each([
+  ['es', 'Instalar Pizarra', 'No se puede comprobar si está instalada.'],
+  ['en', 'Install Pizarra', 'Cannot check whether it is installed.'],
+] as const)('explains unknown installation in %s and keeps installation disabled', (locale, label, reason) => {
+  native.locale = locale;
+  render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: false, installationState: 'unknown' }]} state="ready" />);
+  const card = screen.getByRole('article', { name: 'Pizarra' });
+  const button = within(card).getByRole('button', { name: label }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe(reason);
+  expect(within(card).getByText(reason)).toBeTruthy();
+  fireEvent.click(button);
+  expect(native.invoke).not.toHaveBeenCalled();
 });
 
 it('does not enable official installation without a validated v3 catalog', () => {
