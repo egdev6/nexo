@@ -10,12 +10,16 @@
 - S4 (verbatim): "En mis apps Quorb sale asi" — screenshot: Quorb card in Mis apps with "Sin datos de detección en el catálogo", "Versión instalada: versión no disponible", a GitHub link, the catalog description and "Apertura no disponible: Sin datos de detección en el catálogo."
 - S5 (verbatim): "Abrir novedades debe ir activa por defecto y mostrarse cada vez que se abre la app"
 - Evidence: catalog v3 has no `detection` hint for Quorb (Antena has one); Quorb is NOT installed on the user's machine (HKCU Uninstall lists only Antena). Antena is installed, so the catalog (not-installed apps only) correctly hides it.
+- S6 (verbatim): "Novedades sigue mostrando cosas mal. la imagen debe ser la del banner y el slide sigue mostrando 4 y puntos de navegación cuando no hay" — screenshot: news popup shows "04 / 04" with arrows, a placeholder illustration instead of the app banner, a progress line and 4 dots, while the catalog has fewer news items.
+- S7 (verbatim): "La parte de personalización de color no cambia prácticamente nada en al UI. Debe aplicar a todos los estilos (botones, slide, iconos, badges,  radio buttons, switches,tabs...) revisalo porfa"
 
 ## Tasks
 
 - T1 (S1) Remove the gray box before the entry slide — route: writer (native), test-first where possible; status: authorized.
 - T2 (S2, S4, S5) Open icon = external-link glyph (square + arrow) as in the canvas; apps whose installation is unknown are not listed in Mis apps (only installed or connected apps); the unknown state reads clearly in the catalog; "Abrir novedades" on by default and the news popup shows every time the panel opens while it is on — route: writer (frontend), test-first; status: authorized.
 - T3 (S3, S4) Quorb detection hint in the official catalog — status: dropped by the user (L2).
+- T4 (S6) News popup: app banner image (catalog banner convention), real item count (no padding to 4), no navigation/dots/progress when there is one item, correct dots/counter otherwise — route: writer, test-first; status: authorized.
+- T5 (S7) Accent color customization applies to every brand-colored style (buttons, slider, icons, badges, radios, switches, tabs, links, focus, progress) — route: writer, test-first; status: authorized.
 
 ## Log
 
@@ -26,3 +30,6 @@
 - En mis apps Quorb sale asi [Image#7]
 - Abrir novedades debe ir activa por defecto y mostrarse cada vez que se abre la app"
 - L2 (verbatim): "no hace falta entendí el motivo" — T3 (Quorb detection hint) dropped for now; it will come with a real Quorb install or with quorb#281 (bundle.publisher).
+- L3 (verbatim): "Ajustes:
+- Novedades sigue mostrando cosas mal. la imagen debe ser la del banner y el slide sigue mostrando 4 y puntos de navegación cuando no hay [Image#8]
+-La parte de personalización de color no cambia prácticamente nada en al UI. Debe aplicar a todos los estilos (botones, slide, iconos, badges,  radio buttons, switches,tabs...) revisalo porfa"
