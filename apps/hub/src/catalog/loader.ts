@@ -9,7 +9,7 @@ export const CATALOG_TIMEOUT_MS = 8000;
 
 export interface CatalogCache { read(): Promise<string | null>; write(text: string): Promise<void> }
 export interface CatalogResponse { ok: boolean; url: string; redirected: boolean; text(): Promise<string> }
-export type CatalogFetcher = (url: string, options: { signal: AbortSignal; redirect: 'error' }) => Promise<CatalogResponse>;
+export type CatalogFetcher = (url: string, options: { signal: AbortSignal; redirect: 'error'; cache: 'no-cache' }) => Promise<CatalogResponse>;
 export interface CatalogState {
   status: 'loading' | 'ready' | 'empty' | 'offline' | 'error';
   catalog?: Catalog;
@@ -69,7 +69,8 @@ export async function loadCatalog(endpoint: string | undefined, cache: CatalogCa
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const request = (async () => {
-      const response = await fetcher(endpoint, { signal: controller.signal, redirect: 'error' });
+      // Revalidate with the server every time: GitHub Pages sends max-age=600, so a cached copy would hide catalog updates for up to 10 minutes.
+      const response = await fetcher(endpoint, { signal: controller.signal, redirect: 'error', cache: 'no-cache' });
       if (!response.ok || response.redirected || !endpointIsHttps(response.url) || new URL(response.url).origin !== new URL(endpoint).origin) throw new InvalidResponse();
       const text = await response.text();
       let catalog: Catalog;

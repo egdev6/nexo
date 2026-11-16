@@ -17,7 +17,7 @@ describe('catalog loader', () => {
   it('fetches HTTPS, validates before caching and distinguishes ready from empty', async () => {
     const store = cache(); const fetcher = fetchResponse(valid);
     expect((await loadCatalog(endpoint, store, fetcher)).status).toBe('ready');
-    expect(fetcher).toHaveBeenCalledWith(endpoint, expect.objectContaining({ redirect: 'error', signal: expect.any(AbortSignal) }));
+    expect(fetcher).toHaveBeenCalledWith(endpoint, expect.objectContaining({ redirect: 'error', cache: 'no-cache', signal: expect.any(AbortSignal) }));
     expect(store.value()).toBe(valid);
     expect((await loadCatalog(endpoint, store, fetchResponse(empty))).status).toBe('empty');
     expect(store.value()).toBe(empty);
