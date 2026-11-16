@@ -13,6 +13,8 @@
 - S6 (verbatim): "Novedades sigue mostrando cosas mal. la imagen debe ser la del banner y el slide sigue mostrando 4 y puntos de navegación cuando no hay" — screenshot: news popup shows "04 / 04" with arrows, a placeholder illustration instead of the app banner, a progress line and 4 dots, while the catalog has fewer news items.
 - S7 (verbatim): "La parte de personalización de color no cambia prácticamente nada en al UI. Debe aplicar a todos los estilos (botones, slide, iconos, badges,  radio buttons, switches,tabs...) revisalo porfa"
 - S8 (verbatim): "sigue viéndose el cuadrado gris en la salida de vez en cuando"
+- S9 (verbatim): "Antena no se muestra nunca, debe estar rota la navegación?"
+- S10 (verbatim): "Creo que lo mejor es dejar instalar si no detecta no?" (answering the parent's question whether to allow installing apps without detection data, with a warning)
 
 ## Tasks
 
@@ -22,6 +24,8 @@
 - T4 (S6) News popup: app banner image (catalog banner convention), real item count (no padding to 4), no navigation/dots/progress when there is one item, correct dots/counter otherwise — route: writer, test-first; status: authorized.
 - T5 (S7) Accent color customization applies to every brand-colored style (buttons, slider, icons, badges, radios, switches, tabs, links, focus, progress) — route: writer, test-first; status: authorized.
 - T6 (S8) No gray frame during or after the exit slide (occasional) — route: writer (native), test-first; status: authorized.
+- T7 (S9) News slider navigation: every item reachable (Antena never shows) — route: writer (frontend), test-first; status: authorized.
+- T8 (S10) Allow installing official apps whose installation cannot be detected, with a warning; the native install transaction no longer refuses `DetectionUnknown` before download (signature, approval and every other check unchanged); success after an unknown install is reported as installed-unverified — route: writer, test-first; status: authorized (after T6, shares Rust files).
 
 ## Log
 
@@ -38,3 +42,5 @@
 - L4 (verbatim): "siguen apareciendo 2 novedades cuando solo hay una o la navegación está rota [Image#9]
 sigue viéndose el cuadrado gris en la salida de vez en cuando
 en catálogo si no está instalada debería de estar el botón dehabilitado no? [Image#10]" Parent evidence: the published v3 catalog has two news items (Antena 0.15.0, Quorb 0.8.0); the Quorb install button is already disabled (installation unknown).
+- L5 (verbatim): "Antena no se muestra nunca, debe estar rota la navegación?
+Creo que lo mejor es dejar instalar si no detecta no?"
