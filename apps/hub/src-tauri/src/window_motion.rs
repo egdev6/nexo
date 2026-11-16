@@ -50,6 +50,7 @@ pub(crate) trait Surface {
     fn set_size(&self, width: u32, height: u32) -> Result<(), Self::Error>;
     fn position(&self) -> Result<(i32, i32), Self::Error>;
     fn set_position(&self, x: i32, y: i32) -> Result<(), Self::Error>;
+    fn set_cloaked(&self, cloaked: bool) -> Result<(), Self::Error>;
     fn show(&self) -> Result<(), Self::Error>;
     fn hide(&self) -> Result<(), Self::Error>;
     fn visibility(&self, visible: bool);
@@ -71,6 +72,7 @@ pub(crate) struct Coordinator {
     phase: Phase,
     geometry: Option<Geometry>,
     awaiting_reduced: bool,
+    cloaked: bool,
 }
 
 impl Coordinator {
@@ -106,6 +108,12 @@ impl Coordinator {
             surface.set_size(bounds.width, bounds.height)?;
             surface.set_position(bounds.park_x, bounds.y)?;
             self.geometry = Some(bounds);
+            if self.cloaked {
+                // Never uncloak at the last visible position, including when
+                // the previous exit stopped on another monitor or the taskbar.
+                surface.set_cloaked(false)?;
+                self.cloaked = false;
+            }
             surface.show()?;
             self.phase = Phase::AwaitingPaint;
             self.awaiting_reduced = reduced;
@@ -221,10 +229,12 @@ impl Coordinator {
                 Ok(true)
             }
             Frame::Finish(x) => {
-                surface.set_position(x, animation.y)?;
                 if animation.exit {
+                    // Do not move a visible WebView again on the same frame as
+                    // hiding it: the work-area edge need not be off-screen.
                     self.finish_hide(surface)?;
                 } else {
+                    surface.set_position(x, animation.y)?;
                     self.phase = Phase::Open;
                     self.next_generation();
                 }
@@ -234,6 +244,11 @@ impl Coordinator {
     }
 
     fn finish_hide<S: Surface>(&mut self, surface: &S) -> Result<(), S::Error> {
+        // Suppress composition before hiding the webview so a remaining Mica
+        // backdrop cannot be shown alone. Hide even if DWM is unavailable.
+        if surface.set_cloaked(true).is_ok() {
+            self.cloaked = true;
+        }
         surface.hide()?;
         self.phase = Phase::Hidden;
         self.next_generation();

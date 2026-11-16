@@ -283,6 +283,36 @@ impl Surface for NativeFlyout<'_> {
     fn set_position(&self, x: i32, y: i32) -> tauri::Result<()> {
         self.0.set_position(PhysicalPosition::new(x, y))
     }
+    fn set_cloaked(&self, cloaked: bool) -> tauri::Result<()> {
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+
+            let hwnd = self.0.hwnd().inspect_err(|error| {
+                eprintln!("could not get Nexo window handle for DWM cloak: {error}");
+            })?;
+            let value = i32::from(cloaked);
+            // SAFETY: the window owns this HWND; DWMWA_CLOAK takes a BOOL.
+            let result = unsafe {
+                DwmSetWindowAttribute(
+                    hwnd.0.cast(),
+                    DWMWA_CLOAK as u32,
+                    std::ptr::from_ref(&value).cast(),
+                    std::mem::size_of_val(&value) as u32,
+                )
+            };
+            if result < 0 {
+                let error = std::io::Error::other(format!(
+                    "could not set Nexo DWM cloak to {cloaked}: {result:#010x}"
+                ));
+                eprintln!("{error}");
+                return Err(error.into());
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = cloaked;
+        Ok(())
+    }
     fn show(&self) -> tauri::Result<()> {
         self.0.show()
     }
