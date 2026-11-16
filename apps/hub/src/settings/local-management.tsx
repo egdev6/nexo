@@ -82,7 +82,7 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
   }
   const disabled = !native || loading || busy;
 
-  // TODO(egdev-design-system#TBD-panel-compact-heading): Preserve compact uppercase headings until the DS offers this size.
+  // TODO(egdev-design-system#404): Preserve compact uppercase headings until the DS offers this size.
   return <>
     <section className="settings__group" aria-labelledby={`${id}-apps`}>
       <Panel variant="banded">

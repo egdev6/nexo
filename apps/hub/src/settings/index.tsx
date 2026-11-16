@@ -9,11 +9,11 @@ import { useExternalLinks } from '../apps/details';
 import { LocalManagement } from './local-management';
 import './settings.css';
 
-// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the General heading until the DS offers this size.
-// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the Appearance heading until the DS offers this size.
-// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the About heading until the DS offers this size.
-// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the Author heading until the DS offers this size.
-// TODO(egdev-design-system#TBD-panel-accent): Preserve the appearance accent until Panel supports an accent border.
+// TODO(egdev-design-system#404): Preserve the General heading until the DS offers this size.
+// TODO(egdev-design-system#404): Preserve the Appearance heading until the DS offers this size.
+// TODO(egdev-design-system#404): Preserve the About heading until the DS offers this size.
+// TODO(egdev-design-system#404): Preserve the Author heading until the DS offers this size.
+// TODO(egdev-design-system#418): Preserve the appearance accent until Panel supports an accent border.
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
 

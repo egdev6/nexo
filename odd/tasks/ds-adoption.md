@@ -37,7 +37,7 @@ Status: approved (L4).
   - `ColorSwatchGroup` (Q3: Quorb and Nexo both use accent swatches);
   - MCP `get_component` usage examples.
 
-  Each issue gets an override-registry entry. Route: inline; publishing the issues needs the maintainer's approval. Status: pending.
+  Each issue gets an override-registry entry. Route: inline; publishing the issues needs the maintainer's approval. Status: done (approved "Publicar todos": egdev-design-system#408-#421 new, comments on #396 and #404; every `TBD` allowlist entry and TODO now names its real issue; skill request mode: `assets/issue-template.md`, `references/registro.md`; 485 tests).
 - T8 (S4) **adopt/upgrade** mode: script the pack, vendor, lockfile-integrity and restart steps done by hand for 9679f86 and b54222c, with the Q2 vendor naming: `egdev-<pkg>-<version>-<dscommit>.tgz`. Route: inline. Status: pending.
 - T9 (S4) **audit** mode: point `auditar-ui` at the DS source (MCP or tarballs) instead of a hand-written profile, and validate it on Nexo against S5. Route: inline. Status: pending.
 - T10 (S2) Close: final skill document, the measured adoption after T5 and T6, and a rollout plan for the website, Antena and Quorb (separate work, not done here). Route: inline. Status: pending.
@@ -60,3 +60,4 @@ Status: approved (L4).
 - Evidence (L5 red line): a live CDP capture showed a thin light seam at the header/menu-row boundary: header bottom at 60.8 CSS px (fractional at 125 %), so a sub-pixel gap lets the window background/desktop show through. Fix: the opaque menu-row band overlaps the header by 1px (RED 3, GREEN 482). Pending the maintainer's visual confirmation.
 - L6 (verbatim): "si" — the seam is gone; T5 confirmed.
 - L7 (verbatim): "lo veo todo bien" — T6 confirmed.
+- L8: the maintainer chose "Publicar todos" for the 16 drafts. Published: #408 collapsible actions, #409 dialog container, #410 app icon, #411 choice fields, #412 PageHeader leading action, #413 radio tiles, #414 tabs layout, #415 runtime accent, #416 ColorSwatchGroup, #417 mixed-language SectionHeader, #418 Panel accent edge, #419 MCP examples, #420 carousel track, #421 dialog form layout; comments on #396 (Text tones) and #404 (compact band heading).

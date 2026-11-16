@@ -6,7 +6,7 @@ import './first-run.css';
 
 export function FirstRun({ onChoose, onPreview }: FirstRunProps) {
   const [language, setLanguage] = useState<Language>('es');
-  // TODO(egdev-design-system#TBD-section-header-rich-text): Preserve bilingual language tags.
+  // TODO(egdev-design-system#417): Preserve bilingual language tags.
   return <section className="first-run" aria-label={t('es', 'firstRun.label')}>
     <p className="first-run__eyebrow"><span lang="es">{t('es', 'firstRun.eyebrowEs')}</span> <span lang="en">{t('es', 'firstRun.eyebrowEn')}</span></p>
     <h1><span lang="es">{t('es', 'firstRun.titleEs')}</span> <span aria-hidden="true">-</span> <span lang="en">{t('es', 'firstRun.titleEn')}</span></h1>
