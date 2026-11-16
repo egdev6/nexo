@@ -6,7 +6,7 @@ export interface InstallProgress { id: string; phase: InstallPhase; received?: n
 export type InstallError =
   | { status: 'alreadyInstalled' | 'busy' | 'cancelled' | 'feedFailed' | 'notAvailable' | 'detectionUnknown' | 'releaseChanged' | 'downloadFailed' | 'urlNotAllowed' | 'hostNotAllowed' | 'redirectLimit' | 'networkFailed' | 'connectTimedOut' | 'downloadTimedOut' | 'tooLarge' | 'lengthMismatch' | 'storageFailed' | 'keyMissing' | 'keyInvalid' | 'signatureMalformed' | 'signatureUnsupported' | 'signatureInvalid' | 'assetNotAllowed' | 'cleanupFailed' | 'spawnFailed' | 'monitorFailed' | 'timeout' | 'notDetected' }
   | { status: 'installerFailed'; code: number };
-export type InstallResult = { status: 'installed'; version: string | null } | InstallError;
+export type InstallResult = { status: 'installed'; version: string | null } | { status: 'installedUnverified' } | InstallError;
 export type UpdateResult = { status: 'updated'; version: string } | { status: 'upToDate'; version: string } | { status: 'versionMismatch'; version: string } | { status: 'appStillRunning' } | InstallError;
 export type CancelResult = 'cancelled' | 'tooLate' | 'notRunning' | 'cleanupFailed';
 

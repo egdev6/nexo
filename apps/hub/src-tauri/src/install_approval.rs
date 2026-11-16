@@ -9,6 +9,7 @@ pub struct ApprovalRequest<'a> {
     pub version: &'a str,
     pub publisher_host: &'a str,
     pub language: &'a str,
+    pub installation_unknown: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -198,10 +199,18 @@ pub fn approval_text(req: &ApprovalRequest<'_>) -> Option<ApprovalText> {
     {
         return None;
     }
-    let text = ApprovalText {
+    let mut text = ApprovalText {
         title: render(title, req),
         body: render(body, req),
     };
+    if req.installation_unknown {
+        let warning = confirm.get("unknownWarning")?.as_str()?;
+        if warning.is_empty() {
+            return None;
+        }
+        text.body.push('\n');
+        text.body.push_str(warning);
+    }
     if text.title.contains('\0') || text.body.contains('\0') {
         return None;
     }

@@ -5,7 +5,7 @@ import { cancelInstall, installApp, updateApp, onInstallProgress, type InstallEr
 type Operation = 'install' | 'update';
 type DisplayError = InstallError | { status: 'unexpected' | 'appStillRunning' } | { status: 'versionMismatch'; version: string };
 type Running = { status: 'running'; operation: Operation; progress: InstallProgress; cancelling: boolean; cancelError?: 'cancelFailed' | 'cleanupFailed'; cleanupFailed?: boolean };
-export type InstallEntry = Running | { status: 'error'; operation: Operation; error: DisplayError; cleanupFailed?: boolean } | { status: 'installed'; operation: 'install' } | { status: 'updated' | 'upToDate'; operation: 'update'; version: string };
+export type InstallEntry = Running | { status: 'error'; operation: Operation; error: DisplayError; cleanupFailed?: boolean } | { status: 'installed' | 'installedUnverified'; operation: 'install' } | { status: 'updated' | 'upToDate'; operation: 'update'; version: string };
 type Claim = { operation: Operation; phase: InstallPhase; cancelling: boolean; cancelError?: Running['cancelError']; cleanupFailed?: boolean };
 const phases: InstallPhase[] = ['fetching', 'awaitingApproval', 'downloading', 'verifying', 'closing', 'installing', 'detecting'];
 
@@ -62,8 +62,12 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
   // Keep a confirmed result hidden while refresh is pending, then defer to the next observation.
   useEffect(() => {
     for (const [id, entry] of entriesRef.current) {
-      if (entry.status !== 'installed') continue;
+      if (entry.status !== 'installed' && entry.status !== 'installedUnverified') continue;
       const app = apps.find(item => item.source === 'official' && item.id === id);
+      if (entry.status === 'installedUnverified') {
+        if (app?.statusKnown === true && (app.installed || app.installationState === 'installed')) remove(id);
+        continue;
+      }
       if (!app || app.statusKnown === false || app.installationState === 'unknown') observedUnknown.current.add(id);
       else if (app.installed || app.installationState === 'installed' || observedUnknown.current.has(id)) {
         observedUnknown.current.delete(id); remove(id);
@@ -80,9 +84,9 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
     void request.then(result => {
       if (claims.current.get(id) !== claim) return;
       claims.current.delete(id);
-      if (result.status === 'installed' || result.status === 'updated' || result.status === 'upToDate') {
+      if (result.status === 'installed' || result.status === 'installedUnverified' || result.status === 'updated' || result.status === 'upToDate') {
         if (claim.cleanupFailed) put(id, { status: 'error', operation, error: { status: 'cleanupFailed' } });
-        else if (result.status === 'installed') put(id, { status: 'installed', operation: 'install' });
+        else if (result.status === 'installed' || result.status === 'installedUnverified') put(id, { status: result.status, operation: 'install' });
         else put(id, { status: result.status, operation: 'update', version: result.version });
         refresh.current?.();
       } else if (result.status === 'cancelled') {

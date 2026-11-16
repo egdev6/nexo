@@ -40,6 +40,7 @@ pub(crate) enum UpdateDetection {
 #[serde(tag = "status", rename_all = "camelCase")]
 pub(crate) enum InstallResult {
     Installed { version: Option<String> },
+    InstalledUnverified,
     Updated { version: String },
     UpToDate { version: String },
     VersionMismatch { version: String },
@@ -753,6 +754,7 @@ where
         Err(_) => return InstallResult::NotAvailable,
     };
     let mut update_info = None;
+    let mut installation_unknown = false;
     let target = if closer.is_some() {
         let Some(target) = selection
             .app()
@@ -780,7 +782,7 @@ where
         };
         match detection {
             Detection::Installed { .. } => return InstallResult::AlreadyInstalled,
-            Detection::Unknown => return InstallResult::DetectionUnknown,
+            Detection::Unknown => installation_unknown = true,
             Detection::NotInstalled => {}
         }
         None
@@ -793,30 +795,37 @@ where
     };
     let app_name = selection.app().name.clone();
     let language = language.to_owned();
-    let approval_boundaries = boundaries.clone();
-    let approval_operation = operation.clone();
     let current_version = update_info.as_ref().map(|info| info.version.clone());
-    progress.phase(ProgressPhase::AwaitingApproval);
     // A native modal cannot be cancelled by dropping its blocking task. Keep the claim
     // until it closes so a retry cannot leave behind or overlap an approval dialog.
-    let approved = tokio::task::spawn_blocking(move || {
-        if approval_operation.is_cancelled() {
-            return ApprovalDecision::Denied;
-        }
-        let request = ApprovalRequest {
-            app_name: &app_name,
-            version: &version,
-            publisher_host: "github.com",
-            language: &language,
-        };
-        match current_version {
-            Some(current) => approval_boundaries
-                .approval
-                .confirm_update(&request, &current),
-            None => approval_boundaries.approval.confirm(&request),
-        }
-    })
-    .await;
+    let confirm = |installation_unknown| {
+        let approval_boundaries = boundaries.clone();
+        let approval_operation = operation.clone();
+        let app_name = app_name.clone();
+        let version = version.clone();
+        let language = language.clone();
+        let current_version = current_version.clone();
+        tokio::task::spawn_blocking(move || {
+            if approval_operation.is_cancelled() {
+                return ApprovalDecision::Denied;
+            }
+            let request = ApprovalRequest {
+                app_name: &app_name,
+                version: &version,
+                publisher_host: "github.com",
+                language: &language,
+                installation_unknown,
+            };
+            match current_version {
+                Some(current) => approval_boundaries
+                    .approval
+                    .confirm_update(&request, &current),
+                None => approval_boundaries.approval.confirm(&request),
+            }
+        })
+    };
+    progress.phase(ProgressPhase::AwaitingApproval);
+    let approved = confirm(installation_unknown).await;
     if !matches!(approved, Ok(ApprovalDecision::Approved)) || cancelled(sender, operation) {
         return InstallResult::Cancelled;
     }
@@ -838,7 +847,7 @@ where
     if cancelled(sender, operation) {
         return cleanup(installer, InstallResult::Cancelled);
     }
-    let current = tokio::select! {
+    let mut current = tokio::select! {
         biased;
         _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
         result = boundaries.feed.fetch() => match result {
@@ -846,7 +855,7 @@ where
             Err(_) => return cleanup(installer, InstallResult::FeedFailed),
         },
     };
-    let selection = match selection.revalidate(&current) {
+    let mut selection = match selection.revalidate(&current) {
         Ok(selection) => selection,
         Err(_) => return cleanup(installer, InstallResult::ReleaseChanged),
     };
@@ -869,8 +878,38 @@ where
             Detection::Installed { .. } => {
                 return cleanup(installer, InstallResult::AlreadyInstalled);
             }
-            Detection::Unknown => return cleanup(installer, InstallResult::DetectionUnknown),
-            Detection::NotInstalled => {}
+            Detection::Unknown if !installation_unknown => {
+                // The first approval did not include the warning. Obtain it before
+                // proceeding, then revalidate again because the dialog can stay open.
+                if !matches!(confirm(true).await, Ok(ApprovalDecision::Approved))
+                    || cancelled(sender, operation)
+                {
+                    return cleanup(installer, InstallResult::Cancelled);
+                }
+                let latest = tokio::select! {
+                    biased;
+                    _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
+                    result = boundaries.feed.fetch() => match result {
+                        Ok(catalog) => catalog,
+                        Err(_) => return cleanup(installer, InstallResult::FeedFailed),
+                    },
+                };
+                let selected = match selection.revalidate(&latest) {
+                    Ok(selection) => selection,
+                    Err(_) => return cleanup(installer, InstallResult::ReleaseChanged),
+                };
+                let detection = tokio::select! {
+                    biased;
+                    _ = operation.cancelled() => return cleanup(installer, InstallResult::Cancelled),
+                    result = boundaries.detector.detect(&latest, selected.app()) => result,
+                };
+                if matches!(detection, Detection::Installed { .. }) {
+                    return cleanup(installer, InstallResult::AlreadyInstalled);
+                }
+                current = latest;
+                selection = selected;
+            }
+            Detection::Unknown | Detection::NotInstalled => {}
         }
     }
     if cancelled(sender, operation) {
@@ -974,7 +1013,8 @@ where
             } else {
                 match boundaries.detector.detect(&current, selection.app()).await {
                     Detection::Installed { version } => InstallResult::Installed { version },
-                    Detection::NotInstalled | Detection::Unknown => InstallResult::NotDetected,
+                    Detection::NotInstalled => InstallResult::NotDetected,
+                    Detection::Unknown => InstallResult::InstalledUnverified,
                 }
             }
         }

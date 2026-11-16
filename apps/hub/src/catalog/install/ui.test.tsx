@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('enables only freshly known uninstalled official v3 entries with keys, and explains each rejection', async () => {
+it('preserves the catalog and key gates for official entries, including unknown installations', async () => {
   const noKey = { ...catalog, apps: catalog.apps.map(item => item.id === 'beta' ? { ...item, updaterPublicKey: undefined } : item) };
   const { rerender, refresh } = await show([alfa, beta], { status: 'ready', catalog: noKey });
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false);
@@ -53,8 +53,12 @@ it('enables only freshly known uninstalled official v3 entries with keys, and ex
   fireEvent.click(card('Beta').getByRole('button', { name: 'Instalar Beta' }));
   expect(native.install).not.toHaveBeenCalled();
   rerender(<FlyoutPanel apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
-  expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(card('Alfa').getByText('No se puede comprobar si está instalada.')).toBeTruthy();
+  expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(card('Alfa').getByText('No se puede comprobar si ya está instalada')).toBeTruthy();
+  rerender(<FlyoutPanel apps={[{ ...beta, statusKnown: false, installationState: 'unknown' }]} news={[]} catalogState={{ status: 'ready', catalog: noKey }} onAppsRefresh={refresh} />);
+  expect((card('Beta').getByRole('button', { name: 'Instalar Beta' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(card('Beta').getByText('Falta la clave de verificación de esta app.')).toBeTruthy();
+  expect(card('Beta').getByText('No se puede comprobar si ya está instalada')).toBeTruthy();
   rerender(<FlyoutPanel apps={[alfa]} news={[]} catalogState={{ status: 'offline', stale: true, catalog }} onAppsRefresh={refresh} />);
   expect(card('Alfa').getByText('Actualiza el catálogo conectado antes de instalar.')).toBeTruthy();
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(true);
@@ -62,6 +66,48 @@ it('enables only freshly known uninstalled official v3 entries with keys, and ex
   expect(card('Alfa').getByText('La instalación requiere un catálogo oficial v3.')).toBeTruthy();
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   expect(native.install).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['es', 'Instalar Alfa', 'No se puede comprobar si ya está instalada'],
+  ['en', 'Install Alfa', 'Cannot check whether it is already installed.'],
+] as const)('enables an unknown installation with an accessible warning in %s', async (locale, label, warning) => {
+  native.locale = locale;
+  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  await show([{ ...alfa, statusKnown: false, installationState: 'unknown' }]);
+  const button = card('Alfa').getByRole('button', { name: label }) as HTMLButtonElement;
+  const note = card('Alfa').getByText(warning);
+  expect(button.disabled).toBe(false);
+  expect(button.getAttribute('aria-describedby')?.split(/\s+/)).toContain(note.id);
+  fireEvent.click(button);
+  expect(native.install).toHaveBeenCalledExactlyOnceWith('alfa');
+  await act(async () => run.resolve({ status: 'cancelled' }));
+});
+
+it('keeps unverified success and its warning visible until a later installed observation', async () => {
+  const unknown: HubApp = { ...alfa, statusKnown: false, installationState: 'unknown' };
+  const run = deferred<{ status: string }>(); native.install.mockReturnValueOnce(run.promise);
+  const { rerender, refresh } = await show([unknown]);
+  fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
+  await act(async () => run.resolve({ status: 'installedUnverified' }));
+  expect(card('Alfa').getByRole('status').textContent).toBe('Instalada; Nexo no puede verificarlo');
+  expect(card('Alfa').getByText('No se puede comprobar si ya está instalada')).toBeTruthy();
+  expect(card('Alfa').queryByRole('alert')).toBeNull();
+  expect(refresh).toHaveBeenCalledOnce();
+  native.locale = 'en';
+  rerender(<FlyoutPanel apps={[{ ...unknown }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  expect(card('Alfa').getByRole('status').textContent).toBe('Installed; Nexo cannot verify it');
+  expect(card('Alfa').getByText('Cannot check whether it is already installed.')).toBeTruthy();
+  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
+});
+
+it('offers installation for an unknown app targeted from News', () => {
+  const start = vi.fn();
+  render(<CatalogView apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]} targetAppId="alfa" catalog={catalog} installs={{ entries: new Map(), connection: 'ready', start, startUpdate: vi.fn(), cancel: vi.fn(), retryConnection: vi.fn() }} />);
+  expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
+  expect(start).toHaveBeenCalledExactlyOnceWith('alfa');
 });
 
 it('tracks phases, determinate and indeterminate downloads, cancellation races and independent cards across tabs', async () => {

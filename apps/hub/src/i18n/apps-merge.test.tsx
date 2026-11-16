@@ -39,7 +39,7 @@ it('localizes installation, open and unknown reasons without translating app dat
   const tab = screen.getByRole('tab', { name: 'Catalog' });
   fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
   const card = screen.getByRole('article', { name: 'Missing' });
-  expect(within(card).getByText('Cannot check whether it is installed.')).toBeTruthy();
+  expect(within(card).getByText('Cannot check whether it is already installed.')).toBeTruthy();
   expect((within(card).getByRole('button', { name: 'Install Missing' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
