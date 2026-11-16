@@ -97,25 +97,19 @@ it('opens the real-shaped v3 updates newest first and navigates both detected an
   expect(screen.queryByRole('button', { name: 'Abrir Quorb' })).toBeNull();
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 1, cycle: 1, at: timestamp } }));
   const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
-  const groups = [
-    within(dialog).getByRole('group', { name: '1 de 2: Antena 0.15.0' }),
-    within(dialog).getByRole('group', { name: '2 de 2: Quorb 0.8.0' }),
-  ];
+  const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
+  const groups = within(region).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'slide');
+  expect(groups).toHaveLength(2);
   const track = groups[0].parentElement!;
-  // jsdom has no layout: model the Foundation track's 6.4px padding and 22.4px gap.
-  const width = 300, padding = 6.4, gap = 22.4, slideWidth = width - 2 * padding, step = slideWidth + gap;
-  let offset = 0;
-  const rect = (left: number, size: number) => ({ x: left, y: 0, left, right: left + size, top: 0, bottom: 100, width: size, height: 100, toJSON() {} });
-  vi.spyOn(track, 'getBoundingClientRect').mockImplementation(() => rect(0, width));
-  groups.forEach((group, index) => vi.spyOn(group, 'getBoundingClientRect').mockImplementation(() => rect(padding + index * step - offset, slideWidth)));
-  track.scrollBy = vi.fn((options: ScrollToOptions) => { offset = Math.max(0, Math.min(step, offset + (options.left ?? 0))); }) as typeof track.scrollBy;
   function visible(index: number) {
-    const group = groups[index];
-    const position = group.getBoundingClientRect();
-    expect(position.left).toBeCloseTo(padding);
-    expect(position.right).toBeCloseTo(width - padding);
-    expect(group.getAttribute('aria-current')).toBe('true');
-    expect(within(group).getByRole('heading', { name: index ? 'Quorb 0.8.0' : 'Antena 0.15.0' })).toBeTruthy();
+    const title = index ? 'Quorb 0.8.0' : 'Antena 0.15.0';
+    expect(track.style.transform).toBe(`translateX(${index === 0 ? 0 : -index * 100}%)`);
+    expect(groups[index].getAttribute('aria-current')).toBe('true');
+    expect(groups[index].hasAttribute('inert')).toBe(false);
+    expect(groups[1 - index].getAttribute('aria-hidden')).toBe('true');
+    expect(groups[1 - index].hasAttribute('inert')).toBe(true);
+    expect(within(dialog).getByRole('group', { name: `${index + 1} de 2: ${title}` })).toBe(groups[index]);
+    expect(within(groups[index]).getByRole('heading', { name: title })).toBeTruthy();
     expect(dialog.textContent).toContain(index ? '02 / 02' : '01 / 02');
     expect(within(dialog).getByRole('button', { name: /Ver en el catálogo:/ }).getAttribute('data-app-id')).toBe(index ? 'quorb' : 'antena');
   }
