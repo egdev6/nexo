@@ -1,0 +1,85 @@
+# Manual release: builds the per-user NSIS installer for Windows (no Windows code signing) and creates a
+# DRAFT GitHub release with the .exe attached. It only runs by hand and only from main. It never publishes
+# and never creates tags: the v<version> tag is created when the maintainer publishes the reviewed draft.
+# No Tauri updater artifacts yet: Nexo does not update itself while the repository is private, because the
+# updater cannot download private release assets. Add them (key, secrets, latest.json) when Nexo goes public.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (same as apps/hub/package.json, without "v"; for example 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-2022
+    timeout-minutes: 90 # cold Rust + NSIS build, no cache
+    permissions:
+      contents: write # only to create the draft release and upload the installer
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          echo "::error::Run the release from main (current: $GITHUB_REF)."
+          exit 1
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Check the version, notes and installer settings
+        shell: bash
+        run: node apps/hub/scripts/release-check.mjs "$VERSION"
+      - name: The release does not exist yet
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release v$VERSION already exists (draft or published)."
+            exit 1
+          fi
+      - name: Dependencies
+        working-directory: apps/hub
+        run: npm ci
+      - name: Build the installer
+        working-directory: apps/hub
+        run: npx tauri build --bundles nsis -- --locked
+      - name: Locate the installer
+        id: exe
+        shell: bash
+        run: |
+          exe=$(find target apps/hub/src-tauri/target -path '*/release/bundle/nsis/*' -name "Nexo_${VERSION}_x64-setup.exe" 2>/dev/null | head -n 1)
+          test -n "$exe" && test -s "$exe" || { echo "::error::Installer Nexo_${VERSION}_x64-setup.exe not found."; exit 1; }
+          echo "path=$exe" >> "$GITHUB_OUTPUT"
+      - name: Keep the installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nexo-windows-installer
+          path: ${{ steps.exe.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXE: ${{ steps.exe.outputs.path }}
+        run: |
+          gh release create "v$VERSION" "$EXE" --draft --prerelease --target "$GITHUB_SHA" --title "Nexo $VERSION" --notes-file "docs/releases/v$VERSION.md" --repo "$GITHUB_REPOSITORY"
