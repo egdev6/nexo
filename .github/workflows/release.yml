@@ -66,8 +66,9 @@ jobs:
         id: exe
         shell: bash
         run: |
-          exe=$(find target apps/hub/src-tauri/target -path '*/release/bundle/nsis/*' -name "Nexo_${VERSION}_x64-setup.exe" 2>/dev/null | head -n 1)
-          test -n "$exe" && test -s "$exe" || { echo "::error::Installer Nexo_${VERSION}_x64-setup.exe not found."; exit 1; }
+          # The Cargo workspace lives at the repository root, so Tauri bundles into ./target.
+          exe="target/release/bundle/nsis/Nexo_${VERSION}_x64-setup.exe"
+          test -s "$exe" || { echo "::error::Installer $exe not found."; exit 1; }
           echo "path=$exe" >> "$GITHUB_OUTPUT"
       - name: Keep the installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
