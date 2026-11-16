@@ -87,7 +87,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
     <p className="settings__foot">{tr('settings.appearanceFoot')}</p>
   </>;
 
-  const localApps = <LocalManagement />;
+  const localApps = <LocalManagement accent={selected} />;
 
   const about = <>
     <section className="settings__group" aria-labelledby={`${id}-about`}>

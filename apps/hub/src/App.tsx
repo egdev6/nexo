@@ -21,7 +21,7 @@ import { selectOfficialNews } from './news/selection';
 import { useFlyoutVisibility } from './news/use-flyout';
 import { defaultSettings, sampleApps, sampleNews } from './sample';
 import { SettingsView } from './settings';
-import { derivePalette } from './settings/palette';
+import { accentVariables, DEFAULT_ACCENT, normalizeHex } from './settings/palette';
 import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
 import { requestFlyoutHide } from './shell/motion';
@@ -268,11 +268,8 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [snapshot]);
 
-  const tones = derivePalette(shown.accent);
   const panelStyle = {
-    '--hub-accent': shown.accent, '--hub-accent-light': tones[1], '--hub-accent-mid': tones[2],
-    '--color-fg-brand-default': tones[0], '--color-fg-brand-raised': tones[1], '--color-fg-brand-hover': tones[2],
-    '--color-border-brand': tones[2], '--color-action-primary-solid-bg': tones[0], '--color-action-primary-solid-bg-hover': tones[2],
+    ...accentVariables(shown.accent),
     '--hub-density': shown.compact ? '0.8' : '1', '--hub-opacity': String(shown.opacity / 100), '--hub-blur': `${shown.blur}px`,
   } as CSSProperties;
 
@@ -287,7 +284,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const errorLocale = usable && firstRun ? previewLanguage : locale;
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <LocaleProvider locale={locale}><main className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}`} aria-labelledby="panel-title" style={panelStyle}>
+  return <LocaleProvider locale={locale}><main className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}`} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle}>
     <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">

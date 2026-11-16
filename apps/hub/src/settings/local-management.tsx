@@ -6,6 +6,7 @@ import { useLocale } from '../i18n/use-locale';
 import { listLocalApps, pickLocalAppIcon, removeLocalApp, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
 import { LocalAppIcon } from '../local-apps/icon';
 import { AddLocalDialog } from './add-local-dialog';
+import { DEFAULT_ACCENT } from './palette';
 
 const errors: Readonly<Record<string, MessageKey>> = {
   'nexo.local.missing': 'localApps.errorMissing',
@@ -30,7 +31,7 @@ function errorKey(error: unknown): MessageKey {
 
 type Confirmation = { kind: 'app'; id: string } | null;
 
-export function LocalManagement() {
+export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }) {
   const locale = useLocale();
   const native = isTauri();
   const id = useId();
@@ -120,7 +121,7 @@ export function LocalManagement() {
           </div>}
         </div>;
       })}
-      <div className="settings__actions"><AddLocalDialog disabled={disabled} errorKey={errorKey} onAdded={async result => { await selected(result); }} />
+      <div className="settings__actions"><AddLocalDialog accent={accent} disabled={disabled} errorKey={errorKey} onAdded={async result => { await selected(result); }} />
         {native && <Button variant="neutral" size="sm" type="button" disabled={disabled} onClick={() => void run(async () => { await refreshRows(); return true; })}>{t(locale, 'localApps.refresh')}</Button>}</div>
     </section>
     <p className="settings__foot">{t(locale, 'settingsLocal.localFoot')}</p>

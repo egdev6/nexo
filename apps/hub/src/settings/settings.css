@@ -25,7 +25,7 @@
 .settings__swatch:focus-visible, .settings__custom:focus-within { outline: 2px solid var(--color-focus-ring); outline-offset: 5px; }
 .settings__custom { overflow: hidden; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
 .settings__custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.settings__custom > span { display: grid; place-items: center; width: var(--space-5); height: var(--space-5); border-radius: var(--radius-full); background: var(--color-fg-default); color: var(--color-action-primary-solid-fg); font-weight: 800; line-height: 1; pointer-events: none; }
+.settings__custom > span { display: grid; place-items: center; width: var(--space-5); height: var(--space-5); border-radius: var(--radius-full); background: var(--color-fg-default); color: var(--color-primitive-black); font-weight: 800; line-height: 1; pointer-events: none; }
 .settings__tones { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-4); color: var(--color-fg-secondary); font: 400 var(--text-label-default)/1.6 var(--font-mono); }
 .settings__tones span { display: inline-flex; align-items: center; gap: var(--space-2); }
 .settings__tones i { width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); }

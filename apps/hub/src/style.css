@@ -32,7 +32,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 .update-notes { overflow-wrap: anywhere; white-space: pre-wrap; }
 .row-label { display: flex; align-items: center; gap: var(--space-4); }
 .app-icon { display: grid; place-items: center; flex: none; width: var(--space-12); height: var(--space-12); border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-3); font: 800 var(--space-6)/1 var(--font-display); }
-.brand-icon { background: var(--hub-accent); color: var(--color-action-primary-solid-fg); }
+.brand-icon { background: var(--color-action-primary-solid-bg); color: var(--color-action-primary-solid-fg); }
 .app-info { min-width: 0; flex: 1; }
 .app-info strong { display: block; margin-bottom: var(--space-1); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
 .status-line, .status-running, .status-warning { font-size: var(--text-label-default); font-weight: 600; }

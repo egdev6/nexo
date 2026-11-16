@@ -35,8 +35,8 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-async function openSettings(locale: 'es' | 'en' = 'es') {
-  render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} /></LocaleProvider>);
+async function openSettings(locale: 'es' | 'en' = 'es', accent = defaultSettings.accent) {
+  render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale, accent }} onChange={vi.fn()} onClose={vi.fn()} /></LocaleProvider>);
   const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Apps locales' : 'Local apps' });
   fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
   const trigger = screen.getByRole('button', { name: locale === 'es' ? 'Añadir app' : 'Add app' });
@@ -53,6 +53,19 @@ async function selectExecutable(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole('button', { name: 'Examinar…' }));
   await waitFor(() => expect((within(dialog).getByRole('textbox', { name: 'Ejecutable' }) as HTMLInputElement).value).toBe(executable.path));
 }
+
+it('carries a custom accent into the body-portalled dialog without affecting its close behavior', async () => {
+  const trigger = await openSettings('es', '#2e7dff');
+  fireEvent.click(trigger);
+  const dialog = await screen.findByRole('dialog', { name: 'Añadir app local' });
+  expect(dialog.hasAttribute('data-custom-accent')).toBe(true);
+  expect(dialog.style.getPropertyValue('--hub-accent')).toBe('#2e7dff');
+  expect(dialog.style.getPropertyValue('--hub-accent-base')).toBe('#2e7dff');
+  expect(dialog.style.getPropertyValue('--hub-accent-on')).toBe('#000000');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Añadir app local' })).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
+});
 
 it('opens before the native picker, with a read-only path and add disabled until both fields are valid', async () => {
   const { dialog } = await openDialog();
