@@ -280,3 +280,16 @@ it('overrides the translucent backdrop without a transition, retaining the user-
   expect(css).toContain('calc(var(--hub-opacity) * 100%)');
   expect(css).toContain('blur(var(--hub-blur))');
 });
+
+it('groups panel notices under the header with padding and an opaque background', async () => {
+  await openPanel();
+  const header = screen.getByRole('heading', { name: 'Nexo' }).closest('header')!;
+  const notices = header.nextElementSibling as HTMLElement;
+  expect(notices.classList.contains('panel-notices')).toBe(true);
+  const rule = declarations('.panel-notices');
+  expect(rule.padding).toBe('var(--space-3) var(--space-6) var(--space-1)');
+  expect(rule.background).toBe('var(--color-surface-0)');
+  expect(rule.display).toBe('grid');
+  expect(rule.gap).toBe('var(--space-2)');
+  expect(declarations('.panel-notices:empty').display).toBe('none');
+});
