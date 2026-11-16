@@ -21,6 +21,7 @@ export function localizeAppReason(locale: Language, value: string): string {
 export interface InstallationObservation {
   id: string;
   state: 'installed' | 'notInstalled' | 'unknown';
+  runningState?: 'connected' | 'running' | 'notRunning' | 'unknown';
   reason: string;
   version: string | null;
   canOpen?: boolean;
@@ -37,6 +38,11 @@ export async function scanInstallations(): Promise<InstallationObservation[]> {
 /** Native code resolves the executable or routes to the connected plugin; only an ID crosses IPC. */
 export async function openOfficialApp(id: string): Promise<string> {
   return invoke<string>('open_official_app', { id });
+}
+
+/** Resolves the official executable natively and requests a normal window close. */
+export async function closeOfficialApp(id: string): Promise<{ status: 'closed' | 'stillRunning'; message: string }> {
+  return invoke('close_official_app', { id });
 }
 
 /** Requests a plugin's existing graceful quit protocol; it does not terminate a process. */

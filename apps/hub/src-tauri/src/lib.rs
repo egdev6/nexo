@@ -138,6 +138,26 @@ async fn cancel_install(
     Ok(service.cancel_install(&id).await)
 }
 
+#[cfg(not(windows))]
+#[tauri::command]
+async fn installed_apps(app: AppHandle) -> Result<(), String> {
+    Err(i18n::text(config::bootstrap_locale(&app), "appPlatformUnavailable").into())
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+async fn open_official_app(app: AppHandle, id: String) -> Result<(), String> {
+    let _ = id;
+    Err(i18n::text(config::bootstrap_locale(&app), "appPlatformUnavailable").into())
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+async fn close_official_app(app: AppHandle, id: String) -> Result<(), String> {
+    let _ = id;
+    Err(i18n::text(config::bootstrap_locale(&app), "appPlatformUnavailable").into())
+}
+
 #[tauri::command]
 fn backdrop_available() -> bool {
     cfg!(windows)
@@ -756,6 +776,7 @@ pub fn run() {
             runtime::registry_snapshot,
             apps::installed_apps,
             apps::open_official_app,
+            apps::close_official_app,
             apps::close_connected_app,
             open_external::open_external,
             install_app,
@@ -790,7 +811,10 @@ pub fn run() {
         config::save_settings,
         config::recover_settings,
         config::quit_after_settings,
-        apply_saved_language
+        apply_saved_language,
+        installed_apps,
+        open_official_app,
+        close_official_app
     ]);
     #[cfg(windows)]
     startup_log::log_handoff();
