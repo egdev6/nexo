@@ -38,6 +38,8 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   const titleId = useId();
   const checkboxId = useId();
   const layerRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const suspendedSelection = useRef(false);
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
@@ -53,6 +55,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   }, [current?.id]);
 
   function select(value: string) {
+    if (suspendedSelection.current) return;
     setSelected(value);
     setViewed(previous => new Set(previous).add(value));
   }
@@ -63,6 +66,59 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
       <Badge tone="brand">{t(locale, item.badge === t('es', 'news.new') ? 'news.new' : item.badge === t('es', 'news.featured') ? 'news.featured' : 'news.update')}</Badge> {!viewed.has(item.id) && <Badge tone="brand">{t(locale, 'news.unseen')}</Badge>}<h3>{item.title}</h3><p>{item.text}</p>
     </article>;
   }
+
+  // A hidden WebView can queue a scroll before layout; do not let it select a slide
+  // after the track reappears. Restore the controlled slide before accepting input.
+  useLayoutEffect(() => {
+    const root = carouselRef.current;
+    const track = root?.querySelector<HTMLElement>('.eg-carousel > .overflow-x-auto');
+    if (!root || !track) return;
+    const hasLayout = () => track.clientWidth > 0 && track.getBoundingClientRect().width > 0;
+    let awaitingLayout = !hasLayout();
+    const align = () => {
+      if (!awaitingLayout || !hasLayout()) return;
+      const active = track.querySelector<HTMLElement>('[role="group"][aria-current="true"]');
+      if (!active) return;
+      const viewport = track.getBoundingClientRect();
+      const slide = active.getBoundingClientRect();
+      if (!slide.width) return;
+      awaitingLayout = false;
+      suspendedSelection.current = false;
+      const distance = (slide.left + slide.right - viewport.left - viewport.right) / 2;
+      if (distance) track.scrollBy?.({ left: distance, behavior: 'instant' });
+    };
+    const suspend = () => { awaitingLayout = true; suspendedSelection.current = true; };
+    const onResize = () => {
+      if (!hasLayout()) suspend();
+      else align();
+    };
+    const onScroll = (event: Event) => {
+      if (!hasLayout()) suspend();
+      if (!awaitingLayout) return;
+      event.stopImmediatePropagation();
+      align();
+    };
+    track.addEventListener('scroll', onScroll, true);
+    track.addEventListener('scrollend', onScroll, true);
+    root.addEventListener('pointerdown', align, true);
+    root.addEventListener('click', align, true);
+    root.addEventListener('keydown', align, true);
+    root.addEventListener('wheel', align, true);
+    window.addEventListener('resize', onResize);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(onResize);
+    observer?.observe(track);
+    return () => {
+      track.removeEventListener('scroll', onScroll, true);
+      track.removeEventListener('scrollend', onScroll, true);
+      root.removeEventListener('pointerdown', align, true);
+      root.removeEventListener('click', align, true);
+      root.removeEventListener('keydown', align, true);
+      root.removeEventListener('wheel', align, true);
+      window.removeEventListener('resize', onResize);
+      observer?.disconnect();
+      suspendedSelection.current = false;
+    };
+  }, [displayed.length === 1]);
 
   // DialogContent is body-portalled; this modal must stay inside the positioned panel.
   useLayoutEffect(() => {
@@ -115,7 +171,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
         <IconButton ref={closeRef} type="button" label={t(locale, 'news.close')} title={t(locale, 'news.close')} variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
       </header>
       {stale && <p role="status">{t(locale, 'catalog.stale')}</p>}
-      <div className="news-carousel">
+      <div className="news-carousel" ref={carouselRef}>
         {displayed.length === 1 ? slideContent(displayed[0]) : <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id} onValueChange={select}
           items={displayed.map(item => ({ value: item.id, label: item.title, children: slideContent(item) }))} />}
         {displayed.length > 1 && <div className="news-indicators" role="group" aria-label={t(locale, 'news.selectSlide')}>

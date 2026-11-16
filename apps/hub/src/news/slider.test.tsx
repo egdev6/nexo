@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
 import { LocaleProvider } from '../i18n/use-locale';
@@ -23,7 +23,7 @@ beforeEach(() => {
   style.textContent = newsCss;
   document.head.append(style);
 });
-afterEach(() => { cleanup(); style.remove(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); style.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 function open(count: number, onShown = vi.fn()) {
   render(<main><NewsPopup items={items.slice(0, count)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} onShown={onShown} /></main>);
@@ -171,6 +171,81 @@ it.each([false, true])('moves the actual track with buttons, arrow keys and indi
   expect(scrollBy).toHaveBeenLastCalledWith({ left: 600, behavior: 'instant' });
   expect(onShown).toHaveBeenLastCalledWith(items[2]);
   expect(within(dialog).getByRole('button', { name: 'Ver en el catálogo: Noticia 3 · muestra' }).getAttribute('data-app-id')).toBe('app-2');
+});
+
+it.each(['scrollend', 'resize', 'observer'] as const)('resynchronizes a hidden-layout scroll when visible via %s', resume => {
+  const observers: { targets: Set<Element>; notify: () => void }[] = [];
+  vi.stubGlobal('ResizeObserver', class {
+    private entry: { targets: Set<Element>; notify: () => void };
+    constructor(callback: ResizeObserverCallback) {
+      this.entry = { targets: new Set(), notify: () => callback([], this as unknown as ResizeObserver) };
+      observers.push(this.entry);
+    }
+    observe(target: Element) { this.entry.targets.add(target); }
+    unobserve(target: Element) { this.entry.targets.delete(target); }
+    disconnect() { this.entry.targets.clear(); }
+  });
+  let width = 0, offset = 0, slidesReady = false;
+  const padding = 6.4, gap = 22.4, visibleWidth = 539, step = visibleWidth - 2 * padding + gap;
+  const originalRect = Element.prototype.getBoundingClientRect;
+  const originalClientWidth = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth')!.get!;
+  const rect = (left: number, size: number) => ({ x: left, y: 0, left, right: left + size, top: 0, bottom: 100, width: size, height: 100, toJSON() {} });
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    if (this.matches('.news-carousel .eg-carousel > .overflow-x-auto')) return rect(0, width);
+    if (this.matches('.news-carousel .eg-carousel > .overflow-x-auto > [role="group"]')) {
+      const index = Array.from(this.parentElement!.children).indexOf(this);
+      return rect(width ? padding + index * step - offset : -offset, width && slidesReady ? width - 2 * padding : 0);
+    }
+    return originalRect.call(this);
+  });
+  vi.spyOn(Element.prototype, 'clientWidth', 'get').mockImplementation(function (this: Element) {
+    return this.matches('.news-carousel .eg-carousel > .overflow-x-auto') ? width : originalClientWidth.call(this);
+  });
+  const { dialog, onShown } = open(2);
+  const groups = slides(dialog, 2);
+  const track = groups[0].parentElement!;
+  track.scrollBy = vi.fn((options: ScrollToOptions) => { offset = Math.max(0, Math.min(step, offset + (options.left ?? 0))); }) as typeof track.scrollBy;
+  const visible = (index: number) => {
+    expect(groups[index].getAttribute('aria-current')).toBe('true');
+    expect(within(groups[index]).getByRole('heading', { name: `Noticia ${index + 1}` })).toBeTruthy();
+    expect(dialog.textContent).toContain(index ? '02 / 02' : '01 / 02');
+  };
+  expect(track.clientWidth).toBe(0);
+  visible(0);
+  fireEvent(window, new Event('resize'));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+  visible(0);
+  expect(onShown.mock.calls.map(([item]) => item.id)).toEqual(['news-0']);
+  offset = 2 * padding + gap;
+  fireEvent.scroll(track);
+  visible(0);
+  // Model the browser restoring a last-slide snap as layout returns.
+  width = visibleWidth;
+  offset = step;
+  if (resume === 'observer') {
+    act(() => observers.filter(observer => observer.targets.has(track)).forEach(observer => observer.notify()));
+    visible(0);
+    slidesReady = true;
+    act(() => observers.filter(observer => observer.targets.has(groups[0])).forEach(observer => observer.notify()));
+  } else {
+    slidesReady = true;
+    if (resume === 'scrollend') fireEvent(track, new Event('scrollend'));
+    else fireEvent(window, new Event('resize'));
+  }
+  visible(0);
+  expect(offset).toBeCloseTo(0);
+  expect(onShown.mock.calls.map(([item]) => item.id)).toEqual(['news-0']);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' })); visible(1);
+  expect(offset).toBeCloseTo(step);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva anterior' })); visible(0);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 2 de 2: Noticia 2' })); visible(1);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 1 de 2: Noticia 1' })); visible(0);
+  groups[0].focus(); fireEvent.keyDown(groups[0], { key: 'ArrowRight' }); visible(1);
+  fireEvent.keyDown(groups[1], { key: 'ArrowLeft' }); visible(0);
+  expect(offset).toBeCloseTo(0);
+  // Once visible, direct scrolling must still select the slide under the viewport.
+  offset = step; fireEvent.scroll(track); fireEvent(track, new Event('scrollend')); visible(1);
+  offset = 0; fireEvent.scroll(track); fireEvent(track, new Event('scrollend')); visible(0);
 });
 
 it('localizes indicator names', () => {

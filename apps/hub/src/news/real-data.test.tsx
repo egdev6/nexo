@@ -32,6 +32,7 @@ function catalog(apps: ReturnType<typeof app>[]) { return JSON.stringify({ schem
 const official = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
 let stored: Record<string, unknown>;
 let cache: string | null;
+let cacheV3: string | null;
 let failSave: boolean;
 let sequence: number;
 let cycle: number;
@@ -41,7 +42,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(today));
   stored = { language: 'es', startWithWindows: false, showNewsOnOpen: true, accent: '#ff0036', compact: false, opacity: 85, blur: 24,
     firstRunComplete: true, sources: [official, { id: 'local', label: 'Local', kind: 'local' }] };
-  cache = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
+  cache = null; cacheV3 = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Record<string, unknown> }) => {
     if (command === 'get_settings') return { state: 'ready', settings: structuredClone(stored) };
     if (command === 'save_settings') {
@@ -49,6 +50,7 @@ beforeEach(() => {
       stored = { ...stored, ...args?.patch }; return structuredClone(stored);
     }
     if (command === 'read_catalog_cache') return cache;
+    if (command === 'read_catalog_v3_cache') return cacheV3;
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
     if (command === 'local_apps_list') return [];
@@ -68,6 +70,65 @@ function visibility(visible: boolean) {
 async function open() { visibility(true); return screen.findByRole('dialog', { name: 'Novedades al abrir' }); }
 function titles(dialog: HTMLElement) { return Array.from(dialog.querySelectorAll('.news-slide h3'), node => node.textContent); }
 function close() { fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' })); }
+
+it('opens the real-shaped v3 updates newest first and navigates both detected and unknown apps', async () => {
+  const timestamp = '2026-11-16T12:00:00Z';
+  vi.setSystemTime(new Date(timestamp));
+  const catalogApp = (id: string, name: string, version: string, date: string, featured: boolean) => ({
+    id, name, tagline: `Tag ${name}`, description: `Descripción ${name}`, tags: [],
+    iconUrl: `https://egdev6.github.io/nexo-catalog/icons/${id}.png`,
+    installerUrl: `https://github.com/egdev6/${id}/releases/download/v${version}/setup.exe`,
+    latestJsonUrl: `https://github.com/egdev6/${id}/releases/download/v${version}/latest.json`,
+    integrationLevel: 'update', releasedAt: date, featured, version,
+    news: [{ id: `v${version.replaceAll('.', '-')}`, title: `${name} ${version}`, text: `A new ${name} release is available.`, publishedAt: date, kind: 'update' }],
+  });
+  cacheV3 = JSON.stringify({ schemaVersion: 3, apps: [
+    { ...catalogApp('antena', 'Antena', '0.15.0', '2026-11-14T08:48:36Z', true), detection: { windows: { displayName: 'antena', publisher: 'EGDEV', executableRelativePath: 'antena.exe' } } },
+    catalogApp('quorb', 'Quorb', '0.8.0', '2026-10-28T14:55:56Z', false),
+  ] });
+  const invoke = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'installed_apps' ? [
+    { id: 'antena', state: 'installed', version: '0.15.0', reason: 'Instalación detectada', canOpen: true },
+    { id: 'quorb', state: 'unknown', version: null, reason: 'Sin datos de detección en el catálogo' },
+  ] : invoke(command, args));
+  render(<App />);
+  await screen.findByRole('button', { name: 'Abrir Antena' });
+  expect(bridge.invoke).toHaveBeenCalledWith('installed_apps');
+  expect(screen.queryByRole('button', { name: 'Abrir Quorb' })).toBeNull();
+  act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 1, cycle: 1, at: timestamp } }));
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
+  const groups = [
+    within(dialog).getByRole('group', { name: '1 de 2: Antena 0.15.0' }),
+    within(dialog).getByRole('group', { name: '2 de 2: Quorb 0.8.0' }),
+  ];
+  const track = groups[0].parentElement!;
+  // jsdom has no layout: model the Foundation track's 6.4px padding and 22.4px gap.
+  const width = 300, padding = 6.4, gap = 22.4, slideWidth = width - 2 * padding, step = slideWidth + gap;
+  let offset = 0;
+  const rect = (left: number, size: number) => ({ x: left, y: 0, left, right: left + size, top: 0, bottom: 100, width: size, height: 100, toJSON() {} });
+  vi.spyOn(track, 'getBoundingClientRect').mockImplementation(() => rect(0, width));
+  groups.forEach((group, index) => vi.spyOn(group, 'getBoundingClientRect').mockImplementation(() => rect(padding + index * step - offset, slideWidth)));
+  track.scrollBy = vi.fn((options: ScrollToOptions) => { offset = Math.max(0, Math.min(step, offset + (options.left ?? 0))); }) as typeof track.scrollBy;
+  function visible(index: number) {
+    const group = groups[index];
+    const position = group.getBoundingClientRect();
+    expect(position.left).toBeCloseTo(padding);
+    expect(position.right).toBeCloseTo(width - padding);
+    expect(group.getAttribute('aria-current')).toBe('true');
+    expect(within(group).getByRole('heading', { name: index ? 'Quorb 0.8.0' : 'Antena 0.15.0' })).toBeTruthy();
+    expect(dialog.textContent).toContain(index ? '02 / 02' : '01 / 02');
+    expect(within(dialog).getByRole('button', { name: /Ver en el catálogo:/ }).getAttribute('data-app-id')).toBe(index ? 'quorb' : 'antena');
+  }
+  visible(0);
+  const next = within(dialog).getByRole('button', { name: 'Diapositiva siguiente' });
+  next.focus(); fireEvent.click(next); visible(1);
+  const previous = within(dialog).getByRole('button', { name: 'Diapositiva anterior' });
+  previous.focus(); fireEvent.click(previous); visible(0);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 2 de 2: Quorb 0.8.0' })); visible(1);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 1 de 2: Antena 0.15.0' })); visible(0);
+  groups[0].focus(); fireEvent.keyDown(groups[0], { key: 'ArrowRight' }); visible(1);
+  fireEvent.keyDown(groups[1], { key: 'ArrowLeft' }); visible(0);
+});
 
 it('selects only qualifying official events, inclusive boundaries, feature fallbacks and true chronological order', async () => {
   cache = catalog([
