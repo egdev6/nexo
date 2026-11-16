@@ -30,6 +30,7 @@
 - T8 (S10) Allow installing official apps whose installation cannot be detected, with a warning; the native install transaction no longer refuses `DetectionUnknown` before download (signature, approval and every other check unchanged); success after an unknown install is reported as installed-unverified — route: writer, test-first; status: authorized (after T6, shares Rust files).
 - T9 (S11) Opaque flyout background while the window is inactive or exiting, translucent again when focused — route: writer (frontend), test-first; status: authorized.
 - T10 (S1, S12, L7) Static window, CSS content slide: the window is shown at its final position; the flyout content slides in from the right with a CSS transform (~200 ms, none with reduced motion) and out the same way; during the motion the native backdrop (Mica/Acrylic) is cleared so the window is transparent (desktop visible, never gray) and re-applied when the entry ends; exit hides after the CSS exit. Replaces the native window slide — route: writer (native + frontend), test-first; status: authorized.
+- T11 (S-T7 follow-up) Return the news popup to the controlled `@egdev/ui` Carousel once the vendored DS includes 9679f86 (egdev-design-system#405 fixed by PR #406); verify in real WebView2 via CDP: opens at the first slide, arrows/dots/keyboard navigate without snapping back — route: inline after T10; status: pending.
 
 ## Log
 
@@ -50,3 +51,4 @@ en catálogo si no está instalada debería de estar el botón dehabilitado no? 
 Creo que lo mejor es dejar instalar si no detecta no?"
 - L6 (verbatim): "sigue viéndose el cuadrado gris en la salida"
 - L7: user chose "Ventana quieta, deslizar el contenido (recomendado)" — static window, CSS slide, Mica cleared during the motion.
+- L8: design-system session reported egdev-design-system#405 fixed in main (PR #406, 9679f86, stale closures in native carousel listeners); WebView2 check pending on the Nexo side.
