@@ -3,8 +3,9 @@ import type { GuardAllowlistEntry } from './design-system-guard';
 // Exact opening tags and selectors: remove each entry when its workaround goes away.
 export const designSystemAllowlist: GuardAllowlistEntry[] = [
   {
-    file: 'src/apps/details.tsx', pattern: '<a className="version-link" href={href} onClick={open}>',
-    issue: 'egdev6/egdev-design-system#404', reason: 'Replace release anchors with the DS Link and its native-opening behavior.',
+    file: 'src/first-run/index.tsx', pattern: '<p className="first-run__eyebrow">', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-section-header-rich-text): Preserve bilingual language tags.',
+    issue: 'nexo#TBD-section-header-rich-text', reason: 'Replace the intro when SectionHeader supports mixed-language content and decorative separators.',
   },
   {
     file: 'src/news/index.tsx', pattern: '<label htmlFor={checkboxId}>',

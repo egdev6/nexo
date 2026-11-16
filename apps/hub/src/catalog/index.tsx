@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@egdev/ui';
+import { Button, Notice } from '@egdev/ui';
 import { AppSocialLinks, useExternalLinks } from '../apps/details';
 import type { CatalogViewProps, HubApp } from '../model';
 import { formatNumber, t, type MessageKey } from '../i18n';
@@ -34,7 +34,7 @@ function CatalogCard({ app, focused = false, reason, installs }: { app: HubApp; 
       {app.version && <span className="catalog-version">{t(locale, 'catalog.version', { version: app.version })}</span>}
       {app.catalogVersion && <span className="catalog-version">{t(locale, 'catalog.publishedVersion', { version: app.catalogVersion })}</span>}
       <AppSocialLinks app={app} onClick={open} />
-      {failed && <p role="alert" className="status-warning">{t(locale, 'app.externalError')}</p>}
+      {failed && <Notice tone="danger" size="sm" summary={t(locale, 'app.externalError')} />}
       <div className="catalog-actions">
         {official ? <InstallAction app={app} reason={reason} warning={app.statusKnown !== true || app.installationState === 'unknown' || !app.installationState ? 'install.unknown' : undefined} installs={installs} focused={focused} /> : app.statusKnown === false ? <span className="catalog-version">{t(locale, 'catalog.installUnavailable')}</span> :
           <Button type="button" size="sm" variant="primary" aria-label={t(locale, 'catalog.installSample', { name: app.name })} title={t(locale, 'catalog.installTitle')}>{t(locale, 'common.install')}</Button>}
@@ -65,12 +65,10 @@ export function CatalogView({ apps, state = 'ready', stale = false, reason, inst
   return <section className="catalog-view" aria-label={t(locale, 'common.catalog')}>
     <div className="catalog-heading"><h2>{t(locale, 'common.officialCatalog')}</h2>{state !== 'loading' && (!failed || available.length > 0) && <span>{t(locale, unknown || !installationKnown ? 'catalog.countCatalog' : 'catalog.countUninstalled', { count: formatNumber(locale, available.length) })}</span>}</div>
     {state === 'loading' && <p role="status" className="catalog-empty">{t(locale, 'catalog.loading')}</p>}
-    {failed && <div role="alert" className="catalog-notice">
-      <p>{t(locale, state === 'offline' ? 'catalog.offline' : reason === 'unconfigured' ? 'catalog.unconfigured' : 'catalog.error')} {stale && t(locale, 'catalog.stale')}</p>
-      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'common.retry')}</Button>}
-    </div>}
-    {targetAppId && !target && <div role="alert" className="catalog-notice"><p>{t(locale, 'catalog.targetUnavailable')}</p>
-      {onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'catalog.retryCatalog')}</Button>}</div>}
+    {failed && <Notice tone="danger" summary={`${t(locale, state === 'offline' ? 'catalog.offline' : reason === 'unconfigured' ? 'catalog.unconfigured' : 'catalog.error')} ${stale ? t(locale, 'catalog.stale') : ''}`}
+      actions={onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'common.retry')}</Button>} />}
+    {targetAppId && !target && <Notice tone="danger" summary={t(locale, 'catalog.targetUnavailable')}
+      actions={onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'catalog.retryCatalog')}</Button>} />}
     {available.length > 0 ? <div className="catalog-grid">{available.map(app => <CatalogCard key={app.id} app={app} focused={app === target} reason={app.source === 'official' ? disabledReason(app, state, stale, catalog, installs) : undefined} installs={installs} />)}</div> :
       !failed && state !== 'loading' && <p className="catalog-empty">{t(locale, 'catalog.empty')}</p>}
     {available.some(app => app.source !== 'official') && <p className="catalog-foot">{t(locale, 'catalog.sampleFoot')}</p>}

@@ -117,7 +117,10 @@ it.each([['es', 'No se pudo abrir el enlace.'], ['en', 'Could not open the link.
   const card = screen.getByRole('article', { name: 'Pizarra' });
   const link = within(card).getByRole('link', { name: /GitHub/i });
   fireEvent.click(link);
-  expect((await within(card).findByRole('alert')).textContent).toBe(message);
+  const alert = await within(card).findByRole('alert');
+  expect(alert.textContent).toBe(message);
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
   fireEvent.click(link);
   await waitFor(() => expect(within(card).queryByRole('alert')).toBeNull());
   expect(native.invoke).toHaveBeenCalledTimes(2);
@@ -139,10 +142,22 @@ it('shows a loading message rather than an empty result', () => {
 it.each(['offline', 'error'] as const)('shows %s and retries while preserving available cached cards', state => {
   const retry = vi.fn();
   render(<CatalogView apps={[apps[0]]} state={state} onRetry={retry} />);
-  expect(screen.getByRole('alert').textContent).toMatch(state === 'offline' ? /sin conexión/i : /error/i);
+  const alert = screen.getByRole('alert');
+  expect(alert.textContent).toMatch(state === 'offline' ? /sin conexión/i : /error/i);
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(within(alert).getByRole('button', { name: /reintentar/i })).toBeTruthy();
   expect(screen.getByRole('article', { name: 'Pizarra' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
   expect(retry).toHaveBeenCalledTimes(1);
+});
+
+it('uses a retryable Notice when a targeted catalog app is unavailable', () => {
+  const retry = vi.fn();
+  render(<CatalogView apps={[]} targetAppId="missing" onRetry={retry} />);
+  const alert = screen.getByRole('alert');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  fireEvent.click(within(alert).getByRole('button', { name: /reintentar/i }));
+  expect(retry).toHaveBeenCalledOnce();
 });
 
 it('shows an error without pretending an uncached catalog is empty', () => {

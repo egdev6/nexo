@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogContent, DialogTrigger, Field, Input } from '@egdev/ui';
+import { Button, Dialog, DialogContent, DialogTrigger, Field, Input, Notice } from '@egdev/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
@@ -130,11 +130,11 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
             <Button variant="neutral" type="button" disabled={busy} onClick={() => { setIcon(null); setIconError(null); }}>{t(locale, 'settingsLocal.clearIcon')}</Button>
           </div>
           <p className="local-app-help">{t(locale, 'settingsLocal.iconHint')}</p>
-          {iconError && <p role="alert" className="settings__error">{t(locale, iconError)}</p>}
+          {iconError && <Notice tone="danger" size="sm" summary={t(locale, iconError)} />}
         </div>
-        {saveError && <p role="alert" className="settings__error">{t(locale, saveError)}</p>}
+        {saveError && <Notice tone="danger" size="sm" summary={t(locale, saveError)} />}
       </DialogContent>
     </Dialog>
-    {cleanupError && !revoking && <p role="alert" className="settings__error">{t(locale, 'localApps.errorRefused')}</p>}
+    {cleanupError && !revoking && <Notice tone="danger" size="sm" summary={t(locale, 'localApps.errorRefused')} />}
   </>;
 }

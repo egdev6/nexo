@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, Tabs } from '@egdev/ui';
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs } from '@egdev/ui';
 import { LinkIcon } from './apps/action-icons';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
@@ -79,7 +79,7 @@ function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, inst
     <div className="app-row"><CollapsibleTrigger>
       <span className="row-label"><span aria-hidden="true" className="app-icon">{app.app.name[0]}</span>
         <span className="app-info"><strong>{app.app.name}</strong>
-          {app.responsive ? <span className="status-running">{t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
+          {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
         </span>
       </span>
     </CollapsibleTrigger><div className="row-actions">{official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
@@ -134,10 +134,10 @@ function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, o
   const [openRow, setOpenRow] = useState<string | null>(null);
   const disclosure = (id: string) => ({ open: openRow === id, onOpenChange: (open: boolean) => setOpenRow(current => open ? id : current === id ? null : current) });
   return <>
-    {connected.length > 0 && <section aria-labelledby="connected-title"><div className="section-label"><h2 id="connected-title">{t(locale, 'app.connectedPlural')}</h2></div>
+    {connected.length > 0 && <section aria-label={t(locale, 'app.connectedPlural')}><div className="apps-section-header"><PageHeader level={2} title={t(locale, 'app.connectedPlural')} /></div>
       {connected.map(app => <ConnectedRow key={app.app.id} app={app} official={apps.find(item => item.source === 'official' && item.id === app.app.id)} onClose={onClose} onOpen={onOpen} busy={actionBusy} catalogState={catalogState} installs={installs} {...disclosure(`connected:${app.app.id}`)} />)}
     </section>}
-    <div className="section-label"><h2>{t(locale, 'app.installed')}</h2>{onRefresh && <Button variant="neutral" size="sm" onClick={onRefresh}>{t(locale, 'appControl.refresh')}</Button>}</div>
+    <div className="apps-section-header"><PageHeader level={2} title={t(locale, 'app.installed')} actions={onRefresh && <Button variant="neutral" size="sm" onClick={onRefresh}>{t(locale, 'appControl.refresh')}</Button>} /></div>
     {installed.length ? installed.map(app => <AppRow key={app.id} app={app} onOpen={onOpen} busy={actionBusy} stale={stale} catalogState={catalogState} installs={installs} {...disclosure(`official:${app.id}`)} />) : <div className="empty-state"><p>{allInstalled.length ? t(locale, 'appControl.connectedAbove') : t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>{t(locale, 'app.viewCatalog')}</Button></div>}
     {apps.filter(app => !isInstalled(app) && !ids.has(app.id) && installs.entries.get(app.id)?.operation === 'update').map(app => <UpdateControl key={app.id} app={app} catalogState={catalogState} installs={installs} part="feedback" />)}
     <LocalAppsView names={[...apps.map(app => ({ id: app.id, name: app.name })), ...connected.map(entry => entry.app)]} cycle={localCycle} openId={openRow} onDisclosureChange={(id, open) => disclosure(`local:${id}`).onOpenChange(open)} />
@@ -299,16 +299,14 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
         <IconButton label={t(locale, 'app.closePanel')} title={t(locale, 'app.closePanel')} variant="ghost" icon={<Icon name="close" />} onClick={hidePanel} />
       </div>
     </div></header>
-    {visibilityError && <div className="registry-notice" role="alert">{t(locale, 'app.visibilityError', { error: visibilityError })}</div>}
-    {registryFailed && <div className="registry-notice" role="alert">{t(locale, 'app.registryError')}</div>}
-    {actionMessage && <div className="registry-notice" role={actionMessage.error ? 'alert' : 'status'}>{actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text}</div>}
-    {registry.notice && <div className="registry-notice" role="alert"><p>{noticeText(locale, registry.notice)}</p>
-      {registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
-        if (await store.flush()) await exitHubOnly();
-      })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>{t(locale, 'app.hubOnly')}</Button>}
-    </div>}
-    {store.nativeError && <div className="settings__foot" role="alert">{t(locale, 'native.refreshError', { error: store.nativeError })} <Button variant="neutral" size="sm" onClick={store.retryNative}>{t(locale, 'native.refreshRetry')}</Button></div>}
-    {store.error && <div className="settings__foot" role="alert" lang={errorLocale}>{t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : store.error.detail ?? '' })} <Button variant="neutral" size="sm" onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}>{t(errorLocale, 'common.retry')}</Button></div>}
+    {visibilityError && <Notice tone="danger" summary={t(locale, 'app.visibilityError', { error: visibilityError })} />}
+    {registryFailed && <Notice tone="danger" summary={t(locale, 'app.registryError')} />}
+    {actionMessage && <Notice size="sm" tone={actionMessage.error ? 'danger' : 'success'} summary={actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text} />}
+    {registry.notice && <Notice tone="danger" summary={noticeText(locale, registry.notice)} actions={registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
+      if (await store.flush()) await exitHubOnly();
+    })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>{t(locale, 'app.hubOnly')}</Button>} />}
+    {store.nativeError && <Notice tone="danger" summary={`${t(locale, 'native.refreshError', { error: store.nativeError })} `} actions={<Button variant="neutral" size="sm" onClick={store.retryNative}>{t(locale, 'native.refreshRetry')}</Button>} />}
+    {store.error && <Notice tone="danger" lang={errorLocale} summary={`${t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : store.error.detail ?? '' })} `} actions={<Button variant="neutral" size="sm" onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}>{t(errorLocale, 'common.retry')}</Button>} />}
     {store.fileState === null ? <p role="status" className="settings__foot">{t(locale, 'app.loadingSettings')}</p> : !usable ? <div className="settings__foot">
       {!store.error && <p role="alert">{t(locale, store.fileState === 'future' ? 'app.futureSettings' : 'app.unreadableSettings')}</p>}
       {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>{t(locale, 'app.recoverSettings')}</Button>}

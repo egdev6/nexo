@@ -1,4 +1,4 @@
-import { Button, Field, Icon, IconButton, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import { Button, Field, Icon, IconButton, Notice, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
@@ -38,7 +38,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <label htmlFor={`${id}-startup`}><strong>{tr('settings.startup')}</strong><span id={`${id}-startup-hint`}>{tr(autostart?.confirmed === null ? 'settings.startupUnknown' : 'settings.startupHint')}</span></label>
         <Switch id={`${id}-startup`} aria-label={tr('settings.startup')} aria-describedby={`${id}-startup-hint`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
       </div>
-      {autostart?.error && <div className="settings__foot" role="alert">{autostart.error} <Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>{tr('settings.retryStartup')}</Button></div>}
+      {autostart?.error && <Notice tone="danger" summary={`${autostart.error} `} actions={<Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>{tr('settings.retryStartup')}</Button>} />}
       <div className="settings__row">
         <label htmlFor={`${id}-news`}><strong>{tr('settings.news')}</strong><span id={`${id}-news-hint`}>{tr('settings.newsHint')}</span></label>
         <Switch id={`${id}-news`} aria-label={tr('settings.news')} aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
@@ -107,7 +107,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         { id: 'instagram', href: 'https://www.instagram.com/egdev6/', label: tr('settings.instagram'), icon: <Icon name="instagram" /> },
         { id: 'github', href: 'https://github.com/egdev6', label: tr('app.github'), icon: <Icon name="github" /> },
       ]} />
-      {failed && <p role="alert" className="status-warning">{tr('app.externalError')}</p>}
+      {failed && <Notice tone="danger" size="sm" summary={tr('app.externalError')} />}
     </section>
     <p className="settings__foot">{tr('settings.aboutFoot')}</p>
   </>;

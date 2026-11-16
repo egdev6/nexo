@@ -65,7 +65,7 @@
 }
 .flyout .eg-slider > span:first-child { background: var(--color-border-control); }
 .flyout .eg-slider > span:first-child > span { background: var(--color-primitive-red-neon); }
-.flyout a, .flyout .version-link { color: var(--color-primitive-red-200); }
+.flyout a { color: var(--color-primitive-red-200); }
 /* The settings preview uses the same surface and transparency as the flyout. */
 .settings__preview-panel { background: var(--color-surface-0); }
 @supports (backdrop-filter: blur(1px)) and (background: color-mix(in srgb, black 50%, transparent)) {

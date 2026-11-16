@@ -1,4 +1,4 @@
-import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, IconButton } from '@egdev/ui';
+import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, IconButton, Notice, PageHeader } from '@egdev/ui';
 import { LinkIcon } from '../apps/action-icons';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useRef, useState } from 'react';
@@ -73,9 +73,9 @@ export function LocalAppsView({ names, cycle, openId, onDisclosureChange }: { na
   if (!native) return null;
   const lookup = [...names, ...rows.map(row => ({ id: row.id, name: row.name }))];
   return <section aria-label={t(locale, 'localApps.heading')}>
-    <div className="section-label"><h2>{t(locale, 'localApps.heading')}</h2><Button type="button" variant="neutral" size="sm" onClick={refresh}>{t(locale, 'localApps.refresh')}</Button></div>
-    {listError && <p role="alert" className="status-warning">{t(locale, listError)}</p>}
-    {message && <p role={message.error ? 'alert' : 'status'} className="meta">{t(locale, message.key)}</p>}
+    <div className="apps-section-header"><PageHeader level={2} title={t(locale, 'localApps.heading')} actions={<Button type="button" variant="neutral" size="sm" onClick={refresh}>{t(locale, 'localApps.refresh')}</Button>} /></div>
+    {listError && <Notice tone="danger" size="sm" summary={t(locale, listError)} />}
+    {message && <Notice tone={message.error ? 'danger' : 'success'} size="sm" summary={t(locale, message.key)} />}
     {rows.map(row => {
       const other = row.duplicateOf && (lookup.find(item => item.id === row.duplicateOf)?.name ?? row.duplicateOf);
       return <Collapsible className="app-card" key={row.id} open={(onDisclosureChange ? openId === `local:${row.id}` : standaloneOpen === row.id)} onOpenChange={open => onDisclosureChange ? onDisclosureChange(row.id, open) : setStandaloneOpen(open ? row.id : null)}>

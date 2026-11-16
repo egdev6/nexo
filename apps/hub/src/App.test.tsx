@@ -182,7 +182,10 @@ it('routes a connected plugin close through IPC, reports refusal, and refreshes 
   act(() => publish({ revision: 1, apps: [{ app: { id: 'example-app', name: 'Example App', version: '2.0.0' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
   expandRow('Example App');
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
-  expect((await screen.findByRole('alert')).textContent).toContain('Cambios sin guardar');
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toContain('Cambios sin guardar');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.tone).toBe('danger');
   expect(invoke).toHaveBeenCalledWith('close_connected_app', { id: 'example-app' });
   await waitFor(() => expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'installed_apps').length).toBe(2));
   expect(screen.getByText('Conectada')).toBeTruthy();
@@ -203,7 +206,9 @@ it('opens only a resolved official installed app by ID, reports the request, and
   const open = await screen.findByRole('button', { name: 'Abrir Example App' });
   expect((open as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(open);
-  expect(await screen.findByText('Inicio solicitado; no hay confirmación de ejecución')).toBeTruthy();
+  const status = (await screen.findByText('Inicio solicitado; no hay confirmación de ejecución')).closest('[role="status"]');
+  expect(status?.classList.contains('eg-notice')).toBe(true);
+  expect(status?.getAttribute('data-tone')).toBe('success');
   expect(invoke).toHaveBeenCalledWith('open_official_app', { id: 'example-app' });
   expect(refresh).toHaveBeenCalledOnce();
   expect(screen.getByText(/Estado de ejecución desconocido/)).toBeTruthy();
@@ -507,7 +512,10 @@ it('explains a blocked hub exit and requires an explicit hub-only choice', async
   render(<App news={[]} />); enter();
   await waitFor(() => expect(publish).toBeTypeOf('function'));
   act(() => publish!({ revision: 3, apps: [], notice: { message: 'Antena: cambios sin guardar', hub_only_allowed: true } }));
-  expect(screen.getByRole('alert').textContent).toContain('Antena: cambios sin guardar');
+  const alert = screen.getByRole('alert');
+  expect(alert.textContent).toContain('Antena: cambios sin guardar');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(within(alert).getByRole('button', { name: 'Salir solo de Nexo' })).toBeTruthy();
   expect(exitHubOnly).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Salir solo de Nexo' }));
   await waitFor(() => expect(exitHubOnly).toHaveBeenCalledOnce());

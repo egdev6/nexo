@@ -102,7 +102,10 @@ it('reports a failed author link without navigating', async () => {
   settings(); select('Acerca de');
   const link = within(screen.getByRole('region', { name: 'Autor' })).getByRole('link', { name: /Twitch/i });
   expect(fireEvent.click(link)).toBe(false);
-  expect((await screen.findByRole('alert')).textContent).toBe('No se pudo abrir el enlace.');
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('No se pudo abrir el enlace.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
 });
 
 it('renders both first-run lines inline with hidden separators and language tags', () => {

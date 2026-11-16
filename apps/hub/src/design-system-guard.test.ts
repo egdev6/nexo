@@ -128,6 +128,16 @@ it('rejects missing or malformed issues, blank reasons and stale entries', () =>
   ]);
 });
 
+it('tracks component gaps only while both their exact opening tag and TODO comment exist', () => {
+  const pattern = '<p className="first-run__eyebrow">';
+  const comment = '// TODO(egdev-design-system#TBD-section-header-rich-text): Preserve bilingual language tags.';
+  const entry = { file: 'src/intro.tsx', pattern, comment, issue: 'nexo#TBD-section-header-rich-text', reason: 'Replace the intro when SectionHeader supports mixed-language content.', kind: 'component-gap' as const };
+  const check = (content: string) => checkDesignSystem([{ file: 'src/intro.tsx', content }], [entry]);
+  expect(check(`${comment}\nconst view = ${pattern}Hello</p>;`).errors).toEqual([]);
+  expect(check(`${comment}\nconst view = <section />;`).errors).toEqual([`src/intro.tsx: stale allowlist entry ${pattern}; remove it`]);
+  expect(check(`const text = ${JSON.stringify(comment)}; const view = ${pattern}Hello</p>;`).errors).toEqual([`src/intro.tsx: stale allowlist entry ${pattern}; remove it`]);
+});
+
 it('accepts visible nexo TBD placeholders without accepting arbitrary issue references', () => {
   const files = [{ file: 'src/view.tsx', content: 'const a = <button />; const b = <input />;' }];
   const result = checkDesignSystem(files, [

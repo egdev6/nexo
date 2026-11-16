@@ -44,7 +44,6 @@
 .settings__inline, .settings__confirmation { margin: var(--space-2) 0 var(--space-3); }
 .settings__inline .eg-input { flex: 1 1 12rem; }
 .settings__confirmation p { margin: 0 0 var(--space-2); color: var(--color-fg-secondary); }
-.settings__error { color: var(--color-status-danger); overflow-wrap: anywhere; }
 /* Add-local modal follows the approved canvas while Radix owns focus and dismissal. */
 .local-app-dialog .eg-dialog__body { display: grid; gap: var(--space-5); padding: var(--space-5); }
 .local-app-field { min-width: 0; }

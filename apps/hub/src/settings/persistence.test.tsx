@@ -78,7 +78,11 @@ it('completes onboarding only after the language and flag are saved, with retry 
   render(<App />);
   fireEvent.click(await screen.findByRole('radio', { name: 'English' }));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-  expect((await screen.findByRole('alert')).textContent).toMatch(/disco lleno/i);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toMatch(/disco lleno/i);
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.getAttribute('lang')).toBe('en');
+  expect(within(alert).getByRole('button', { name: 'Retry' })).toBeTruthy();
   expect(screen.queryByText('Instaladas')).toBeNull();
   expect(stored.firstRunComplete).toBe(false);
   failSave = false;
@@ -193,7 +197,10 @@ it('serializes rapid independent changes without restoring a stale snapshot', as
 it('reconciles an external autostart change and allows retry after a failed read', async () => {
   stored.firstRunComplete = true; stored.showNewsOnOpen = false; stored.startWithWindows = true; failRead = true;
   render(<App />); await openSettings();
-  expect((await screen.findByRole('alert')).textContent).toMatch(/inicio/i);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toMatch(/inicio/i);
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(within(alert).getByRole('button', { name: /Reintentar inicio automático/i })).toBeTruthy();
   expect(screen.getByRole('switch', { name: 'Iniciar con Windows' }).hasAttribute('disabled')).toBe(true);
   failRead = false;
   fireEvent.click(screen.getByRole('button', { name: /Reintentar inicio automático/i }));

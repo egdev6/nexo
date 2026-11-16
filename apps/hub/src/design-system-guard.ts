@@ -12,6 +12,9 @@ export interface GuardAllowlistEntry {
   pattern: string;
   issue: string;
   reason: string;
+  // Non-guarded markup awaiting a DS capability is tracked by its opening tag and TODO.
+  kind?: 'component-gap';
+  comment?: string;
 }
 
 export interface GuardViolation {
@@ -98,6 +101,23 @@ function findViolations({ file, content }: GuardSource): GuardViolation[] {
   return found;
 }
 
+function componentGapAnchors({ file, content }: GuardSource): { tags: string[]; comments: string[] } {
+  if (!/^src\/.+\.tsx$/.test(file) || /(?:^|\/)__tests__\/|\.(?:test|spec)\.tsx$/.test(file)) return { tags: [], comments: [] };
+  const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const tags: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) tags.push(normalize(node.getText(source)));
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  const comments: string[] = [];
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.JSX, content);
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+    if (token === ts.SyntaxKind.SingleLineCommentTrivia) comments.push(scanner.getTokenText());
+  }
+  return { tags, comments };
+}
+
 // Pure and copyable: callers supply source text and the issue-backed exception data.
 export function checkDesignSystem(files: readonly GuardSource[], allowlist: readonly GuardAllowlistEntry[]): GuardResult {
   const errors: string[] = [];
@@ -105,11 +125,29 @@ export function checkDesignSystem(files: readonly GuardSource[], allowlist: read
   for (const entry of allowlist) {
     if (!issuePattern.test(entry.issue)) errors.push(`${entry.file}: invalid issue for allowlist entry ${entry.pattern}`);
     if (!entry.reason.trim()) errors.push(`${entry.file}: empty reason for allowlist entry ${entry.pattern}`);
+    if (entry.kind === 'component-gap') {
+      const reference = entry.comment?.match(/^\/\/ TODO\(egdev-design-system#(TBD-[a-z0-9]+(?:-[a-z0-9]+)*|\d+)\):\s*\S/);
+      const issue = reference && (reference[1].startsWith('TBD-') ? `nexo#${reference[1]}` : `egdev6/egdev-design-system#${reference[1]}`);
+      if (!reference || issue !== entry.issue) errors.push(`${entry.file}: invalid TODO for allowlist entry ${entry.pattern}`);
+    }
   }
   const violations: GuardViolation[] = [];
   for (const source of files) {
+    if (allowlist.some(entry => entry.kind === 'component-gap' && entry.file === source.file)) {
+      const { tags, comments } = componentGapAnchors(source);
+      allowlist.forEach((entry, i) => {
+        if (used[i] || entry.kind !== 'component-gap' || entry.file !== source.file) return;
+        const tag = tags.indexOf(entry.pattern);
+        const comment = comments.indexOf(entry.comment ?? '');
+        if (tag !== -1 && comment !== -1) {
+          used[i] = true;
+          tags.splice(tag, 1);
+          comments.splice(comment, 1);
+        }
+      });
+    }
     for (const violation of findViolations(source)) {
-      const index = allowlist.findIndex((entry, i) => !used[i] && entry.file === violation.file && entry.pattern === violation.snippet);
+      const index = allowlist.findIndex((entry, i) => !used[i] && entry.kind !== 'component-gap' && entry.file === violation.file && entry.pattern === violation.snippet);
       if (index === -1) violations.push(violation);
       else used[index] = true;
     }

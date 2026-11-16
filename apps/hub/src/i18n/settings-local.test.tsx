@@ -69,6 +69,16 @@ it('does not hard-code visible copy or accessible labels in the local settings v
   expect(found).toEqual([]);
 });
 
+it('reports list failures as compact alerts without modifying stored apps', async () => {
+  fail.local_apps_list = 'nexo.local.spawnFailed';
+  setup();
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('No se pudo iniciar la app local.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
+  expect(apps).toEqual([initialApp]);
+});
+
 it('lists manual apps without requesting catalog sources or commands', async () => {
   setup();
   expect(await screen.findByText('Editor')).toBeTruthy();
@@ -128,7 +138,10 @@ it('renames inline, retains the previous entry on validation or save failure, an
   const input = screen.getByRole('textbox', { name: 'Nombre de Editor' });
   fireEvent.change(input, { target: { value: '   ' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar nombre de Editor' }));
-  expect((await screen.findByRole('alert')).textContent).toBe('Introduce un nombre válido.');
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('Introduce un nombre válido.');
+  expect(alert.classList.contains('eg-notice')).toBe(true);
+  expect(alert.dataset.size).toBe('sm');
   expect(screen.getByText('Editor')).toBeTruthy();
   fail.local_app_update = 'nexo.config.save.corrupt';
   fireEvent.change(input, { target: { value: 'Nuevo' } });

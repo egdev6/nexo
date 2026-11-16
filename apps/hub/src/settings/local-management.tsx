@@ -1,4 +1,4 @@
-import { Button, Input } from '@egdev/ui';
+import { Button, Input, Notice } from '@egdev/ui';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
@@ -86,8 +86,8 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
     <section className="settings__group" aria-labelledby={`${id}-apps`}>
       <h2 id={`${id}-apps`}>{t(locale, 'localApps.heading')}</h2>
       {loading && <p role="status">{t(locale, 'settingsLocal.loading')}</p>}
-      {listError && <p role="alert" className="settings__error">{t(locale, listError)}</p>}
-      {error && <p role="alert" className="settings__error">{t(locale, error)}</p>}
+      {listError && <Notice tone="danger" size="sm" summary={t(locale, listError)} />}
+      {error && <Notice tone="danger" size="sm" summary={t(locale, error)} />}
       {duplicate && <p role="status" className="settings__hint">{t(locale, 'settingsLocal.duplicate')}</p>}
       {!loading && !rows.length && !listError && <p className="settings__hint">{t(locale, 'settingsLocal.emptyAll')}</p>}
       {rows.map(row => {
