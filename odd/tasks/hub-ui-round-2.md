@@ -15,6 +15,7 @@
 - S8 (verbatim): "sigue viéndose el cuadrado gris en la salida de vez en cuando"
 - S9 (verbatim): "Antena no se muestra nunca, debe estar rota la navegación?"
 - S10 (verbatim): "Creo que lo mejor es dejar instalar si no detecta no?" (answering the parent's question whether to allow installing apps without detection data, with a warning)
+- S11 (verbatim): "sigue viéndose el cuadrado gris en la salida" — after 3bbbf5f. Parent analysis: the window uses Mica (`window_vibrancy::apply_mica`, lib.rs:804); when the window becomes inactive (closing by clicking outside), Windows replaces Mica with a flat gray fill, visible behind the translucent flyout during the exit slide.
 
 ## Tasks
 
@@ -26,6 +27,7 @@
 - T6 (S8) No gray frame during or after the exit slide (occasional) — route: writer (native), test-first; status: authorized.
 - T7 (S9) News slider navigation: every item reachable (Antena never shows) — route: writer (frontend), test-first; status: authorized.
 - T8 (S10) Allow installing official apps whose installation cannot be detected, with a warning; the native install transaction no longer refuses `DetectionUnknown` before download (signature, approval and every other check unchanged); success after an unknown install is reported as installed-unverified — route: writer, test-first; status: authorized (after T6, shares Rust files).
+- T9 (S11) Opaque flyout background while the window is inactive or exiting, translucent again when focused — route: writer (frontend), test-first; status: authorized.
 
 ## Log
 
@@ -44,3 +46,4 @@ sigue viéndose el cuadrado gris en la salida de vez en cuando
 en catálogo si no está instalada debería de estar el botón dehabilitado no? [Image#10]" Parent evidence: the published v3 catalog has two news items (Antena 0.15.0, Quorb 0.8.0); the Quorb install button is already disabled (installation unknown).
 - L5 (verbatim): "Antena no se muestra nunca, debe estar rota la navegación?
 Creo que lo mejor es dejar instalar si no detecta no?"
+- L6 (verbatim): "sigue viéndose el cuadrado gris en la salida"
