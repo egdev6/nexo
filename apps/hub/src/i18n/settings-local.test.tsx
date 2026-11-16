@@ -173,22 +173,60 @@ it('changes the icon only through the native picker and preserves cancellation a
   expect(screen.getByText('Editor')).toBeTruthy();
 });
 
-it('requires confirmation to remove an app and leaves it intact on cancel or failed save', async () => {
+it.each([
+  ['es', 'Eliminar Editor', 'Confirmar eliminación de Editor', 'Se eliminará la entrada; el archivo y los procesos no se modificarán.', 'Cancelar', 'Eliminar app'],
+  ['en', 'Remove Editor', 'Confirm removal of Editor', 'The entry will be removed; the file and running processes will not be changed.', 'Cancel', 'Remove app'],
+] as const)('confirms deletion and preserves the app on cancel (%s)', async (locale, triggerLabel, title, description, cancelLabel, removeLabel) => {
+  setup(locale); await screen.findByText('Editor');
+  const trigger = screen.getByRole('button', { name: triggerLabel });
+  fireEvent.click(trigger);
+  let dialog = await screen.findByRole('alertdialog', { name: title });
+  expect(document.getElementById(dialog.getAttribute('aria-describedby')!)?.textContent).toBe(description);
+  expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: cancelLabel }));
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
+  fireEvent.click(within(dialog).getByRole('button', { name: cancelLabel }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
+  expect(screen.getByText('Editor')).toBeTruthy();
+  expect(apps).toEqual([initialApp]);
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
+  fireEvent.click(trigger);
+  dialog = await screen.findByRole('alertdialog', { name: title });
+  fireEvent.click(within(dialog).getByRole('button', { name: removeLabel }));
+  await waitFor(() => expect(screen.queryByText('Editor')).toBeNull());
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(apps).toEqual([]);
+  expect(bridge.invoke.mock.calls.filter(([name]) => name === 'local_app_remove')).toEqual([['local_app_remove', { id: 'manual-1' }]]);
+  expect(bridge.invoke.mock.calls.some(([name]) => /kill|terminate|delete_file/.test(name))).toBe(false);
+});
+
+it('retains the confirmation and app after a failed removal, and permits retry', async () => {
   setup(); await screen.findByText('Editor');
   fireEvent.click(screen.getByRole('button', { name: 'Eliminar Editor' }));
-  let confirm = screen.getByRole('group', { name: 'Confirmar eliminación de Editor' });
-  expect(within(confirm).getByText('Se eliminará la entrada; el archivo y los procesos no se modificarán.')).toBeTruthy();
-  fireEvent.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
-  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
-  fireEvent.click(screen.getByRole('button', { name: 'Eliminar Editor' }));
-  confirm = screen.getByRole('group', { name: 'Confirmar eliminación de Editor' });
+  const dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Editor' });
   fail.local_app_remove = 'nexo.config.save.unreadable';
-  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar app' }));
-  expect((await screen.findByRole('alert')).textContent).toBe('No se puede leer el archivo de ajustes.');
-  expect(screen.getByText('Editor')).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Eliminar app' }));
+  expect((await within(dialog).findByRole('alert')).textContent).toBe('No se puede leer el archivo de ajustes.');
+  expect(apps).toEqual([initialApp]);
+  expect(bridge.invoke.mock.calls.filter(([name]) => name === 'local_app_remove')).toEqual([['local_app_remove', { id: 'manual-1' }]]);
   delete fail.local_app_remove;
-  fireEvent.click(within(confirm).getByRole('button', { name: 'Eliminar app' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Eliminar app' }));
   await waitFor(() => expect(screen.queryByText('Editor')).toBeNull());
-  expect(bridge.invoke).toHaveBeenCalledWith('local_app_remove', { id: 'manual-1' });
-  expect(bridge.invoke.mock.calls.some(([name]) => /kill|terminate|delete_file/.test(name))).toBe(false);
+  expect(apps).toEqual([]);
+  expect(bridge.invoke.mock.calls.filter(([name]) => name === 'local_app_remove')).toEqual([
+    ['local_app_remove', { id: 'manual-1' }], ['local_app_remove', { id: 'manual-1' }],
+  ]);
+});
+
+it('dismisses deletion with Escape without changing the app', async () => {
+  setup(); await screen.findByText('Editor');
+  const trigger = screen.getByRole('button', { name: 'Eliminar Editor' });
+  fireEvent.click(trigger);
+  const dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Editor' });
+  fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
+  expect(screen.getByText('Editor')).toBeTruthy();
+  expect(apps).toEqual([initialApp]);
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
 });

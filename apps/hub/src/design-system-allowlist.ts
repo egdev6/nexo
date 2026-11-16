@@ -8,6 +8,36 @@ export const designSystemAllowlist: GuardAllowlistEntry[] = [
     issue: 'nexo#TBD-section-header-rich-text', reason: 'Replace the intro when SectionHeader supports mixed-language content and decorative separators.',
   },
   {
+    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-general`}>', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the General heading until the DS offers this size.',
+    issue: 'nexo#TBD-panel-compact-heading', reason: 'Replace the compact heading style when the DS provides it.',
+  },
+  {
+    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-appearance`}>', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the Appearance heading until the DS offers this size.',
+    issue: 'nexo#TBD-panel-compact-heading', reason: 'Replace the compact heading style when the DS provides it.',
+  },
+  {
+    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-about`}>', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the About heading until the DS offers this size.',
+    issue: 'nexo#TBD-panel-compact-heading', reason: 'Replace the compact heading style when the DS provides it.',
+  },
+  {
+    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-author`}>', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve the Author heading until the DS offers this size.',
+    issue: 'nexo#TBD-panel-compact-heading', reason: 'Replace the compact heading style when the DS provides it.',
+  },
+  {
+    file: 'src/settings/local-management.tsx', pattern: '<h2 id={`${id}-apps`}>', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-panel-compact-heading): Preserve compact uppercase headings until the DS offers this size.',
+    issue: 'nexo#TBD-panel-compact-heading', reason: 'Replace the compact heading style when the DS provides it.',
+  },
+  {
+    file: 'src/settings/index.tsx', pattern: '<section className="settings__group settings__appearance" aria-labelledby={`${id}-appearance`}>', kind: 'component-gap',
+    comment: '// TODO(egdev-design-system#TBD-panel-accent): Preserve the appearance accent until Panel supports an accent border.',
+    issue: 'nexo#TBD-panel-accent', reason: 'Remove the accent wrapper when Panel supports an accent border.',
+  },
+  {
     file: 'src/news/index.tsx', pattern: '<label htmlFor={checkboxId}>',
     issue: 'nexo#TBD-checkbox-label', reason: 'Remove the separate label when Checkbox supports its label.',
   },
