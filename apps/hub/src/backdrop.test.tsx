@@ -156,6 +156,8 @@ it.each([0, 63, 100])('keeps the title header opaque at %i percent panel opacity
   expect(header?.classList.contains('panel-head')).toBe(true);
   expect(panel.style.getPropertyValue('--hub-opacity')).toBe(String(opacity / 100));
   expect(declarations('.panel-head').background).toBe('var(--gradient-sheen), var(--color-surface-0)');
+  // No hairline between the opaque title header and the opaque menu row.
+  expect(declarations('.panel-head')['border-bottom']).toBeUndefined();
 });
 
 it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opacity', async opacity => {
@@ -168,7 +170,8 @@ it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opac
   expect(declarations(".main-tabs > [role='tablist']").position).toBe('relative');
   const band = declarations(".main-tabs > [role='tablist']::before");
   expect(band.background).toBe('var(--color-surface-0)');
-  expect(band.inset).toBe('calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) 0');
+  // The band also covers the gap between the tabs and the tab content.
+  expect(band.inset).toBe('calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) calc(-1 * var(--space-4))');
   expect(band['z-index']).toBe('-1');
   expect(band['pointer-events']).toBe('none');
   const media = postcss.parse(css).nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
@@ -176,6 +179,19 @@ it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opac
   const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
   expect(narrowProps.left).toBe('calc(-1 * var(--space-4))');
   expect(narrowProps.right).toBe('calc(-1 * var(--space-4))');
+});
+
+it('prevents the selected menu tab glow from bleeding above the opaque row without changing its border', async () => {
+  await openPanel();
+  const selector = ".main-tabs > [role='tablist'] > [role='tab'][aria-selected='true']";
+  expect(screen.getByRole('tab', { name: 'Mis apps' }).matches(selector)).toBe(true);
+  expect(screen.getByRole('tab', { name: 'Catálogo' }).matches(selector)).toBe(false);
+  const family = postcss.parse(readFileSync(`${cwd()}/src/theme/family.css`, 'utf8') as string);
+  const selected = family.nodes.find(node => node.type === 'rule' && node.selectors.includes(".flyout [role='tab'][aria-selected='true']"));
+  const familyProps = selected?.type === 'rule' ? Object.fromEntries(selected.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  expect(familyProps['border-color']).toBe('var(--color-primitive-red-neon)');
+  expect(familyProps.background).toBe('var(--gradient-chip-active), var(--color-surface-1)');
+  expect(declarations(selector)).toEqual({ 'box-shadow': 'var(--shadow-edge-strong)' });
 });
 
 it('preserves navigation between the two menu tabs', async () => {

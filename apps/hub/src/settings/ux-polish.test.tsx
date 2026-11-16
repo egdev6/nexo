@@ -131,7 +131,7 @@ it('centers the scrollable news dialog in the flyout', () => {
   document.head.append(style);
   try {
     render(<main><NewsPopup items={[]} open dontShow={false} onClose={vi.fn()} onDontShowChange={vi.fn()} /></main>);
-    const dialog = screen.getByRole('dialog', { name: 'Novedades al abrir' });
+    const dialog = screen.getByRole('dialog', { name: 'Novedades' });
     const css = getComputedStyle(dialog);
     expect(css.top).toBe('50%');
     expect(css.transform).toBe('translateY(-50%)');

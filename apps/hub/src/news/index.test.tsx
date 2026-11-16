@@ -33,7 +33,7 @@ function setup() {
 
 it('renders the Nexo logo in the news header and retains the close control', () => {
   setup(); fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
-  const dialog = screen.getByRole('dialog', { name: 'Novedades al abrir' });
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   const mark = dialog.querySelector('header img');
   expect(mark?.getAttribute('src')).toBe(nexoLogo);
   expect(mark?.getAttribute('alt')).toBe('');
@@ -49,7 +49,7 @@ it('opens an in-panel labelled modal, traps focus and restores both focus and in
   const { onClose } = setup();
   const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
   trigger.focus(); fireEvent.click(trigger);
-  const dialog = screen.getByRole('dialog', { name: 'Novedades al abrir' });
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   expect(dialog.getAttribute('aria-modal')).toBe('true');
   expect(dialog.closest('main')).toBeTruthy();
   expect(trigger.hasAttribute('inert')).toBe(true);

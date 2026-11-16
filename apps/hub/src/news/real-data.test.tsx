@@ -67,7 +67,7 @@ function visibility(visible: boolean) {
   sequence++; if (visible) cycle++;
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible, sequence, cycle, at: today } }));
 }
-async function open() { visibility(true); return screen.findByRole('dialog', { name: 'Novedades al abrir' }); }
+async function open() { visibility(true); return screen.findByRole('dialog', { name: 'Novedades' }); }
 function titles(dialog: HTMLElement) { return Array.from(dialog.querySelectorAll('.news-slide h3'), node => node.textContent); }
 function close() { fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' })); }
 
@@ -96,7 +96,7 @@ it('opens the real-shaped v3 updates newest first and navigates both detected an
   expect(bridge.invoke).toHaveBeenCalledWith('installed_apps');
   expect(screen.queryByRole('button', { name: 'Abrir Quorb' })).toBeNull();
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 1, cycle: 1, at: timestamp } }));
-  const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
   const groups = within(region).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'slide');
   expect(groups).toHaveLength(2);
@@ -224,7 +224,7 @@ it('records the current slide when hide and the next show arrive in the same Rea
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: false, sequence: 2, cycle: 1, at: today } });
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 3, cycle: 2, at: today } });
   });
-  const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   expect(titles(dialog)).toEqual(['first', 'second']);
   expect(within(dialog).getAllByText('Sin ver')).toHaveLength(1);
   await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:one:first']));
@@ -257,7 +257,7 @@ it('opens late cached data only while visible and does not reopen after dismissa
   bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'read_catalog_cache' ? deferred : normal(command, args));
   await start(); visibility(true); expect(screen.queryByRole('dialog')).toBeNull();
   await act(async () => { resolve(catalog([app('late', today)])); });
-  await screen.findByRole('dialog', { name: 'Novedades al abrir' }); close();
+  await screen.findByRole('dialog', { name: 'Novedades' }); close();
   fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
 });
 

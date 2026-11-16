@@ -16,7 +16,7 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .flyout--entering.flyout, .flyout--exiting.flyout { transition: transform 200ms ease-out; }
 .flyout--entering { transform: translateX(0); }
 .flyout--exiting { transform: translateX(100%); }
-.panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen), var(--color-surface-0); }
+.panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); background: var(--gradient-sheen), var(--color-surface-0); }
 .heading { display: flex; align-items: center; gap: var(--space-3); }
 .heading h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
 .heading p { margin: 0 auto 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
@@ -26,8 +26,10 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .main-tabs { flex: 1; min-height: 0; overflow: hidden; isolation: isolate; }
 .main-tabs > [role='tablist'] { position: relative; flex: none; align-self: stretch; margin: var(--space-4) var(--space-6) 0; }
 /* Paint the whole menu row, including the existing outer gutters, behind the tabs. */
-.main-tabs > [role='tablist']::before { content: ''; position: absolute; z-index: -1; inset: calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) 0; background: var(--color-surface-0); pointer-events: none; }
+.main-tabs > [role='tablist']::before { content: ''; position: absolute; z-index: -1; inset: calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) calc(-1 * var(--space-4)); background: var(--color-surface-0); pointer-events: none; }
 .main-tabs > [role='tablist'] > [role='tab'] { flex: 1; justify-content: center; }
+/* Keep the selected border and inset highlight, but prevent its outer glow from bleeding above the menu. */
+.main-tabs > [role='tablist'] > [role='tab'][aria-selected='true'] { box-shadow: var(--shadow-edge-strong); }
 .main-tabs > [role='tabpanel'] { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-4) var(--space-6) var(--space-5); }
 .area-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .section-label { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: var(--space-2) 0 var(--space-3); }

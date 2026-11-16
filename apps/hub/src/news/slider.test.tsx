@@ -27,7 +27,7 @@ afterEach(() => { cleanup(); style.remove(); vi.restoreAllMocks(); vi.unstubAllG
 
 function open(count: number, onShown = vi.fn()) {
   render(<main><NewsPopup items={items.slice(0, count)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} onShown={onShown} /></main>);
-  return { dialog: screen.getByRole('dialog', { name: 'Novedades al abrir' }), onShown };
+  return { dialog: screen.getByRole('dialog', { name: 'Novedades' }), onShown };
 }
 
 function slides(dialog: HTMLElement, count: number) {

@@ -55,7 +55,7 @@ it('keeps the real news modal and its scrim inside the sliding panel for entry a
   const panel = screen.getByRole('main');
   emit('flyout-motion', { phase: 'waiting', generation: 1, sequence: 1 });
   emit('flyout-visibility', { visible: true, sequence: 1, cycle: 1, at: '2026-01-01T00:00:00.000Z' });
-  const dialog = await screen.findByRole('dialog', { name: 'Novedades al abrir' });
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   const overlay = dialog.closest('.news-overlay');
   expect(overlay?.parentElement).toBe(panel);
   expect(overlay?.querySelector('.news-scrim')).toBeTruthy();
