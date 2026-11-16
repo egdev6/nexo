@@ -61,7 +61,7 @@ jobs:
         run: npm ci
       - name: Build the installer
         working-directory: apps/hub
-        run: npx tauri build --bundles nsis
+        run: npx tauri build --bundles nsis -- --locked
       - name: Locate the installer
         id: exe
         shell: bash
