@@ -4,12 +4,15 @@ import postcss from 'postcss';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // @ts-ignore The browser tsconfig excludes Node types; Vitest runs in Node.
 import { readFileSync } from 'node:fs';
+// @ts-ignore The browser tsconfig excludes Node types; Vitest runs in Node.
+import { cwd } from 'node:process';
 import { FlyoutPanel } from './App';
 import { defaultSettings } from './sample';
-const css = readFileSync('src/style.css', 'utf8') as string;
+const css = readFileSync(`${cwd()}/src/style.css`, 'utf8') as string;
 
 const bridge = vi.hoisted(() => ({
   native: true,
+  opacity: 63,
   invoke: vi.fn(),
   getCurrentWindow: vi.fn(),
   onFocusChanged: vi.fn(),
@@ -25,7 +28,7 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, lis
   return () => bridge.events.delete(name);
 }) }));
 vi.mock('./settings/use-settings', () => ({ useSettings: () => ({
-  settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: 63, blur: 12 },
+  settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: bridge.opacity, blur: 12 },
   fileState: 'ready', languageDraft: null, recordVisit: vi.fn(),
 }) }));
 vi.mock('./shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
@@ -34,10 +37,14 @@ vi.mock('./news', () => ({ NewsPopup: () => null }));
 
 beforeEach(() => {
   bridge.native = true;
+  bridge.opacity = 63;
   bridge.listener = undefined;
   bridge.events.clear();
-  bridge.invoke.mockReset().mockImplementation(async (command: string) => command === 'get_flyout_state'
-    ? { visible: false, sequence: 0, cycle: 0, at: 0 } : null);
+  bridge.invoke.mockReset().mockImplementation(async (command: string) => {
+    if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0, at: 0 };
+    if (command === 'get_flyout_motion') return { phase: 'open', generation: 0, sequence: 0 };
+    return null;
+  });
   bridge.stop.mockReset();
   bridge.hide.mockReset().mockResolvedValue(undefined);
   bridge.onFocusChanged.mockReset().mockImplementation(async listener => { bridge.listener = listener; return bridge.stop; });
@@ -53,29 +60,31 @@ function focus(focused: boolean) {
   act(() => bridge.listener?.({ payload: focused }));
 }
 
-async function openPanel() {
-  render(<FlyoutPanel apps={[]} news={[]} />);
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('get_flyout_state'));
-  visibility(true, 1, 1);
-  focus(true);
-  const panel = screen.getByRole('main');
-  expect(panel.getAttribute('data-backdrop')).toBeNull();
-  return panel;
+function motion(phase: string, sequence: number) {
+  act(() => bridge.events.get('flyout-motion')!({ payload: { phase, generation: sequence, sequence } }));
 }
 
-it('uses opaque while unfocused and restores the configured translucent appearance on focus', async () => {
+async function openPanel() {
+  render(<FlyoutPanel apps={[]} news={[]} />);
+  await waitFor(() => expect(screen.getByRole('main').classList.contains('flyout--waiting')).toBe(false));
+  visibility(true, 1, 1);
+  return screen.getByRole('main');
+}
+
+it('uses the configured translucent appearance at rest even when no focus event arrives', async () => {
   const panel = await openPanel();
+  expect(panel.getAttribute('data-backdrop')).toBeNull();
   expect(panel.style.getPropertyValue('--hub-opacity')).toBe('0.63');
   expect(panel.style.getPropertyValue('--hub-blur')).toBe('12px');
   focus(false);
-  expect(panel.getAttribute('data-backdrop')).toBe('opaque');
+  expect(panel.getAttribute('data-backdrop')).toBeNull();
   focus(true);
   expect(panel.getAttribute('data-backdrop')).toBeNull();
   expect(panel.style.getPropertyValue('--hub-opacity')).toBe('0.63');
   expect(panel.style.getPropertyValue('--hub-blur')).toBe('12px');
 });
 
-it.each(['close button', 'Escape'] as const)('makes the backdrop opaque before the %s native exit request, then restores it on reopening', async action => {
+it.each(['close button', 'Escape'] as const)('keeps the %s exit opaque only while motion is active', async action => {
   const panel = await openPanel();
   const atHide: (string | null)[] = [];
   bridge.invoke.mockImplementation(async (command: string) => {
@@ -84,45 +93,42 @@ it.each(['close button', 'Escape'] as const)('makes the backdrop opaque before t
   });
   if (action === 'close button') fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' }));
   else fireEvent.keyDown(document, { key: 'Escape' });
-  expect(atHide).toEqual(['opaque']);
-  expect(panel.getAttribute('data-backdrop')).toBe('opaque');
+  expect(atHide).toEqual([null]);
   expect(bridge.invoke).not.toHaveBeenCalledWith('quit_after_settings');
+  motion('exiting', 1);
+  expect(panel.getAttribute('data-backdrop')).toBe('opaque');
   focus(false);
-  expect(panel.getAttribute('data-backdrop')).toBe('opaque');
-  // A refocus while the native exit is still running keeps the opaque backdrop.
   focus(true);
   expect(panel.getAttribute('data-backdrop')).toBe('opaque');
-  // Reopening (a new visible cycle) with focus restores the translucent backdrop.
+  motion('open', 2);
   visibility(true, 2, 2);
-  focus(true);
   expect(panel.getAttribute('data-backdrop')).toBeNull();
 });
 
-it('starts opaque on mount and stays opaque on the first show until focus is reported', async () => {
+it('starts opaque while waiting but becomes translucent on the first unfocused open', async () => {
   render(<FlyoutPanel apps={[]} news={[]} />);
   const panel = screen.getByRole('main');
   expect(panel.getAttribute('data-backdrop')).toBe('opaque');
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('get_flyout_state'));
+  await waitFor(() => expect(panel.classList.contains('flyout--waiting')).toBe(false));
   visibility(true, 1, 1);
-  expect(panel.getAttribute('data-backdrop')).toBe('opaque');
-  focus(true);
   expect(panel.getAttribute('data-backdrop')).toBeNull();
 });
 
-it('keeps a later native show without focus opaque until focus is reported', async () => {
+it('keeps entry opaque and restores translucency on a later open without focus', async () => {
   const panel = await openPanel();
+  motion('hidden', 1);
   visibility(false, 2, 1);
   expect(panel.getAttribute('data-backdrop')).toBe('opaque');
+  motion('entering', 2);
   visibility(true, 3, 2);
   expect(panel.getAttribute('data-backdrop')).toBe('opaque');
-  focus(true);
+  motion('open', 3);
   expect(panel.getAttribute('data-backdrop')).toBeNull();
 });
 
-it('removes the native focus listener on unmount', async () => {
+it('does not depend on a native focus subscription', async () => {
   await openPanel();
-  cleanup();
-  expect(bridge.stop).toHaveBeenCalledOnce();
+  expect(bridge.onFocusChanged).not.toHaveBeenCalled();
 });
 
 it('does not touch the native window in a browser preview', () => {
@@ -136,6 +142,60 @@ it('does not touch the native window in a browser preview', () => {
   expect(panel.getAttribute('data-backdrop')).toBeNull();
   expect(bridge.getCurrentWindow).not.toHaveBeenCalled();
   expect(bridge.invoke).not.toHaveBeenCalled();
+});
+
+function declarations(selector: string) {
+  const rule = postcss.parse(css).nodes.find(node => node.type === 'rule' && node.selector === selector);
+  return rule?.type === 'rule' ? Object.fromEntries(rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+}
+
+it.each([0, 63, 100])('keeps the title header opaque at %i percent panel opacity', async opacity => {
+  bridge.opacity = opacity;
+  const panel = await openPanel();
+  const header = screen.getByRole('heading', { name: 'Nexo' }).closest('header');
+  expect(header?.classList.contains('panel-head')).toBe(true);
+  expect(panel.style.getPropertyValue('--hub-opacity')).toBe(String(opacity / 100));
+  expect(declarations('.panel-head').background).toBe('var(--gradient-sheen), var(--color-surface-0)');
+});
+
+it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opacity', async opacity => {
+  bridge.opacity = opacity;
+  const panel = await openPanel();
+  const tablist = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
+  expect(tablist.matches(".main-tabs > [role='tablist']")).toBe(true);
+  expect(panel.style.getPropertyValue('--hub-opacity')).toBe(String(opacity / 100));
+  expect(declarations('.main-tabs').isolation).toBe('isolate');
+  expect(declarations(".main-tabs > [role='tablist']").position).toBe('relative');
+  const band = declarations(".main-tabs > [role='tablist']::before");
+  expect(band.background).toBe('var(--color-surface-0)');
+  expect(band.inset).toBe('calc(-1 * var(--space-4)) calc(-1 * var(--space-6)) 0');
+  expect(band['z-index']).toBe('-1');
+  expect(band['pointer-events']).toBe('none');
+  const media = postcss.parse(css).nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
+  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selector === ".main-tabs > [role='tablist']::before") : undefined;
+  const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  expect(narrowProps.left).toBe('calc(-1 * var(--space-4))');
+  expect(narrowProps.right).toBe('calc(-1 * var(--space-4))');
+});
+
+it('preserves navigation between the two menu tabs', async () => {
+  await openPanel();
+  const apps = screen.getByRole('tab', { name: 'Mis apps' });
+  const catalog = screen.getByRole('tab', { name: 'Catálogo' });
+  expect(apps.getAttribute('aria-selected')).toBe('true');
+  fireEvent.mouseDown(catalog, { button: 0 });
+  fireEvent.click(catalog);
+  expect(catalog.getAttribute('aria-selected')).toBe('true');
+  expect(apps.getAttribute('aria-selected')).toBe('false');
+});
+
+it('keeps every static window ancestor explicitly transparent', () => {
+  const stylesheet = postcss.parse(css);
+  for (const selector of ['html', 'body', '#root']) {
+    const rules = stylesheet.nodes.filter(node => node.type === 'rule' && node.selectors.includes(selector));
+    const backgrounds = rules.flatMap(rule => rule.type === 'rule' ? rule.nodes.flatMap(node => node.type === 'decl' && node.prop === 'background' ? [node.value] : []) : []);
+    expect(backgrounds.at(-1), selector).toBe('transparent');
+  }
 });
 
 it('overrides the translucent backdrop without a transition, retaining the user-controlled normal rule', () => {

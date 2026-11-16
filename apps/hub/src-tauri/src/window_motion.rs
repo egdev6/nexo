@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-pub(crate) const DURATION: Duration = Duration::from_millis(200);
+pub(crate) const TIMEOUT: Duration = Duration::from_millis(400);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Geometry {
@@ -8,39 +8,6 @@ pub(crate) struct Geometry {
     pub y: i32,
     pub width: u32,
     pub height: u32,
-    pub offscreen_x: i32,
-    pub park_x: i32,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Animation {
-    pub generation: u64,
-    pub from: i32,
-    pub to: i32,
-    pub y: i32,
-    pub exit: bool,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Frame {
-    Cancel,
-    Move(i32),
-    Finish(i32),
-}
-
-// Pure math also decides whether a worker has been superseded.
-pub(crate) fn frame(animation: &Animation, generation: u64, elapsed: Duration) -> Frame {
-    if animation.generation != generation {
-        return Frame::Cancel;
-    }
-    if elapsed >= DURATION {
-        return Frame::Finish(animation.to);
-    }
-    let t = elapsed.as_secs_f64() / DURATION.as_secs_f64();
-    let eased = 1.0 - (1.0 - t) * (1.0 - t);
-    let x =
-        f64::from(animation.from) + (f64::from(animation.to) - f64::from(animation.from)) * eased;
-    Frame::Move(x.round() as i32)
 }
 
 pub(crate) trait Surface {
@@ -48,28 +15,35 @@ pub(crate) trait Surface {
     fn is_visible(&self) -> Result<bool, Self::Error>;
     fn geometry(&self) -> Result<Option<Geometry>, Self::Error>;
     fn set_size(&self, width: u32, height: u32) -> Result<(), Self::Error>;
-    fn position(&self) -> Result<(i32, i32), Self::Error>;
     fn set_position(&self, x: i32, y: i32) -> Result<(), Self::Error>;
     fn set_cloaked(&self, cloaked: bool) -> Result<(), Self::Error>;
     fn show(&self) -> Result<(), Self::Error>;
     fn hide(&self) -> Result<(), Self::Error>;
     fn visibility(&self, visible: bool);
+    fn motion(&self, snapshot: MotionSnapshot);
 }
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-enum Phase {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Phase {
     #[default]
     Hidden,
-    AwaitingPaint,
+    Waiting,
     Entering,
     Open,
     Exiting,
 }
 
+#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
+pub(crate) struct MotionSnapshot {
+    pub phase: Phase,
+    pub generation: u64,
+    pub sequence: u64,
+}
+
 #[derive(Default)]
 pub(crate) struct Coordinator {
-    generation: u64,
-    phase: Phase,
+    snapshot: MotionSnapshot,
     geometry: Option<Geometry>,
     awaiting_reduced: bool,
     cloaked: bool,
@@ -77,128 +51,97 @@ pub(crate) struct Coordinator {
 
 impl Coordinator {
     fn next_generation(&mut self) -> u64 {
-        self.generation = self.generation.wrapping_add(1);
-        self.generation
+        self.snapshot.generation = self.snapshot.generation.wrapping_add(1);
+        self.snapshot.generation
+    }
+
+    fn publish<S: Surface>(&mut self, surface: &S, phase: Phase) {
+        self.snapshot.phase = phase;
+        self.snapshot.sequence = self.snapshot.sequence.wrapping_add(1);
+        surface.motion(self.snapshot);
+    }
+
+    pub(crate) fn snapshot(&self) -> MotionSnapshot {
+        self.snapshot
     }
 
     pub(crate) fn is_exiting(&self) -> bool {
-        self.phase == Phase::Exiting
+        self.snapshot.phase == Phase::Exiting
     }
 
     pub(crate) fn pending_paint(&self) -> Option<u64> {
-        (self.phase == Phase::AwaitingPaint).then_some(self.generation)
+        (self.snapshot.phase == Phase::Waiting).then_some(self.snapshot.generation)
     }
 
     pub(crate) fn show<S: Surface>(
         &mut self,
         surface: &S,
         reduced: bool,
-    ) -> Result<Option<Animation>, S::Error> {
+    ) -> Result<Option<u64>, S::Error> {
         let visible = surface.is_visible()?;
         if visible && !self.is_exiting() {
             return Ok(None);
         }
         let generation = self.next_generation();
         if !visible {
-            // A hidden webview may not have painted, even if it painted before
-            // the previous hide. Park beyond the entire desktop while it warms.
             let Some(bounds) = surface.geometry()?.or(self.geometry) else {
                 return Ok(None);
             };
             surface.set_size(bounds.width, bounds.height)?;
-            surface.set_position(bounds.park_x, bounds.y)?;
+            surface.set_position(bounds.x, bounds.y)?;
             self.geometry = Some(bounds);
             if self.cloaked {
-                // Never uncloak at the last visible position, including when
-                // the previous exit stopped on another monitor or the taskbar.
                 surface.set_cloaked(false)?;
                 self.cloaked = false;
             }
-            surface.show()?;
-            self.phase = Phase::AwaitingPaint;
             self.awaiting_reduced = reduced;
+            self.publish(surface, Phase::Waiting);
+            surface.show()?;
             surface.visibility(true);
             return Ok(None);
         }
-        let (geometry, from) = (self.geometry, surface.position()?.0);
-        if let Some(bounds) = geometry {
-            if !reduced && from != bounds.x {
-                self.phase = Phase::Entering;
-                return Ok(Some(Animation {
-                    generation,
-                    from,
-                    to: bounds.x,
-                    y: bounds.y,
-                    exit: false,
-                }));
-            }
-            if visible && surface.position()? != (bounds.x, bounds.y) {
-                surface.set_position(bounds.x, bounds.y)?;
-            }
+        if reduced {
+            self.publish(surface, Phase::Open);
+            Ok(None)
+        } else {
+            self.publish(surface, Phase::Entering);
+            Ok(Some(generation))
         }
-        self.phase = Phase::Open;
-        Ok(None)
     }
 
     pub(crate) fn painted<S: Surface>(
         &mut self,
         surface: &S,
         generation: u64,
-    ) -> Result<Option<Animation>, S::Error> {
+    ) -> Result<Option<u64>, S::Error> {
         if self.pending_paint() != Some(generation) {
             return Ok(None);
         }
-        let Some(bounds) = self.geometry else {
-            return Ok(None);
-        };
-        let x = if self.awaiting_reduced {
-            bounds.x
+        if self.awaiting_reduced {
+            self.publish(surface, Phase::Open);
+            Ok(None)
         } else {
-            bounds.offscreen_x
-        };
-        if surface.position()? != (x, bounds.y) {
-            surface.set_position(x, bounds.y)?;
+            self.publish(surface, Phase::Entering);
+            Ok(Some(generation))
         }
-        if !self.awaiting_reduced && x != bounds.x {
-            self.phase = Phase::Entering;
-            return Ok(Some(Animation {
-                generation,
-                from: x,
-                to: bounds.x,
-                y: bounds.y,
-                exit: false,
-            }));
-        }
-        self.phase = Phase::Open;
-        Ok(None)
     }
 
     pub(crate) fn hide<S: Surface>(
         &mut self,
         surface: &S,
         reduced: bool,
-    ) -> Result<Option<Animation>, S::Error> {
+    ) -> Result<Option<u64>, S::Error> {
         if !surface.is_visible()? || self.is_exiting() {
             return Ok(None);
         }
-        let awaiting_paint = self.phase == Phase::AwaitingPaint;
+        let awaiting_paint = self.pending_paint().is_some();
         let generation = self.next_generation();
-        if let Some(bounds) = self.geometry
-            && !reduced
-            && !awaiting_paint
-        {
-            let from = surface.position()?.0;
-            self.phase = Phase::Exiting;
-            return Ok(Some(Animation {
-                generation,
-                from,
-                to: bounds.offscreen_x,
-                y: bounds.y,
-                exit: true,
-            }));
+        if reduced || awaiting_paint {
+            self.finish_hide(surface)?;
+            return Ok(None);
         }
-        self.finish_hide(surface)?;
-        Ok(None)
+        self.publish(surface, Phase::Exiting);
+        Ok(Some(generation))
     }
 
     pub(crate) fn toggle<S: Surface>(
@@ -206,7 +149,7 @@ impl Coordinator {
         surface: &S,
         reduced: bool,
         suppress_reopen: bool,
-    ) -> Result<Option<Animation>, S::Error> {
+    ) -> Result<Option<u64>, S::Error> {
         if surface.is_visible()? && !self.is_exiting() {
             self.hide(surface, reduced)
         } else if !suppress_reopen {
@@ -216,44 +159,34 @@ impl Coordinator {
         }
     }
 
-    pub(crate) fn advance<S: Surface>(
+    // Both the frontend acknowledgement and the bounded watchdog use this path.
+    pub(crate) fn finish<S: Surface>(
         &mut self,
         surface: &S,
-        animation: &Animation,
-        elapsed: Duration,
-    ) -> Result<bool, S::Error> {
-        match frame(animation, self.generation, elapsed) {
-            Frame::Cancel => Ok(false),
-            Frame::Move(x) => {
-                surface.set_position(x, animation.y)?;
-                Ok(true)
-            }
-            Frame::Finish(x) => {
-                if animation.exit {
-                    // Do not move a visible WebView again on the same frame as
-                    // hiding it: the work-area edge need not be off-screen.
-                    self.finish_hide(surface)?;
-                } else {
-                    surface.set_position(x, animation.y)?;
-                    self.phase = Phase::Open;
-                    self.next_generation();
-                }
-                Ok(false)
-            }
+        generation: u64,
+    ) -> Result<(), S::Error> {
+        if generation != self.snapshot.generation {
+            return Ok(());
         }
+        match self.snapshot.phase {
+            Phase::Entering => {
+                self.next_generation();
+                self.publish(surface, Phase::Open);
+            }
+            Phase::Exiting => self.finish_hide(surface)?,
+            _ => {}
+        }
+        Ok(())
     }
 
     fn finish_hide<S: Surface>(&mut self, surface: &S) -> Result<(), S::Error> {
-        // Suppress composition before hiding the webview so a remaining Mica
-        // backdrop cannot be shown alone. Hide even if DWM is unavailable.
+        // Cloak before hide, even if DWM is unavailable; never move on hide.
         if surface.set_cloaked(true).is_ok() {
             self.cloaked = true;
         }
         surface.hide()?;
-        self.phase = Phase::Hidden;
         self.next_generation();
-        // Do not move the hidden window while the compositor may still be
-        // displaying its last frame. The next show positions it before showing.
+        self.publish(surface, Phase::Hidden);
         surface.visibility(false);
         Ok(())
     }
