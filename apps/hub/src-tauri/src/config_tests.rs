@@ -105,6 +105,7 @@ fn missing_file_uses_first_run_defaults_without_writing() {
     assert_eq!(snapshot.settings.language, "es");
     assert!(!snapshot.settings.start_with_windows);
     assert!(snapshot.settings.show_news_on_open);
+    assert!(!snapshot.settings.hide_local_apps);
     assert_eq!(snapshot.settings.accent, "#ff0036");
     assert!(!snapshot.settings.compact);
     assert_eq!(
@@ -114,6 +115,66 @@ fn missing_file_uses_first_run_defaults_without_writing() {
     assert!(!snapshot.settings.first_run_complete);
     assert_eq!(snapshot.settings.sources[0].id, "official");
     assert!(!f.path().exists());
+}
+
+#[test]
+fn hide_local_apps_defaults_for_old_configs_without_rewriting_them() {
+    use serde_json::json;
+
+    for version in 0..=4 {
+        let f = Fixture::new();
+        let original =
+            json!({"version": version, "language": "en", "futureField": {"keep": 42}}).to_string();
+        f.write(&original);
+        let snapshot = f.store.read();
+        assert_eq!(snapshot.state, FileState::Ready);
+        let settings = serde_json::to_value(snapshot.settings).unwrap();
+        assert_eq!(settings["hideLocalApps"], false);
+        assert_eq!(settings["showNewsOnOpen"], true);
+        assert_eq!(settings["language"], "en");
+        assert_eq!(f.raw(), original);
+    }
+}
+
+#[test]
+fn hide_local_apps_ignores_invalid_config_types() {
+    use serde_json::json;
+
+    for invalid in [json!(null), json!("true"), json!(1), json!([]), json!({})] {
+        let f = Fixture::new();
+        let original = json!({"version": 4, "hideLocalApps": invalid, "compact": true}).to_string();
+        f.write(&original);
+        let snapshot = f.store.read();
+        assert_eq!(snapshot.state, FileState::Ready);
+        let settings = serde_json::to_value(snapshot.settings).unwrap();
+        assert_eq!(settings["hideLocalApps"], false);
+        assert_eq!(settings["compact"], true);
+        assert_eq!(f.raw(), original);
+    }
+}
+
+#[test]
+fn hide_local_apps_patch_round_trips_without_changing_other_data() {
+    use serde_json::{Value, json};
+
+    let f = Fixture::new();
+    let document = json!({"version": 4, "showNewsOnOpen": false, "futureField": {"keep": 42},
+        "localApps": [{"id":"one", "name":"Editor", "executable":"C:\\Editor.exe", "metadata":1}]});
+    f.write(&document.to_string());
+    for value in [true, false] {
+        let patch = serde_json::from_value(json!({"hideLocalApps": value})).unwrap();
+        let saved = serde_json::to_value(f.store.patch(patch).unwrap()).unwrap();
+        assert_eq!(saved["hideLocalApps"], value);
+        assert_eq!(saved["showNewsOnOpen"], false);
+        let snapshot = Store::new(f.path()).read();
+        assert_eq!(snapshot.state, FileState::Ready);
+        assert_eq!(serde_json::to_value(snapshot.settings).unwrap(), saved);
+        let raw: Value = serde_json::from_str(&f.raw()).unwrap();
+        assert_eq!(raw["version"], 4);
+        assert_eq!(raw["futureField"], document["futureField"]);
+        assert_eq!(raw["localApps"], document["localApps"]);
+        assert_eq!(raw["hideLocalApps"], value);
+    }
 }
 
 #[test]
@@ -649,7 +710,7 @@ fn v3_migration_removes_only_local_sources_and_bindings_on_save() {
             serde_json::to_value(&snapshot.settings).unwrap(),
             json!({
                 "language":"en", "startWithWindows":true, "showNewsOnOpen":false,
-                "accent":"#123456", "compact":true, "opacity":72, "blur":12,
+                "hideLocalApps":false, "accent":"#123456", "compact":true, "opacity":72, "blur":12,
                 "firstRunComplete":true,
                 "sources":[{"id":"official","label":"Official","kind":"official"}],
                 "newsVisit":{"lastVisitAt":"2026-05-31T12:00:00Z","seenKeys":["a:one"]},
@@ -661,6 +722,7 @@ fn v3_migration_removes_only_local_sources_and_bindings_on_save() {
         f.store.patch(Patch::default()).unwrap();
         let mut expected = document;
         expected["version"] = json!(4);
+        expected["hideLocalApps"] = json!(false);
         expected["sources"] = json!([official]);
         expected.as_object_mut().unwrap().remove("localBindings");
         assert_eq!(f.raw(), serde_json::to_string_pretty(&expected).unwrap());

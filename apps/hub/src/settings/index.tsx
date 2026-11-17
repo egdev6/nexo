@@ -1,4 +1,4 @@
-import { Button, Field, Icon, IconButton, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import { Button, Field, Icon, IconButton, Label, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
@@ -49,6 +49,10 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
       <div className="settings__row">
         <label htmlFor={`${id}-news`}><strong>{tr('settings.news')}</strong><span id={`${id}-news-hint`}>{tr('settings.newsHint')}</span></label>
         <Switch id={`${id}-news`} aria-label={tr('settings.news')} aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
+      </div>
+      <div className="settings__row">
+        <Label htmlFor={`${id}-hide-local`}><strong id={`${id}-hide-local-label`}>{tr('settings.hideLocalApps')}</strong><span id={`${id}-hide-local-hint`}>{tr('settings.hideLocalAppsHint')}</span></Label>
+        <Switch id={`${id}-hide-local`} aria-labelledby={`${id}-hide-local-label`} aria-describedby={`${id}-hide-local-hint`} checked={settings.hideLocalApps} onCheckedChange={value => update('hideLocalApps', value)} />
       </div>
         </div></PanelBody>
       </Panel>

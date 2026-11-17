@@ -44,6 +44,8 @@ pub struct Settings {
     pub language: String,
     pub start_with_windows: bool,
     pub show_news_on_open: bool,
+    #[serde(default)]
+    pub hide_local_apps: bool,
     pub accent: String,
     pub compact: bool,
     pub opacity: u8,
@@ -60,6 +62,7 @@ impl Default for Settings {
             language: "es".into(),
             start_with_windows: false,
             show_news_on_open: true,
+            hide_local_apps: false,
             accent: "#ff0036".into(),
             compact: false,
             opacity: 85,
@@ -83,6 +86,7 @@ pub struct Patch {
     pub language: Option<String>,
     pub start_with_windows: Option<bool>,
     pub show_news_on_open: Option<bool>,
+    pub hide_local_apps: Option<bool>,
     pub accent: Option<String>,
     pub compact: Option<bool>,
     pub opacity: Option<i64>,
@@ -182,6 +186,9 @@ fn settings_from(map: &Map<String, Value>) -> Settings {
     }
     if let Some(v) = map.get("showNewsOnOpen").and_then(Value::as_bool) {
         settings.show_news_on_open = v;
+    }
+    if let Some(v) = map.get("hideLocalApps").and_then(Value::as_bool) {
+        settings.hide_local_apps = v;
     }
     if let Some(v) = map
         .get("accent")
@@ -324,6 +331,7 @@ impl Store {
         change!(language, "language");
         change!(start_with_windows, "startWithWindows");
         change!(show_news_on_open, "showNewsOnOpen");
+        change!(hide_local_apps, "hideLocalApps");
         change!(accent, "accent");
         change!(compact, "compact");
         change!(opacity, "opacity");

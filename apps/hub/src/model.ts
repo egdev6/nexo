@@ -54,6 +54,7 @@ export interface HubSettings {
   language: Language;
   startWithWindows: boolean;
   showNewsOnOpen: boolean;
+  hideLocalApps: boolean;
   /** Accent base color as #rrggbb (Quorb-style picker). */
   accent: string;
   compact: boolean;

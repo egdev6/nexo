@@ -17,7 +17,7 @@ afterEach(cleanup);
 afterAll(() => vi.unstubAllGlobals());
 
 const initial: HubSettings = {
-  language: 'es', startWithWindows: false, showNewsOnOpen: true,
+  language: 'es', startWithWindows: false, showNewsOnOpen: true, hideLocalApps: false,
   accent: '#ff0036', compact: false, opacity: 85, blur: 24,
 };
 
