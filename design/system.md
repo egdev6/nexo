@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system b54222c; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system 085b46e; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -31,13 +31,14 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | Role | Font family | Size | Line height | Weight | Tracking | Source |
 | --- | --- | --- | --- | --- | --- | --- |
 | Eyebrow | --font-display | --text-label-eyebrow | --text-label-eyebrow--line-height | --text-label-eyebrow--font-weight | --text-label-eyebrow--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
+| Heading compact | --font-display | --text-heading-small | --text-heading-small--line-height | --text-heading-small--font-weight | --text-heading-small--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
 | Heading display | --font-display | --text-title-display | --text-title-display--line-height | --text-title-display--font-weight | --text-title-display--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
 | Heading hero | --font-display | --text-title-hero | --text-title-hero--line-height | --text-title-hero--font-weight | --text-title-hero--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
 | Heading section | --font-display | --text-title-section | --text-title-section--line-height | --text-title-section--font-weight | --text-title-section--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
 | Heading show | --font-display | --text-title-show | --text-title-show--line-height | --text-title-show--font-weight | --text-title-show--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
 | Hero lede | --font-sans | --text-body-large | --text-body-large--line-height | --text-body-large--font-weight | --text-body-large--letter-spacing | typographyRoles[] · packages/ui/src/organisms/hero/types.ts · packages/tokens/src/theme.css |
 | ProjectCard code | --font-mono | --text-code | --text-code--line-height | --text-code--font-weight | --text-code--letter-spacing | typographyRoles[] · packages/ui/src/molecules/project-card/types.ts · packages/tokens/src/theme.css |
-| SectionHeader lede | --font-sans | --text-body-muted | --text-body-muted--line-height | --text-body-muted--font-weight | --text-body-muted--letter-spacing | typographyRoles[] · packages/ui/src/molecules/section-header/types.ts · packages/tokens/src/theme.css |
+| SectionHeader lede | --font-sans | --text-body-muted | --text-body-muted--line-height | --text-body-muted--font-weight | --text-body-muted--letter-spacing | typographyRoles[] · packages/ui/src/primitives/text/types.ts · packages/tokens/src/theme.css |
 
 ## Colours
 
@@ -949,9 +950,11 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · — (native scroll an
     - carouselLabelVariants base: font-display → --font-display
     - carouselLabelVariants base: text-label-eyebrow → --text-label-eyebrow
     - carouselSlideVariants base: rounded-lg → --radius-lg
-    - carouselSlideVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
-    - carouselTrackVariants base: gap-7 → --spacing-7
-    - carouselTrackVariants base: p-2 → --spacing-2
+    - carouselSlideVariants trackLayout=default: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
+    - carouselTrackVariants trackLayout=default: gap-7 → --spacing-7
+    - carouselTrackVariants trackLayout=default: p-2 → --spacing-2
+    - carouselTrackVariants trackLayout=full-width: gap-0 → --spacing-0
+    - carouselTrackVariants trackLayout=full-width: p-0 → --spacing-0
     - carouselVariants base: gap-4 → --spacing-4
     - carouselVariants base: font-sans → --font-sans
   - defaultValue: string; Initial uncontrolled identity; absence or an unknown identity resolves to the first item. Later changes do not reset the current item. (components[] · packages/ui/src/molecules/carousel/types.ts)
@@ -959,6 +962,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · — (native scroll an
   - label: string; Non-empty visible and accessible collection name, without repeating its role description. (components[] · packages/ui/src/molecules/carousel/types.ts)
   - messages: Partial<CarouselMessages>; Partial localizable dictionary. Each omitted or blank text falls back independently to English. (components[] · packages/ui/src/molecules/carousel/types.ts)
   - onValueChange: ((value: string) => void); One request for a changed identity per user navigation or settled scroll; never for prop updates. (components[] · packages/ui/src/molecules/carousel/types.ts)
+  - trackLayout: enum; Track spacing and scrollbar presentation. Full-width keeps native scrolling and inset focus. (components[] · packages/ui/src/molecules/carousel/types.ts)
   - value: string; Controlled accepted identity. Missing or unknown identities resolve to the first available item. (components[] · packages/ui/src/molecules/carousel/types.ts)
 ### ChipGroup
 catalog[] · docs/catalog.json · @egdev/ui · molecule · ToggleGroup
@@ -976,12 +980,16 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · ToggleGroup
 ### Collapsible
 catalog[] · docs/catalog.json · @egdev/ui · molecule · Collapsible
 - Collapsible (components[] · packages/ui/src/molecules/collapsible/types.ts)
-  - CollapsibleContent: Native hidden-shell/unmounted-children boundary; no forceMount or content animation. Children: In-flow body; the native hidden shell/id remains closed while children unmount. Lift persistent form state outside it. className supports outer margin/self-alignment only, merged last; no id, hidden, ref, forceMount or asChild API. Opt-in regions need a name. Meaningful flow content; children remount on reopening and local state may reset. (components[].parts · packages/ui/src/molecules/collapsible/Collapsible.tsx)
+  - CollapsibleContent: Native presence boundary with an optional retained, closed-hidden subtree. Children: In-flow body; by default its native hidden shell/id remains while children unmount. Retained closed controls still participate in forms. Move focus before externally closing. className supports outer margin/self-alignment only, merged last; no id, hidden, ref, forceMount or asChild API. Opt-in regions need a name. Meaningful flow content; unmounted children remount on reopening and local state may reset. (components[].parts · packages/ui/src/molecules/collapsible/Collapsible.tsx)
+  - CollapsibleHeader: Optional row placing independently owned actions outside the Trigger. Children: Optional unpainted row. className supports outer margin, width and parent placement only, merged last; no ref, role, tabIndex, inline appearance or asChild API. One Trigger or a native heading containing one Trigger. (components[].parts · packages/ui/src/molecules/collapsible/Collapsible.tsx)
   - CollapsibleTrigger: Native button; the React 18-compatible bridge connects only this public part's ref. (components[].parts · packages/ui/src/molecules/collapsible/Collapsible.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
+    - collapsibleActionsVariants base: gap-2 → --spacing-2
     - collapsibleContentVariants base: p-4 → --spacing-4
     - collapsibleContentVariants base: font-sans → --font-sans
     - collapsibleContentVariants base: text-body-default → --text-body-default
+    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
+    - collapsibleHeaderVariants base: gap-2 → --spacing-2
     - collapsibleTriggerVariants base: text-start → unresolved
     - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
   - children: ReactNode; One named Trigger/Content pair; nested Roots are independent. (components[] · packages/ui/src/molecules/collapsible/types.ts)
@@ -1057,10 +1065,11 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 catalog[] · docs/catalog.json · @egdev/ui · molecule · Dialog
 - Dialog (components[] · packages/ui/src/molecules/dialog/types.ts)
   - DialogClose: Explicit close action. (components[].parts · packages/ui/src/molecules/dialog/Dialog.tsx)
-  - DialogContent: Body-portalled modal panel with an owned accessible title and optional description. (components[].parts · packages/ui/src/molecules/dialog/Dialog.tsx)
+  - DialogContent: Modal panel with an owned title and optional description. A connected, positioned, non-scrolling host bounds container-scoped paint; without one the portal uses body. A custom host does not localize Radix modality, which remains document-wide. Render after the host ref is ready and close before replacing or removing it. Viewport scope under a host is subject to ancestor clipping and fixed-position containing blocks. (components[].parts · packages/ui/src/molecules/dialog/Dialog.tsx)
   - DialogTrigger: Optional native or slotted disclosure button. (components[].parts · packages/ui/src/molecules/dialog/Dialog.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants base: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
     - dialogDescriptionVariants base: text-body-default → --text-body-default
     - dialogFootVariants base: px-[var(--space-6)] → --space-6
     - dialogFootVariants base: py-[var(--space-4)] → --space-4
@@ -1068,8 +1077,8 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Dialog
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogOverlayVariants base: p-[var(--space-6)] → --space-6
-    - dialogOverlayVariants flush=true: p-0 → --spacing-0
+    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
+    - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
@@ -1092,6 +1101,8 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Label + Slot
     - fieldVariants layout=stacked: gap-1.5 → --spacing
     - fieldVariants layout=choice: gap-x-2 → --spacing-2
     - fieldVariants layout=choice: gap-y-1 → --spacing-1
+    - fieldVariants layout=choice-trailing: gap-x-4 → --spacing-4
+    - fieldVariants layout=choice-trailing: gap-y-1 → --spacing-1
   - children: ReactElement<unknown, string \| JSXElementConstructor<any>>; Exactly one Input, Textarea, Select, Slider, Checkbox or Switch element; no Fragment. Slot preserves child-first description ids and explicit child aria-invalid precedence. With an error, omit aria-invalid entirely or supply true/'true'; explicit undefined, null, false and other conflicting values are unsupported. Slider also needs its own label. (components[] · packages/ui/src/molecules/field/types.ts)
   - counter: FieldCounter; Consumer-derived length and limit, shown alone on the stacked bottom row; never invents an error. (components[] · packages/ui/src/molecules/field/types.ts)
   - error: string; Consumer validation message; a non-empty string marks the compatible control invalid. No live announcement or validation logic; an empty string is treated as absent. (components[] · packages/ui/src/molecules/field/types.ts)
@@ -1099,8 +1110,8 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Label + Slot
   - hint: string; Help text; replaced by a non-empty error. Omitted when absent or empty. (components[] · packages/ui/src/molecules/field/types.ts)
   - hintTone: enum; Presentation of the hint only; a non-empty error always takes precedence. No tone changes control validity or creates a live region. (components[] · packages/ui/src/molecules/field/types.ts)
   - label: string; Required control name, even when visually hidden. (components[] · packages/ui/src/molecules/field/types.ts)
-  - layout: enum; Label above the control, or beside a Checkbox/Switch. Choice omits readout and counter. (components[] · packages/ui/src/molecules/field/types.ts)
-  - readout: string; Visible current value in a linked output; omitted in choice layout or when absent. (components[] · packages/ui/src/molecules/field/types.ts)
+  - layout: enum; Label above the control, or beside a Checkbox/Switch. Choice omits readout and counter. Choice-trailing places the label and message before the control. (components[] · packages/ui/src/molecules/field/types.ts)
+  - readout: string; Visible current value in a linked output; omitted in either choice layout or when absent. (components[] · packages/ui/src/molecules/field/types.ts)
 ### GaugeGroup
 catalog[] · docs/catalog.json · @egdev/ui · molecule · — (native group and meters)
 - GaugeGroup (components[] · packages/ui/src/molecules/gauge-group/types.ts)
@@ -1409,10 +1420,15 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
     - pageHeaderEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
     - pageHeaderHeadingVariants base: font-sans → --font-sans
     - pageHeaderHeadingVariants base: text-heading-small → --text-heading-small
+    - pageHeaderLedeVariants base: font-sans → --font-sans
+    - pageHeaderLedeVariants base: text-body-default → --text-body-default
+    - pageHeaderStartVariants base: gap-3 → --spacing-3
     - pageHeaderVariants base: gap-x-6 → --spacing-6
     - pageHeaderVariants base: gap-y-4 → --spacing-4
   - actions: boolean \| PageHeaderActions \| null; One direct Button (including asChild links), or one supplied ButtonGroup variant="spaced" with at least two direct supported children. Rendered unchanged, never cloned or parsed. Null, undefined and booleans omit the action area. Arrays, fragments, arbitrary wrappers and nested groups are unsupported; JSX type erasure cannot enforce target identity. (components[] · packages/ui/src/molecules/page-header/types.ts)
   - eyebrow: string; Context before the heading. Absent or whitespace-only text is omitted; nonblank supplied text is preserved without a decorative diamond. (components[] · packages/ui/src/molecules/page-header/types.ts)
+  - leadingAction: boolean \| PageHeaderLeadingAction \| null; One direct IconButton, including its asChild link, rendered unchanged before the text. Null, undefined and booleans omit the area. Arrays, fragments and wrappers are unsupported; JSX type erasure cannot enforce component identity. The child owns its name and behavior. (components[] · packages/ui/src/molecules/page-header/types.ts)
+  - lede: string; Optional plain page-purpose text after the heading. Blank text is omitted; nonblank text is preserved verbatim and is not added to the heading's accessible name. (components[] · packages/ui/src/molecules/page-header/types.ts)
   - level: enum; Native h1–h6 rank; never changes the compact heading-small recipe. (components[] · packages/ui/src/molecules/page-header/types.ts)
   - title: string; Visible plain-string heading, not a native tooltip. Must contain non-whitespace text; otherwise the entire header is omitted, with a development warning. (components[] · packages/ui/src/molecules/page-header/types.ts)
 ### Panel
@@ -1497,18 +1513,16 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 - SectionHeader (components[] · packages/ui/src/molecules/section-header/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - sectionHeaderLedeVariants base: font-sans → --font-sans
-    - sectionHeaderLedeVariants base: text-body-muted → --text-body-muted
     - sectionHeaderVariants variant=stack: gap-5 → --spacing-5
     - sectionHeaderVariants variant=split: gap-y-6 → --spacing-6
     - sectionHeaderVariants variant=split: gap-x-12 → --spacing-12
     - sectionHeaderVariants variant=inline: gap-6 → --spacing-6
   - accent: string; Optional trailing highlighted run in the same heading; blank text is omitted. No separator is inserted. (components[] · packages/ui/src/molecules/section-header/types.ts)
   - accentBreak: boolean; Start the accent on a separate visual line. No effect without an accent. (components[] · packages/ui/src/molecules/section-header/types.ts)
-  - eyebrow: string; Optional context before the heading, rendered by Text's decorative diamond eyebrow recipe. Blank text is omitted. (components[] · packages/ui/src/molecules/section-header/types.ts)
-  - lede: string; Optional introductory paragraph; blank text is omitted, never rendered as a placeholder. (components[] · packages/ui/src/molecules/section-header/types.ts)
+  - eyebrow: SectionHeaderText; Optional context before the heading, rendered by Text's decorative diamond eyebrow recipe. Blank or decorative-only text is omitted. (components[] · packages/ui/src/molecules/section-header/types.ts)
+  - lede: SectionHeaderText; Optional introductory paragraph; blank or decorative-only text is omitted, never a placeholder. (components[] · packages/ui/src/molecules/section-header/types.ts)
   - level: enum; Native heading rank only, not a font-size selector. (components[] · packages/ui/src/molecules/section-header/types.ts)
-  - title: string; Required non-blank heading copy, preserved verbatim. Include any separating space before accent. Blank titles warn in development and render no header. (components[] · packages/ui/src/molecules/section-header/types.ts)
+  - title: SectionHeaderText; Required readable heading copy, preserved verbatim. Include any separating space before accent. Blank or decorative-only titles warn in development and render no header. (components[] · packages/ui/src/molecules/section-header/types.ts)
   - titleId: string; Consumer-supplied document-unique heading ID for external relationships, distinct from root id. Blank IDs are omitted; no ID is generated. (components[] · packages/ui/src/molecules/section-header/types.ts)
   - tone: enum; Accent context: canvas neon or raised brand on surface-1 through surface-3 and overlays. (components[] · packages/ui/src/molecules/section-header/types.ts)
   - variant: enum; Editorial arrangement. Split without a lede and inline without an eyebrow resolve to stack. (components[] · packages/ui/src/molecules/section-header/types.ts)
@@ -1516,8 +1530,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 catalog[] · docs/catalog.json · @egdev/ui · molecule · RadioGroup.Item / ToggleGroup.Item
 - SelectTile (components[] · packages/ui/src/molecules/select-tile/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - card base: gap-2 → --spacing-2
-    - card base: p-2 → --spacing-2
+    - badge variant=text-only: px-1 → --spacing-1
     - card base: text-start → unresolved
     - card base: font-sans → --font-sans
     - card base: hover:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
@@ -1526,6 +1539,11 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · RadioGroup.Item / Tog
     - card base: data-[state=live]:shadow-[var(--shadow-edge-strong),var(--shadow-glow-base)] → --shadow-edge-strong, --shadow-glow-base
     - card base: data-[state=live]:has-[[data-state=checked]]:shadow-[var(--shadow-edge-strong),var(--shadow-glow-base)] → --shadow-edge-strong, --shadow-glow-base
     - card base: data-[state=live]:has-[[data-state=on]]:shadow-[var(--shadow-edge-strong),var(--shadow-glow-base)] → --shadow-edge-strong, --shadow-glow-base
+    - card variant=default: gap-2 → --spacing-2
+    - card variant=default: p-2 → --spacing-2
+    - card variant=text-only: gap-1 → --spacing-1
+    - card variant=text-only: p-3 → --spacing-3
+    - card variant=text-only: pe-7 → --spacing-7
     - control base: rounded-lg → --radius-lg
     - control base: p-0 → --spacing-0
     - control base: focus-visible:shadow-focus → --shadow-focus
@@ -1536,7 +1554,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · RadioGroup.Item / Tog
     - meta base: text-label-default → --text-label-default
     - meta base: font-[var(--text-body-default--font-weight)] → --text-body-default--font-weight
     - meta base: px-1 → --spacing-1
-    - meta base: pb-1 → --spacing-1
+    - meta variant=default: pb-1 → --spacing-1
     - root base: gap-3 → --spacing-3
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/select-tile/useSelectTile.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/select-tile/useSelectTile.ts; see Surface anatomy
@@ -1547,10 +1565,11 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · RadioGroup.Item / Tog
   - name: string; Native-equivalent single-mode form field name; omitted unless supplied. Form field names are unavailable in multiple mode; consumers serialize values themselves. (components[] · packages/ui/src/molecules/select-tile/types.ts)
   - onValueChange: ((value: string) => void) \| ((value: string[]) => void); User-driven next selection. Absent unless the consumer subscribes. User-driven next selection in activation order, including an empty array. (components[] · packages/ui/src/molecules/select-tile/types.ts)
   - options: SelectTileOption[]; Standard cards in data order; an empty collection is allowed. Consumers own valid values. (components[] · packages/ui/src/molecules/select-tile/types.ts)
-  - ratio: enum; Collection-wide thumbnail proportions. (components[] · packages/ui/src/molecules/select-tile/types.ts)
+  - ratio: enum; Collection-wide thumbnail proportions; ignored in text-only. (components[] · packages/ui/src/molecules/select-tile/types.ts)
   - required: boolean; Native-equivalent single-mode form requirement. Native required validation is unavailable in multiple mode. (components[] · packages/ui/src/molecules/select-tile/types.ts)
   - type: enum; Single radio choice or independent multiple toggles. (components[] · packages/ui/src/molecules/select-tile/types.ts)
   - value: string \| string[]; Authoritative selection; an empty string clears without an event on prop updates. Authoritative selection in Radix activation order; an empty array clears. (components[] · packages/ui/src/molecules/select-tile/types.ts)
+  - variant: enum; Use text-only for media-less radio cards, or default for media cards. Multiple choices default to the media presentation and support no other variant. (components[] · packages/ui/src/molecules/select-tile/types.ts)
 ### SocialLinks
 catalog[] · docs/catalog.json · @egdev/ui · molecule · — (native anchors; atom-owned Slot + AccessibleIcon)
 - SocialLinks (components[] · packages/ui/src/molecules/social-links/types.ts)
@@ -1630,6 +1649,8 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Tabs
     - tabsListVariants variant=underline: gap-1 → --spacing-1
     - tabsListVariants variant=segmented: gap-0.5 → --spacing
     - tabsListVariants variant=segmented: p-0.75 → --spacing
+    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: p-1.5 → --spacing
+    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
     - tabsPanelVariants base: pt-4 → --spacing-4
     - tabsTriggerVariants base: gap-2 → --spacing-2
     - tabsTriggerVariants base: font-sans → --font-sans
@@ -1643,11 +1664,15 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Tabs
     - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
     - tabsTriggerVariants {"variant":"underline","size":"sm"}: px-2 → --spacing-2
+    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: text-start → unresolved
+    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: py-1 → --spacing-1
     - tabsVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/tabs/useTabs.ts; see Surface anatomy
   - defaultValue: string; Initial uncontrolled selection; when absent, selects the first enabled item. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - fullWidth: boolean; Fill the available width with equal segmented tabs when they fit; overflowing tabs may be unequal. Has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - items: TabsItem[]; Ordered views: unique, non-empty values and at least one enabled item are required. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - label: string; Accessible name of the tablist. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - labelWrap: boolean; Wrap and start-align segmented labels, including long words; has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - onValueChange: ((value: string) => void); Notifies a user-driven selection change; incoming prop updates do not emit it. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - size: enum; Underline height and horizontal padding only; segmented always uses its single height. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - value: string; Controlled selection. When absent, Radix manages selection internally. (components[] · packages/ui/src/molecules/tabs/types.ts)
@@ -1741,6 +1766,19 @@ catalog[] · docs/catalog.json · @egdev/effects · atom · —
   - opacity: number; Layer opacity, clamped to [0, 1]; non-finite values become zero. (components[] · packages/effects/src/ambient-background/types.ts)
   - profile: enum; Particle density and motion profile. (components[] · packages/effects/src/ambient-background/types.ts)
   - squareDirection: enum; Square travel direction in screen coordinates. (components[] · packages/effects/src/ambient-background/types.ts)
+### AppIcon
+catalog[] · docs/catalog.json · @egdev/ui · atom · Avatar
+- AppIcon (components[] · packages/ui/src/atoms/app-icon/types.ts)
+  - Visual anatomy (source classes; unresolved is not a guessed value):
+    - appIconFallbackVariants base: font-sans → --font-sans
+    - appIconFallbackVariants size=sm: text-label-default → --text-label-default
+    - appIconFallbackVariants size=md: text-body-default → --text-body-default
+    - appIconFallbackVariants size=lg: text-body-default → --text-body-default
+    - surfaceVariants({ tone: 'surface-1', elevation: 0, radius: 'md', padding: 'none' }) · packages/ui/src/atoms/app-icon/useAppIcon.ts; see Surface anatomy
+  - label: string; Accessible app name. An absent or blank label makes the icon decorative. (components[] · packages/ui/src/atoms/app-icon/types.ts)
+  - monogram: string; Consumer-supplied app initials, rendered exactly as provided when the image is unavailable. Supply one or two meaningful grapheme clusters. (components[] · packages/ui/src/atoms/app-icon/types.ts)
+  - size: enum; Square frame size. (components[] · packages/ui/src/atoms/app-icon/types.ts)
+  - src: string; Identity image source. Empty or whitespace-only values show the monogram instead. (components[] · packages/ui/src/atoms/app-icon/types.ts)
 ### Avatar
 catalog[] · docs/catalog.json · @egdev/ui · atom · Avatar
 - Avatar (components[] · packages/ui/src/atoms/avatar/types.ts)
@@ -1796,10 +1834,12 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · Slot
     - buttonVariants size=sm: gap-2 → --spacing-2
     - buttonVariants size=sm: text-label-default → --text-label-default
     - buttonVariants size=sm: [font-weight:var(--text-cta-label--font-weight)] → --text-cta-label--font-weight
+    - buttonVariants labelWrap=true: text-center → unresolved
   - asChild: boolean; Compose onto one compatible child through Radix Slot. Native type is not forwarded. Disabled children leave tab order; loading children remain focusable. (components[] · packages/ui/src/atoms/button/types.ts)
   - children: ReactNode; Non-empty visible action label; one compatible element when asChild is true. (components[] · packages/ui/src/atoms/button/types.ts)
   - icon: ReactNode; Optional decorative glyph, hidden from assistive technology. Button alone permits start/end placement under its scoped leading-icon amendment; end is the default. (components[] · packages/ui/src/atoms/button/types.ts)
   - iconPosition: enum; Side of the decorative icon slot, also used by the loading spinner. (components[] · packages/ui/src/atoms/button/types.ts)
+  - labelWrap: boolean; Wrap the visible label, including long unbroken words; the entire control grows and remains clickable. Guaranteed for plain text and a compatible asChild link with plain text; other children are best effort. Avoid labelWrap in attached ButtonGroups. (components[] · packages/ui/src/atoms/button/types.ts)
   - loading: boolean; Pending operation: keeps focus, suppresses activation and replaces the icon with Spinner. The consumer owns announcements. Explicit disabled takes precedence over focus retention. (components[] · packages/ui/src/atoms/button/types.ts)
   - size: enum; Minimum height uses spacing tokens: lg 44.8px, md 38.4px and sm 32px. Use lg when the action must meet a 44px touch target. (components[] · packages/ui/src/atoms/button/types.ts)
   - variant: enum; Material treatment. neutral is the visible grey quiet action; use dark only on flood backgrounds. (components[] · packages/ui/src/atoms/button/types.ts)
@@ -1941,7 +1981,7 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · AccessibleIcon
   - filled: boolean; Fills the glyph with currentColor in addition to its stroke, e.g. a solid play triangle. (components[] · packages/ui/src/atoms/icon/types.ts)
   - label: string; Accessible name for an informative icon, exposed through Radix AccessibleIcon. When omitted or empty, the icon is decorative and hidden from assistive technology. (components[] · packages/ui/src/atoms/icon/types.ts)
   - name: enum; Glyph to draw from the closed system icon set. (components[] · packages/ui/src/atoms/icon/types.ts)
-  - size: enum; Preset square size: sm 16px, md 20px (--icon-size), lg 28px. Containers needing other sizes pass a spacing-scale size-* utility in className, which wins over the preset. (components[] · packages/ui/src/atoms/icon/types.ts)
+  - size: enum; Preset square size: sm 12.8px (size-4), md 16px (--icon-size), lg 22.4px (size-7). Containers needing other sizes pass a spacing-scale size-* utility in className, which wins over the preset. (components[] · packages/ui/src/atoms/icon/types.ts)
 ### IconButton
 catalog[] · docs/catalog.json · @egdev/ui · atom · Slot + AccessibleIcon
 - IconButton (components[] · packages/ui/src/atoms/icon-button/types.ts)
@@ -1965,7 +2005,7 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · Slot + AccessibleIcon
   - children: ReactElement<unknown, string \| JSXElementConstructor<any>>; Single host element when asChild is true; not visible label content. Omitted in native mode. (components[] · packages/ui/src/atoms/icon-button/types.ts)
   - icon: ReactElement<unknown, string \| JSXElementConstructor<any>>; One decorative Icon (without its own label) or SVG element, hidden from assistive technology. (components[] · packages/ui/src/atoms/icon-button/types.ts)
   - label: string; Clear, non-empty accessible name rendered as Radix visually hidden text, not aria-label. (components[] · packages/ui/src/atoms/icon-button/types.ts)
-  - size: enum; Square control: sm 32px, md 40px, lg 48px. Glyph: sm 16px, otherwise 20px. Use sm only for dense desktop toolbars; touch layouts provide a hit area of at least 44px. (components[] · packages/ui/src/atoms/icon-button/types.ts)
+  - size: enum; Square control: sm 25.6px, md 32px, lg 38.4px. Glyph: sm 12.8px, otherwise 16px (--icon-size). Use sm only for dense desktop toolbars; touch layouts provide a hit area of at least 44px. (components[] · packages/ui/src/atoms/icon-button/types.ts)
   - variant: enum; Visual treatment. Outline is the round treatment; it is the web social-row treatment used at lg. Every other treatment uses radius-md. (components[] · packages/ui/src/atoms/icon-button/types.ts)
 ### Indicator
 catalog[] · docs/catalog.json · @egdev/ui · atom · —
@@ -2263,7 +2303,7 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · —
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - No statically extracted anatomy.
   - label: string; Non-empty status text read by assistive technology; makes the root a polite status region. When omitted, empty or whitespace-only, the spinner is decorative and hidden from assistive technology, for hosts that own their busy state (for example a loading Button). (components[] · packages/ui/src/atoms/spinner/types.ts)
-  - size: enum; Icon-scale square: sm 16px, md 20px (--icon-size), lg 28px. (components[] · packages/ui/src/atoms/spinner/types.ts)
+  - size: enum; Icon-scale square: sm 12.8px (size-4), md 16px (--icon-size), lg 22.4px (size-7). (components[] · packages/ui/src/atoms/spinner/types.ts)
 ### Stat
 catalog[] · docs/catalog.json · @egdev/ui · atom · —
 - Stat (components[] · packages/ui/src/atoms/stat/types.ts)
@@ -2417,6 +2457,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · —
 catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
 - Slot (components[] · packages/ui/src/index.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
+    - surfaceVariants({ tone: 'surface-1', elevation: 0, radius: 'md', padding: 'none' }) · packages/ui/src/atoms/app-icon/useAppIcon.ts; see Surface anatomy
     - surfaceVariants({         tone: variant === 'framed' ? 'surface-0' : 'surface-1',         elevation: variant === 'framed' ? 2 : 1,         padding: 'none',         radius: 'xl'       }) · packages/ui/src/atoms/photo-frame/usePhotoFrame.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/atoms/search-trigger/useSearchTrigger.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
@@ -2506,23 +2547,47 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
 - Heading (components[] · packages/ui/src/primitives/text/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - headingVariants base: font-display → --font-display
+    - headingVariants variant=section: text-title-section → --text-title-section
+    - headingVariants variant=hero: text-title-hero → --text-title-hero
+    - headingVariants variant=show: text-title-show → --text-title-show
+    - headingVariants variant=display: text-title-display → --text-title-display
+    - headingVariants variant=inverse: text-title-display → --text-title-display
+    - headingVariants variant=compact: text-heading-small → --text-heading-small
+    - textBodyVariants base: font-sans → --font-sans
+    - textBodyVariants base: [&_strong]:[font-weight:var(--text-heading-small--font-weight)] → --text-heading-small--font-weight
+    - textBodyVariants variant=body: text-body-default → --text-body-default
+    - textBodyVariants variant=body-large: text-body-large → --text-body-large
+    - textBodyVariants variant=lede: text-body-muted → --text-body-muted
     - textVariants base: font-display → --font-display
-  - accent: string; One optional trailing highlighted run of the phrase. Empty or whitespace-only text renders no accent; non-empty text is preserved exactly. No separator is inserted: supply whitespace in children. (components[] · packages/ui/src/primitives/text/types.ts)
-  - accentBreak: boolean; Whether the accent starts on its own line (block) or continues inline. No effect without an accent. (components[] · packages/ui/src/primitives/text/types.ts)
+  - accent: string; One optional trailing highlighted run of the phrase. Empty or whitespace-only text renders no accent; non-empty text is preserved exactly. No separator is inserted: supply whitespace in children. Compact headings use their children rather than a trailing accent. (components[] · packages/ui/src/primitives/text/types.ts)
+  - accentBreak: boolean; Whether the accent starts on its own line (block) or continues inline. No effect without an accent. Accent layout is unavailable on compact headings. (components[] · packages/ui/src/primitives/text/types.ts)
   - children: ReactNode; Heading text; its full visible copy, including the accent, is the accessible name. (components[] · packages/ui/src/primitives/text/types.ts)
+  - foreground: enum; Semantic foreground is available only on the compact recipe. Semantic foreground for compact headings. Inherit follows the host. Explicit default, secondary, muted, warning and danger are for solid surface-0…3; on flood use inherit or on-flood, and on deep use inherit or default. Check actual pixels on translucent hosts. Supply meaningful words and a non-color cue for status colors. (components[] · packages/ui/src/primitives/text/types.ts)
   - level: enum; Native heading rank for the document outline; does not change the typography. (components[] · packages/ui/src/primitives/text/types.ts)
-  - tone: enum; Accent Material context: canvas (surface-0) neon or raised brand on surface-1…3 and overlays. Consumers choose it; the host background is never inspected. The canvas hero accent glows. Not available on inverse: root and accent always use the on-flood foreground. (components[] · packages/ui/src/primitives/text/types.ts)
-  - variant: enum; Named visual recipe, independent of the heading level. (components[] · packages/ui/src/primitives/text/types.ts)
+  - tone: enum; Accent Material context: canvas (surface-0) neon or raised brand on surface-1…3 and overlays. Consumers choose it; the host background is never inspected. The canvas hero accent glows. Not available on inverse: root and accent always use the on-flood foreground. Accent Material context is unavailable on compact headings. (components[] · packages/ui/src/primitives/text/types.ts)
+  - variant: enum; Named visual recipe, independent of the heading level. Compact uppercase display-family heading, independent of native rank. (components[] · packages/ui/src/primitives/text/types.ts)
 - Text (components[] · packages/ui/src/primitives/text/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - headingVariants base: font-display → --font-display
+    - headingVariants variant=section: text-title-section → --text-title-section
+    - headingVariants variant=hero: text-title-hero → --text-title-hero
+    - headingVariants variant=show: text-title-show → --text-title-show
+    - headingVariants variant=display: text-title-display → --text-title-display
+    - headingVariants variant=inverse: text-title-display → --text-title-display
+    - headingVariants variant=compact: text-heading-small → --text-heading-small
+    - textBodyVariants base: font-sans → --font-sans
+    - textBodyVariants base: [&_strong]:[font-weight:var(--text-heading-small--font-weight)] → --text-heading-small--font-weight
+    - textBodyVariants variant=body: text-body-default → --text-body-default
+    - textBodyVariants variant=body-large: text-body-large → --text-body-large
+    - textBodyVariants variant=lede: text-body-muted → --text-body-muted
     - textVariants base: font-display → --font-display
-  - accent: string; Not available on the eyebrow: it is one short phrase with a fixed decorative diamond. One optional trailing highlighted run of the phrase. Empty or whitespace-only text renders no accent; non-empty text is preserved exactly. No separator is inserted: supply whitespace in children. (components[] · packages/ui/src/primitives/text/types.ts)
-  - accentBreak: boolean; Not available on the eyebrow. Whether the accent starts on its own line (block) or continues inline. No effect without an accent. (components[] · packages/ui/src/primitives/text/types.ts)
+  - accent: string; Not available on the eyebrow: it is one short phrase with a fixed decorative diamond. One optional trailing highlighted run of the phrase. Empty or whitespace-only text renders no accent; non-empty text is preserved exactly. No separator is inserted: supply whitespace in children. Use semantic strong content instead of a trailing accent on body recipes. (components[] · packages/ui/src/primitives/text/types.ts)
+  - accentBreak: boolean; Not available on the eyebrow. Whether the accent starts on its own line (block) or continues inline. No effect without an accent. Accent layout is unavailable on body recipes. (components[] · packages/ui/src/primitives/text/types.ts)
   - asChild: boolean; Render onto one non-heading child element through Slot instead of a paragraph. (components[] · packages/ui/src/primitives/text/types.ts)
   - children: ReactNode; Main copy. With asChild, exactly one prop-spreading non-heading element with normal children. (components[] · packages/ui/src/primitives/text/types.ts)
-  - tone: enum; Accent Material context. Not available on the eyebrow, whose diamond is decorative. Accent Material context: canvas (surface-0) neon or raised brand on surface-1…3 and overlays. Consumers choose it; the host background is never inspected. The canvas hero accent glows. Not available on inverse: root and accent always use the on-flood foreground. (components[] · packages/ui/src/primitives/text/types.ts)
-  - variant: enum; Named visual recipe. Text excludes headings: use Heading for document hierarchy. (components[] · packages/ui/src/primitives/text/types.ts)
+  - foreground: enum; Semantic foreground is only available on body recipes. Foreground for body copy. Inherit follows the host; use on-flood or inherit on flood, and provide meaningful words and a non-color cue for status colors. (components[] · packages/ui/src/primitives/text/types.ts)
+  - tone: enum; Accent Material context. Not available on the eyebrow, whose diamond is decorative. Accent Material context: canvas (surface-0) neon or raised brand on surface-1…3 and overlays. Consumers choose it; the host background is never inspected. The canvas hero accent glows. Not available on inverse: root and accent always use the on-flood foreground. Accent Material context is unavailable on body recipes. (components[] · packages/ui/src/primitives/text/types.ts)
+  - variant: enum; Named visual recipe. Text excludes headings: use Heading for document hierarchy. Body or lede typography; use Heading for document hierarchy. (components[] · packages/ui/src/primitives/text/types.ts)
 ### VisuallyHidden
 catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 - VisuallyHidden (components[] · packages/ui/src/primitives/visually-hidden/types.ts)
@@ -2617,17 +2682,34 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### CollapsibleContent
 - CollapsibleContent (components[] · packages/ui/src/molecules/collapsible/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
+    - collapsibleActionsVariants base: gap-2 → --spacing-2
     - collapsibleContentVariants base: p-4 → --spacing-4
     - collapsibleContentVariants base: font-sans → --font-sans
     - collapsibleContentVariants base: text-body-default → --text-body-default
+    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
+    - collapsibleHeaderVariants base: gap-2 → --spacing-2
+    - collapsibleTriggerVariants base: text-start → unresolved
+    - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
+### CollapsibleHeader
+- CollapsibleHeader (components[] · packages/ui/src/molecules/collapsible/types.ts · @egdev/ui)
+  - Visual anatomy (source classes; unresolved is not a guessed value):
+    - collapsibleActionsVariants base: gap-2 → --spacing-2
+    - collapsibleContentVariants base: p-4 → --spacing-4
+    - collapsibleContentVariants base: font-sans → --font-sans
+    - collapsibleContentVariants base: text-body-default → --text-body-default
+    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
+    - collapsibleHeaderVariants base: gap-2 → --spacing-2
     - collapsibleTriggerVariants base: text-start → unresolved
     - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
 ### CollapsibleTrigger
 - CollapsibleTrigger (components[] · packages/ui/src/molecules/collapsible/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
+    - collapsibleActionsVariants base: gap-2 → --spacing-2
     - collapsibleContentVariants base: p-4 → --spacing-4
     - collapsibleContentVariants base: font-sans → --font-sans
     - collapsibleContentVariants base: text-body-default → --text-body-default
+    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
+    - collapsibleHeaderVariants base: gap-2 → --spacing-2
     - collapsibleTriggerVariants base: text-start → unresolved
     - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
 ### CommunityCardAction
@@ -2677,7 +2759,8 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### DialogClose
 - DialogClose (components[] · packages/ui/src/molecules/dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants base: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
     - dialogDescriptionVariants base: text-body-default → --text-body-default
     - dialogFootVariants base: px-[var(--space-6)] → --space-6
     - dialogFootVariants base: py-[var(--space-4)] → --space-4
@@ -2685,15 +2768,16 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogOverlayVariants base: p-[var(--space-6)] → --space-6
-    - dialogOverlayVariants flush=true: p-0 → --spacing-0
+    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
+    - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
 ### DialogContent
 - DialogContent (components[] · packages/ui/src/molecules/dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants base: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
     - dialogDescriptionVariants base: text-body-default → --text-body-default
     - dialogFootVariants base: px-[var(--space-6)] → --space-6
     - dialogFootVariants base: py-[var(--space-4)] → --space-4
@@ -2701,15 +2785,16 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogOverlayVariants base: p-[var(--space-6)] → --space-6
-    - dialogOverlayVariants flush=true: p-0 → --spacing-0
+    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
+    - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
 ### DialogTrigger
 - DialogTrigger (components[] · packages/ui/src/molecules/dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants base: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
+    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
     - dialogDescriptionVariants base: text-body-default → --text-body-default
     - dialogFootVariants base: px-[var(--space-6)] → --space-6
     - dialogFootVariants base: py-[var(--space-4)] → --space-4
@@ -2717,8 +2802,8 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogOverlayVariants base: p-[var(--space-6)] → --space-6
-    - dialogOverlayVariants flush=true: p-0 → --spacing-0
+    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
+    - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
@@ -3644,6 +3729,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### Slottable
 - Slottable (components[] · packages/ui/src/index.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
+    - surfaceVariants({ tone: 'surface-1', elevation: 0, radius: 'md', padding: 'none' }) · packages/ui/src/atoms/app-icon/useAppIcon.ts; see Surface anatomy
     - surfaceVariants({         tone: variant === 'framed' ? 'surface-0' : 'surface-1',         elevation: variant === 'framed' ? 2 : 1,         padding: 'none',         radius: 'xl'       }) · packages/ui/src/atoms/photo-frame/usePhotoFrame.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/atoms/search-trigger/useSearchTrigger.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
@@ -4170,6 +4256,8 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - tabsListVariants variant=underline: gap-1 → --spacing-1
     - tabsListVariants variant=segmented: gap-0.5 → --spacing
     - tabsListVariants variant=segmented: p-0.75 → --spacing
+    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: p-1.5 → --spacing
+    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
     - tabsPanelVariants base: pt-4 → --spacing-4
     - tabsTriggerVariants base: gap-2 → --spacing-2
     - tabsTriggerVariants base: font-sans → --font-sans
@@ -4183,6 +4271,8 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
     - tabsTriggerVariants {"variant":"underline","size":"sm"}: px-2 → --spacing-2
+    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: text-start → unresolved
+    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: py-1 → --spacing-1
     - tabsVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/tabs/useTabs.ts; see Surface anatomy
 ### tooltipVariants
@@ -4222,7 +4312,7 @@ Not exported:
 
 - absolute-deadline-text: deadlineText; approved; Countdown (propNaming[] · skills/_shared/prop-naming.json)
 - accent-line-break: accentBreak; approved; Heading, SectionHeader, Text (propNaming[] · skills/_shared/prop-naming.json)
-- accessible-name: label; approved; Avatar, ButtonGroup, CalendarGrid, Carousel, CarouselItem, ChipGroup, ChipGroupOption, CommandPalette, CommandPaletteItem, Countdown, Dropzone, Field, FooterNavigation, FooterNavigationItem, Gauge, GaugeGroup, GaugeGroupRing, Icon, IconButton, Isotipo3D, Kbd, Logo, MeterRow, ModuleRail, NavList, NowStrip, PopoverContent, ProgressBar, ProjectCardCode, RadioGroup, SearchTrigger, SectionNav, SelectTile, SelectTileOption, Slider, SocialLinkItem, SocialLinks, Spinner, Stat, TabBar, Table, Tabs, TerminalCard, Timeline, ToastProvider, Toggle, TopBar (propNaming[] · skills/_shared/prop-naming.json)
+- accessible-name: label; approved; AppIcon, Avatar, ButtonGroup, CalendarGrid, Carousel, CarouselItem, ChipGroup, ChipGroupOption, CommandPalette, CommandPaletteItem, Countdown, Dropzone, Field, FooterNavigation, FooterNavigationItem, Gauge, GaugeGroup, GaugeGroupRing, Icon, IconButton, Isotipo3D, Kbd, Logo, MeterRow, ModuleRail, NavList, NowStrip, PopoverContent, ProgressBar, ProjectCardCode, RadioGroup, SearchTrigger, SectionNav, SelectTile, SelectTileOption, Slider, SocialLinkItem, SocialLinks, Spinner, Stat, TabBar, Table, Tabs, TerminalCard, Timeline, ToastProvider, Toggle, TopBar (propNaming[] · skills/_shared/prop-naming.json)
 - action-alternative-text: actionAltText; approved; Toast (propNaming[] · skills/_shared/prop-naming.json)
 - active-row: activeRowId; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
 - active-section-id: activeId; approved; SectionNav (propNaming[] · skills/_shared/prop-naming.json)
@@ -4235,8 +4325,9 @@ Not exported:
 - auto-dismiss-duration: duration; approved; Toast (propNaming[] · skills/_shared/prop-naming.json)
 - board-sticky-side: sticky; approved; NotesBoard (propNaming[] · skills/_shared/prop-naming.json)
 - bottom-navigation: bottomNavigation; approved; AppShell (propNaming[] · skills/_shared/prop-naming.json)
-- brand-monogram: monogram; approved;  (propNaming[] · skills/_shared/prop-naming.json)
+- brand-monogram: monogram; approved; AppIcon (propNaming[] · skills/_shared/prop-naming.json)
 - card-link-action-label: actionLabel; approved; ArticleFeature (propNaming[] · skills/_shared/prop-naming.json)
+- carousel-track-layout: trackLayout; approved; Carousel (propNaming[] · skills/_shared/prop-naming.json)
 - character-counter: counter; approved; Field (propNaming[] · skills/_shared/prop-naming.json)
 - checked-change: onCheckedChange; approved; Checkbox, Switch (propNaming[] · skills/_shared/prop-naming.json)
 - choice-options: options; approved; ChipGroup, RadioGroup, Select, SelectTile (propNaming[] · skills/_shared/prop-naming.json)
@@ -4252,6 +4343,7 @@ Not exported:
 - container-edge-placement: edge; approved; ProgressBar (propNaming[] · skills/_shared/prop-naming.json)
 - content-description: description; approved; AlertDialogContent, ArticleFeature, DialogContent (propNaming[] · skills/_shared/prop-naming.json)
 - content-detail: detail; approved; ArticleFeature (propNaming[] · skills/_shared/prop-naming.json)
+- control-label-wrap: labelWrap; approved; Button, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - corner-badge-icon: badgeIcon; approved; Indicator (propNaming[] · skills/_shared/prop-naming.json)
 - corner-radius: radius; approved; Surface (propNaming[] · skills/_shared/prop-naming.json)
 - cover-badge: coverBadge; approved; ArticleFeatureCover, TipCard (propNaming[] · skills/_shared/prop-naming.json)
@@ -4262,6 +4354,9 @@ Not exported:
 - decorative-cover-word: coverWord; approved; ArticleFeatureCover (propNaming[] · skills/_shared/prop-naming.json)
 - decorative-index: index; approved; ProjectCard (propNaming[] · skills/_shared/prop-naming.json)
 - decorative-separation: decorative; approved; Divider (propNaming[] · skills/_shared/prop-naming.json)
+- dialog-overlay-scope: overlayScope; approved; DialogContent (propNaming[] · skills/_shared/prop-naming.json)
+- disclosure-motion: motion; approved; CollapsibleTrigger (propNaming[] · skills/_shared/prop-naming.json)
+- disclosure-presence: presence; approved; CollapsibleContent (propNaming[] · skills/_shared/prop-naming.json)
 - dismiss-label: dismissLabel; approved; CommandPalette, DialogContent, Toast (propNaming[] · skills/_shared/prop-naming.json)
 - drop-target-label: dropLabel; approved; Dropzone (propNaming[] · skills/_shared/prop-naming.json)
 - effect-profile: profile; approved; AmbientBackground (propNaming[] · skills/_shared/prop-naming.json)
@@ -4288,6 +4383,7 @@ Not exported:
 - heading-title: title; approved; AlertDialogContent, ArticleFeature, ChapterBreak, Closing, CommunityCard, DialogContent, Hero, LabStage, ModuleCard, NowCard, PageHeader, ProjectCard, SectionHeader, TipCard (propNaming[] · skills/_shared/prop-naming.json)
 - icon-glyph-name: name; approved; Icon (propNaming[] · skills/_shared/prop-naming.json)
 - icon-placement: iconPosition; approved; Button (propNaming[] · skills/_shared/prop-naming.json)
+- identity-image-source: src; approved; AppIcon (propNaming[] · skills/_shared/prop-naming.json)
 - image-caption: imageCaption; approved; PhotoFrame (propNaming[] · skills/_shared/prop-naming.json)
 - image-focal-point: focalPoint; approved; PhotoFrame, TipCard (propNaming[] · skills/_shared/prop-naming.json)
 - indicator-count: count; approved; Indicator (propNaming[] · skills/_shared/prop-naming.json)
@@ -4297,7 +4393,7 @@ Not exported:
 - initial-uncontrolled-sort: defaultSort; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
 - initial-uncontrolled-value: defaultValue; approved; Carousel, ChipGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - inline-caption-layout: inline; approved; SocialLinks (propNaming[] · skills/_shared/prop-naming.json)
-- inner-padding: padding; approved; Surface (propNaming[] · skills/_shared/prop-naming.json)
+- inner-padding: padding; approved; CollapsibleContent, DialogContent, Surface (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-drag-rotate: dragRotate; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-flip-gesture: flip; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-interactive-mode: interactive; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
@@ -4333,8 +4429,8 @@ Not exported:
 - paused-presentation: paused; approved; Avatar (propNaming[] · skills/_shared/prop-naming.json)
 - pending-activity: loading; approved; Button, Input (propNaming[] · skills/_shared/prop-naming.json)
 - pointer-tilt: pointerTilt; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
-- portal-container: container; approved; Portal (propNaming[] · skills/_shared/prop-naming.json)
-- preset-dimensions: size; approved; Avatar, Button, Countdown, DialogContent, Gauge, GaugeGroup, Icon, IconButton, Indicator, Input, ListItem, Logo, Notice, NowCard, ProgressBar, ProjectCard, Select, Skeleton, SocialLinks, Spinner, Stat, Table, Tabs, Timeline, Toggle (propNaming[] · skills/_shared/prop-naming.json)
+- portal-container: container; approved; DialogContent, Portal (propNaming[] · skills/_shared/prop-naming.json)
+- preset-dimensions: size; approved; AppIcon, Avatar, Button, Countdown, DialogContent, Gauge, GaugeGroup, Icon, IconButton, Indicator, Input, ListItem, Logo, Notice, NowCard, ProgressBar, ProjectCard, Select, Skeleton, SocialLinks, Spinner, Stat, Table, Tabs, Timeline, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - pressed-change: onPressedChange; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - pressed-state: pressed; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - preview-thumbnail: thumb; approved; SelectTileOption (propNaming[] · skills/_shared/prop-naming.json)
@@ -4351,7 +4447,7 @@ Not exported:
 - scene-social: social; approved; Hero, WebSection (propNaming[] · skills/_shared/prop-naming.json)
 - search-query-change: onQueryChange; approved; CommandPalette (propNaming[] · skills/_shared/prop-naming.json)
 - section-content-wrap: wrap; approved; SectionShell (propNaming[] · skills/_shared/prop-naming.json)
-- section-lede: lede; approved; ChapterBreak, Closing, Hero, LabStage, SectionHeader (propNaming[] · skills/_shared/prop-naming.json)
+- section-lede: lede; approved; ChapterBreak, Closing, Hero, LabStage, PageHeader, SectionHeader (propNaming[] · skills/_shared/prop-naming.json)
 - section-register: register; approved; SectionShell (propNaming[] · skills/_shared/prop-naming.json)
 - selection-cardinality: type; approved; ChipGroup, SelectTile (propNaming[] · skills/_shared/prop-naming.json)
 - selection-placeholder: placeholder; approved; Select (propNaming[] · skills/_shared/prop-naming.json)
@@ -4363,6 +4459,7 @@ Not exported:
 - square-particle-direction: squareDirection; approved; AmbientBackground (propNaming[] · skills/_shared/prop-naming.json)
 - surface-elevation: elevation; approved; Surface (propNaming[] · skills/_shared/prop-naming.json)
 - surface-material-tone: tone; approved; AlertDialogContent, Badge, Countdown, FieldMessage, Heading, Indicator, MenuEntry, ModuleCard, NavList, Notice, Panel, PreviewFrame, PullQuote, SectionHeader, Surface, Tabs, TerminalCardRow, Text, Timeline, Toast (propNaming[] · skills/_shared/prop-naming.json)
+- tab-list-full-width: fullWidth; approved; Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - table-columns: columns; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
 - table-rows: rows; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
 - table-sort: sort; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
@@ -4372,7 +4469,7 @@ Not exported:
 - tooltip-content: content; approved; Tooltip, WebTemplate (propNaming[] · skills/_shared/prop-naming.json)
 - top-bar-content-width: contentWidth; approved; TopBar (propNaming[] · skills/_shared/prop-naming.json)
 - top-bar-initial-background: initialBackground; approved; TopBar (propNaming[] · skills/_shared/prop-naming.json)
-- trailing-actions: actions; approved; AlertDialogContent, DialogContent, ModuleCard, Notice, PageHeader, PreviewFrame, Toast, WebSection (propNaming[] · skills/_shared/prop-naming.json)
+- trailing-actions: actions; approved; AlertDialogContent, CollapsibleHeader, DialogContent, ModuleCard, Notice, PageHeader, PreviewFrame, Toast, WebSection (propNaming[] · skills/_shared/prop-naming.json)
 - trailing-arrow: arrow; approved; Link (propNaming[] · skills/_shared/prop-naming.json)
 - trailing-text-accent: accent; approved; ChapterBreak, Closing, Heading, Hero, LabStage, PullQuote, SectionHeader, Text (propNaming[] · skills/_shared/prop-naming.json)
 - transient-highlight: highlighted; approved; Stat, Timeline (propNaming[] · skills/_shared/prop-naming.json)
@@ -4380,7 +4477,7 @@ Not exported:
 - value-context: delta; approved; Stat (propNaming[] · skills/_shared/prop-naming.json)
 - value-readout: readout; approved; Field (propNaming[] · skills/_shared/prop-naming.json)
 - viewport-max-height: maxHeight; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
-- visual-treatment: variant; approved; Badge, Button, ButtonGroup, DialogContent, Dropzone, Heading, IconButton, Indicator, Input, Label, Link, ListItem, Logo, MeterRow, ModuleCard, Panel, PhotoFrame, PreviewFrame, ProgressBar, ProjectCard, PullQuote, ScrollReveal, SectionHeader, Skeleton, SocialLinks, Table, Tabs, Text, Textarea, Timeline (propNaming[] · skills/_shared/prop-naming.json)
+- visual-treatment: variant; approved; Badge, Button, ButtonGroup, DialogContent, Dropzone, Heading, IconButton, Indicator, Input, Label, Link, ListItem, Logo, MeterRow, ModuleCard, Panel, PhotoFrame, PreviewFrame, ProgressBar, ProjectCard, PullQuote, ScrollReveal, SectionHeader, SelectTile, Skeleton, SocialLinks, Table, Tabs, Text, Textarea, Timeline (propNaming[] · skills/_shared/prop-naming.json)
 - visually-hidden-label: hideLabel; approved; Field, Table (propNaming[] · skills/_shared/prop-naming.json)
 - web-section-body-slot: body; approved; WebSection (propNaming[] · skills/_shared/prop-naming.json)
 - zone-change: onZoneChange; approved; HomeTemplate (propNaming[] · skills/_shared/prop-naming.json)
