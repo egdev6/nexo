@@ -41,6 +41,6 @@ export const sampleNews: NewsItem[] = [
 
 // In-memory preview only; persistence belongs to #16.
 export const defaultSettings: HubSettings = {
-  language: 'es', startWithWindows: false, showNewsOnOpen: true,
+  language: 'es', startWithWindows: false, showNewsOnOpen: true, hideLocalApps: false,
   accent: '#ff0036', compact: false, opacity: 85, blur: 24,
 };
