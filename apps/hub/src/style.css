@@ -10,6 +10,8 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
   .flyout { background: color-mix(in srgb, var(--color-surface-0) calc(var(--hub-opacity) * 100%), transparent); backdrop-filter: blur(var(--hub-blur)) saturate(150%); }
 }
 .flyout[data-backdrop="opaque"] { background: var(--color-surface-0); backdrop-filter: none; transition: none; }
+/* Blur only Nexo's background siblings, never the contained dialog portal. */
+.flyout[data-news-open] > :is(.panel-head, .panel-notices, .main-tabs, .area-scroll, .settings__foot) { filter: blur(calc(var(--space-1) * 1.5)); }
 /* Only the panel paints during motion, including when a dialog is body-portalled. */
 body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .flyout--waiting { transform: translateX(100%); }
@@ -34,19 +36,11 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .main-tabs > [role='tabpanel'] { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-4) var(--space-6) var(--space-5); }
 .area-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .apps-section-header { margin: var(--space-2) 0 var(--space-3); }
-.secondary, .meta { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .app-card { margin-bottom: calc(var(--space-3) * var(--hub-density)); }
 .update-notes { overflow-wrap: anywhere; white-space: pre-wrap; }
 .row-label { display: flex; align-items: center; gap: var(--space-4); }
-.app-icon { display: grid; place-items: center; flex: none; width: var(--space-12); height: var(--space-12); border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-3); font: 800 var(--space-6)/1 var(--font-display); }
-.app-icon--logo { overflow: hidden; padding: 0; background: var(--color-surface-0); }
-.app-icon--logo img { width: 100%; height: 100%; object-fit: cover; }
-.brand-icon { background: var(--color-action-primary-solid-bg); color: var(--color-action-primary-solid-fg); }
 .app-info { min-width: 0; flex: 1; }
 .app-info strong { display: block; margin-bottom: var(--space-1); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
-.status-line, .status-warning { font-size: var(--text-label-default); font-weight: 600; }
-.status-line { color: var(--color-fg-secondary); }
-.status-warning { color: var(--color-status-warning); }
 .detail-grid { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
 .version { color: var(--color-fg-secondary); font: 400 var(--text-label-default)/1.6 var(--font-mono); }
 .meta { margin: var(--space-3) 0; }
@@ -54,12 +48,12 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .registry-menu { margin: var(--space-2) 0; padding-left: var(--space-5); color: var(--color-fg-secondary); overflow-wrap: anywhere; }
 .catalog-preview { margin-top: var(--space-5); }
 .preview-row { display: flex; align-items: center; gap: var(--space-3); padding: calc(var(--space-3) * var(--hub-density)) 0; border-bottom: 1px solid var(--color-border-hairline); }
-.news-line, .foot { margin: var(--space-4) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
-.foot { color: var(--color-fg-muted); }
+.news-line { margin: var(--space-4) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
+.foot { margin: var(--space-4) 0 0; }
 .empty-state { color: var(--color-fg-secondary); padding: var(--space-3) 0; }
 .empty-state p { margin: 0 0 var(--space-3); }
 @media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { --menu-band-gutter: var(--space-4); margin-left: var(--space-4); margin-right: var(--space-4); } .heading p { display: none; } }
-@media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } }
+@media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } .flyout[data-news-open] > :is(.panel-head, .panel-notices, .main-tabs, .area-scroll, .settings__foot) { filter: none; } }
 .detail-inner { display: flow-root; padding: var(--space-1) var(--space-2) 0; overflow-wrap: anywhere; }
 .detail-inner .update-version { display: flex; align-items: center; gap: var(--space-2); }
 .detail-social { margin-bottom: var(--space-2); }

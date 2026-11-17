@@ -1,7 +1,7 @@
 # Design system adoption II: import the delivered DS improvements into Nexo
 
 Adopt the components and variants the design system shipped for the requests Nexo filed (#396, #408–#414, #417, #419–#421, #423, #424), remove the guard exceptions they replace, and keep the five exceptions still blocked upstream. This is the second pass of the `egdev-design-system` skill pilot (see `odd/tasks/ds-adoption.md`).
-Status: approved (L2).
+Status: done (L2 approved; all tasks closed).
 
 ## Specs
 
@@ -19,15 +19,15 @@ Status: approved (L2).
 - T4 (S4) Tabs and Carousel: use `Tabs fullWidth/labelWrap` (the main tabs are already `segmented`) and `Carousel trackLayout="full-width"`. Removes 5 entries. Route: writer, test-first, visual check and a CDP check of scroll and snap. Status: done (allowlist 23 → 18; the opaque menu band moved from ::before to box-shadow because fullWidth makes the tablist a scroll container (CDP: no overflow); 556 tests; confirmed by the maintainer: "todo OK"; carousel snap validated in the next test release).
 - T5 (S4) Headings: use `Heading variant="compact"` in the settings and local-management bands, and the per-run `lang` of `SectionHeader` in the first-run intro. Removes 6 entries and their TODOs. Route: writer, test-first, visual check. Status: done (allowlist 18 → 12, adoption 86.86 % → 87.29 %, 560 tests; settings bands confirmed by the maintainer: "lo veo OK"; first-run validated in the next test release).
 - T6 (S4) Dialog and compositions: `DialogContent bodyPadding="compact"` and `Button labelWrap` in the add-local dialog, and Input, RadioGroup and SocialLinks composed through their public API. Removes 7 entries. Route: writer, test-first, visual check. Status: done (allowlist 12 → 5, only upstream-blocked entries remain; DS default body padding, Examinar aligned, stacked header requested in egdev-design-system#458; 565 tests; confirmed by the maintainer: "correcto").
-- T7 (S4) App identity and icons: replace Nexo's local `AppIcon` with the DS `AppIcon` (`monogram`, `src`, image fallback), and the custom download and external-link glyphs with `Icon name="download" | "external-link"`. Resolves the `App.tsx:50` TODO. Route: writer, test-first, visual check. Status: pending.
+- T7 (S4) App identity and icons: replace Nexo's local `AppIcon` with the DS `AppIcon` (`monogram`, `src`, image fallback), and the custom download and external-link glyphs with `Icon name="download" | "external-link"`. Resolves the `App.tsx:50` TODO. Route: writer, test-first, visual check. Status: done (adoption 87.43 % → 89.95 %, local AppIcon and action-icons.tsx removed, 568 tests; confirmed by the maintainer: "todo OK").
 - T8 (S2) Optional adoptions with no exception today:
   - the news popup on `DialogContent container` + `overlayScope="container"` (#409), replacing its own focus trap and Escape handling;
   - the settings back button as `PageHeader leadingAction` (#412);
   - the first-run language choice as `SelectTile variant="text-only"` (#413);
   - secondary and status text as `Text foreground` (#396).
 
-  Route: writer, test-first, visual check. Status: pending.
-- T9 (S3, S4) Close: run the audit mode, record the before and after numbers, update the skill with anything learned (for example, the `AppIcon` name clash), and prepare a Nexo test release. Route: inline. Status: pending.
+  Route: writer, test-first, visual check. Status: done (all four adopted: news popup on the DS Dialog scoped to the panel with Nexo's own background blur and no dots, PageHeader leadingAction, SelectTile text-only, Text foreground; adoption 89.95 % → 91.08 %; allowlist stays 5; 577 tests; confirmed by the maintainer: "está OK").
+- T9 (S3, S4) Close: run the audit mode, record the before and after numbers, update the skill with anything learned (for example, the `AppIcon` name clash), and prepare a Nexo test release. Route: inline. Status: done (allowlist 36 → 5, all remaining blocked upstream (#416 ×3, #418, #404); adoption 84.30 % → 91.08 % by JSX instance, interactive 91.14 % → 95.89 %; skill egdev-design-system v1.2 adds the second-pass import procedure; Nexo 0.1.3 prepared).
 
 ## Open questions
 
@@ -43,3 +43,5 @@ Status: approved (L2).
 - L4 (verbatim): "esos tabs de app no deberían estar (posiblemente con eso el scroll de tabs se arregla)" — T4 review: with Tabs fullWidth the DS tablist is a scroll container, so Nexo's ::before opaque band overflows (both scrollbars) and is clipped (windows behind show through).
 - L5 (verbatim): "alinear" / "titulo perimera linea y subtitulo segunda" / "aumentar padding a 16" — T6 add-local dialog review; padding decision: DS default body padding (19.2px, aligned with the header), chosen by the maintainer over an exact 16px override.
 - L6: the maintainer chose "Pedirlo al design system" for the stacked dialog header. Filed egdev-design-system#458 (`headerLayout="stacked"`); Nexo keeps the inline DS header until it ships (no exception).
+- L7: T8 news popup — the maintainer chose "Adoptar el Dialog del DS con esas diferencias" (no logo in the title, scrim click closes, DS initial focus).
+- L8 (verbatim): "pon efecto blur al fondo y quita los puntos de navegacion" — news popup review: blur Nexo's own elements behind the dialog (the DS overlay has no blur prop) and remove Nexo's own navigation dots.

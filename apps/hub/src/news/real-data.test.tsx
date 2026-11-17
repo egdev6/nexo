@@ -118,8 +118,8 @@ it('opens the real-shaped v3 updates newest first and navigates both detected an
   next.focus(); fireEvent.click(next); visible(1);
   const previous = within(dialog).getByRole('button', { name: 'Diapositiva anterior' });
   previous.focus(); fireEvent.click(previous); visible(0);
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 2 de 2: Quorb 0.8.0' })); visible(1);
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 1 de 2: Antena 0.15.0' })); visible(0);
+  fireEvent.keyDown(region, { key: 'End' }); visible(1);
+  fireEvent.keyDown(region, { key: 'Home' }); visible(0);
   groups[0].focus(); fireEvent.keyDown(groups[0], { key: 'ArrowRight' }); visible(1);
   fireEvent.keyDown(groups[1], { key: 'ArrowLeft' }); visible(0);
 });
@@ -151,7 +151,7 @@ it('shows the two real updates of two apps without adding synthetic release slid
   await start(); const dialog = await open();
   expect(titles(dialog)).toEqual(['alpha-update', 'beta-update']);
   expect(dialog.textContent).toContain('01 / 02');
-  expect(within(dialog).getAllByRole('button', { name: /^Ir a / })).toHaveLength(2);
+  expect(within(dialog).queryByRole('button', { name: /^Ir a / })).toBeNull();
   expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('50');
   const first = within(dialog).getByRole('group', { name: '1 de 2: alpha-update' });
   const hero = first.querySelector('.news-hero')!;
@@ -182,6 +182,40 @@ it('starts only on an actual show, freezes the snapshot, and records only slides
   visibility(false); const again = await open();
   expect(titles(again)).toEqual(['first', 'second', 'third']);
   expect(within(again).getAllByText('Sin ver')).toHaveLength(1);
+});
+
+it.each(['scrim', 'Escape', 'close', 'catalog'] as const)('clears background blur and records viewed news on %s', async method => {
+  cache = catalog([
+    app('one', '2026-05-30T00:00:00Z', false, [entry('first', today)]),
+    app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]),
+    app('three', '2026-05-30T00:00:00Z', false, [entry('third', '2026-05-29T00:00:00Z', 'update')]),
+  ]);
+  await start();
+  const panel = screen.getByRole('main');
+  expect(panel.hasAttribute('data-news-open')).toBe(false);
+  const dialog = await open();
+  expect(panel.hasAttribute('data-news-open')).toBe(true);
+  expect(titles(dialog)).toEqual(['first', 'second', 'third']);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+  if (method === 'scrim') {
+    const scrim = dialog.closest('.eg-dialog-backdrop');
+    expect(scrim).toBeTruthy();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    fireEvent.pointerDown(scrim!, { button: 0, pointerType: 'mouse' });
+    fireEvent.click(scrim!);
+  } else if (method === 'Escape') {
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape', code: 'Escape' });
+    expect(bridge.invoke).not.toHaveBeenCalledWith('hide_flyout');
+  } else if (method === 'catalog') {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ver en el catálogo: second' }));
+  } else close();
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(panel.hasAttribute('data-news-open')).toBe(false);
+  await waitFor(() => expect(stored.newsVisit).toMatchObject({ lastVisitAt: today, seenKeys: ['n:one:first', 'n:two:second'] }));
+  if (method === 'Escape') {
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+    expect(bridge.invoke).toHaveBeenCalledWith('hide_flyout');
+  }
 });
 
 it('freezes the selected catalog news until the next show when the selection changes', async () => {

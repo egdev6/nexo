@@ -1,11 +1,10 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Badge, Button, Carousel, Checkbox, Field, Icon, IconButton, VisuallyHidden } from '@egdev/ui';
+import { AppIcon, Badge, Button, Carousel, Checkbox, Dialog, DialogContent, Field, VisuallyHidden } from '@egdev/ui';
 import type { NewsItem, NewsPopupProps } from '../model';
 import { catalogBannerUrl } from '../catalog';
 import { formatNumber, t } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
-import nexoLogo from '../../src-tauri/app-icon.svg';
 import './news.css';
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -18,7 +17,7 @@ function NewsBanner({ item }: { item: SlideItem }) {
   const [failed, setFailed] = useState(false);
   return <div className="news-hero" aria-hidden="true">
     {banner && !failed ? <img src={banner} alt="" onError={() => setFailed(true)} /> :
-      <span className="catalog-initial">{(item.appName ?? item.title).trim().charAt(0).toUpperCase()}</span>}
+      <AppIcon size="lg" monogram={(item.appName ?? item.title).trim().charAt(0).toUpperCase()} />}
   </div>;
 }
 
@@ -40,16 +39,32 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   const [viewed, setViewed] = useState(() => new Set([...(seenKeys ?? []), ...(displayed[0] ? [displayed[0].id] : [])]));
   const current = displayed[selected];
   const cta = current?.cta === t('es', 'news.viewCatalog') ? t(locale, 'news.viewCatalog') : current?.cta;
-  const titleId = useId();
   const checkboxId = useId();
   const instructionsId = useId();
-  const layerRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  const previousFocus = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null);
   const onShownRef = useRef(onShown);
-  onCloseRef.current = onClose;
   onShownRef.current = onShown;
+
+  useLayoutEffect(() => {
+    setContainer(anchorRef.current?.parentElement ?? null);
+  }, []);
+
+  // Automatic news has no DialogTrigger; restore focus after the DS releases its focus scope.
+  useLayoutEffect(() => {
+    if (!container) return;
+    return () => {
+      setTimeout(() => {
+        if (!container.isConnected || document.activeElement !== document.body || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+        const previous = previousFocus.current;
+        const fallback = Array.from(container.querySelectorAll<HTMLElement>(focusableSelector))
+          .find(element => !element.closest('[inert], [hidden], [aria-hidden="true"]'));
+        const target = previous && previous !== document.body && previous.isConnected && !previous.closest('[inert], [hidden], [aria-hidden="true"]') ? previous : fallback;
+        target?.focus({ preventScroll: true });
+      }, 0);
+    };
+  }, [container]);
 
   useLayoutEffect(() => {
     if (current) {
@@ -85,56 +100,10 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
     </article>;
   }
 
-  // DialogContent is body-portalled; this modal must stay inside the positioned panel.
-  useLayoutEffect(() => {
-    const layer = layerRef.current;
-    const dialog = dialogRef.current;
-    if (!layer || !dialog) return;
-    const panel = layer.parentElement;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const siblings = Array.from(panel?.children ?? []).filter(element => element !== layer);
-    const wasInert = siblings.map(element => element.hasAttribute('inert'));
-    siblings.forEach(element => element.setAttribute('inert', ''));
-    const focusClose = () => closeRef.current?.focus({ preventScroll: true });
-    focusClose();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        onCloseRef.current();
-      } else if (event.key === 'Tab') {
-        const stops = Array.from(dialog!.querySelectorAll<HTMLElement>(focusableSelector))
-          .filter(element => !element.closest('[hidden], [inert], [aria-hidden="true"]'));
-        if (!stops.length) { event.preventDefault(); dialog!.focus(); return; }
-        const index = stops.indexOf(document.activeElement as HTMLElement);
-        if (event.shiftKey && index <= 0) { event.preventDefault(); stops[stops.length - 1].focus(); }
-        else if (!event.shiftKey && (index === -1 || index === stops.length - 1)) { event.preventDefault(); stops[0].focus(); }
-      }
-    }
-    function onFocusIn(event: FocusEvent) {
-      if (!dialog!.contains(event.target as Node)) focusClose();
-    }
-    document.addEventListener('keydown', onKeyDown, true);
-    document.addEventListener('focusin', onFocusIn);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown, true);
-      document.removeEventListener('focusin', onFocusIn);
-      siblings.forEach((element, index) => { if (!wasInert[index]) element.removeAttribute('inert'); });
-      if (previous && previous !== document.body && previous.isConnected && !previous.closest('[inert], [hidden]')) {
-        previous.focus({ preventScroll: true });
-      } else {
-        panel?.querySelector<HTMLElement>(focusableSelector)?.focus({ preventScroll: true });
-      }
-    };
-  }, []);
-
-  return <div className="news-overlay" ref={layerRef}>
-    <div className="news-scrim" aria-hidden="true" />
-    <section className="news-dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-      <header className="news-header"><img className="news-mark" src={nexoLogo} alt="" /><h2 id={titleId}>{t(locale, 'news.title')}</h2>
-        <IconButton ref={closeRef} type="button" label={t(locale, 'news.close')} title={t(locale, 'news.close')} variant="secondary" size="sm" icon={<Icon name="close" />} onClick={onClose} />
-      </header>
+  return <>
+    <span ref={anchorRef} hidden />
+    {container && <Dialog open onOpenChange={next => { if (!next) onClose(); }}>
+      <DialogContent container={container} overlayScope="container" title={t(locale, 'news.title')} dismissLabel={t(locale, 'news.close')}>
       {stale && <p role="status">{t(locale, 'catalog.stale')}</p>}
       <div className="news-carousel">
         {displayed.length === 0 ? <p>{t(locale, 'news.empty')}</p> : displayed.length === 1 ? slideContent(displayed[0]) :
@@ -143,12 +112,6 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
             <Carousel label={t(locale, 'news.latest')} trackLayout="full-width" messages={messages} value={current?.id}
               onValueChange={value => select(displayed.findIndex(item => item.id === value))}
               items={displayed.map((item, index) => ({ value: item.id, label: item.title, children: slideContent(item, index === selected) }))} />
-            <div className="news-indicators" role="group" aria-label={t(locale, 'news.selectSlide')}>
-              {displayed.map((item, index) => <IconButton key={item.id} type="button" className="news-indicator" size="sm" variant="ghost"
-                label={t(locale, 'news.goTo', { position: position(index + 1, displayed.length, item.title) })}
-                aria-current={index === selected ? 'true' : undefined} onClick={() => select(index)}
-                icon={<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" /></svg>} />)}
-            </div>
             <VisuallyHidden id={instructionsId}>{t(locale, 'news.instructions')}</VisuallyHidden>
           </div>}
       </div>
@@ -159,8 +122,9 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
       <div className="news-preference"><Field layout="choice" label={t(locale, 'news.dontShow')}>
         <Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
       </Field></div>
-    </section>
-  </div>;
+      </DialogContent>
+    </Dialog>}
+  </>;
 }
 
 export function NewsPopup({ open, ...props }: Props) {

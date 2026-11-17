@@ -258,8 +258,17 @@ it('changes language without the settings row styling the radio internals', () =
   } finally { style.remove(); }
 });
 
-it('keeps the existing back action', () => {
-  const { onClose } = setup();
-  fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+it.each([
+  ['es', 'Ajustes', 'Volver'],
+  ['en', 'Settings', 'Back'],
+] as const)('places the working back action before the settings title in a PageHeader (%s)', (locale, title, back) => {
+  const { onClose } = setup(locale);
+  const heading = screen.getByRole('heading', { level: 1, name: title });
+  const header = heading.closest('header')!;
+  const button = within(header).getByRole('button', { name: back });
+  expect(header.classList.contains('eg-page-header')).toBe(true);
+  expect(button.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(button.getAttribute('title')).toBe(back);
+  fireEvent.click(button);
   expect(onClose).toHaveBeenCalledOnce();
 });

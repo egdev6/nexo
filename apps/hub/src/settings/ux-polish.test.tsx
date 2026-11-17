@@ -149,16 +149,11 @@ it('renders both first-run lines inline with hidden separators and language tags
   } finally { style.remove(); }
 });
 
-it('centers the scrollable news dialog in the flyout', () => {
-  const style = document.createElement('style');
-  style.textContent = readFileSync('src/news/news.css', 'utf8');
-  document.head.append(style);
-  try {
-    render(<main><NewsPopup items={[]} open dontShow={false} onClose={vi.fn()} onDontShowChange={vi.fn()} /></main>);
-    const dialog = screen.getByRole('dialog', { name: 'Novedades' });
-    const css = getComputedStyle(dialog);
-    expect(css.top).toBe('50%');
-    expect(css.transform).toBe('translateY(-50%)');
-    expect(css.overflow).toBe('auto');
-  } finally { style.remove(); }
+it('centers the scrollable DS news dialog in the flyout', () => {
+  render(<main><NewsPopup items={[]} open dontShow={false} onClose={vi.fn()} onDontShowChange={vi.fn()} /></main>);
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
+  const overlay = dialog.closest('.eg-dialog-backdrop');
+  expect(overlay?.parentElement?.tagName).toBe('MAIN');
+  for (const name of ['absolute', 'inset-0', 'grid', 'place-items-center']) expect(overlay?.classList.contains(name)).toBe(true);
+  expect(dialog.querySelector('.eg-dialog__body')?.classList.contains('overflow-y-auto')).toBe(true);
 });

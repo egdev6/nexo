@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs } from '@egdev/ui';
-import { LinkIcon } from './apps/action-icons';
+import { AppIcon, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
 import { closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
@@ -38,7 +37,7 @@ function OpenAction({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: s
   const locale = useLocale();
   const enabled = !!onOpen && app.source === 'official' && app.installationState === 'installed' && app.canOpen === true && !busy && !stale;
   const title = stale ? t(locale, 'appControl.staleTitle') : app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, enabled ? 'appControl.requestOpen' : 'appControl.openUnavailable');
-  return <IconButton variant="ghost" size="md" type="button" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.name })} title={title} disabled={!enabled} onClick={() => onOpen?.(app.id)} />;
+  return <IconButton variant="ghost" size="md" type="button" icon={<Icon name="external-link" />} label={t(locale, 'appControl.openFor', { name: app.name })} title={title} disabled={!enabled} onClick={() => onOpen?.(app.id)} />;
 }
 
 function ProcessCloseAction({ app, onClose, busy, stale }: { app: HubApp; onClose?: (id: string) => void; busy: boolean; stale: boolean }) {
@@ -47,24 +46,15 @@ function ProcessCloseAction({ app, onClose, busy, stale }: { app: HubApp; onClos
   return <IconButton variant="ghost" size="md" type="button" icon={<Icon name="close" />} label={t(locale, 'appControl.closeFor', { name: app.name })} title={t(locale, stale ? 'appControl.staleTitle' : 'appControl.requestClose')} disabled={!enabled} onClick={() => onClose?.(app.id)} />;
 }
 
-// TODO(egdev-design-system#410): Replace with the DS square app identity once it supports image and initials.
-export function AppIcon({ app }: { app: Pick<HubApp, 'id' | 'name' | 'iconUrl'> }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  const logo = app.iconUrl && failed !== app.iconUrl ? app.iconUrl : undefined;
-  return <span aria-hidden="true" className={`app-icon ${logo ? 'app-icon--logo' : app.id === 'antena' ? 'brand-icon' : ''}`}>
-    {logo ? <img src={logo} alt="" onError={() => setFailed(logo)} /> : app.name.trim().charAt(0).toUpperCase()}
-  </span>;
-}
-
 function Status({ app }: { app: HubApp }) {
   const locale = useLocale();
   if (app.installationState === 'installed') {
     if (app.runningState === 'running') return <span><StatusDot state="running" /> {t(locale, 'appControl.running')}</span>;
-    if (app.runningState === 'notRunning') return <span className="secondary">{t(locale, 'appControl.notRunning')}</span>;
-    return <span className="secondary">{t(locale, 'appControl.runningUnknown')}</span>;
+    if (app.runningState === 'notRunning') return <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'appControl.notRunning')}</span></Text>;
+    return <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'appControl.runningUnknown')}</span></Text>;
   }
-  if (app.integration === 'local') return <span className="secondary">{t(locale, app.source === 'official' ? 'app.officialLaunch' : 'app.localUnknown')}</span>;
-  return <span className="secondary">{t(locale, 'app.unknown')}{app.update && <> · <span className="status-warning">{t(locale, 'app.updateSample')}</span></>}</span>;
+  if (app.integration === 'local') return <Text asChild variant="body" foreground="secondary"><span>{t(locale, app.source === 'official' ? 'app.officialLaunch' : 'app.localUnknown')}</span></Text>;
+  return <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'app.unknown')}{app.update && <> · <Text asChild variant="body" foreground="warning"><span>{t(locale, 'app.updateSample')}</span></Text></>}</span></Text>;
 }
 
 function updateRunning(installs: CatalogInstalls, id: string): boolean {
@@ -83,7 +73,7 @@ function UpdateControl({ app, catalogState, installs, part = 'action' }: { app: 
 
 function UpdateNotes({ app, catalogState }: { app: HubApp; catalogState?: CatalogState }) {
   const notes = availableUpdate(app, catalogState?.catalog)?.notes;
-  return notes ? <div className="meta update-notes"><strong>{notes.title}</strong><p>{notes.text}</p></div> : null;
+  return notes ? <Text asChild variant="body" foreground="secondary" className="meta update-notes"><div><strong>{notes.title}</strong><p>{notes.text}</p></div></Text> : null;
 }
 
 function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, installs, open, onOpenChange }: { app: RegistryApp; official?: HubApp; onClose?: (id: string) => void; onOpen?: (id: string) => void; busy: boolean; catalogState?: CatalogState; installs: CatalogInstalls; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -93,24 +83,24 @@ function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, inst
   return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
     <CollapsibleHeader actions={<>
       {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
-      <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
+      <IconButton type="button" variant="ghost" icon={<Icon name="external-link" />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
     </>}><CollapsibleTrigger motion="none">
-      <span className="row-label"><AppIcon app={{ id: app.app.id, name: app.app.name, iconUrl: official?.iconUrl }} />
+      <span className="row-label"><AppIcon size="lg" monogram={app.app.name.trim().charAt(0).toUpperCase()} src={official?.iconUrl} />
         <span className="app-info"><strong>{app.app.name}</strong>
-          {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
+          {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'app.unresponsive')}</span></Text>}
         </span>
       </span>
     </CollapsibleTrigger></CollapsibleHeader>
     {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} part="feedback" />}
     <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
       <AppDetails app={official} version={official?.installationState === 'installed' ? official.version : undefined} newVersion={update?.status === 'available' ? update.version : undefined} showInstalledVersion={official?.installationState !== 'unknown'} />
-      {update?.status === 'unverifiable' && <p className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</p>}
+      {update?.status === 'unverifiable' && <Text variant="body" foreground="secondary" className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</Text>}
       {official && <UpdateNotes app={official} catalogState={catalogState} />}
-      <p className="meta">{t(locale, 'app.reportedVersion', { version: app.app.version, tray: t(locale, app.unified ? 'app.unified' : 'app.ownIcon') })}</p>
+      <Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedVersion', { version: app.app.version, tray: t(locale, app.unified ? 'app.unified' : 'app.ownIcon') })}</Text>
       {onClose && (app.responsive && app.capabilities.includes('quit') ?
         <Button type="button" size="sm" variant="secondary" aria-label={t(locale, 'appControl.closeFor', { name: app.app.name })} disabled={busy} onClick={() => onClose(app.app.id)}>{t(locale, 'common.close')}</Button> :
-        <p className="meta">{t(locale, 'appControl.closeUnavailable')}</p>)}
-      {app.menu.length > 0 && <><p className="meta">{t(locale, 'app.reportedMenu')}</p><ul className="registry-menu">
+        <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.closeUnavailable')}</Text>)}
+      {app.menu.length > 0 && <><Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedMenu')}</Text><ul className="registry-menu">
         {app.menu.map((item, index) => <li key={`${item.id}-${index}`}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</li>)}
       </ul></>}
     </div></CollapsibleContent>
@@ -127,16 +117,16 @@ function AppRow({ app, onOpen, onClose, busy, stale, catalogState, installs, ope
         <ProcessCloseAction app={app} onClose={onClose} busy={busy || updateRunning(installs, app.id)} stale={stale} /> :
         <OpenAction app={app} onOpen={onOpen} busy={busy || updateRunning(installs, app.id)} stale={stale} />}
     </>}>
-      <CollapsibleTrigger motion="none"><span className="row-label"><AppIcon app={app} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
+      <CollapsibleTrigger motion="none"><span className="row-label"><AppIcon size="lg" monogram={app.name.trim().charAt(0).toUpperCase()} src={app.iconUrl} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
     </CollapsibleHeader>
     <UpdateControl app={app} catalogState={catalogState} installs={installs} part="feedback" />
     <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
       <AppDetails app={app} version={app.version} newVersion={update?.status === 'available' ? update.version : undefined} />
-      {update?.status === 'unverifiable' && <p className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</p>}
+      {update?.status === 'unverifiable' && <Text variant="body" foreground="secondary" className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</Text>}
       <UpdateNotes app={app} catalogState={catalogState} />
-      <p className="meta">{app.description}</p>
-      {onOpen && !app.canOpen && <p className="meta">{t(locale, 'appControl.openUnavailableDetail', { reason: app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, 'appControl.executableUnchecked') })}</p>}
-      {onOpen && stale && <p className="meta">{t(locale, 'appControl.staleOpenDetail')}</p>}
+      <Text variant="body" foreground="secondary" className="meta">{app.description}</Text>
+      {onOpen && !app.canOpen && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.openUnavailableDetail', { reason: app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, 'appControl.executableUnchecked') })}</Text>}
+      {onOpen && stale && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.staleOpenDetail')}</Text>}
     </div></CollapsibleContent>
   </Collapsible>;
 }
@@ -160,7 +150,7 @@ function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, o
     {installed.length ? installed.map(app => <AppRow key={app.id} app={app} onOpen={onOpen} onClose={onProcessClose} busy={actionBusy} stale={stale} catalogState={catalogState} installs={installs} {...disclosure(`official:${app.id}`)} />) : <div className="empty-state"><p>{allInstalled.length ? t(locale, 'appControl.connectedAbove') : t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>{t(locale, 'app.viewCatalog')}</Button></div>}
     {apps.filter(app => !isInstalled(app) && !ids.has(app.id) && installs.entries.get(app.id)?.operation === 'update').map(app => <UpdateControl key={app.id} app={app} catalogState={catalogState} installs={installs} part="feedback" />)}
     {!hideLocalApps && <LocalAppsView names={[...apps.map(app => ({ id: app.id, name: app.name })), ...connected.map(entry => entry.app)]} cycle={localCycle} openId={openRow} onDisclosureChange={(id, open) => disclosure(`local:${id}`).onOpenChange(open)} />}
-    {!(onRefresh && hideLocalApps) && <p className="foot">{t(locale, onRefresh ? 'appControl.officialCloseFoot' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</p>}
+    {!(onRefresh && hideLocalApps) && <Text variant="body" foreground="muted" className="foot">{t(locale, onRefresh ? 'appControl.officialCloseFoot' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</Text>}
   </>;
 }
 
@@ -209,6 +199,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const visitedCycle = useRef(0);
   const viewed = useRef(new Set<string>());
   const [snapshot, setSnapshot] = useState<{ items: NewsItem[]; at: string; stale: boolean; cycle: number; seenKeys: ReadonlySet<string> } | null>(null);
+  const newsOpen = !!settings && usable && !firstRun && !!snapshot;
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
   const [targetAppId, setTargetAppId] = useState<string | null>(null);
@@ -327,7 +318,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const errorLocale = usable && firstRun ? previewLanguage : locale;
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <LocaleProvider locale={locale}><main ref={panelRef} className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}${motion.className}`} data-backdrop={motion.sliding ? 'opaque' : undefined} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle} onTransitionEnd={motion.onTransitionEnd}>
+  return <LocaleProvider locale={locale}><main ref={panelRef} className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}${motion.className}`} data-backdrop={motion.sliding ? 'opaque' : undefined} data-news-open={newsOpen ? '' : undefined} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle} onTransitionEnd={motion.onTransitionEnd}>
     <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
       <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
       <div className="head-actions">
@@ -354,7 +345,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
         { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /> },
         { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /> },
       ]} />}
-    {settings && <NewsPopup key={snapshot?.cycle} items={snapshot?.items ?? []} seenKeys={snapshot?.seenKeys} open={usable && !firstRun && !!snapshot} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
+    {settings && <NewsPopup key={snapshot?.cycle} items={snapshot?.items ?? []} seenKeys={snapshot?.seenKeys} open={newsOpen} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
       stale={snapshot?.stale} onShown={item => viewed.current.add(item.id)}
       onCatalog={appId => { finishNews(); setShowSettings(false); setTargetAppId(appId); setActive('catalog'); }}
       onDontShowChange={dontShow => store.change({ showNewsOnOpen: !dontShow })} />}
