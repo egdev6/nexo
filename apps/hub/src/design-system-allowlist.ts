@@ -112,38 +112,6 @@ export const designSystemAllowlist: GuardAllowlistEntry[] = [
     issue: 'egdev6/egdev-design-system#404', reason: 'Remove selected-tab shadow override when family contrast is provided by the DS.',
   },
   {
-    file: 'src/style.css', pattern: '.app-row > .eg-collapsible__trigger',
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove trigger sizing overrides when Collapsible supports an actions slot.',
-  },
-  {
-    file: 'src/style.css', pattern: '.app-row:has(> .row-actions > .eg-btn)',
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove action width detection when Collapsible supports an actions slot.',
-  },
-  {
-    file: 'src/style.css', pattern: '.app-row > .eg-collapsible__trigger > span:first-child',
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove trigger spacing overrides when Collapsible supports an actions slot.',
-  },
-  {
-    file: 'src/style.css', pattern: '.app-row > .eg-collapsible__trigger',
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove trigger motion overrides when Collapsible supports the row composition.',
-  },
-  {
-    file: 'src/style.css', pattern: '.app-row > .eg-collapsible__trigger:active',
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove active trigger motion overrides when Collapsible supports the row composition.',
-  },
-  {
-    file: 'src/style.css', pattern: '.app-card > .eg-collapsible__content',
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove content padding overrides when Collapsible supports the row composition.',
-  },
-  {
-    file: 'src/style.css', pattern: ".app-card > .eg-collapsible__content[data-state='open']",
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove open content animation overrides when Collapsible supports the row composition.',
-  },
-  {
-    file: 'src/style.css', pattern: ".app-card > .eg-collapsible__content[data-state='closed']",
-    issue: 'egdev6/egdev-design-system#408', reason: 'Remove closed content animation overrides when Collapsible supports the row composition.',
-  },
-  {
     file: 'src/style.css', pattern: '.detail-inner .eg-social',
     issue: 'egdev6/egdev-design-system#419', reason: 'Remove social link spacing override when DS composition supports this layout.',
   },

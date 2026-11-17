@@ -14,7 +14,7 @@ Status: approved (L2).
 ## Tasks
 
 - T1 (S2, S5) Vendor DS `085b46e` with `apps/hub/scripts/ds-vendor.mjs`. Package versions are unchanged; only the `-<dscommit>` suffix moves. Update the hard-coded commit headers in `sync-design-system-md.mjs` and `check-design-system-mcp.mjs`, regenerate `design/system.md`, and run a smoke check. Behaviour change to watch: the coarse-pointer minimum height of `Field layout="choice"` grows. Route: inline. Status: pending.
-- T2 (S4) Collapsible app rows: use `CollapsibleHeader actions` with `CollapsibleTrigger motion` and `CollapsibleContent padding/presence`, and drop the absolute-position and `!important` hack in `style.css`. Removes 8 entries. Route: writer, test-first, visual check. Status: pending.
+- T2 (S4) Collapsible app rows: use `CollapsibleHeader actions` with `CollapsibleTrigger motion` and `CollapsibleContent padding/presence`, and drop the absolute-position and `!important` hack in `style.css`. Removes 8 entries. Route: writer, test-first, visual check. Status: done (allowlist 36 → 28, adoption 84.30 % → 84.57 %, 538 tests, `motion="none"` keeps the row and chevron static; confirmed by the maintainer: "está OK").
 - T3 (S4) Choice fields: use `Field layout="choice-trailing"` for the settings switches and `layout="choice"` for the news "don't show" checkbox. Removes 5 entries. Route: writer, test-first, visual check. Status: pending.
 - T4 (S4) Tabs and Carousel: use `Tabs fullWidth/labelWrap` (the main tabs are already `segmented`) and `Carousel trackLayout="full-width"`. Removes 5 entries. Route: writer, test-first, visual check and a CDP check of scroll and snap. Status: pending.
 - T5 (S4) Headings: use `Heading variant="compact"` in the settings and local-management bands, and the per-run `lang` of `SectionHeader` in the first-run intro. Removes 6 entries and their TODOs. Route: writer, test-first, visual check. Status: pending.
@@ -38,3 +38,4 @@ Status: approved (L2).
 - L1 (verbatim): "tenemos novedades del design system. Ya terminó todas las mejoras solicitadas puedes revisarlo y planificar la importación a Nexo?"
 - Evidence: a read-only map of the DS (origin/main `085b46e`) against Nexo's allowlist and TODOs (2026-11-17), with the upstream issue and PR states read through `gh`. Five requests are still open upstream (S2), so "all of them" is not yet true; their exceptions stay.
 - L2 (verbatim): "dale" — plan approved with T8 included.
+- L3: T2 — the DS CollapsibleHeader places the chevron before the actions (Nexo had it after). The maintainer chose "Aceptar el orden del DS".

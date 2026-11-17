@@ -219,7 +219,39 @@ it.each([
   expect(margin?.type === 'decl' ? margin.value : undefined).toBe('var(--space-2) 0 var(--space-3)');
 });
 
-it('uses a short disclosure animation with a reduced-motion override', () => {
-  expect(css).toMatch(/@keyframes\s+app-detail-open/); expect(css).toMatch(/@keyframes\s+app-detail-close/);
-  expect(css).toMatch(/prefers-reduced-motion:\s*reduce/); expect(css).toMatch(/animation:\s*none\s*!important/);
+it.each([
+  ['Official', 'Abrir Official', 'open_official_app', 'official', /Official app/],
+  ['Plugin', 'Abrir Plugin', 'open_official_app', 'plugin', /Versión comunicada: 9\.0\.0/],
+  ['Local One', 'Reparar Local One', 'local_app_repair', 'one', /Añadida manualmente/],
+])('uses independent DS header actions and an accessible disclosure for %s', async (name, actionName, command, id, detail) => {
+  await show();
+  const trigger = screen.getByRole('button', { name: new RegExp(`^${name}`), expanded: false });
+  const action = screen.getByRole('button', { name: actionName });
+  expect(trigger.parentElement?.classList.contains('eg-collapsible__header')).toBe(true);
+  expect(trigger.nextElementSibling?.contains(action)).toBe(true);
+  expect(trigger.classList.contains('transition-none')).toBe(true);
+  expect(trigger.contains(action)).toBe(false);
+  fireEvent.click(action);
+  await waitFor(() => expect(native.invoke).toHaveBeenCalledWith(command, { id }));
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByText(detail)).toBeNull();
+  trigger.focus();
+  expect(document.activeElement).toBe(trigger);
+  fireEvent.click(trigger);
+  expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  const contentId = trigger.getAttribute('aria-controls');
+  expect(contentId).toBeTruthy();
+  expect(document.getElementById(contentId!)?.contains(screen.getByText(detail))).toBe(true);
+  fireEvent.click(trigger);
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByText(detail)).toBeNull();
+});
+
+it('keeps reduced motion while removing the custom row positioning and disclosure animation', () => {
+  expect(css).not.toMatch(/\.app-row:has\(\s*>\s*\.row-actions/);
+  expect(css).not.toMatch(/--header-action-width|app-detail-(open|close)/);
+  expect(css).not.toMatch(/\.app-row\s*>\s*\.eg-collapsible__trigger/);
+  expect(css).not.toMatch(/\.app-card\s*>\s*\.eg-collapsible__content/);
+  expect(css).toMatch(/prefers-reduced-motion:\s*reduce/);
+  expect(css).toMatch(/animation:\s*none\s*!important/);
 });

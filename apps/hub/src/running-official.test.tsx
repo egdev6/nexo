@@ -50,7 +50,10 @@ it.each([
 it('requests graceful close by id, displays the returned tray notice and refreshes', async () => {
   const refresh = vi.fn();
   render(<FlyoutPanel apps={[{ ...official, runningState: 'running' }]} news={[]} catalogState={{ status: 'ready' }} onAppsRefresh={refresh} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Cerrar Quorb' }));
+  const close = await screen.findByRole('button', { name: 'Cerrar Quorb' });
+  const trigger = screen.getByRole('button', { name: /^Quorb/, expanded: false });
+  fireEvent.click(close);
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
   expect(await screen.findByText(notice)).toBeTruthy();
   expect(native.invoke).toHaveBeenCalledWith('close_official_app', { id: 'quorb' });
   await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
