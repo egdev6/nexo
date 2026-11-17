@@ -129,6 +129,60 @@ it.each([
   expect(onChange).toHaveBeenLastCalledWith({ ...initial, [field]: value });
 });
 
+it.each([
+  ['es', 'Iniciar con Windows', 'Se comprueba con el sistema', 'startWithWindows', true],
+  ['es', 'Mostrar novedades al abrir', 'Muestra las novedades del catálogo oficial cada vez que abres el panel.', 'showNewsOnOpen', false],
+  ['es', 'Ocultar apps locales', 'No mostrar la sección Apps locales en Mis apps', 'hideLocalApps', true],
+  ['es', 'Interfaz compacta', 'Reduce el espacio entre secciones', 'compact', true],
+  ['en', 'Start with Windows', 'Checked with the system', 'startWithWindows', true],
+  ['en', 'Show news on opening', 'Shows official catalog news whenever you open the panel.', 'showNewsOnOpen', false],
+  ['en', 'Hide local apps', 'Do not show the Local apps section in My apps', 'hideLocalApps', true],
+  ['en', 'Compact interface', 'Reduce spacing between sections', 'compact', true],
+] as const)('uses a trailing choice for %s %s with its associated hint and working label', (locale, name, hint, key, value) => {
+  const { onChange } = setup(locale);
+  if (key === 'compact') tab(locale === 'es' ? 'Apariencia' : 'Appearance');
+  const toggle = screen.getByRole('switch', { name, description: hint });
+  const label = screen.getByText(name).closest('label');
+  expect(label?.htmlFor).toBe(toggle.id);
+  expect(document.getElementById(toggle.getAttribute('aria-describedby')!)?.textContent).toBe(hint);
+  fireEvent.click(label!);
+  expect(toggle.getAttribute('aria-checked')).toBe(String(value));
+  expect(onChange).toHaveBeenLastCalledWith({ ...initial, [key]: value });
+  fireEvent.click(screen.getByText(hint));
+  expect(toggle.getAttribute('aria-checked')).toBe(String(!value));
+  expect(onChange).toHaveBeenLastCalledWith(initial);
+  expect(onChange).toHaveBeenCalledTimes(2);
+  const field = toggle.closest('.eg-field');
+  expect(field?.contains(label)).toBe(true);
+  expect(field?.classList.contains('grid-cols-[minmax(0,1fr)_auto]')).toBe(true);
+  expect(field?.lastElementChild).toBe(toggle);
+});
+
+it('preserves the unknown and busy autostart states and retries', () => {
+  const change = vi.fn();
+  const retry = vi.fn();
+  const onChange = vi.fn();
+  const view = (confirmed: boolean | null, busy: boolean) => <LocaleProvider locale="es"><SettingsView settings={initial} onClose={vi.fn()} onChange={onChange}
+    autostart={{ confirmed, busy, error: 'Error de inicio', change, retry }} /></LocaleProvider>;
+  const { rerender } = render(view(null, false));
+  const toggle = screen.getByRole('switch', { name: 'Iniciar con Windows', description: 'Estado del sistema desconocido' });
+  expect(toggle.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByText('Iniciar con Windows'));
+  fireEvent.click(screen.getByText('Estado del sistema desconocido'));
+  expect(change).not.toHaveBeenCalled();
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar inicio automático' }));
+  expect(retry).toHaveBeenCalledOnce();
+  rerender(view(true, true));
+  expect(toggle.hasAttribute('disabled')).toBe(true);
+  expect(toggle.getAttribute('aria-checked')).toBe('true');
+  expect(screen.getByRole('switch', { name: 'Iniciar con Windows', description: 'Se comprueba con el sistema' })).toBe(toggle);
+  rerender(view(true, false));
+  fireEvent.click(screen.getByText('Iniciar con Windows'));
+  expect(change).toHaveBeenCalledExactlyOnceWith(false);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
 it('describes news on every panel opening without suggesting a nonexistent news view', () => {
   setup();
   const toggle = screen.getByRole('switch', { name: 'Mostrar novedades al abrir' });

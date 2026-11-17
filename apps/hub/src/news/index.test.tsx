@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
+import { LocaleProvider } from '../i18n/use-locale';
 import { NewsPopup } from './index';
 import nexoLogo from '../../src-tauri/app-icon.svg';
 
@@ -130,6 +131,36 @@ it('returns focus to a stable panel control if the initial trigger was unmounted
   trigger.focus(); fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' }));
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cabecera' }));
+});
+
+it.each([
+  ['es', 'No mostrar al abrir', 'Novedades'],
+  ['en', "Don't show on opening", 'News'],
+] as const)('uses a leading choice for the news preference in %s', (locale, name, title) => {
+  const onChange = vi.fn();
+  const onClose = vi.fn();
+  function Fixture() {
+    const [dontShow, setDontShow] = useState(false);
+    return <LocaleProvider locale={locale}><main><NewsPopup items={items} open dontShow={dontShow} onClose={onClose}
+      onDontShowChange={value => { onChange(value); setDontShow(value); }} /></main></LocaleProvider>;
+  }
+  render(<Fixture />);
+  const checkbox = screen.getByRole('checkbox', { name });
+  const label = screen.getByText(name).closest('label');
+  expect(label?.htmlFor).toBe(checkbox.id);
+  expect(checkbox.getAttribute('aria-checked')).toBe('false');
+  fireEvent.click(label!);
+  expect(checkbox.getAttribute('aria-checked')).toBe('true');
+  expect(onChange).toHaveBeenLastCalledWith(true);
+  fireEvent.click(checkbox);
+  expect(checkbox.getAttribute('aria-checked')).toBe('false');
+  expect(onChange.mock.calls).toEqual([[true], [false]]);
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
+  const field = checkbox.closest('.eg-field');
+  expect(field?.contains(label)).toBe(true);
+  expect(field?.classList.contains('grid-cols-[auto_1fr]')).toBe(true);
+  expect(field?.firstElementChild).toBe(checkbox);
 });
 
 it('binds the no-show preference without closing the popup', () => {

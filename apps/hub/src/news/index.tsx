@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Badge, Button, Carousel, Checkbox, Icon, IconButton, VisuallyHidden } from '@egdev/ui';
+import { Badge, Button, Carousel, Checkbox, Field, Icon, IconButton, VisuallyHidden } from '@egdev/ui';
 import type { NewsItem, NewsPopupProps } from '../model';
 import { catalogBannerUrl } from '../catalog';
 import { formatNumber, t } from '../i18n';
@@ -156,8 +156,9 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
         aria-label={t(locale, onCatalog ? 'news.catalogCta' : 'news.sampleCta', { cta: cta ?? '', title: current.title })} title={onCatalog ? undefined : t(locale, 'news.sampleAction')}
         onClick={() => onCatalog?.(current.appId)}>{cta}</Button>
         {!onCatalog && <span>{t(locale, 'news.sampleAction')}</span>}</div>}
-      <div className="news-preference"><Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
-        <label htmlFor={checkboxId}>{t(locale, 'news.dontShow')}</label></div>
+      <div className="news-preference"><Field layout="choice" label={t(locale, 'news.dontShow')}>
+        <Checkbox id={checkboxId} checked={dontShow} onCheckedChange={value => onDontShowChange(value === true)} />
+      </Field></div>
     </section>
   </div>;
 }
