@@ -5,20 +5,17 @@
 .settings__header h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
 .settings__header p { margin: var(--space-1) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .settings__back-icon { transform: rotate(180deg); }
-.settings__tabs > [role='tablist'] { flex-wrap: wrap; align-self: flex-start; max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
-.settings__tabs > [role='tablist'] > [role='tab'] { white-space: normal; text-align: left; }
+.settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
 .settings__tabs > [role='tabpanel'] { padding: var(--space-4) var(--space-6) var(--space-5); }
 .settings__group { margin: 0 0 var(--space-3); }
-.settings__group h2 { margin: 0; color: var(--color-fg-default); font: var(--text-display-hero--font-weight) var(--text-heading-small)/var(--text-display-hero--line-height) var(--font-display); text-transform: uppercase; }
 .settings__appearance { border-left: var(--space-1) solid var(--hub-accent, var(--color-primitive-red-neon)); border-radius: var(--radius-xl); }
 .settings__row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: calc(var(--space-2) * var(--hub-density, 1)) 0; border-top: 1px solid var(--color-border-hairline); }
 .settings__choice { padding: calc(var(--space-2) * var(--hub-density, 1)) 0; border-top: 1px solid var(--color-border-hairline); }
 .settings__rows > .settings__row:first-child { border-top: 0; }
-.settings__row strong, .settings__row span { display: block; }
-.settings__row label, .settings__row > div:first-child { flex: 1; min-width: 0; }
-.settings__row strong { font-weight: 600; }
-.settings__row span, .settings__hint { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
-.settings__row .eg-radio-group span { display: initial; }
+.settings__row > div:first-child strong, .settings__row > div:first-child span { display: block; }
+.settings__row > div:first-child { flex: 1; min-width: 0; }
+.settings__row > div:first-child strong { font-weight: 600; }
+.settings__row > div:first-child span, .settings__hint { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .settings__colors { margin: 0; padding: 0; border: 0; }
 .settings__colors legend { margin-bottom: var(--space-2); font-weight: 600; }
 .settings__swatches { display: flex; flex-wrap: wrap; gap: var(--space-3); }
@@ -44,18 +41,16 @@
 .settings__local-entry .settings__row > div:first-child { overflow-wrap: anywhere; }
 .settings__actions, .settings__inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .settings__inline { margin: var(--space-2) 0 var(--space-3); }
-.settings__inline .eg-input { flex: 1 1 12rem; }
-/* Add-local modal follows the approved canvas while Radix owns focus and dismissal. */
-.local-app-dialog .eg-dialog__body { display: grid; gap: var(--space-5); padding: var(--space-5); }
+.settings__inline-input { flex: 1 1 calc(var(--space-20) * 3); }
 .local-app-field { min-width: 0; }
 .local-app-label { color: var(--color-fg-default); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
 .local-app-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); min-width: 0; }
-.local-app-executable { align-items: center; }
-.local-app-executable > .local-app-field { flex: 1 1 var(--space-24); }
+.local-app-executable { display: grid; gap: calc(var(--space-1) * 1.5); }
+.local-app-executable-row { align-items: stretch; }
+.local-app-executable-input { flex: 1 1 var(--space-24); }
 .local-app-preview { display: grid; place-items: center; flex: none; width: var(--space-16); height: var(--space-16); overflow: hidden; border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-3); color: var(--color-fg-default); font: 800 var(--text-display-stat)/1 var(--font-display); }
 .local-app-preview img { width: 100%; height: 100%; object-fit: contain; }
 .local-app-help { margin: var(--space-2) 0 0; color: var(--color-fg-secondary); font: 500 var(--text-label-default)/1.4 var(--font-sans); }
-.local-app-dialog .eg-btn { min-height: var(--space-12); white-space: normal; }
-@media (max-width: 400px) { .settings__header, .settings__tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-8)); margin-left: var(--space-4); margin-right: var(--space-4); } .local-app-executable > .local-app-field { flex-basis: 100%; } }
+@media (max-width: 400px) { .settings__header, .settings__tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-8)); margin-left: var(--space-4); margin-right: var(--space-4); } .local-app-executable-input { flex-basis: 100%; } }
 @media (prefers-reduced-transparency: reduce) { .settings__preview-panel { background: var(--color-surface-2); backdrop-filter: none; } }
 @supports not (backdrop-filter: blur(1px)) { .settings__preview-panel { background: var(--color-surface-2); } }

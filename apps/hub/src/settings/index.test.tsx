@@ -5,6 +5,9 @@ import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { HubSettings, Language } from '../model';
 import { SettingsView } from './index';
 import { LocaleProvider } from '../i18n/use-locale';
+// @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
+import { readFileSync } from 'node:fs';
+const settingsCss = readFileSync('src/settings/settings.css', 'utf8') as string;
 
 configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
 // Radix measures slider thumbs; jsdom does not implement ResizeObserver.
@@ -39,6 +42,26 @@ function tab(name: string) {
   return element;
 }
 
+it.each([
+  ['es', 'Apariencia', 'Apps locales', 'Acerca de', 'Autor'],
+  ['en', 'Appearance', 'Local apps', 'About', 'Author'],
+] as const)('uses compact panel headings for all settings sections in %s', (locale, appearance, localApps, about, author) => {
+  setup(locale);
+  function checkHeading(name: string) {
+    const section = screen.getByRole('region', { name });
+    const heading = within(section).getByRole('heading', { level: 2, name });
+    expect(section.getAttribute('aria-labelledby')).toBe(heading.id);
+    expect(heading.parentElement?.classList.contains('eg-panel__header')).toBe(true);
+    for (const className of ['eg-heading', 'text-heading-small', 'text-fg-default', 'uppercase']) {
+      expect(heading.classList.contains(className)).toBe(true);
+    }
+  }
+  checkHeading('General');
+  tab(appearance); checkHeading(appearance);
+  tab(localApps); checkHeading(localApps);
+  tab(about); checkHeading(about); checkHeading(author);
+});
+
 it('switches the four settings sections with the keyboard and shows their content', async () => {
   setup();
   const general = screen.getByRole('tab', { name: 'General' });
@@ -59,6 +82,28 @@ it('switches the four settings sections with the keyboard and shows their conten
   await waitFor(() => expect(document.activeElement).toBe(about));
   expect(screen.getByText(/Versión 0\.1\.0/)).toBeTruthy();
   expect(screen.getByRole('button', { name: /Buscar actualizaciones/ }).hasAttribute('disabled')).toBe(true);
+});
+
+it.each([
+  ['es', 'Secciones de ajustes', 'General', 'Acerca de'],
+  ['en', 'Settings sections', 'General', 'About'],
+] as const)('wraps full-width settings labels and reveals the focused tab in %s', async (locale, label, first, last) => {
+  setup(locale);
+  const list = screen.getByRole('tablist', { name: label });
+  const start = screen.getByRole('tab', { name: first });
+  const end = screen.getByRole('tab', { name: last });
+  Object.defineProperties(list, { clientWidth: { configurable: true, value: 120 }, scrollWidth: { configurable: true, value: 360 } });
+  const reveal = vi.fn();
+  Object.defineProperty(end, 'scrollIntoView', { configurable: true, value: reveal });
+  start.focus();
+  fireEvent.keyDown(start, { key: 'End' });
+  await waitFor(() => expect(document.activeElement).toBe(end));
+  expect(end.getAttribute('aria-selected')).toBe('true');
+  expect(reveal).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+  for (const name of ['grid', 'grid-flow-col', 'auto-cols-[1fr]', 'w-full']) expect(list.classList.contains(name)).toBe(true);
+  for (const item of within(list).getAllByRole('tab')) {
+    for (const name of ['whitespace-normal', 'wrap-break-word', 'text-start']) expect(item.classList.contains(name)).toBe(true);
+  }
 });
 
 it.each([
@@ -190,12 +235,27 @@ it('describes news on every panel opening without suggesting a nonexistent news 
   expect(description?.textContent).toBe('Muestra las novedades del catálogo oficial cada vez que abres el panel.');
 });
 
-it('changes language in General and retains all other settings', () => {
-  const { onChange } = setup();
-  fireEvent.click(screen.getByRole('radio', { name: 'English' }));
-  expect(onChange).toHaveBeenLastCalledWith({ ...initial, language: 'en' });
-  fireEvent.click(screen.getByRole('radio', { name: 'Español' }));
-  expect(onChange).toHaveBeenLastCalledWith(initial);
+it('changes language without the settings row styling the radio internals', () => {
+  const style = document.createElement('style');
+  style.textContent = settingsCss;
+  document.head.append(style);
+  try {
+    const { onChange } = setup();
+    const group = screen.getByRole('radiogroup', { name: 'Idioma' });
+    const selected = within(group).getByRole('radio', { name: 'Español' });
+    const indicator = selected.querySelector('span');
+    const label = within(group).getByText('Español');
+    expect(indicator).toBeTruthy();
+    expect(settingsCss).not.toContain('.settings__row .eg-radio-group span');
+    expect(settingsCss).not.toContain('.settings__row label,');
+    const rules = Array.from(style.sheet!.cssRules).filter((rule): rule is CSSStyleRule => 'selectorText' in rule);
+    expect(rules.filter(rule => rule.selectorText.startsWith('.settings__row') &&
+      (indicator!.matches(rule.selectorText) || label.matches(rule.selectorText))).map(rule => rule.selectorText)).toEqual([]);
+    fireEvent.click(within(group).getByRole('radio', { name: 'English' }));
+    expect(onChange).toHaveBeenLastCalledWith({ ...initial, language: 'en' });
+    fireEvent.click(within(group).getByRole('radio', { name: 'Español' }));
+    expect(onChange).toHaveBeenLastCalledWith(initial);
+  } finally { style.remove(); }
 });
 
 it('keeps the existing back action', () => {

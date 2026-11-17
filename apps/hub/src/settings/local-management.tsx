@@ -1,4 +1,4 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogTrigger, Button, Input, Notice, Panel, PanelBody, PanelHeader } from '@egdev/ui';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogTrigger, Button, Heading, Input, Notice, Panel, PanelBody, PanelHeader } from '@egdev/ui';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
@@ -82,11 +82,10 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
   }
   const disabled = !native || loading || busy;
 
-  // TODO(egdev-design-system#404): Preserve compact uppercase headings until the DS offers this size.
   return <>
     <section className="settings__group" aria-labelledby={`${id}-apps`}>
       <Panel variant="banded">
-        <PanelHeader><h2 id={`${id}-apps`}>{t(locale, 'localApps.heading')}</h2></PanelHeader>
+        <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-apps`}>{t(locale, 'localApps.heading')}</Heading></PanelHeader>
         <PanelBody><div>
       {loading && <p role="status">{t(locale, 'settingsLocal.loading')}</p>}
       {listError && <Notice tone="danger" size="sm" summary={t(locale, listError)} />}
@@ -129,7 +128,7 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
             event.preventDefault();
             void run(async () => { const result = await updateLocalApp(appId, editing.name); setEditing(null); return selected(result); });
           }} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEditing(null); } }}>
-            <Input autoFocus size="sm" aria-label={t(locale, 'settingsLocal.nameFor', params)} value={editing.name} disabled={disabled} onChange={event => setEditing({ id: appId, name: event.currentTarget.value })} />
+            <Input className="settings__inline-input" autoFocus size="sm" aria-label={t(locale, 'settingsLocal.nameFor', params)} value={editing.name} disabled={disabled} onChange={event => setEditing({ id: appId, name: event.currentTarget.value })} />
             <Button variant="neutral" size="sm" type="submit" disabled={disabled} aria-label={t(locale, 'settingsLocal.saveNameFor', params)}>{t(locale, 'settingsLocal.save')}</Button>
             <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.cancelEditFor', params)} onClick={() => setEditing(null)}>{t(locale, 'settingsLocal.cancel')}</Button>
           </form>}

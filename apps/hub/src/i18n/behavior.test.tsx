@@ -197,7 +197,7 @@ it('applies a confirmed language to the native tray, reports refresh failure sep
   fireEvent.click(screen.getByRole('radio', { name: 'English' }));
   expect((await screen.findByRole('alert')).textContent).toContain('Language saved, but the tray could not be updated: tray failed');
   expect(saved.language).toBe('en');
-  expect(document.documentElement.lang).toBe('en');
+  await waitFor(() => expect(document.documentElement.lang).toBe('en'));
   const savesBefore = bridge.invoke.mock.calls.filter(([name]) => name === 'save_settings').length;
   failTray = false;
   fireEvent.click(screen.getByRole('button', { name: 'Retry tray update' }));

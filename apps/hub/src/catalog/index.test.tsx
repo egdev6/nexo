@@ -92,6 +92,10 @@ it('opens only present social links through the native policy for official and s
   render(<CatalogView apps={[official, apps[1], empty]} />);
   const pizarra = screen.getByRole('article', { name: 'Pizarra' });
   const social = within(pizarra).getByRole('list', { name: 'Enlaces sociales' });
+  expect(social.classList.contains('flex-wrap')).toBe(true);
+  expect(social.classList.contains('gap-2')).toBe(true);
+  expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
+  expect(social.parentElement?.classList.contains('detail-social')).toBe(false);
   expect(pizarra.querySelector('p')!.compareDocumentPosition(social) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(social.compareDocumentPosition(pizarra.querySelector('.catalog-actions')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(fireEvent.click(within(social).getByRole('link', { name: /GitHub/i }))).toBe(false);

@@ -105,6 +105,10 @@ it.each([['es', 'Acerca de', 'Autor'], ['en', 'About', 'Author']] as const)('ope
   const card = screen.getByRole('region', { name: author });
   expect(within(card).getByRole('heading', { name: author, level: 2 })).toBeTruthy();
   expect(within(card).getByText('Enrique Gómez Navarro (egdev6)')).toBeTruthy();
+  const list = within(card).getByRole('list');
+  expect(list.classList.contains('flex-wrap')).toBe(true);
+  expect(list.classList.contains('gap-2')).toBe(true);
+  expect(list.parentElement?.classList.contains('eg-cluster')).toBe(true);
   for (const [name, url] of profiles) {
     const link = within(card).getByRole('link', { name: new RegExp(name, 'i') });
     expect(link.getAttribute('href')).toBe(url);
@@ -133,12 +137,12 @@ it('renders both first-run lines inline with hidden separators and language tags
     const { container } = render(<FirstRun onChoose={vi.fn()} />);
     for (const [selector, expected] of [
       ['h1', 'Elige tu idioma - Choose your language'],
-      ['.first-run__description', 'Puedes cambiarlo después en Ajustes. - You can change it later in Settings.'],
+      ['header > p:last-child', 'Puedes cambiarlo después en Ajustes. - You can change it later in Settings.'],
     ]) {
       const line = container.querySelector(selector)!;
       expect(line.textContent).toBe(expected);
       expect(line.querySelector('br')).toBeNull();
-      expect(Array.from(line.querySelectorAll('span')).map(span => span.getAttribute('lang'))).toEqual(['es', null, 'en']);
+      expect(Array.from(line.querySelectorAll('span[lang]')).map(span => span.getAttribute('lang'))).toEqual(['es', 'en']);
       expect(line.querySelector('[aria-hidden="true"]')?.textContent).toBe('-');
       expect(getComputedStyle(line.querySelector('[lang="es"]')!).display).not.toBe('block');
     }

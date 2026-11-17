@@ -1,9 +1,6 @@
 /* First-run language selection within the shell's scrolling area. */
 .first-run { padding: var(--space-6); color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 var(--font-sans); }
-.first-run__eyebrow { margin: 0; color: var(--color-fg-secondary); font: 700 var(--text-label-default)/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; }
-.first-run h1 { margin: var(--space-2) 0; font: 700 var(--text-heading-small)/1.2 var(--font-sans); }
-.first-run h1 span { display: inline; color: var(--color-fg-secondary); }
-.first-run__description { margin: 0 0 var(--space-5); color: var(--color-fg-secondary); }
+.first-run__intro { margin-bottom: var(--space-5); }
 .first-run__legend { margin-bottom: var(--space-3); font-weight: 700; }
 .first-run__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 .first-run__choices > div { position: relative; min-width: 0; min-height: var(--space-16); padding: var(--space-4); border: 1px solid var(--color-border-control); border-radius: var(--radius-lg); background: var(--gradient-sheen), var(--color-surface-1); box-shadow: var(--shadow-edge); }

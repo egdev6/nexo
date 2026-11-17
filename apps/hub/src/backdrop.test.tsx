@@ -220,19 +220,40 @@ it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opac
   expect(tablist.matches(".main-tabs > [role='tablist']")).toBe(true);
   expect(panel.style.getPropertyValue('--hub-opacity')).toBe(String(opacity / 100));
   expect(declarations('.main-tabs').isolation).toBe('isolate');
-  expect(declarations(".main-tabs > [role='tablist']").position).toBe('relative');
-  const band = declarations(".main-tabs > [role='tablist']::before");
-  expect(band.background).toBe('var(--color-surface-0)');
-  // The band also covers the gap between the tabs and the tab content.
-  // The band overlaps the header by 1px so no sub-pixel seam shows the desktop at fractional scaling.
-  expect(band.inset).toBe('calc(-1 * var(--space-4) - 1px) calc(-1 * var(--space-6)) calc(-1 * var(--space-4))');
-  expect(band['z-index']).toBe('-1');
-  expect(band['pointer-events']).toBe('none');
+  const row = declarations(".main-tabs > [role='tablist']");
+  expect(row.position).toBe('relative');
+  expect(row['--menu-band-gutter']).toBe('var(--space-6)');
+  // Spread shadows do not contribute to scrollable overflow. The extra pixel
+  // overlaps the header, and the side offsets cover the rounded shadow corners.
+  expect(row['box-shadow']).toBe([
+    'var(--shadow-well)',
+    '0 0 0 calc(var(--space-4) + 1px) var(--color-surface-0)',
+    'calc(-1 * (var(--menu-band-gutter) + var(--radius-md))) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0)',
+    'calc(var(--menu-band-gutter) + var(--radius-md)) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0)',
+  ].join(', '));
   const media = postcss.parse(css).nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
-  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selector === ".main-tabs > [role='tablist']::before") : undefined;
+  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selector === ".main-tabs > [role='tablist']") : undefined;
   const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
-  expect(narrowProps.left).toBe('calc(-1 * var(--space-4))');
-  expect(narrowProps.right).toBe('calc(-1 * var(--space-4))');
+  expect(narrowProps['--menu-band-gutter']).toBe('var(--space-4)');
+  expect(narrowProps['margin-left']).toBe('var(--space-4)');
+  expect(narrowProps['margin-right']).toBe('var(--space-4)');
+});
+
+it('does not create a scrollable menu band pseudo-element', () => {
+  const pseudoRules: string[] = [];
+  postcss.parse(css).walkRules(rule => {
+    if (rule.selectors.includes(".main-tabs > [role='tablist']::before")) pseudoRules.push(rule.selector);
+  });
+  expect(pseudoRules).toEqual([]);
+});
+
+it('fits the full-width menu row inside the existing side gutters', async () => {
+  await openPanel();
+  const list = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
+  expect(list.classList.contains('w-full')).toBe(true);
+  const row = declarations(".main-tabs > [role='tablist']");
+  expect(row.width).toBe('auto');
+  expect(row.margin).toBe('var(--space-4) var(--space-6) 0');
 });
 
 it('prevents the selected menu tab glow from bleeding above the opaque row without changing its border', async () => {

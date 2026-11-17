@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+// @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
+import { readFileSync } from 'node:fs';
 import { LocaleProvider } from '../i18n/use-locale';
 import { defaultSettings } from '../sample';
 import { SettingsView } from './index';
@@ -8,6 +10,7 @@ import { SettingsView } from './index';
 const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
 
+const settingsCss = readFileSync('src/settings/settings.css', 'utf8') as string;
 const executable = { token: 'exe-token', path: 'C:\\Apps\\Paint.exe', suggestedName: 'Paint' };
 const icon = { token: 'icon-token', preview: 'data:image/png;base64,aWNvbg==' };
 let apps: { id: string; name: string }[];
@@ -53,6 +56,54 @@ async function selectExecutable(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole('button', { name: 'Examinar…' }));
   await waitFor(() => expect((within(dialog).getByRole('textbox', { name: 'Ejecutable' }) as HTMLInputElement).value).toBe(executable.path));
 }
+
+it.each([
+  ['es', 'Ejecutable', ['Examinar…', 'Elegir icono…', 'Quitar', 'Cancelar', 'Añadir']],
+  ['en', 'Executable', ['Browse…', 'Choose icon…', 'Remove', 'Cancel', 'Add']],
+] as const)('uses the default dialog padding and wrapping actions in %s', async (locale, executableLabel, names) => {
+  const { dialog } = await openDialog(locale);
+  const input = within(dialog).getByRole('textbox', { name: executableLabel });
+  const body = input.closest('.eg-dialog__body');
+  const stack = input.closest('.eg-stack');
+  expect(body?.classList.contains('p-[var(--space-6)]')).toBe(true);
+  expect(stack?.parentElement).toBe(body);
+  expect(stack?.classList.contains('gap-5')).toBe(true);
+  for (const name of names) {
+    const button = within(dialog).getByRole('button', { name });
+    expect(button.classList.contains('whitespace-normal')).toBe(true);
+    expect(button.classList.contains('wrap-anywhere')).toBe(true);
+    expect(button.classList.contains('min-h-12')).toBe(true);
+  }
+});
+
+it.each([
+  ['es', 'Ejecutable', 'Examinar…', 'Solo archivos .exe en un disco local. Examinar abre el selector de archivos del sistema.', 'No se encuentra el archivo seleccionado.', 'Añadir'],
+  ['en', 'Executable', 'Browse…', 'Only .exe files on a local disk. Browse opens the system file picker.', 'The selected file could not be found.', 'Add'],
+] as const)('aligns the executable and browse controls and preserves descriptions in %s', async (locale, label, browseName, hint, error, addName) => {
+  const style = document.createElement('style');
+  style.textContent = settingsCss;
+  document.head.append(style);
+  try {
+    const { dialog } = await openDialog(locale);
+    const input = within(dialog).getByRole('textbox', { name: label, description: hint }) as HTMLInputElement;
+    const browse = within(dialog).getByRole('button', { name: browseName });
+    const row = input.closest('.local-app-executable-row');
+    expect(row).toBe(browse.parentElement);
+    expect(input.parentElement?.parentElement).toBe(row);
+    expect(getComputedStyle(row!).display).toBe('flex');
+    expect(getComputedStyle(row!).alignItems).toBe('stretch');
+    expect(input.style.alignSelf).toBe('stretch');
+    expect(input.readOnly).toBe(true);
+    expect(input.getAttribute('aria-required')).toBe('true');
+    failures.local_app_pick_executable = 'nexo.local.missing';
+    fireEvent.click(browse);
+    expect(await within(dialog).findByRole('textbox', { name: label, description: error })).toBe(input);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect((within(dialog).getByRole('button', { name: addName }) as HTMLButtonElement).disabled).toBe(true);
+    expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_create', expect.anything());
+    expect(apps).toEqual([]);
+  } finally { style.remove(); }
+});
 
 it('carries a custom accent into the body-portalled dialog without affecting its close behavior', async () => {
   const trigger = await openSettings('es', '#2e7dff');
