@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
+import { createAccentTheme } from '@egdev/tokens/accent';
 import nexoLogo from '../src-tauri/app-icon.svg';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { CatalogViewProps, FirstRunProps, NewsPopupProps, SettingsViewProps } from './model';
@@ -45,6 +46,7 @@ vi.mock('./settings', () => ({
   SettingsView: ({ settings, onChange, onClose }: SettingsViewProps) => <section aria-label="Ajustes">
     <p>Idioma: {settings.language}</p>
     <button onClick={() => onChange({ ...settings, accent: '#3b82f6', compact: true, opacity: 63, blur: 12 })}>Cambiar apariencia</button>
+    <button onClick={() => onChange({ ...settings, accent: defaultSettings.accent })}>Restablecer apariencia</button>
     <button onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>Alternar novedades</button>
     <button onClick={onClose}>Volver</button>
   </section>,
@@ -475,6 +477,39 @@ it('applies live appearance settings to the panel root', () => {
   expect(main.style.getPropertyValue('--hub-density')).toBe('0.8');
   expect(main.style.getPropertyValue('--hub-opacity')).toBe('0.63');
   expect(main.style.getPropertyValue('--hub-blur')).toBe('12px');
+});
+
+it('persists the selected DS accent and its reset across reopening', async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  let saved = { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, accent: '#123456' };
+  vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
+    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
+    if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
+    if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
+    return Promise.resolve(null);
+  }) as typeof invoke);
+  const expectTheme = (accent: string) => {
+    const main = screen.getByRole('main');
+    for (const [name, value] of Object.entries(createAccentTheme(accent).variables)) expect(main.style.getPropertyValue(name), name).toBe(value);
+    expect(main.style.getPropertyValue('--hub-accent')).toBe(accent);
+  };
+  let view = render(<App apps={[]} news={[]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
+  expectTheme('#123456');
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar apariencia' }));
+  await waitFor(() => expect(saved.accent).toBe('#3b82f6'));
+  expectTheme('#3b82f6');
+  view.unmount();
+  view = render(<App apps={[]} news={[]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
+  expectTheme('#3b82f6');
+  fireEvent.click(screen.getByRole('button', { name: 'Restablecer apariencia' }));
+  await waitFor(() => expect(saved.accent).toBe('#ff0036'));
+  expectTheme('#ff0036');
+  view.unmount();
+  render(<App apps={[]} news={[]} />);
+  await screen.findByRole('button', { name: 'Ajustes' });
+  expectTheme('#ff0036');
 });
 
 it('labels an installed official launch-only app as official and disables illustrative actions', () => {

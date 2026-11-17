@@ -84,7 +84,7 @@ it('exposes each settings region, heading and controls in a banded panel', async
       expect(within(region).getByRole('switch', { name: 'Mostrar novedades al abrir' })).toBeTruthy();
     } else if (tab === 'Apariencia') {
       const region = screen.getByRole('region', { name: 'Apariencia' });
-      expect(within(region).getByRole('group', { name: 'Colores de acento' })).toBeTruthy();
+      expect(within(region).getByRole('radiogroup', { name: 'Color de acento' })).toBeTruthy();
       expect(within(region).getByRole('slider', { name: 'Opacidad del fondo' })).toBeTruthy();
       expect(within(region).getByRole('slider', { name: 'Desenfoque del fondo' })).toBeTruthy();
       expect(within(region).getByRole('switch', { name: 'Interfaz compacta' })).toBeTruthy();

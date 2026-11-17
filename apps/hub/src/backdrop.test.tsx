@@ -256,17 +256,23 @@ it('fits the full-width menu row inside the existing side gutters', async () => 
   expect(row.margin).toBe('var(--space-4) var(--space-6) 0');
 });
 
-it('prevents the selected menu tab glow from bleeding above the opaque row without changing its border', async () => {
+it('leaves selected menu tab paint and focus to the DS while retaining the opaque row', async () => {
   await openPanel();
-  const selector = ".main-tabs > [role='tablist'] > [role='tab'][aria-selected='true']";
-  expect(screen.getByRole('tab', { name: 'Mis apps' }).matches(selector)).toBe(true);
-  expect(screen.getByRole('tab', { name: 'Catálogo' }).matches(selector)).toBe(false);
-  const family = postcss.parse(readFileSync(`${cwd()}/src/theme/family.css`, 'utf8') as string);
-  const selected = family.nodes.find(node => node.type === 'rule' && node.selectors.includes(".flyout [role='tab'][aria-selected='true']"));
-  const familyProps = selected?.type === 'rule' ? Object.fromEntries(selected.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
-  expect(familyProps['border-color']).toBe('var(--color-primitive-red-neon)');
-  expect(familyProps.background).toBe('var(--gradient-chip-active), var(--color-surface-1)');
-  expect(declarations(selector)).toEqual({ 'box-shadow': 'var(--shadow-edge-strong)' });
+  const selected = screen.getByRole('tab', { name: 'Mis apps', selected: true });
+  const other = screen.getByRole('tab', { name: 'Catálogo', selected: false });
+  for (const tab of [selected, other]) {
+    expect(tab.classList.contains('data-[state=active]:border-border-brand')).toBe(true);
+    expect(tab.classList.contains('data-[state=active]:bg-state-selected-surface')).toBe(true);
+    expect(tab.classList.contains('data-[state=active]:before:bg-border-brand')).toBe(true);
+    expect(tab.classList.contains('data-[state=active]:focus-visible:shadow-focus')).toBe(true);
+  }
+  const sources = [css, readFileSync(`${cwd()}/src/theme/family.css`, 'utf8') as string];
+  const tabSelectors: string[] = [];
+  for (const source of sources) postcss.parse(source).walkRules(rule => {
+    tabSelectors.push(...rule.selectors.filter(selector => /\[role\s*=\s*['"]?tab['"]?\s*\]/.test(selector)));
+  });
+  expect(tabSelectors).toEqual([]);
+  expect(declarations(".main-tabs > [role='tablist']")['box-shadow']).toContain('calc(var(--space-4) + 1px) var(--color-surface-0)');
 });
 
 it('preserves navigation between the two menu tabs', async () => {

@@ -1,7 +1,7 @@
 # Design system adoption III: close the remaining exceptions and theme the accent through the DS
 
 Import the last DS deliveries for Nexo's requests (#415, #416, #418, #425/#426 with epic #404, and #458), remove the five remaining guard exceptions, and move the accent and family contrast theming from Nexo's own CSS to the DS tokens and helper wherever they cover it.
-Status: approved (L3).
+Status: in progress — T1–T6 implemented and integrated (uncommitted work committed as WIP on feat/ds-adoption-3); visual review partly done (L4); T7 pending.
 
 ## Specs
 
@@ -36,3 +36,5 @@ Status: approved (L3).
 - Evidence: a read-only map of DS `846c0d6` against Nexo (2026-11-17), with issue and PR states read through `gh`. The exact per-commit diff was not inspected.
 - L2: the maintainer chose "El del design system" for the selected tab (Q1) and "Comportamiento del design system" for the custom accent (Q2).
 - L3 (verbatim): "dale" — plan approved.
+- L4 (verbatim): "me gustaba más la otra variante, no la mantuvo el design system?" / "lo mismo con el selector de color, me gustaba más el otro." / "demasiado separados" / "En el slider salió un cuadrado rojo feo nada más empezar pregunta si es normal" — the maintainer chose to request the adjustments upstream: egdev-design-system#464 (outline selected segmented tab), #465 (neutral ColorSwatchGroup ring), #466 (tighter stacked Dialog header). Nexo keeps the DS look meanwhile (no exceptions). Slider red square under investigation.
+- Resume point (2026-11-17): branch `feat/ds-adoption-3` holds T1 (4bf732e) plus the integrated T2–T6 batch: allowlist empty, adoption 92.42 % (100 % interactive), 590 tests, accent.css down to 46 lines. Pending: (1) the maintainer's screenshot of the Slider "red square" (CDP could not reproduce it: static and pressed/focused states look correct); (2) T7: add ColorSwatchGroup to the adoption report's interactive list, run check.sh --windows, update the skill, open the PR, comment on the DS issues, prepare a test release; (3) adopt #464, #465 and #466 when the DS ships them. Nexo 0.1.3 is ready on main but not launched.

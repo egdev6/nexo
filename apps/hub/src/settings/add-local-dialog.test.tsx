@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { createAccentTheme } from '@egdev/tokens/accent';
 // @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
 import { readFileSync } from 'node:fs';
 import { LocaleProvider } from '../i18n/use-locale';
@@ -67,6 +68,13 @@ it.each([
 ] as const)('uses the default dialog padding and wrapping actions in %s', async (locale, executableLabel, names) => {
   const { dialog } = await openDialog(locale);
   const input = within(dialog).getByRole('textbox', { name: executableLabel });
+  const title = within(dialog).getByRole('heading');
+  const header = title.closest('header')!;
+  const description = document.getElementById(dialog.getAttribute('aria-describedby')!)!;
+  expect(header.classList.contains('flex')).toBe(true);
+  expect(header.classList.contains('flex-col')).toBe(true);
+  expect(title.parentElement?.parentElement).toBe(header);
+  expect(title.parentElement?.nextElementSibling).toBe(description);
   const body = input.closest('.eg-dialog__body');
   const stack = input.closest('.eg-stack');
   expect(body?.classList.contains('p-[var(--space-6)]')).toBe(true);
@@ -109,17 +117,69 @@ it.each([
   } finally { style.remove(); }
 });
 
-it('carries a custom accent into the body-portalled dialog without affecting its close behavior', async () => {
-  const trigger = await openSettings('es', '#2e7dff');
+it('carries the complete lightened DS accent into the body-portalled add dialog and still closes', async () => {
+  const trigger = await openSettings('es', '#123456');
   fireEvent.click(trigger);
   const dialog = await screen.findByRole('dialog', { name: 'Añadir app local' });
+  expect(dialog.closest('.eg-dialog-backdrop')?.parentElement).toBe(document.body);
   expect(dialog.hasAttribute('data-custom-accent')).toBe(true);
-  expect(dialog.style.getPropertyValue('--hub-accent')).toBe('#2e7dff');
-  expect(dialog.style.getPropertyValue('--hub-accent-base')).toBe('#2e7dff');
-  expect(dialog.style.getPropertyValue('--hub-accent-on')).toBe('#000000');
+  expect(dialog.style.getPropertyValue('--hub-accent')).toBe('#123456');
+  for (const [name, value] of Object.entries(createAccentTheme('#123456').variables)) expect(dialog.style.getPropertyValue(name), name).toBe(value);
+  expect(dialog.style.getPropertyValue('--color-action-primary-solid-bg')).not.toBe('#123456');
+  expect(dialog.style.getPropertyValue('--color-action-primary-solid-fg')).toBe('var(--color-primitive-black)');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Añadir app local' })).toBeNull());
   await waitFor(() => expect(document.activeElement).toBe(trigger));
+});
+
+it('themes the body-portalled removal confirmation and keeps cancellation non-destructive', async () => {
+  apps = [{ id: 'manual-1', name: 'Paint' }];
+  await openSettings('es', '#123456');
+  const trigger = await screen.findByRole('button', { name: 'Eliminar Paint' });
+  fireEvent.click(trigger);
+  const dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Paint' });
+  expect(dialog.closest('.eg-alert-dialog-backdrop')?.parentElement).toBe(document.body);
+  expect(dialog.querySelector('.eg-alert-dialog__body')).toBeNull();
+  expect(dialog.hasAttribute('data-custom-accent')).toBe(true);
+  expect(dialog.style.getPropertyValue('--hub-accent')).toBe('#123456');
+  for (const [name, value] of Object.entries(createAccentTheme('#123456').variables)) expect(dialog.style.getPropertyValue(name), name).toBe(value);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
+  expect(apps).toEqual([{ id: 'manual-1', name: 'Paint' }]);
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
+});
+
+it('updates and resets the DS theme while either body-portalled dialog is open', async () => {
+  apps = [{ id: 'manual-1', name: 'Paint' }];
+  const view = (accent: string) => <LocaleProvider locale="es"><SettingsView settings={{ ...defaultSettings, accent }} onChange={vi.fn()} onClose={vi.fn()} /></LocaleProvider>;
+  const { rerender } = render(view('#ff0036'));
+  const tab = screen.getByRole('tab', { name: 'Apps locales' });
+  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  const trigger = screen.getByRole('button', { name: 'Añadir app' });
+  await waitFor(() => expect((trigger as HTMLButtonElement).disabled).toBe(false));
+  const expectTheme = (dialog: HTMLElement, accent: string, custom: boolean) => {
+    const theme = createAccentTheme(accent);
+    expect(dialog.hasAttribute('data-custom-accent')).toBe(custom);
+    expect(dialog.style.getPropertyValue('--hub-accent')).toBe(theme.normalizedAccent);
+    for (const [name, value] of Object.entries(theme.variables)) expect(dialog.style.getPropertyValue(name), name).toBe(value);
+  };
+  fireEvent.click(trigger);
+  let dialog = await screen.findByRole('dialog', { name: 'Añadir app local' });
+  expectTheme(dialog, '#ff0036', false);
+  rerender(view('#123456')); expectTheme(dialog, '#123456', true);
+  rerender(view('invalid')); expectTheme(dialog, '#ff0036', false);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  fireEvent.click(screen.getByRole('button', { name: 'Eliminar Paint' }));
+  dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Paint' });
+  expectTheme(dialog, '#ff0036', false);
+  rerender(view('#123456')); expectTheme(dialog, '#123456', true);
+  rerender(view('#ff0036')); expectTheme(dialog, '#ff0036', false);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  expect(apps).toEqual([{ id: 'manual-1', name: 'Paint' }]);
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_remove', expect.anything());
 });
 
 it('opens before the native picker, with a read-only path and add disabled until both fields are valid', async () => {

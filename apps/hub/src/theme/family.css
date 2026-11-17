@@ -3,13 +3,12 @@
 .app-card.eg-collapsible:has(> .app-row),
 .catalog-card,
 .news-dialog,
-.first-run__choices > div,
 .preview-row {
   border-radius: var(--radius-xl);
   background: var(--gradient-sheen), var(--color-surface-1);
   box-shadow: var(--shadow-edge), var(--shadow-elev-1);
 }
-.app-card.eg-collapsible:has(> .app-row), .news-dialog, .first-run__choices > div, .preview-row {
+.app-card.eg-collapsible:has(> .app-row), .news-dialog, .preview-row {
   border: var(--border-width) solid var(--color-border-hairline);
 }
 .app-card.eg-collapsible:has(> .app-row) { overflow: hidden; }
@@ -38,21 +37,9 @@
 }
 .preview-row { margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); }
 .news-header h2 { font-family: var(--font-display); font-weight: var(--text-display-hero--font-weight); text-transform: uppercase; }
-.flyout [role='tab'] { border: var(--border-width) solid transparent; }
-.flyout [role='tab'][aria-selected='true'],
-.first-run__choices > div:has([data-state='checked']) {
-  border-color: var(--color-primitive-red-neon);
-  background: var(--gradient-chip-active), var(--color-surface-1);
-  box-shadow: var(--shadow-edge-strong), var(--shadow-glow-base);
-  color: var(--color-fg-default);
-}
-.flyout [role='tab']:focus-visible, .first-run__choices > div:focus-within {
-  outline: var(--focus-width) solid var(--color-focus-ring-inverse);
-  outline-offset: calc(-1 * var(--focus-offset));
-}
-.flyout .eg-slider > span:first-child { background: var(--color-border-control); }
-.flyout .eg-slider > span:first-child > span { background: var(--color-primitive-red-neon); }
-.flyout a { color: var(--color-primitive-red-200); }
+/* Preserve the established track and link contrast with shared semantic roles. */
+.flyout .eg-slider > span:first-child { background: var(--color-control-boundary); }
+.flyout a { color: var(--color-link-hover); }
 /* The settings preview uses the same surface and transparency as the flyout. */
 .settings__preview-panel { background: var(--color-surface-0); }
 @supports (backdrop-filter: blur(1px)) and (background: color-mix(in srgb, black 50%, transparent)) {
