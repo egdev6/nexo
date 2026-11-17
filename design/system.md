@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system 085b46e; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system 846c0d6; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -20,9 +20,9 @@ See Typography roles for source-derived font families and sizes; display heading
 Schema: 1.0.0 (schemaVersion)
 | Package | Version | Source |
 | --- | --- | --- |
-| @egdev/effects | 0.1.0 | packages[] · packages/effects/package.json |
-| @egdev/tokens | 0.3.0 | packages[] · packages/tokens/package.json |
-| @egdev/ui | 0.1.0 | packages[] · packages/ui/package.json |
+| @egdev/effects | 0.2.0 | packages[] · packages/effects/package.json |
+| @egdev/tokens | 0.4.0 | packages[] · packages/tokens/package.json |
+| @egdev/ui | 0.2.0 | packages[] · packages/ui/package.json |
 Re-run: `pnpm exec egdev-system-md --write`
 
 ## Typography roles
@@ -69,6 +69,10 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --color-ambient-line-glow | #4d000d | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-ambient-square | #e6001a | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-ambient-square-glow | #ff2244 | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-app-card | var(--color-surface-1) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-app-card-header | var(--color-surface-2) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-app-inset | var(--color-surface-0) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-app-page | var(--color-surface-0) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-bg-brand-hover | var(--color-alpha-red-18) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-bg-brand-subtle | var(--color-alpha-red-10) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-bg-canvas | var(--color-primitive-graphite-950) | theme |  | tokens[] · packages/tokens/src/theme.css |
@@ -84,6 +88,8 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --color-border-hairline | rgba(255, 255, 255, 0.08) | theme | Elevated surface | tokens[] · packages/tokens/src/theme.css |
 | --color-border-hairline-strong | rgba(255, 255, 255, 0.14) | theme | Overlay | tokens[] · packages/tokens/src/theme.css |
 | --color-border-subtle | var(--color-alpha-white-07) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-control-boundary | var(--color-border-control) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-control-well | var(--color-surface-0) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-fg-brand-default | var(--color-primitive-red-neon) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-fg-brand-hover | var(--color-primitive-red-light) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-fg-brand-raised | var(--color-primitive-red-neon) | theme |  | tokens[] · packages/tokens/src/theme.css |
@@ -94,6 +100,9 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --color-fg-secondary | var(--color-primitive-neutral-200) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-focus-ring | var(--color-primitive-red-neon) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-focus-ring-inverse | var(--color-primitive-white) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-link-default | var(--color-fg-brand-raised) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-link-hover | var(--color-primitive-red-200) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-on-selected | var(--color-action-primary-solid-fg) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-primitive-black | #000000 | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-primitive-graphite-400 | #A1A2A8 | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-primitive-graphite-500 | #7A7B81 | theme |  | tokens[] · packages/tokens/src/theme.css |
@@ -114,6 +123,8 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --color-primitive-red-light | #FF335E | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-primitive-red-neon | #FF0036 | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-primitive-white | #FFFFFF | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-state-selected | var(--color-action-primary-solid-bg) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --color-state-selected-surface | var(--color-surface-3) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-status-danger | var(--color-primitive-red-300) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-status-danger-bg | color-mix(in srgb, var(--color-status-danger) 12%, transparent) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --color-status-info | #8AB4FF | theme |  | tokens[] · packages/tokens/src/theme.css |
@@ -286,6 +297,8 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --shadow-glow-intense | 0 0 22px 4px rgba(255, 0, 54, 0.65), 0 0 55px 8px rgba(255, 0, 54, 0.28) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --shadow-hot | inset 0 1px 0 rgba(255, 180, 195, 0.35), inset 0 0 0 1px rgba(255, 0, 54, 0.18), 0 2px 0 0 #7A0A1C, 0 5px 0 0 #3D050E, 0 18px 40px -10px rgba(0, 0, 0, 0.85), 0 0 50px -6px rgba(255, 0, 54, 0.45) | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --shadow-ring-brand | 0 0 0 3px rgba(255, 0, 54, 0.22) | theme |  | tokens[] · packages/tokens/src/theme.css |
+| --shadow-state-indicator | var(--shadow-glow-base) | root |  | tokens[] · packages/tokens/src/theme.css |
+| --shadow-state-selected | var(--shadow-btn-primary) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --shadow-well | inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.28) | theme | Well | tokens[] · packages/tokens/src/theme.css |
 | --gradient-btn-primary | linear-gradient(180deg, #FF2D57 0%, #FF0036 52%, #EE0031 100%) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-btn-primary-hover | linear-gradient(180deg, #FF4A6E 0%, #FF1A49 52%, #F00033 100%) | root |  | tokens[] · packages/tokens/src/theme.css |
@@ -298,6 +311,7 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --gradient-progress | linear-gradient(180deg, #FF4A6E, #FF0036 60%, #D9002D) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-section-show | radial-gradient(45% 55% at 22% 50%, var(--color-alpha-red-12), transparent 70%) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-sheen | linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 42%) | root | Elevated surface | tokens[] · packages/tokens/src/theme.css |
+| --gradient-state-selected | var(--gradient-btn-primary) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-vignette | radial-gradient(ellipse 120% 90% at 50% 45%, transparent 35%, rgba(0, 0, 0, 0.55) 75%, rgba(0, 0, 0, 0.92) 100%) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --blur-glass | 16px | theme |  | tokens[] · packages/tokens/src/theme.css |
 | --blur-overlay | 20px | theme | Overlay | tokens[] · packages/tokens/src/theme.css |
@@ -997,6 +1011,32 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Collapsible
   - disabled: boolean; Disable only Trigger activation, retaining visibility and enabled body controls. (components[] · packages/ui/src/molecules/collapsible/types.ts)
   - onOpenChange: ((open: boolean) => void) \| ((open: boolean) => void); Requests the next visibility without echoing mount or incoming prop updates. (components[] · packages/ui/src/molecules/collapsible/types.ts)
   - open: boolean; Owner-supplied visibility; do not switch control mode while mounted. Owner-supplied visibility; omit in uncontrolled mode and do not switch mode while mounted. (components[] · packages/ui/src/molecules/collapsible/types.ts)
+### ColorSwatchGroup
+catalog[] · docs/catalog.json · @egdev/ui · molecule · RadioGroup
+- ColorSwatchGroup (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
+  - Visual anatomy (source classes; unresolved is not a guessed value):
+    - customFrame base: gap-2 → --spacing-2
+    - customFrame base: px-2 → --spacing-2
+    - customInput base: focus-visible:shadow-focus → --shadow-focus
+    - customLabel base: text-label-default → --text-label-default
+    - group base: gap-2 → --spacing-2
+    - indicator base: rounded-full → --radius-full
+    - item base: gap-2 → --spacing-2
+    - item base: px-2 → --spacing-2
+    - item base: py-1 → --spacing-1
+    - item base: text-start → unresolved
+    - item base: text-label-default → --text-label-default
+    - item base: focus-visible:shadow-focus → --shadow-focus
+    - legend base: text-label-default → --text-label-default
+    - output base: text-label-default → --text-label-default
+    - root base: p-0 → --spacing-0
+    - root base: font-sans → --font-sans
+    - surfaceVariants({ tone: 'surface-1', elevation: 1, radius: 'md', padding: 'none' }) · packages/ui/src/molecules/color-swatch-group/useColorSwatchGroup.ts; see Surface anatomy
+  - customLabel: string; Localized visible name for the separate native picker; absent or blank omits it. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
+  - label: string; Nonblank localized visible legend, radio-group name and current-value prefix. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
+  - onValueChange: (value: string) => void; Requests a user-driven color change without normalizing or persisting it. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
+  - options: ColorSwatchGroupOption[]; Ordered named presets. Invalid colors, blank labels and later case-insensitive duplicates are skipped. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
+  - value: string; Authoritative #RRGGBB color, including colors not present among the presets. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
 ### CommandPalette
 catalog[] · docs/catalog.json · @egdev/ui · molecule · Dialog (native D4 combobox)
 - CommandPalette (components[] · packages/ui/src/molecules/command-palette/types.ts)
@@ -1080,6 +1120,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Dialog
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
+    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
   - children: ReactNode; Composed Trigger and Content. (components[] · packages/ui/src/molecules/dialog/types.ts)
@@ -1450,7 +1491,12 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
     - panelVariants base: font-sans → --font-sans
     - panelVariants base: text-body-default → --text-body-default
     - panelVariants tone=inherit: shadow-none → unresolved
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
+  - accentEdge: enum; Opt in to a passive inherited-color edge at logical inline-start. Omission draws no edge. (components[] · packages/ui/src/molecules/panel/types.ts)
   - children: ReactNode; Optional Header, exactly one Body and optional Footer, in direct DOM sibling order. Fragments without wrappers are supported; Panel never parses or repairs the child tree. (components[] · packages/ui/src/molecules/panel/types.ts)
   - tone: enum; Explicit Material ownership. Inherit exposes an existing raised host, never infers one. (components[] · packages/ui/src/molecules/panel/types.ts)
   - variant: enum; Shared presentation of the supplied zones, without changing their behavior. (components[] · packages/ui/src/molecules/panel/types.ts)
@@ -1656,10 +1702,11 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Tabs
     - tabsTriggerVariants base: font-sans → --font-sans
     - tabsTriggerVariants base: text-label-default → --text-label-default
     - tabsTriggerVariants variant=underline: after:rounded-full → --radius-full
-    - tabsTriggerVariants variant=underline: data-[state=active]:after:shadow-glow-base → --shadow-glow-base
+    - tabsTriggerVariants variant=underline: data-[state=active]:after:shadow-[var(--shadow-state-indicator)] → --shadow-state-indicator
     - tabsTriggerVariants variant=segmented: px-3 → --spacing-3
     - tabsTriggerVariants variant=segmented: rounded-[calc(var(--radius-md)---spacing(0.75))] → --radius-md, --spacing
     - tabsTriggerVariants variant=segmented: data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] → --shadow-edge-strong, --shadow-elev-1
+    - tabsTriggerVariants variant=segmented: data-[state=active]:before:rounded-[inherit] → unresolved
     - tabsTriggerVariants variant=segmented: focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
@@ -2196,7 +2243,7 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · RadioGroup
     - radioGroupItemVariants base: p-0 → --spacing-0
     - radioGroupItemVariants base: rounded-full → --radius-full
     - radioGroupItemVariants base: shadow-[var(--shadow-well)] → --shadow-well
-    - radioGroupItemVariants base: data-[state=checked]:shadow-[var(--shadow-btn-primary)] → --shadow-btn-primary
+    - radioGroupItemVariants base: data-[state=checked]:shadow-[var(--shadow-state-selected)] → --shadow-state-selected
     - radioGroupItemVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
     - radioGroupItemVariants base: data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
     - radioGroupRootVariants orientation=vertical: gap-1 → --spacing-1
@@ -2347,7 +2394,7 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · Switch
     - switchVariants base: p-0 → --spacing-0
     - switchVariants base: rounded-full → --radius-full
     - switchVariants base: shadow-[var(--shadow-well)] → --shadow-well
-    - switchVariants base: data-[state=checked]:shadow-[var(--shadow-btn-primary)] → --shadow-btn-primary
+    - switchVariants base: data-[state=checked]:shadow-[var(--shadow-state-selected)] → --shadow-state-selected
     - switchVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
     - switchVariants base: data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
   - checked: boolean; Controlled on/off state. When omitted the switch is uncontrolled and starts from defaultChecked. (components[] · packages/ui/src/atoms/switch/types.ts)
@@ -2462,6 +2509,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/atoms/search-trigger/useSearchTrigger.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'none' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
+    - surfaceVariants({ tone: 'surface-1', elevation: 1, radius: 'md', padding: 'none' }) · packages/ui/src/molecules/color-swatch-group/useColorSwatchGroup.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
@@ -2771,6 +2819,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
+    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
 ### DialogContent
@@ -2788,6 +2837,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
+    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
 ### DialogTrigger
@@ -2805,6 +2855,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
+    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
     - dialogTitleVariants base: font-display → --font-display
     - dialogTitleVariants base: text-heading-small → --text-heading-small
 ### FooterBrand
@@ -3547,6 +3598,10 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - panelVariants base: font-sans → --font-sans
     - panelVariants base: text-body-default → --text-body-default
     - panelVariants tone=inherit: shadow-none → unresolved
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
 ### PanelFooter
 - PanelFooter (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
@@ -3563,6 +3618,10 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - panelVariants base: font-sans → --font-sans
     - panelVariants base: text-body-default → --text-body-default
     - panelVariants tone=inherit: shadow-none → unresolved
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
 ### PanelHeader
 - PanelHeader (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
@@ -3579,6 +3638,10 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - panelVariants base: font-sans → --font-sans
     - panelVariants base: text-body-default → --text-body-default
     - panelVariants tone=inherit: shadow-none → unresolved
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
+    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
 ### PopoverClose
 - PopoverClose (components[] · packages/ui/src/molecules/popover/types.ts · @egdev/ui)
@@ -3734,6 +3797,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/atoms/search-trigger/useSearchTrigger.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'none' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
+    - surfaceVariants({ tone: 'surface-1', elevation: 1, radius: 'md', padding: 'none' }) · packages/ui/src/molecules/color-swatch-group/useColorSwatchGroup.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
@@ -4144,7 +4208,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - radioGroupItemVariants base: p-0 → --spacing-0
     - radioGroupItemVariants base: rounded-full → --radius-full
     - radioGroupItemVariants base: shadow-[var(--shadow-well)] → --shadow-well
-    - radioGroupItemVariants base: data-[state=checked]:shadow-[var(--shadow-btn-primary)] → --shadow-btn-primary
+    - radioGroupItemVariants base: data-[state=checked]:shadow-[var(--shadow-state-selected)] → --shadow-state-selected
     - radioGroupItemVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
     - radioGroupItemVariants base: data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
     - radioGroupRootVariants orientation=vertical: gap-1 → --spacing-1
@@ -4263,10 +4327,11 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - tabsTriggerVariants base: font-sans → --font-sans
     - tabsTriggerVariants base: text-label-default → --text-label-default
     - tabsTriggerVariants variant=underline: after:rounded-full → --radius-full
-    - tabsTriggerVariants variant=underline: data-[state=active]:after:shadow-glow-base → --shadow-glow-base
+    - tabsTriggerVariants variant=underline: data-[state=active]:after:shadow-[var(--shadow-state-indicator)] → --shadow-state-indicator
     - tabsTriggerVariants variant=segmented: px-3 → --spacing-3
     - tabsTriggerVariants variant=segmented: rounded-[calc(var(--radius-md)---spacing(0.75))] → --radius-md, --spacing
     - tabsTriggerVariants variant=segmented: data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] → --shadow-edge-strong, --shadow-elev-1
+    - tabsTriggerVariants variant=segmented: data-[state=active]:before:rounded-[inherit] → unresolved
     - tabsTriggerVariants variant=segmented: focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
@@ -4312,7 +4377,7 @@ Not exported:
 
 - absolute-deadline-text: deadlineText; approved; Countdown (propNaming[] · skills/_shared/prop-naming.json)
 - accent-line-break: accentBreak; approved; Heading, SectionHeader, Text (propNaming[] · skills/_shared/prop-naming.json)
-- accessible-name: label; approved; AppIcon, Avatar, ButtonGroup, CalendarGrid, Carousel, CarouselItem, ChipGroup, ChipGroupOption, CommandPalette, CommandPaletteItem, Countdown, Dropzone, Field, FooterNavigation, FooterNavigationItem, Gauge, GaugeGroup, GaugeGroupRing, Icon, IconButton, Isotipo3D, Kbd, Logo, MeterRow, ModuleRail, NavList, NowStrip, PopoverContent, ProgressBar, ProjectCardCode, RadioGroup, SearchTrigger, SectionNav, SelectTile, SelectTileOption, Slider, SocialLinkItem, SocialLinks, Spinner, Stat, TabBar, Table, Tabs, TerminalCard, Timeline, ToastProvider, Toggle, TopBar (propNaming[] · skills/_shared/prop-naming.json)
+- accessible-name: label; approved; AppIcon, Avatar, ButtonGroup, CalendarGrid, Carousel, CarouselItem, ChipGroup, ChipGroupOption, ColorSwatchGroup, ColorSwatchGroupOption, CommandPalette, CommandPaletteItem, Countdown, Dropzone, Field, FooterNavigation, FooterNavigationItem, Gauge, GaugeGroup, GaugeGroupRing, Icon, IconButton, Isotipo3D, Kbd, Logo, MeterRow, ModuleRail, NavList, NowStrip, PopoverContent, ProgressBar, ProjectCardCode, RadioGroup, SearchTrigger, SectionNav, SelectTile, SelectTileOption, Slider, SocialLinkItem, SocialLinks, Spinner, Stat, TabBar, Table, Tabs, TerminalCard, Timeline, ToastProvider, Toggle, TopBar (propNaming[] · skills/_shared/prop-naming.json)
 - action-alternative-text: actionAltText; approved; Toast (propNaming[] · skills/_shared/prop-naming.json)
 - active-row: activeRowId; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
 - active-section-id: activeId; approved; SectionNav (propNaming[] · skills/_shared/prop-naming.json)
@@ -4330,7 +4395,7 @@ Not exported:
 - carousel-track-layout: trackLayout; approved; Carousel (propNaming[] · skills/_shared/prop-naming.json)
 - character-counter: counter; approved; Field (propNaming[] · skills/_shared/prop-naming.json)
 - checked-change: onCheckedChange; approved; Checkbox, Switch (propNaming[] · skills/_shared/prop-naming.json)
-- choice-options: options; approved; ChipGroup, RadioGroup, Select, SelectTile (propNaming[] · skills/_shared/prop-naming.json)
+- choice-options: options; approved; ChipGroup, ColorSwatchGroup, RadioGroup, Select, SelectTile (propNaming[] · skills/_shared/prop-naming.json)
 - choreography-zone-table: zoneTable; approved; HomeTemplate (propNaming[] · skills/_shared/prop-naming.json)
 - clock-initialization-message: initializingText; approved; Countdown (propNaming[] · skills/_shared/prop-naming.json)
 - close-auto-focus: onCloseAutoFocus; approved; PopoverContent (propNaming[] · skills/_shared/prop-naming.json)
@@ -4354,6 +4419,7 @@ Not exported:
 - decorative-cover-word: coverWord; approved; ArticleFeatureCover (propNaming[] · skills/_shared/prop-naming.json)
 - decorative-index: index; approved; ProjectCard (propNaming[] · skills/_shared/prop-naming.json)
 - decorative-separation: decorative; approved; Divider (propNaming[] · skills/_shared/prop-naming.json)
+- dialog-header-layout: headerLayout; approved; AlertDialogContent, DialogContent (propNaming[] · skills/_shared/prop-naming.json)
 - dialog-overlay-scope: overlayScope; approved; DialogContent (propNaming[] · skills/_shared/prop-naming.json)
 - disclosure-motion: motion; approved; CollapsibleTrigger (propNaming[] · skills/_shared/prop-naming.json)
 - disclosure-presence: presence; approved; CollapsibleContent (propNaming[] · skills/_shared/prop-naming.json)
@@ -4399,7 +4465,7 @@ Not exported:
 - interaction-interactive-mode: interactive; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-modality: modal; approved; Popover (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-pose-change: onPoseChange; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
-- interactive-value-change: onValueChange; approved; Carousel, ChipGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
+- interactive-value-change: onValueChange; approved; Carousel, ChipGroup, ColorSwatchGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - item-presentation-status: status; approved; CalendarGridEntry, ListItem, ModuleCard (propNaming[] · skills/_shared/prop-naming.json)
 - keyboard-shortcut-hint: shortcut; approved; CommandPaletteItem, MenuEntry, SearchTrigger (propNaming[] · skills/_shared/prop-naming.json)
 - label-layout: layout; approved; Field (propNaming[] · skills/_shared/prop-naming.json)
@@ -4424,6 +4490,7 @@ Not exported:
 - open-state: open; approved; AlertDialog, Collapsible, CommandPalette, Dialog, Menu, NavList, Popover, SectionNav (propNaming[] · skills/_shared/prop-naming.json)
 - option-metadata: meta; approved; SelectTileOption (propNaming[] · skills/_shared/prop-naming.json)
 - page-top-bar-slot: topBar; approved; WebTemplate (propNaming[] · skills/_shared/prop-naming.json)
+- panel-accent-edge: accentEdge; proposed; Panel (propNaming[] · skills/_shared/prop-naming.json)
 - panel-footer: footer; approved; ModuleCard, PreviewFrame, Sidebar, WebTemplate (propNaming[] · skills/_shared/prop-naming.json)
 - panel-header: header; approved; Menu, WebSection (propNaming[] · skills/_shared/prop-naming.json)
 - paused-presentation: paused; approved; Avatar (propNaming[] · skills/_shared/prop-naming.json)
@@ -4434,7 +4501,7 @@ Not exported:
 - pressed-change: onPressedChange; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - pressed-state: pressed; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - preview-thumbnail: thumb; approved; SelectTileOption (propNaming[] · skills/_shared/prop-naming.json)
-- primary-value: value; approved; Carousel, CarouselItem, ChipGroup, ChipGroupOption, Gauge, GaugeGroupRing, MeterRow, ProgressBar, RadioGroup, SectionNav, Select, SelectTile, SelectTileOption, Slider, Stat, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
+- primary-value: value; approved; Carousel, CarouselItem, ChipGroup, ChipGroupOption, ColorSwatchGroup, ColorSwatchGroupOption, Gauge, GaugeGroupRing, MeterRow, ProgressBar, RadioGroup, SectionNav, Select, SelectTile, SelectTileOption, Slider, Stat, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - product-identity: product; approved; ModuleRail, Sidebar (propNaming[] · skills/_shared/prop-naming.json)
 - quotation-source: source; approved; PullQuote (propNaming[] · skills/_shared/prop-naming.json)
 - quotation-text: text; approved; PullQuote (propNaming[] · skills/_shared/prop-naming.json)
