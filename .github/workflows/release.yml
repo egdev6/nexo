@@ -1,5 +1,5 @@
 # Manual release: builds the per-user NSIS installer for Windows (no Windows code signing) and creates a
-# DRAFT GitHub release with the .exe attached. It only runs by hand and only from main. It never publishes
+# DRAFT GitHub release with the .exe attached, marked as the latest release once published. It only runs by hand and only from main. It never publishes
 # and never creates tags: the v<version> tag is created when the maintainer publishes the reviewed draft.
 # No Tauri updater artifacts yet: Nexo does not update itself while the repository is private, because the
 # updater cannot download private release assets. Add them (key, secrets, latest.json) when Nexo goes public.
@@ -83,4 +83,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EXE: ${{ steps.exe.outputs.path }}
         run: |
-          gh release create "v$VERSION" "$EXE" --draft --prerelease --target "$GITHUB_SHA" --title "Nexo $VERSION" --notes-file "docs/releases/v$VERSION.md" --repo "$GITHUB_REPOSITORY"
+          gh release create "v$VERSION" "$EXE" --draft --latest --target "$GITHUB_SHA" --title "Nexo $VERSION" --notes-file "docs/releases/v$VERSION.md" --repo "$GITHUB_REPOSITORY"
