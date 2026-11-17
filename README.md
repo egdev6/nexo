@@ -5,8 +5,8 @@ Nexo brings compatible apps together in a single hub.
 ## Repository layout
 
 - `apps/hub/` — Tauri and React hub.
-- `crates/nexo-protocol/` — shared protocol types.
-- `crates/tauri-plugin-nexo/` — [Windows tray client](crates/tauri-plugin-nexo/README.md) for compatible apps.
+- `crates/nexo-catalog/` — official catalog types and validation.
+- [`tauri-plugin-nexo`](https://github.com/egdev6/tauri-plugin-nexo) — public source of the shared `nexo-protocol` crate and Windows tray client, pinned by the hub at `v0.1.0`.
 
 ## Development
 
@@ -20,6 +20,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo build --workspace
 ```
+
+These workspace checks cover the hub and catalog. The shared protocol and tray plugin are tested in
+[their public repository's CI](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/.github/workflows/ci.yml).
+The [protocol specification](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/docs/protocol.md)
+and plugin development instructions live in that repository too.
 
 Build the frontend before running the Rust checks, since the hub embeds it. From `apps/hub`:
 

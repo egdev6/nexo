@@ -2,8 +2,6 @@
 resolver = "3"
 members = [
     "crates/nexo-catalog",
-    "crates/nexo-protocol",
-    "crates/tauri-plugin-nexo",
     "apps/hub/src-tauri",
 ]
 
