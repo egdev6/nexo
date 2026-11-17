@@ -3,36 +3,6 @@ import type { GuardAllowlistEntry } from './design-system-guard';
 // Exact opening tags and selectors: remove each entry when its workaround goes away.
 export const designSystemAllowlist: GuardAllowlistEntry[] = [
   {
-    file: 'src/first-run/index.tsx', pattern: '<p className="first-run__eyebrow">', kind: 'component-gap',
-    comment: '// TODO(egdev-design-system#417): Preserve bilingual language tags.',
-    issue: 'egdev6/egdev-design-system#417', reason: 'Replace the intro when SectionHeader supports mixed-language content and decorative separators.',
-  },
-  {
-    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-general`}>', kind: 'component-gap',
-    comment: '// TODO(egdev-design-system#404): Preserve the General heading until the DS offers this size.',
-    issue: 'egdev6/egdev-design-system#404', reason: 'Replace the compact heading style when the DS provides it.',
-  },
-  {
-    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-appearance`}>', kind: 'component-gap',
-    comment: '// TODO(egdev-design-system#404): Preserve the Appearance heading until the DS offers this size.',
-    issue: 'egdev6/egdev-design-system#404', reason: 'Replace the compact heading style when the DS provides it.',
-  },
-  {
-    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-about`}>', kind: 'component-gap',
-    comment: '// TODO(egdev-design-system#404): Preserve the About heading until the DS offers this size.',
-    issue: 'egdev6/egdev-design-system#404', reason: 'Replace the compact heading style when the DS provides it.',
-  },
-  {
-    file: 'src/settings/index.tsx', pattern: '<h2 id={`${id}-author`}>', kind: 'component-gap',
-    comment: '// TODO(egdev-design-system#404): Preserve the Author heading until the DS offers this size.',
-    issue: 'egdev6/egdev-design-system#404', reason: 'Replace the compact heading style when the DS provides it.',
-  },
-  {
-    file: 'src/settings/local-management.tsx', pattern: '<h2 id={`${id}-apps`}>', kind: 'component-gap',
-    comment: '// TODO(egdev-design-system#404): Preserve compact uppercase headings until the DS offers this size.',
-    issue: 'egdev6/egdev-design-system#404', reason: 'Replace the compact heading style when the DS provides it.',
-  },
-  {
     file: 'src/settings/index.tsx', pattern: '<section className="settings__group settings__appearance" aria-labelledby={`${id}-appearance`}>', kind: 'component-gap',
     comment: '// TODO(egdev-design-system#418): Preserve the appearance accent until Panel supports an accent border.',
     issue: 'egdev6/egdev-design-system#418', reason: 'Remove the accent wrapper when Panel supports an accent border.',

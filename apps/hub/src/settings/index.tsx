@@ -1,4 +1,4 @@
-import { Button, Field, Icon, IconButton, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import { Button, Field, Heading, Icon, IconButton, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties, MouseEvent } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
@@ -9,10 +9,6 @@ import { useExternalLinks } from '../apps/details';
 import { LocalManagement } from './local-management';
 import './settings.css';
 
-// TODO(egdev-design-system#404): Preserve the General heading until the DS offers this size.
-// TODO(egdev-design-system#404): Preserve the Appearance heading until the DS offers this size.
-// TODO(egdev-design-system#404): Preserve the About heading until the DS offers this size.
-// TODO(egdev-design-system#404): Preserve the Author heading until the DS offers this size.
 // TODO(egdev-design-system#418): Preserve the appearance accent until Panel supports an accent border.
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
@@ -43,7 +39,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
   const general = <>
     <section className="settings__group" aria-labelledby={`${id}-general`}>
       <Panel variant="banded">
-        <PanelHeader><h2 id={`${id}-general`}>{tr('settings.general')}</h2></PanelHeader>
+        <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-general`}>{tr('settings.general')}</Heading></PanelHeader>
         <PanelBody><div className="settings__rows">
       <div className="settings__row settings__language">
         <div><strong>{tr('settings.language')}</strong><span>{tr('settings.languageHint')}</span>{languagePending && <span role="status">{tr('settings.languageSaving')}</span>}</div>
@@ -75,7 +71,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
   const appearance = <>
     <section className="settings__group settings__appearance" aria-labelledby={`${id}-appearance`}>
       <Panel variant="banded">
-        <PanelHeader><h2 id={`${id}-appearance`}>{tr('settings.appearance')}</h2></PanelHeader>
+        <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-appearance`}>{tr('settings.appearance')}</Heading></PanelHeader>
         <PanelBody><div>
       <fieldset className="settings__colors">
         <legend>{tr('settings.accent')}</legend>
@@ -122,7 +118,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
   const about = <>
     <section className="settings__group" aria-labelledby={`${id}-about`}>
       <Panel variant="banded">
-        <PanelHeader><h2 id={`${id}-about`}>{tr('settings.about')}</h2></PanelHeader>
+        <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-about`}>{tr('settings.about')}</Heading></PanelHeader>
         <PanelBody><div className="settings__rows">
       <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: '0.1.0' })}</span></div>
         <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.updates')}</Button></div>
@@ -132,7 +128,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
     </section>
     <section className="settings__group" aria-labelledby={`${id}-author`}>
       <Panel variant="banded">
-        <PanelHeader><h2 id={`${id}-author`}>{tr('settings.author')}</h2></PanelHeader>
+        <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-author`}>{tr('settings.author')}</Heading></PanelHeader>
         <PanelBody><div>
       <p className="settings__author-name">{tr('settings.authorName')}</p>
       <SocialLinks label={tr('settings.authorLinks')} caption={null} variant="ghost" size="md" onClick={open} items={[

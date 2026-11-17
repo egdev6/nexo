@@ -133,12 +133,12 @@ it('renders both first-run lines inline with hidden separators and language tags
     const { container } = render(<FirstRun onChoose={vi.fn()} />);
     for (const [selector, expected] of [
       ['h1', 'Elige tu idioma - Choose your language'],
-      ['.first-run__description', 'Puedes cambiarlo después en Ajustes. - You can change it later in Settings.'],
+      ['header > p:last-child', 'Puedes cambiarlo después en Ajustes. - You can change it later in Settings.'],
     ]) {
       const line = container.querySelector(selector)!;
       expect(line.textContent).toBe(expected);
       expect(line.querySelector('br')).toBeNull();
-      expect(Array.from(line.querySelectorAll('span')).map(span => span.getAttribute('lang'))).toEqual(['es', null, 'en']);
+      expect(Array.from(line.querySelectorAll('span[lang]')).map(span => span.getAttribute('lang'))).toEqual(['es', 'en']);
       expect(line.querySelector('[aria-hidden="true"]')?.textContent).toBe('-');
       expect(getComputedStyle(line.querySelector('[lang="es"]')!).display).not.toBe('block');
     }

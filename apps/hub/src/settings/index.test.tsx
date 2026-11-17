@@ -39,6 +39,26 @@ function tab(name: string) {
   return element;
 }
 
+it.each([
+  ['es', 'Apariencia', 'Apps locales', 'Acerca de', 'Autor'],
+  ['en', 'Appearance', 'Local apps', 'About', 'Author'],
+] as const)('uses compact panel headings for all settings sections in %s', (locale, appearance, localApps, about, author) => {
+  setup(locale);
+  function checkHeading(name: string) {
+    const section = screen.getByRole('region', { name });
+    const heading = within(section).getByRole('heading', { level: 2, name });
+    expect(section.getAttribute('aria-labelledby')).toBe(heading.id);
+    expect(heading.parentElement?.classList.contains('eg-panel__header')).toBe(true);
+    for (const className of ['eg-heading', 'text-heading-small', 'text-fg-default', 'uppercase']) {
+      expect(heading.classList.contains(className)).toBe(true);
+    }
+  }
+  checkHeading('General');
+  tab(appearance); checkHeading(appearance);
+  tab(localApps); checkHeading(localApps);
+  tab(about); checkHeading(about); checkHeading(author);
+});
+
 it('switches the four settings sections with the keyboard and shows their content', async () => {
   setup();
   const general = screen.getByRole('tab', { name: 'General' });
