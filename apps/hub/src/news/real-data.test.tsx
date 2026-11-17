@@ -2,6 +2,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import App, { FlyoutPanel } from '../App';
+import { parseCatalog } from '../catalog/format';
+import { selectOfficialNews } from './selection';
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
@@ -124,7 +126,8 @@ it('opens the real-shaped v3 updates newest first and navigates both detected an
 
 it('selects only qualifying official events, inclusive boundaries, feature fallbacks and true chronological order', async () => {
   cache = catalog([
-    app('recent', '2026-05-01T12:00:00Z', false, [entry('release', '2026-05-02T00:00:00Z'), entry('update', '2026-05-31T13:00:00+02:00', 'update'), entry('future', '2026-06-01T00:00:00Z')]),
+    app('recent', '2026-05-01T12:00:00Z', false, [entry('previous', '2026-05-02T00:00:00Z'), entry('update', '2026-05-31T13:00:00+02:00', 'update'), entry('future', '2026-06-01T00:00:00Z')]),
+    app('release-app', '2026-05-01T12:00:00Z', false, [entry('release', '2026-05-02T00:00:00Z')]),
     app('old', '2025-01-01T00:00:00Z', false, [entry('old-update', today, 'update')]),
     app('featured', '2025-01-01T00:00:00Z', true, [entry('feature-update', '2026-05-30T00:00:00Z', 'update')]),
     app('outside', '2026-05-01T11:59:59Z'), app('future-app', '2026-06-01T00:00:00Z', true),
@@ -136,7 +139,7 @@ it('selects only qualifying official events, inclusive boundaries, feature fallb
   expect(within(dialog).getAllByText('Sin ver')).toHaveLength(3);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   expect(within(dialog).getAllByText('Sin ver')).toHaveLength(2);
-  expect(dialog.textContent).not.toMatch(/old-update|future-app|future|outside/);
+  expect(dialog.textContent).not.toMatch(/previous|old-update|future-app|future|outside/);
   expect(dialog.textContent).toMatch(/copia guardada|desactualizada/i);
 });
 
@@ -164,17 +167,43 @@ it('shows the two real updates of two apps without adding synthetic release slid
 });
 
 it('starts only on an actual show, freezes the snapshot, and records only slides presented', async () => {
-  cache = catalog([app('one', '2026-05-30T00:00:00Z', false, [entry('first', today), entry('second', '2026-05-30T00:00:00Z', 'update'), entry('third', '2026-05-29T00:00:00Z', 'update')])]);
+  cache = catalog([
+    app('one', '2026-05-30T00:00:00Z', false, [entry('first', today)]),
+    app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]),
+    app('three', '2026-05-30T00:00:00Z', false, [entry('third', '2026-05-29T00:00:00Z', 'update')]),
+  ]);
   await start();
   expect(screen.queryByRole('dialog')).toBeNull();
   const dialog = await open(); expect(titles(dialog)).toEqual(['first', 'second', 'third']);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   close();
-  await waitFor(() => expect(stored).toMatchObject({ newsVisit: { lastVisitAt: today, seenKeys: ['n:one:first', 'n:one:second'] } }));
+  await waitFor(() => expect(stored).toMatchObject({ newsVisit: { lastVisitAt: today, seenKeys: ['n:one:first', 'n:two:second'] } }));
   fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
   visibility(false); const again = await open();
   expect(titles(again)).toEqual(['first', 'second', 'third']);
   expect(within(again).getAllByText('Sin ver')).toHaveLength(1);
+});
+
+it('freezes the selected catalog news until the next show when the selection changes', async () => {
+  const first = entry('first', '2026-05-31T11:00:00Z');
+  const second = app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]);
+  const select = (apps: ReturnType<typeof app>[]) => selectOfficialNews(parseCatalog(JSON.parse(catalog(apps))), Date.parse(today)).items;
+  const initial = select([app('one', '2026-05-30T00:00:00Z', false, [first]), second]);
+  const changed = select([
+    app('one', '2026-05-30T00:00:00Z', false, [first, entry('replacement', '2026-05-31T11:30:00Z', 'update')]),
+    second,
+    app('three', '2026-05-30T00:00:00Z', false, [entry('third', '2026-05-31T10:00:00Z')]),
+  ]);
+  const view = render(<FlyoutPanel apps={[]} news={initial} />);
+  await screen.findByText('Instaladas');
+  await waitFor(() => expect(bridge.listeners.has('flyout-visibility')).toBe(true));
+  const dialog = await open();
+  expect(titles(dialog)).toEqual(['first', 'second']);
+  view.rerender(<FlyoutPanel apps={[]} news={changed} />);
+  expect(titles(dialog)).toEqual(['first', 'second']);
+  visibility(false);
+  await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['n:one:first']));
+  expect(titles(await open())).toEqual(['replacement', 'third', 'second']);
 });
 
 it('reopens already-seen news on each native show, not on focus or dismissal', async () => {
@@ -216,7 +245,10 @@ it('recovers the last show time from the native snapshot when subscription start
 });
 
 it('records the current slide when hide and the next show arrive in the same React batch', async () => {
-  cache = catalog([app('one', '2026-05-30T00:00:00Z', false, [entry('first', today), entry('second', '2026-05-30T00:00:00Z', 'update')])]);
+  cache = catalog([
+    app('one', '2026-05-30T00:00:00Z', false, [entry('first', today)]),
+    app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]),
+  ]);
   await start(); await open();
   act(() => {
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: false, sequence: 2, cycle: 1, at: today } });
@@ -260,12 +292,12 @@ it('opens late cached data only while visible and does not reopen after dismissa
 });
 
 it('orders equal instants by typed key and keeps sub-millisecond instants distinct', async () => {
-  cache = catalog([app('one', '2026-05-30T00:00:00Z', false, [
-    entry('tie-b', '2026-05-31T13:59:00+02:00', 'update'),
-    entry('tie-a', '2026-05-31T11:59:00Z'),
-    entry('earlier', '2026-05-31T11:59:00.1230001Z', 'update'),
-    entry('later', '2026-05-31T11:59:00.1230002Z', 'update'),
-  ])]);
+  cache = catalog([
+    app('tie-b-app', '2026-05-30T00:00:00Z', false, [entry('tie-b', '2026-05-31T13:59:00+02:00', 'update')]),
+    app('tie-a-app', '2026-05-30T00:00:00Z', false, [entry('tie-a', '2026-05-31T11:59:00Z')]),
+    app('earlier-app', '2026-05-30T00:00:00Z', false, [entry('earlier', '2026-05-31T11:59:00.1230001Z', 'update')]),
+    app('later-app', '2026-05-30T00:00:00Z', false, [entry('later', '2026-05-31T11:59:00.1230002Z', 'update')]),
+  ]);
   await start(); expect(titles(await open())).toEqual(['later', 'earlier', 'tie-a', 'tie-b']);
 });
 
@@ -297,13 +329,19 @@ it('prunes removed keys only after receiving a fresh official catalog and retain
 });
 
 it('navigates from the current slide to the matching catalog card without simulating installation', async () => {
-  cache = catalog([app('one', today, false, [entry('first', today), entry('second', today, 'update')])]);
+  cache = catalog([
+    app('one', today, false, [entry('first', today)]),
+    app('two', today, false, [entry('second', today, 'update')]),
+  ]);
   await start(); const dialog = await open();
+  expect(titles(dialog)).toEqual(['first', 'second']);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
-  fireEvent.click(within(dialog).getByRole('button', { name: /Ver en el catálogo: second/ }));
+  const cta = within(dialog).getByRole('button', { name: /Ver en el catálogo: second/ });
+  expect(cta.getAttribute('data-app-id')).toBe('two');
+  fireEvent.click(cta);
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(screen.getByRole('tab', { name: 'Catálogo' }).getAttribute('aria-selected')).toBe('true');
-  const target = screen.getByRole('article', { name: 'one' });
+  const target = screen.getByRole('article', { name: 'two' });
   expect(document.activeElement).toBe(target);
   expect(within(target).queryByRole('button', { name: /Instalar/ })).toBeNull();
   expect(within(target).queryByText('Sin ver')).toBeNull();
