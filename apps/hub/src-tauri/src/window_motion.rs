@@ -148,14 +148,11 @@ impl Coordinator {
         &mut self,
         surface: &S,
         reduced: bool,
-        suppress_reopen: bool,
     ) -> Result<Option<u64>, S::Error> {
         if surface.is_visible()? && !self.is_exiting() {
             self.hide(surface, reduced)
-        } else if !suppress_reopen {
-            self.show(surface, reduced)
         } else {
-            Ok(None)
+            self.show(surface, reduced)
         }
     }
 

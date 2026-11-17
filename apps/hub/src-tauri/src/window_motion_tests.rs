@@ -116,6 +116,61 @@ fn entry_shows_at_final_bounds_then_waits_for_paint_and_ack() {
 }
 
 #[test]
+fn focus_changes_leave_the_open_flyout_and_motion_untouched() {
+    let surface = FakeSurface::default();
+    let mut motion = Coordinator::default();
+    open(&mut motion, &surface);
+    let before = surface.events.borrow().clone();
+    let snapshot = motion.snapshot();
+    for focused in [false, true] {
+        let prevented = Cell::new(false);
+        let result = super::handle_window_event(
+            "main",
+            &tauri::WindowEvent::Focused(focused),
+            || prevented.set(true),
+            || {
+                motion.hide(&surface, false)?;
+                Ok::<_, ()>(())
+            },
+        );
+        assert_eq!(result, Ok(()));
+        assert!(!prevented.get());
+        assert!(surface.visible.get());
+        assert_eq!(*surface.events.borrow(), before);
+        assert_eq!(motion.snapshot().phase, snapshot.phase);
+        assert_eq!(motion.snapshot().generation, snapshot.generation);
+        assert_eq!(motion.snapshot().sequence, snapshot.sequence);
+    }
+}
+
+#[test]
+fn tray_click_hides_then_next_click_shows_without_a_blur_suppression() {
+    let surface = FakeSurface::default();
+    let mut motion = Coordinator::default();
+    open(&mut motion, &surface);
+    let before = surface.events.borrow().len();
+    let exit = motion.toggle(&surface, false).unwrap().unwrap();
+    assert_eq!(&surface.events.borrow()[before..], ["motion:Exiting"]);
+    assert!(surface.visible.get());
+    motion.finish(&surface, exit).unwrap();
+    assert!(!surface.visible.get());
+    let before_reopen = surface.events.borrow().len();
+    assert_eq!(motion.toggle(&surface, false), Ok(None));
+    assert!(surface.visible.get());
+    assert_eq!(
+        &surface.events.borrow()[before_reopen..],
+        [
+            "size:600,1014",
+            "position:1307,13",
+            "cloak:false",
+            "motion:Waiting",
+            "show",
+            "visible:true"
+        ]
+    );
+}
+
+#[test]
 fn exit_ack_cloaks_and_hides_without_moving_or_touching_a_backdrop() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
@@ -162,14 +217,13 @@ fn reopening_and_double_clicks_cancel_stale_exit_and_entry_acknowledgements() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
     open(&mut motion, &surface);
-    let exit = motion.toggle(&surface, false, false).unwrap().unwrap();
-    assert_eq!(motion.toggle(&surface, false, true), Ok(None));
+    let exit = motion.toggle(&surface, false).unwrap().unwrap();
     assert_eq!(motion.hide(&surface, false), Ok(None));
-    let reopened = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let reopened = motion.toggle(&surface, false).unwrap().unwrap();
     let before = surface.events.borrow().len();
     motion.finish(&surface, exit).unwrap();
     assert_eq!(surface.events.borrow().len(), before);
-    let second_exit = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let second_exit = motion.toggle(&surface, false).unwrap().unwrap();
     motion.finish(&surface, reopened).unwrap();
     assert!(surface.visible.get());
     motion.finish(&surface, second_exit).unwrap();
@@ -241,11 +295,11 @@ fn hide_or_abort_during_paint_cancels_stale_probes() {
 }
 
 #[test]
-fn tray_close_blur_and_single_instance_keep_hide_to_tray_and_reopen() {
+fn tray_close_and_single_instance_keep_hide_to_tray_and_reopen() {
     let surface = FakeSurface::default();
     let mut motion = Coordinator::default();
     open(&mut motion, &surface);
-    let exit = motion.toggle(&surface, false, false).unwrap().unwrap();
+    let exit = motion.toggle(&surface, false).unwrap().unwrap();
     motion.finish(&surface, exit).unwrap();
     open(&mut motion, &surface);
     let prevented = Cell::new(false);
@@ -262,9 +316,6 @@ fn tray_close_blur_and_single_instance_keep_hide_to_tray_and_reopen() {
     assert!(prevented.get());
     motion.finish(&surface, exit.unwrap()).unwrap();
     open(&mut motion, &surface);
-    let exit = motion.hide(&surface, false).unwrap().unwrap();
-    motion.finish(&surface, exit).unwrap();
-    open(&mut motion, &surface);
     assert!(surface.visible.get());
     assert_eq!(
         surface
@@ -273,7 +324,7 @@ fn tray_close_blur_and_single_instance_keep_hide_to_tray_and_reopen() {
             .iter()
             .filter(|e| *e == "visible:true")
             .count(),
-        4
+        3
     );
     assert_eq!(
         surface
@@ -282,7 +333,7 @@ fn tray_close_blur_and_single_instance_keep_hide_to_tray_and_reopen() {
             .iter()
             .filter(|e| *e == "visible:false")
             .count(),
-        3
+        2
     );
 }
 
