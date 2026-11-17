@@ -603,44 +603,11 @@ fn hide_flyout(window: WebviewWindow) -> Result<(), String> {
     hide_window(&window).map_err(|error| error.to_string())
 }
 
-#[derive(Default)]
-struct FocusState {
-    pointer_over_tray: AtomicBool,
-    tray_focus_loss: Mutex<Option<Instant>>,
-    #[cfg(windows)]
-    native_pickers: std::sync::atomic::AtomicUsize,
-}
-
-// Owned native pickers temporarily take focus; that is not an outside click.
-#[cfg(windows)]
-struct NativePickerGuard(AppHandle);
-#[cfg(windows)]
-impl NativePickerGuard {
-    fn new(app: &AppHandle) -> Self {
-        app.state::<FocusState>()
-            .native_pickers
-            .fetch_add(1, Ordering::SeqCst);
-        Self(app.clone())
-    }
-}
-#[cfg(windows)]
-impl Drop for NativePickerGuard {
-    fn drop(&mut self) {
-        self.0
-            .state::<FocusState>()
-            .native_pickers
-            .fetch_sub(1, Ordering::SeqCst);
-    }
-}
-
 fn show_flyout(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         let target = window.clone();
         return window.run_on_main_thread(move || {
             let app = target.app_handle();
-            if let Ok(mut lost) = app.state::<FocusState>().tray_focus_loss.lock() {
-                *lost = None;
-            }
             let result = (|| {
                 let state = app.state::<MotionState>();
                 let Ok(mut motion) = state.0.try_lock() else {
@@ -672,26 +639,15 @@ fn toggle_flyout(app: &AppHandle) -> tauri::Result<()> {
             return Ok(());
         };
         let reopening = !window.is_visible()? || motion.is_exiting();
-        // The click that caused a blur must not also reopen the exiting window.
-        let just_hidden = reopening
-            && app
-                .state::<FocusState>()
-                .tray_focus_loss
-                .lock()
-                .map(|mut lost| {
-                    lost.take()
-                        .is_some_and(|at| at.elapsed() < Duration::from_millis(250))
-                })
-                .unwrap_or(false);
         let previous_paint = motion.pending_paint();
-        let animation = motion.toggle(&NativeFlyout(&window), reduced_motion(), just_hidden)?;
+        let animation = motion.toggle(&NativeFlyout(&window), reduced_motion())?;
         let pending = motion
             .pending_paint()
             .filter(|id| Some(*id) != previous_paint);
         drop(motion);
         schedule_paint_probe(&window, pending);
         schedule_motion_timeout(&window, animation);
-        if reopening && !just_hidden {
+        if reopening {
             window.set_focus()?;
         }
     }
@@ -709,6 +665,19 @@ fn handle_close_request<E>(
         hide()?;
     }
     Ok(())
+}
+
+// Keep event routing testable without creating a native window.
+fn handle_window_event<E>(
+    label: &str,
+    event: &WindowEvent,
+    prevent: impl FnOnce(),
+    hide: impl FnOnce() -> Result<(), E>,
+) -> Result<(), E> {
+    match event {
+        WindowEvent::CloseRequested { .. } => handle_close_request(label, prevent, hide),
+        _ => Ok(()),
+    }
 }
 
 // Tauri normally creates configured windows before setup. Defer this one so its
@@ -734,7 +703,6 @@ pub fn run() {
     let mut context = tauri::generate_context!();
     prepare_main_window(context.config_mut()).unwrap_or_else(|error| startup_log::fail(error));
     let builder = tauri::Builder::default()
-        .manage(FocusState::default())
         .manage(VisibilityState::default())
         .manage(MotionState::default())
         .manage(config::ConfigLock::default())
@@ -827,55 +795,24 @@ pub fn run() {
         .on_window_event(|window, event| {
             #[cfg(windows)]
             windows_backdrop::on_window_event(window, event);
-            if let WindowEvent::CloseRequested { api, .. } = event
-                && let Err(error) = handle_close_request(
-                    window.label(),
-                    || api.prevent_close(),
-                    || {
-                        if let Some(flyout) = window.app_handle().get_webview_window("main") {
-                            hide_window(&flyout)
-                        } else {
-                            window.hide()
-                        }
-                    },
-                )
-            {
+            let result = handle_window_event(
+                window.label(),
+                event,
+                || {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                    }
+                },
+                || {
+                    if let Some(flyout) = window.app_handle().get_webview_window("main") {
+                        hide_window(&flyout)
+                    } else {
+                        window.hide()
+                    }
+                },
+            );
+            if let Err(error) = result {
                 eprintln!("could not hide Nexo: {error}");
-            }
-            if window.label() == "main"
-                && matches!(event, WindowEvent::Focused(false))
-                && window.is_visible().unwrap_or(false)
-                && {
-                    #[cfg(windows)]
-                    {
-                        window
-                            .app_handle()
-                            .state::<FocusState>()
-                            .native_pickers
-                            .load(Ordering::SeqCst)
-                            == 0
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        true
-                    }
-                }
-            {
-                let state = window.app_handle().state::<FocusState>();
-                if let Ok(mut lost) = state.tray_focus_loss.lock() {
-                    *lost = state
-                        .pointer_over_tray
-                        .load(Ordering::Relaxed)
-                        .then(Instant::now);
-                }
-                let result = if let Some(flyout) = window.app_handle().get_webview_window("main") {
-                    hide_window(&flyout)
-                } else {
-                    window.hide()
-                };
-                if let Err(error) = result {
-                    eprintln!("could not hide Nexo: {error}");
-                }
             }
         })
         .setup(|app| {
@@ -913,28 +850,14 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, event| {
-                    let app = tray.app_handle();
-                    match event {
-                        TrayIconEvent::Enter { .. } => {
-                            app.state::<FocusState>()
-                                .pointer_over_tray
-                                .store(true, Ordering::Relaxed);
-                        }
-                        TrayIconEvent::Leave { .. } => {
-                            app.state::<FocusState>()
-                                .pointer_over_tray
-                                .store(false, Ordering::Relaxed);
-                        }
-                        TrayIconEvent::Click {
-                            button: MouseButton::Left,
-                            button_state: MouseButtonState::Up,
-                            ..
-                        } => {
-                            if let Err(error) = toggle_flyout(app) {
-                                eprintln!("could not toggle Nexo: {error}");
-                            }
-                        }
-                        _ => {}
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                        && let Err(error) = toggle_flyout(tray.app_handle())
+                    {
+                        eprintln!("could not toggle Nexo: {error}");
                     }
                 })
                 .on_menu_event(|app, event| {

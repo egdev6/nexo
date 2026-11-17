@@ -117,6 +117,33 @@ fn icon(pending: &mut PendingSelections, fs: &FakeFs, now: Instant) -> IconSelec
 }
 
 #[test]
+fn executable_picker_still_returns_a_valid_selection_without_persisting() {
+    let f = Fixture::new();
+    let original = f.raw();
+    let fs = FakeFs::default();
+    let mut pending = PendingSelections::default();
+    let selected = exe(&mut pending, &fs, Instant::now());
+    assert_eq!(selected.path, "C:\\Apps\\Paint.exe");
+    assert_eq!(selected.suggested_name, "Paint");
+    assert_ne!(selected.token, selected.path);
+    assert_eq!(f.raw(), original);
+}
+
+#[test]
+fn icon_picker_still_returns_a_preview_without_copying_or_persisting() {
+    let f = Fixture::new();
+    let original = f.raw();
+    let fs = FakeFs::default();
+    *fs.bytes.borrow_mut() = PNG.to_vec();
+    let mut pending = PendingSelections::default();
+    let selected = icon(&mut pending, &fs, Instant::now());
+    assert!(selected.preview.starts_with("data:image/png;base64,"));
+    assert!(!selected.token.is_empty());
+    assert!(fs.copies.borrow().is_empty());
+    assert_eq!(f.raw(), original);
+}
+
+#[test]
 fn picker_issues_an_opaque_token_without_persisting_and_create_redeems_it_once() {
     let f = Fixture::new();
     let original = f.raw();

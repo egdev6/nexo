@@ -302,7 +302,6 @@ pub(crate) async fn local_app_pick_executable(
             .map_err(|_| "nexo.local.refused")?
             .generation();
         // Never hold a state or settings lock while the native dialog is open.
-        let _guard = crate::NativePickerGuard::new(&app);
         let Some(path) = selected_path(&window)? else {
             return Ok(None);
         };
@@ -332,7 +331,6 @@ pub(crate) async fn local_app_pick_icon_file(
             .map_err(|_| "nexo.local.refused")?
             .generation();
         let owner = window.hwnd().map_err(|_| "nexo.local.dialogFailed")?.0 as isize;
-        let _guard = crate::NativePickerGuard::new(&app);
         let Some(path) = SystemIconPicker(owner).pick_icon()? else {
             return Ok(None);
         };
