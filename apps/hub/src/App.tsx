@@ -169,10 +169,12 @@ interface FlyoutProps {
   onCatalogRetry?: () => void;
   installedStateKnown?: boolean;
   onAppsRefresh?: () => void;
+  onCatalogOpen?: () => void;
+  onCatalogRefresh?: () => void;
   validNewsKeys?: ReadonlySet<string>;
 }
 
-export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true, onAppsRefresh, validNewsKeys }: FlyoutProps) {
+export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true, onAppsRefresh, onCatalogOpen, onCatalogRefresh, validNewsKeys }: FlyoutProps) {
   const [active, setActive] = useState<Tab>('apps');
   const store = useSettings();
   const settings = store.settings;
@@ -191,6 +193,15 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const installs = useCatalogInstalls(native && !!onAppsRefresh, apps, onAppsRefresh);
   useEffect(() => {
     if (visibility?.visible) refreshAppsRef.current?.();
+  }, [visibility?.cycle, visibility?.visible]);
+  const catalogOpenRef = useRef(onCatalogOpen);
+  catalogOpenRef.current = onCatalogOpen;
+  const catalogCycle = useRef<number | null>(null);
+  useEffect(() => {
+    if (visibility?.visible && catalogCycle.current !== visibility.cycle) {
+      catalogCycle.current = visibility.cycle;
+      catalogOpenRef.current?.();
+    }
   }, [visibility?.cycle, visibility?.visible]);
   const openedCycle = useRef(0);
   const visitedCycle = useRef(0);
@@ -338,7 +349,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
     </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh} onClose={onAppsRefresh ? closeApp : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /> },
+        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /> },
         { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /> },
       ]} />}
     {settings && <NewsPopup key={snapshot?.cycle} items={snapshot?.items ?? []} seenKeys={snapshot?.seenKeys} open={usable && !firstRun && !!snapshot} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
@@ -348,12 +359,17 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   </main></LocaleProvider>;
 }
 
+const CATALOG_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
 export default function App(props: FlyoutProps) {
   const native = isTauri();
   const liveCatalog = native && props.apps === undefined;
   const [catalogState, setCatalogState] = useState<CatalogState>({ status: 'loading' });
   const [installations, setInstallations] = useState<InstallationObservation[] | null>(null);
   const requestId = useRef(0);
+  const catalogInFlight = useRef(false);
+  const catalogActive = useRef(false);
+  const lastCatalogSuccess = useRef<number | null>(null);
   const scanId = useRef(0);
 
   function refreshApps() {
@@ -368,15 +384,26 @@ export default function App(props: FlyoutProps) {
   }
 
   function retry() {
+    if (catalogInFlight.current) return;
+    catalogInFlight.current = true;
     const id = ++requestId.current;
-    setCatalogState(current => ({ ...current, status: 'loading' }));
+    setCatalogState(current => current.catalog ? current : { ...current, status: 'loading' });
     void loadVersionedCatalog(OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_URL, diskCacheV2, diskCache, webFetcher, OFFICIAL_CATALOG_V3_URL, diskCacheV3).then(result => {
-      if (id === requestId.current) setCatalogState(result);
-    });
+      if (!catalogActive.current || id !== requestId.current) return;
+      if ((result.status === 'ready' || result.status === 'empty') && result.catalog) lastCatalogSuccess.current = Date.now();
+      setCatalogState(current => (result.status === 'error' || result.status === 'offline') && current.catalog ?
+        { ...result, catalog: current.catalog, stale: true } : result);
+    }, () => {
+      if (catalogActive.current && id === requestId.current) setCatalogState(current => ({ status: 'offline', catalog: current.catalog, stale: !!current.catalog }));
+    }).finally(() => { catalogInFlight.current = false; });
+  }
+  function refreshCatalogOnOpen() {
+    if (lastCatalogSuccess.current === null || Date.now() - lastCatalogSuccess.current > CATALOG_REFRESH_INTERVAL_MS) retry();
   }
   useEffect(() => {
+    catalogActive.current = liveCatalog;
     if (liveCatalog) retry();
-    return () => { requestId.current++; };
+    return () => { catalogActive.current = false; };
   }, [liveCatalog]);
 
   useEffect(() => {
@@ -399,5 +426,5 @@ export default function App(props: FlyoutProps) {
     installationReason: byId.get(app.id)?.reason, runningState: byId.get(app.id)?.runningState ?? 'unknown' as const,
     canOpen: byId.get(app.id)?.canOpen === true, openReason: byId.get(app.id)?.openReason ?? undefined }));
   const installedStateKnown = installations !== null && apps.every(app => app.installationState !== 'unknown');
-  return <FlyoutPanel {...props} apps={apps} news={selection.items} validNewsKeys={selection.validKeys} catalogState={catalogState} onCatalogRetry={retry} onAppsRefresh={refreshApps} installedStateKnown={installedStateKnown} />;
+  return <FlyoutPanel {...props} apps={apps} news={selection.items} validNewsKeys={selection.validKeys} catalogState={catalogState} onCatalogRetry={retry} onAppsRefresh={refreshApps} onCatalogOpen={refreshCatalogOnOpen} onCatalogRefresh={retry} installedStateKnown={installedStateKnown} />;
 }
