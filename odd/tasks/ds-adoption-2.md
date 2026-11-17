@@ -1,7 +1,7 @@
 # Design system adoption II: import the delivered DS improvements into Nexo
 
 Adopt the components and variants the design system shipped for the requests Nexo filed (#396, #408–#414, #417, #419–#421, #423, #424), remove the guard exceptions they replace, and keep the five exceptions still blocked upstream. This is the second pass of the `egdev-design-system` skill pilot (see `odd/tasks/ds-adoption.md`).
-Status: approved (L2).
+Status: done (L2 approved; all tasks closed).
 
 ## Specs
 
@@ -27,7 +27,7 @@ Status: approved (L2).
   - secondary and status text as `Text foreground` (#396).
 
   Route: writer, test-first, visual check. Status: done (all four adopted: news popup on the DS Dialog scoped to the panel with Nexo's own background blur and no dots, PageHeader leadingAction, SelectTile text-only, Text foreground; adoption 89.95 % → 91.08 %; allowlist stays 5; 577 tests; confirmed by the maintainer: "está OK").
-- T9 (S3, S4) Close: run the audit mode, record the before and after numbers, update the skill with anything learned (for example, the `AppIcon` name clash), and prepare a Nexo test release. Route: inline. Status: pending.
+- T9 (S3, S4) Close: run the audit mode, record the before and after numbers, update the skill with anything learned (for example, the `AppIcon` name clash), and prepare a Nexo test release. Route: inline. Status: done (allowlist 36 → 5, all remaining blocked upstream (#416 ×3, #418, #404); adoption 84.30 % → 91.08 % by JSX instance, interactive 91.14 % → 95.89 %; skill egdev-design-system v1.2 adds the second-pass import procedure; Nexo 0.1.3 prepared).
 
 ## Open questions
 
