@@ -62,6 +62,28 @@ it('switches the four settings sections with the keyboard and shows their conten
 });
 
 it.each([
+  ['es', 'Secciones de ajustes', 'General', 'Acerca de'],
+  ['en', 'Settings sections', 'General', 'About'],
+] as const)('wraps full-width settings labels and reveals the focused tab in %s', async (locale, label, first, last) => {
+  setup(locale);
+  const list = screen.getByRole('tablist', { name: label });
+  const start = screen.getByRole('tab', { name: first });
+  const end = screen.getByRole('tab', { name: last });
+  Object.defineProperties(list, { clientWidth: { configurable: true, value: 120 }, scrollWidth: { configurable: true, value: 360 } });
+  const reveal = vi.fn();
+  Object.defineProperty(end, 'scrollIntoView', { configurable: true, value: reveal });
+  start.focus();
+  fireEvent.keyDown(start, { key: 'End' });
+  await waitFor(() => expect(document.activeElement).toBe(end));
+  expect(end.getAttribute('aria-selected')).toBe('true');
+  expect(reveal).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+  for (const name of ['grid', 'grid-flow-col', 'auto-cols-[1fr]', 'w-full']) expect(list.classList.contains(name)).toBe(true);
+  for (const item of within(list).getAllByRole('tab')) {
+    for (const name of ['whitespace-normal', 'wrap-break-word', 'text-start']) expect(item.classList.contains(name)).toBe(true);
+  }
+});
+
+it.each([
   ['es', 'Acerca de', 'Tipografía Barlow · SIL Open Font License 1.1'],
   ['en', 'About', 'Barlow typeface · SIL Open Font License 1.1'],
 ] as const)('shows the font license credit in About (%s)', (locale, label, credit) => {

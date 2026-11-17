@@ -140,7 +140,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
         {displayed.length === 0 ? <p>{t(locale, 'news.empty')}</p> : displayed.length === 1 ? slideContent(displayed[0]) :
           <div role="region" aria-roledescription="carousel" aria-label={t(locale, 'news.latest')} aria-describedby={instructionsId}
             tabIndex={0} onKeyDown={onSliderKeyDown}>
-            <Carousel label={t(locale, 'news.latest')} messages={messages} value={current?.id}
+            <Carousel label={t(locale, 'news.latest')} trackLayout="full-width" messages={messages} value={current?.id}
               onValueChange={value => select(displayed.findIndex(item => item.id === value))}
               items={displayed.map((item, index) => ({ value: item.id, label: item.title, children: slideContent(item, index === selected) }))} />
             <div className="news-indicators" role="group" aria-label={t(locale, 'news.selectSlide')}>

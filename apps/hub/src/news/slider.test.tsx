@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import postcss from 'postcss';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
 import { LocaleProvider } from '../i18n/use-locale';
@@ -12,6 +13,11 @@ import { cwd } from 'node:process';
 // Vitest mocks CSS imports (including ?raw), so load the actual stylesheet for computed-style checks.
 // Under jsdom import.meta.url is not a file URL; Vitest's root (cwd) is apps/hub.
 const newsCss = readFileSync(`${cwd()}/src/news/news.css`, 'utf8') as string;
+// jsdom cannot parse the complete layered DS stylesheet; retain its actual layout utilities.
+const dsCss = readFileSync(`${cwd()}/node_modules/@egdev/ui/dist/styles.css`, 'utf8') as string;
+const layoutUtilities = new Set(['.flex', '.overflow-x-auto', '.basis-full', '.shrink-0']);
+const dsLayoutRules: string[] = [];
+postcss.parse(dsCss).walkRules(rule => { if (layoutUtilities.has(rule.selector)) dsLayoutRules.push(rule.toString()); });
 
 const items: NewsItem[] = Array.from({ length: 6 }, (_, index) => ({
   id: `news-${index}`, appId: `app-${index}`, badge: 'Nuevo', title: `Noticia ${index + 1}`,
@@ -20,7 +26,7 @@ const items: NewsItem[] = Array.from({ length: 6 }, (_, index) => ({
 let style: HTMLStyleElement;
 beforeEach(() => {
   style = document.createElement('style');
-  style.textContent = newsCss;
+  style.textContent = `${dsLayoutRules.join('\n')}\n${newsCss}`;
   document.head.append(style);
 });
 afterEach(() => { cleanup(); style.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -156,6 +162,21 @@ it('uses the catalog initial without requesting a banner for an invalid app id',
   expect(hero.textContent).toBe('P');
 });
 
+it('uses the full-width scroll and snap layout for every news slide', () => {
+  const { dialog } = open(3);
+  const groups = slides(dialog, 3);
+  const track = groups[0].parentElement!;
+  for (const name of ['gap-0', 'p-0', 'overflow-x-auto', 'snap-x', 'snap-mandatory', '[scrollbar-width:none]', '[&::-webkit-scrollbar]:hidden']) {
+    expect(track.classList.contains(name), name).toBe(true);
+  }
+  for (const group of groups) {
+    for (const name of ['basis-full', 'shrink-0', 'snap-center', 'focus-visible:-outline-offset-(--focus-width)']) {
+      expect(group.classList.contains(name), name).toBe(true);
+    }
+  }
+  expectPosition(dialog, groups, 0);
+});
+
 it('moves every item with arrows, dots and keys and stays aligned after scroll feedback', () => {
   const { dialog, onShown } = open(3);
   const groups = slides(dialog, 3);
@@ -163,7 +184,8 @@ it('moves every item with arrows, dots and keys and stays aligned after scroll f
   const { track, offset } = layout(groups);
   expect(getComputedStyle(track).display).toBe('flex');
   expect(getComputedStyle(track).overflowX).toBe('auto');
-  expect(getComputedStyle(groups[0]).flex).toBe('0 0 100%');
+  expect(getComputedStyle(groups[0]).flexBasis).toBe('100%');
+  expect(getComputedStyle(groups[0]).flexShrink).toBe('0');
   expectPosition(dialog, groups, 0);
   for (let index = 1; index < groups.length; index++) {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
@@ -203,6 +225,30 @@ it('moves every item with arrows, dots and keys and stays aligned after scroll f
   expect(document.activeElement).toBe(groups[2]);
   expect(onShown).toHaveBeenLastCalledWith(items[2]);
   expect(within(dialog).getByRole('button', { name: 'Ver en el catálogo: Noticia 3 · muestra' }).getAttribute('data-app-id')).toBe('app-2');
+});
+
+it('does not snap back when programmatic scrolling emits synchronous feedback', () => {
+  const { dialog } = open(3);
+  const groups = slides(dialog, 3);
+  const { track, offset } = layout(groups);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 3 de 3: Noticia 3' }));
+  expect(offset()).toBe(600);
+  const scrollTo = vi.mocked(track.scrollTo as (options: ScrollToOptions) => void);
+  const move = scrollTo.getMockImplementation()!;
+  let dispatching = false;
+  scrollTo.mockClear();
+  scrollTo.mockImplementation(options => {
+    move(options);
+    if (dispatching) return;
+    dispatching = true;
+    fireEvent.scroll(track);
+    fireEvent(track, new Event('scrollend'));
+    dispatching = false;
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva anterior' }));
+  expectPosition(dialog, groups, 1);
+  expect(offset()).toBe(300);
+  expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ left: 300, behavior: 'instant' });
 });
 
 it('selects the slide reached by direct horizontal scrolling and returns to the first', () => {

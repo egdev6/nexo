@@ -5,8 +5,7 @@
 .settings__header h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
 .settings__header p { margin: var(--space-1) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .settings__back-icon { transform: rotate(180deg); }
-.settings__tabs > [role='tablist'] { flex-wrap: wrap; align-self: flex-start; max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
-.settings__tabs > [role='tablist'] > [role='tab'] { white-space: normal; text-align: left; }
+.settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
 .settings__tabs > [role='tabpanel'] { padding: var(--space-4) var(--space-6) var(--space-5); }
 .settings__group { margin: 0 0 var(--space-3); }
 .settings__group h2 { margin: 0; color: var(--color-fg-default); font: var(--text-display-hero--font-weight) var(--text-heading-small)/var(--text-display-hero--line-height) var(--font-display); text-transform: uppercase; }

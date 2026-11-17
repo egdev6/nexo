@@ -411,6 +411,23 @@ it('preserves keyboard selection and wraparound for the two tabs', async () => {
   await waitFor(() => expect(document.activeElement).toBe(apps));
 });
 
+it('reveals a focused main tab when the full-width row overflows', async () => {
+  render(<App news={[]} />); enter();
+  const list = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
+  const apps = screen.getByRole('tab', { name: 'Mis apps' });
+  const catalog = screen.getByRole('tab', { name: 'Catálogo' });
+  Object.defineProperties(list, { clientWidth: { configurable: true, value: 120 }, scrollWidth: { configurable: true, value: 240 } });
+  const reveal = vi.fn();
+  Object.defineProperty(catalog, 'scrollIntoView', { configurable: true, value: reveal });
+  apps.focus();
+  fireEvent.keyDown(apps, { key: 'ArrowRight' });
+  await waitFor(() => expect(document.activeElement).toBe(catalog));
+  expect(catalog.getAttribute('aria-selected')).toBe('true');
+  expect(reveal).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+  for (const name of ['grid', 'grid-flow-col', 'auto-cols-[1fr]', 'w-full']) expect(list.classList.contains(name)).toBe(true);
+  expect(catalog.classList.contains('justify-center')).toBe(true);
+});
+
 it('opens settings with the gear and returns to the selected tab', () => {
   render(<App />); enter(); closeNews();
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });

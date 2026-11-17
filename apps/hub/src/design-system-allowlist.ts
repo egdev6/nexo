@@ -38,18 +38,6 @@ export const designSystemAllowlist: GuardAllowlistEntry[] = [
     issue: 'egdev6/egdev-design-system#418', reason: 'Remove the accent wrapper when Panel supports an accent border.',
   },
   {
-    file: 'src/news/news.css', pattern: '.news-carousel .eg-carousel > .overflow-x-auto',
-    issue: 'egdev6/egdev-design-system#420', reason: 'Remove the track override when Carousel supports this scrolling layout.',
-  },
-  {
-    file: 'src/news/news.css', pattern: '.news-carousel .eg-carousel > .overflow-x-auto::-webkit-scrollbar',
-    issue: 'egdev6/egdev-design-system#420', reason: 'Remove the scrollbar override when Carousel supports this scrolling layout.',
-  },
-  {
-    file: 'src/news/news.css', pattern: ".news-carousel .eg-carousel > .overflow-x-auto > [role='group']",
-    issue: 'egdev6/egdev-design-system#420', reason: 'Remove the slide sizing override when Carousel supports full-width slides.',
-  },
-  {
     file: 'src/settings/index.tsx',
     pattern: `<button className="settings__swatch" type="button" key={color} style={{ backgroundColor: color }} aria-label={tr('settings.useColor', { name: tr(colorNames[index]), color })} aria-pressed={selected === color} onClick={() => update('accent', color)} />`,
     issue: 'egdev6/egdev-design-system#416', reason: 'Replace the raw preset button with ColorSwatchGroup.',
@@ -62,10 +50,6 @@ export const designSystemAllowlist: GuardAllowlistEntry[] = [
     file: 'src/settings/index.tsx',
     pattern: `<input type="color" aria-label={tr('settings.chooseAccent')} value={selected} onChange={event => update('accent', event.currentTarget.value)} />`,
     issue: 'egdev6/egdev-design-system#416', reason: 'Replace the native color input with ColorSwatchGroup.',
-  },
-  {
-    file: 'src/settings/settings.css', pattern: ".settings__tabs > [role='tablist'] > [role='tab']",
-    issue: 'egdev6/egdev-design-system#414', reason: 'Remove tab text layout overrides when Tabs supports the settings layout.',
   },
   {
     file: 'src/settings/settings.css', pattern: '.settings__row .eg-radio-group span',
@@ -82,10 +66,6 @@ export const designSystemAllowlist: GuardAllowlistEntry[] = [
   {
     file: 'src/settings/settings.css', pattern: '.local-app-dialog .eg-btn',
     issue: 'egdev6/egdev-design-system#421', reason: 'Remove dialog button sizing overrides when supported by DS composition.',
-  },
-  {
-    file: 'src/style.css', pattern: ".main-tabs > [role='tablist'] > [role='tab']",
-    issue: 'egdev6/egdev-design-system#414', reason: 'Remove tab sizing overrides when Tabs supports fullWidth.',
   },
   {
     file: 'src/style.css', pattern: ".main-tabs > [role='tablist'] > [role='tab'][aria-selected='true']",

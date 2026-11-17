@@ -155,7 +155,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
       <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
       <div><h1>{tr('common.settings')}</h1><p>{tr('settings.subtitle')}</p></div>
     </header>
-    <Tabs className="settings__tabs" variant="segmented" label={tr('settings.sections')} items={[
+    <Tabs className="settings__tabs" variant="segmented" fullWidth labelWrap label={tr('settings.sections')} items={[
       { value: 'general', label: tr('settings.general'), content: general },
       { value: 'appearance', label: tr('settings.appearance'), content: appearance },
       { value: 'local-apps', label: tr('localApps.heading'), content: localApps },
