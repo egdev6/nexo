@@ -38,7 +38,12 @@ Each app has:
 Each news entry has required `id`, nonblank `title` and `text`, `publishedAt`, and `kind`
 (`new`, `featured`, `update`). IDs are unique within each app; the UI projects a globally
 unambiguous `appId:newsId` identifier, badge, app ID and catalog CTA. Only the official catalog
-supplies this projection. Issue #10 owns news selection, ordering, recency and popup behavior.
+supplies this projection. For Novedades, an app is eligible if its release is not in the future,
+and either it is within the last 30 days or the app is featured. Each eligible app contributes at
+most one entry: its latest news within the inclusive 30-day window, with equal timestamps resolved
+by ascending news ID; if none qualifies, the app contributes a synthetic entry. Future news does
+not hide an older in-window entry. Entries are ordered newest first, with equal timestamps resolved
+by typed key, and the popup shows at most four.
 
 IDs are nonempty ASCII lowercase `[a-z0-9-]+` and app IDs are unique across the catalog.
 Required fields and their JSON types are strict; unknown fields, null optional fields and unsupported
