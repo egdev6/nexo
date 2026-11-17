@@ -318,3 +318,10 @@ Approved by the maintainer when this version was reviewed:
    or cannot quit through the protocol, the hub stays open and offers a separate explicit hub-only
    exit. That exit closes the pipe and lets remaining clients restore their personal icons. An
    accepted quit or `bye` does not prove the process exited.
+
+## Source of truth
+
+This copy is a historical snapshot, retained for references in `odd/`. The canonical
+[protocol specification](https://github.com/egdev6/tauri-plugin-nexo/blob/main/docs/protocol.md)
+is maintained in the public repository; the hub currently uses the
+[v0.1.0 version](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/docs/protocol.md).
