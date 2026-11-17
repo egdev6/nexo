@@ -5,6 +5,9 @@ import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { HubSettings, Language } from '../model';
 import { SettingsView } from './index';
 import { LocaleProvider } from '../i18n/use-locale';
+// @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
+import { readFileSync } from 'node:fs';
+const settingsCss = readFileSync('src/settings/settings.css', 'utf8') as string;
 
 configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
 // Radix measures slider thumbs; jsdom does not implement ResizeObserver.
@@ -232,12 +235,27 @@ it('describes news on every panel opening without suggesting a nonexistent news 
   expect(description?.textContent).toBe('Muestra las novedades del catálogo oficial cada vez que abres el panel.');
 });
 
-it('changes language in General and retains all other settings', () => {
-  const { onChange } = setup();
-  fireEvent.click(screen.getByRole('radio', { name: 'English' }));
-  expect(onChange).toHaveBeenLastCalledWith({ ...initial, language: 'en' });
-  fireEvent.click(screen.getByRole('radio', { name: 'Español' }));
-  expect(onChange).toHaveBeenLastCalledWith(initial);
+it('changes language without the settings row styling the radio internals', () => {
+  const style = document.createElement('style');
+  style.textContent = settingsCss;
+  document.head.append(style);
+  try {
+    const { onChange } = setup();
+    const group = screen.getByRole('radiogroup', { name: 'Idioma' });
+    const selected = within(group).getByRole('radio', { name: 'Español' });
+    const indicator = selected.querySelector('span');
+    const label = within(group).getByText('Español');
+    expect(indicator).toBeTruthy();
+    expect(settingsCss).not.toContain('.settings__row .eg-radio-group span');
+    expect(settingsCss).not.toContain('.settings__row label,');
+    const rules = Array.from(style.sheet!.cssRules).filter((rule): rule is CSSStyleRule => 'selectorText' in rule);
+    expect(rules.filter(rule => rule.selectorText.startsWith('.settings__row') &&
+      (indicator!.matches(rule.selectorText) || label.matches(rule.selectorText))).map(rule => rule.selectorText)).toEqual([]);
+    fireEvent.click(within(group).getByRole('radio', { name: 'English' }));
+    expect(onChange).toHaveBeenLastCalledWith({ ...initial, language: 'en' });
+    fireEvent.click(within(group).getByRole('radio', { name: 'Español' }));
+    expect(onChange).toHaveBeenLastCalledWith(initial);
+  } finally { style.remove(); }
 });
 
 it('keeps the existing back action', () => {

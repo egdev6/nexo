@@ -131,7 +131,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-author`}>{tr('settings.author')}</Heading></PanelHeader>
         <PanelBody><div>
       <p className="settings__author-name">{tr('settings.authorName')}</p>
-      <SocialLinks label={tr('settings.authorLinks')} caption={null} variant="ghost" size="md" onClick={open} items={[
+      <SocialLinks label={tr('settings.authorLinks')} caption={null} inline gap={2} variant="ghost" size="md" onClick={open} items={[
         { id: 'youtube', href: 'https://www.youtube.com/@egdev6', label: tr('app.youtube'), icon: <Icon name="youtube" /> },
         { id: 'twitch', href: 'https://twitch.tv/egdev6', label: tr('settings.twitch'), icon: <Icon name="twitch" /> },
         { id: 'x', href: 'https://x.com/egdev66', label: tr('settings.x'), icon: <Icon name="x" /> },

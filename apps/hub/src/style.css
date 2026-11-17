@@ -62,9 +62,7 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 @media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } }
 .detail-inner { display: flow-root; padding: var(--space-1) var(--space-2) 0; overflow-wrap: anywhere; }
 .detail-inner .update-version { display: flex; align-items: center; gap: var(--space-2); }
-.detail-inner .eg-social { margin-bottom: var(--space-2); }
-.eg-social__list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.eg-social__list > li { display: flex; }
+.detail-social { margin-bottom: var(--space-2); }
 .local-path { overflow-wrap: anywhere; }
 .update-feedback:not(:empty) { padding: var(--space-3) var(--space-4); }
 .update-feedback:empty { display: none; }

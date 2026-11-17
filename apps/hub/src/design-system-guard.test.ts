@@ -23,6 +23,10 @@ function readSources(directory = 'src'): GuardSource[] {
 const describeViolation = ({ file, line, snippet }: GuardViolation) =>
   `${file}:${line}: ${snippet} — Use a DS component or add an allowlist entry with an issue.`;
 
+it('does not retain exceptions for the adopted dialog and composition APIs', () => {
+  expect(designSystemAllowlist.filter(entry => /#(?:419|421)$/.test(entry.issue))).toEqual([]);
+});
+
 it('guards the real hub source and reports every unallowed violation', () => {
   const result = checkDesignSystem(readSources(), designSystemAllowlist);
   if (result.pendingIssueCount) {

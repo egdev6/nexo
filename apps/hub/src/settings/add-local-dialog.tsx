@@ -1,5 +1,5 @@
-import { Button, Dialog, DialogContent, DialogTrigger, Field, Input, Notice } from '@egdev/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Dialog, DialogContent, DialogTrigger, Field, FieldMessage, Input, Label, Notice, Stack } from '@egdev/ui';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { cancelLocalSelection, createLocalApp, pickLocalExecutable, pickLocalIconFile, type ExecutablePick, type IconPick, type LocalAppSelection } from '../local-apps';
@@ -9,6 +9,8 @@ type Props = { accent: string; disabled: boolean; errorKey: (error: unknown) => 
 
 export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
   const locale = useLocale();
+  const executableId = useId();
+  const executableMessageId = useId();
   const [open, setOpen] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const [cleanupError, setCleanupError] = useState(false);
@@ -107,32 +109,37 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
   return <>
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild><Button variant="neutral" size="sm" type="button" disabled={disabled}>{t(locale, 'settingsLocal.addApp')}</Button></DialogTrigger>
-      <DialogContent className="local-app-dialog" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} title={t(locale, 'settingsLocal.dialogTitle')} description={t(locale, 'settingsLocal.dialogIntro')} dismissLabel={t(locale, 'settingsLocal.closeDialog')}
-        actions={<><Button variant="neutral" type="button" disabled={busy} onClick={close}>{t(locale, 'settingsLocal.cancel')}</Button>
-          <Button variant="primary" type="button" disabled={busy || !executable || !name.trim()} onClick={() => void create()}>{t(locale, 'settingsLocal.add')}</Button></>}>
+      <DialogContent className="local-app-dialog" bodyPadding="default" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} title={t(locale, 'settingsLocal.dialogTitle')} description={t(locale, 'settingsLocal.dialogIntro')} dismissLabel={t(locale, 'settingsLocal.closeDialog')}
+        actions={<><Button variant="neutral" labelWrap type="button" disabled={busy} onClick={close}>{t(locale, 'settingsLocal.cancel')}</Button>
+          <Button variant="primary" labelWrap type="button" disabled={busy || !executable || !name.trim()} onClick={() => void create()}>{t(locale, 'settingsLocal.add')}</Button></>}>
         <span ref={themeRef} hidden />
-        <div className="local-app-row local-app-executable">
-          <Field className="local-app-field" label={t(locale, 'settingsLocal.executable')} hint={t(locale, 'settingsLocal.executableHint')} error={exeError ? t(locale, exeError) : undefined}>
-            <Input value={executable?.path ?? ''} readOnly aria-required="true" />
-          </Field>
-          <Button variant="neutral" type="button" disabled={busy} onClick={() => void chooseExecutable()}>{t(locale, 'settingsLocal.browse')}</Button>
-        </div>
-        <Field className="local-app-field" label={t(locale, 'settingsLocal.name')} hint={t(locale, 'settingsLocal.nameHint')}>
-          <Input required value={name} disabled={busy} onChange={event => setName(event.currentTarget.value)} />
-        </Field>
-        <div className="local-app-field" role="group" aria-label={t(locale, 'settingsLocal.iconLabel')}>
-          <span className="local-app-label">{t(locale, 'settingsLocal.iconLabel')}</span>
-          <div className="local-app-row">
-            <div className="local-app-preview" role="img" aria-label={t(locale, 'settingsLocal.iconPreview')}>
-              {preview ? <img src={preview} alt="" onError={() => setImageFailed(true)} /> : <span aria-hidden="true">{initial}</span>}
+        <Stack gap={5}>
+          <div className="local-app-field local-app-executable">
+            <Label htmlFor={executableId}>{t(locale, 'settingsLocal.executable')}</Label>
+            <div className="local-app-row local-app-executable-row">
+              <Input className="local-app-executable-input" id={executableId} value={executable?.path ?? ''} readOnly aria-required="true"
+                aria-describedby={executableMessageId} aria-invalid={exeError ? true : undefined} style={{ alignSelf: 'stretch' }} />
+              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseExecutable()}>{t(locale, 'settingsLocal.browse')}</Button>
             </div>
-            <Button variant="neutral" type="button" disabled={busy} onClick={() => void chooseIcon()}>{t(locale, 'settingsLocal.chooseIcon')}</Button>
-            <Button variant="neutral" type="button" disabled={busy} onClick={() => { setIcon(null); setIconError(null); }}>{t(locale, 'settingsLocal.clearIcon')}</Button>
+            <FieldMessage id={executableMessageId} tone={exeError ? 'error' : 'description'}>{t(locale, exeError ?? 'settingsLocal.executableHint')}</FieldMessage>
           </div>
-          <p className="local-app-help">{t(locale, 'settingsLocal.iconHint')}</p>
-          {iconError && <Notice tone="danger" size="sm" summary={t(locale, iconError)} />}
-        </div>
-        {saveError && <Notice tone="danger" size="sm" summary={t(locale, saveError)} />}
+          <Field className="local-app-field" label={t(locale, 'settingsLocal.name')} hint={t(locale, 'settingsLocal.nameHint')}>
+            <Input required value={name} disabled={busy} onChange={event => setName(event.currentTarget.value)} />
+          </Field>
+          <div className="local-app-field" role="group" aria-label={t(locale, 'settingsLocal.iconLabel')}>
+            <span className="local-app-label">{t(locale, 'settingsLocal.iconLabel')}</span>
+            <div className="local-app-row">
+              <div className="local-app-preview" role="img" aria-label={t(locale, 'settingsLocal.iconPreview')}>
+                {preview ? <img src={preview} alt="" onError={() => setImageFailed(true)} /> : <span aria-hidden="true">{initial}</span>}
+              </div>
+              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseIcon()}>{t(locale, 'settingsLocal.chooseIcon')}</Button>
+              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => { setIcon(null); setIconError(null); }}>{t(locale, 'settingsLocal.clearIcon')}</Button>
+            </div>
+            <p className="local-app-help">{t(locale, 'settingsLocal.iconHint')}</p>
+            {iconError && <Notice tone="danger" size="sm" summary={t(locale, iconError)} />}
+          </div>
+          {saveError && <Notice tone="danger" size="sm" summary={t(locale, saveError)} />}
+        </Stack>
       </DialogContent>
     </Dialog>
     {cleanupError && !revoking && <Notice tone="danger" size="sm" summary={t(locale, 'localApps.errorRefused')} />}

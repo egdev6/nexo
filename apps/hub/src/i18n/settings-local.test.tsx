@@ -3,11 +3,14 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import ts from 'typescript';
 import localManagement from '../settings/local-management.tsx?raw';
+// @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
+import { readFileSync } from 'node:fs';
 import { SettingsView } from '../settings';
 import { LocaleProvider } from './use-locale';
 import { defaultSettings } from '../sample';
 import type { CatalogSource, Language } from '../model';
 
+const settingsCss = readFileSync('src/settings/settings.css', 'utf8') as string;
 const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
 
@@ -136,6 +139,10 @@ it('renames inline, retains the previous entry on validation or save failure, an
   setup(); await screen.findByText('Editor');
   fireEvent.click(screen.getByRole('button', { name: 'Renombrar Editor' }));
   const input = screen.getByRole('textbox', { name: 'Nombre de Editor' });
+  const inputLayout = input.parentElement!;
+  expect(inputLayout.classList.contains('settings__inline-input')).toBe(true);
+  expect(settingsCss).toMatch(/\.settings__inline-input\s*\{\s*flex:\s*1 1 calc\(var\(--space-20\) \* 3\)/);
+  expect(settingsCss).not.toContain('.settings__inline .eg-input');
   fireEvent.change(input, { target: { value: '   ' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar nombre de Editor' }));
   const alert = await screen.findByRole('alert');

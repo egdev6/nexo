@@ -128,7 +128,7 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
             event.preventDefault();
             void run(async () => { const result = await updateLocalApp(appId, editing.name); setEditing(null); return selected(result); });
           }} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEditing(null); } }}>
-            <Input autoFocus size="sm" aria-label={t(locale, 'settingsLocal.nameFor', params)} value={editing.name} disabled={disabled} onChange={event => setEditing({ id: appId, name: event.currentTarget.value })} />
+            <Input className="settings__inline-input" autoFocus size="sm" aria-label={t(locale, 'settingsLocal.nameFor', params)} value={editing.name} disabled={disabled} onChange={event => setEditing({ id: appId, name: event.currentTarget.value })} />
             <Button variant="neutral" size="sm" type="submit" disabled={disabled} aria-label={t(locale, 'settingsLocal.saveNameFor', params)}>{t(locale, 'settingsLocal.save')}</Button>
             <Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.cancelEditFor', params)} onClick={() => setEditing(null)}>{t(locale, 'settingsLocal.cancel')}</Button>
           </form>}

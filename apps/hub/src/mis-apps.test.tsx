@@ -130,6 +130,13 @@ it('shows version links, badge-first update, social links and plugin close in de
   expect(screen.queryByText(/Instalada: 1.0.0/)).toBeNull();
   fireEvent.click(toggle('Official'));
   const details = card('Official');
+  const social = details.getByRole('list', { name: 'Enlaces sociales' });
+  expect(social.classList.contains('flex-wrap')).toBe(true);
+  expect(social.classList.contains('gap-2')).toBe(true);
+  expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
+  expect(social.parentElement?.classList.contains('detail-social')).toBe(true);
+  expect(css).not.toContain('.detail-inner .eg-social');
+  expect(css).not.toContain('.eg-social__list');
   expect(details.getByText(/Versión instalada:/)).toBeTruthy();
   const installedLink = details.getByRole('link', { name: '1.0.0' });
   expect(installedLink.classList.contains('eg-link')).toBe(true);
