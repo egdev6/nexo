@@ -20,9 +20,8 @@
 .news-slide h3 { margin: var(--space-3) 0 var(--space-2); overflow-wrap: anywhere; font: 700 var(--text-heading-small)/1.2 var(--font-sans); }
 .news-slide p { margin: 0; overflow-wrap: anywhere; color: var(--color-fg-secondary); }
 .news-action { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); }
-.news-action span, .news-preference { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
-.news-preference { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); min-height: var(--space-14); padding: var(--space-4) var(--space-5); border-top: 1px solid var(--color-border-hairline); }
-.news-preference label { cursor: pointer; }
+.news-action span { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
+.news-preference { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--color-border-hairline); }
 @supports not (backdrop-filter: blur(20px)) { .news-scrim { background: var(--color-surface-2); } }
 @media (prefers-reduced-transparency: reduce) { .news-scrim { background: var(--color-surface-2); backdrop-filter: none; } }
 @media (prefers-reduced-motion: reduce) { .news-overlay *, .news-overlay *::before, .news-overlay *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

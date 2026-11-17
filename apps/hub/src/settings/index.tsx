@@ -1,5 +1,5 @@
-import { Button, Field, Icon, IconButton, Label, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
-import type { CSSProperties } from 'react';
+import { Button, Field, Icon, IconButton, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import type { CSSProperties, MouseEvent } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
 import { formatNumber, t, type MessageKey, type Params } from '../i18n';
@@ -16,6 +16,15 @@ import './settings.css';
 // TODO(egdev-design-system#418): Preserve the appearance accent until Panel supports an accent border.
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
+
+// The previous label included the hint, so clicking that text also activated the switch.
+function activateSwitchFromHint(event: MouseEvent<HTMLDivElement>) {
+  const control = event.currentTarget.querySelector<HTMLButtonElement>('[role="switch"]');
+  const target = event.target;
+  if (!control || !(target instanceof Node)) return;
+  const descriptions = control.getAttribute('aria-describedby')?.split(/\s+/) ?? [];
+  if (descriptions.some(id => control.ownerDocument.getElementById(id)?.contains(target))) control.click();
+}
 
 export function SettingsView({ settings, onChange, onClose, autostart, languagePending }: SettingsViewProps) {
   const locale = useLocale();
@@ -41,18 +50,21 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <RadioGroup label={tr('settings.language')} orientation="horizontal" options={languages} value={settings.language}
           onValueChange={value => update('language', value as Language)} />
       </div>
-      <div className="settings__row">
-        <label htmlFor={`${id}-startup`}><strong>{tr('settings.startup')}</strong><span id={`${id}-startup-hint`}>{tr(autostart?.confirmed === null ? 'settings.startupUnknown' : 'settings.startupHint')}</span></label>
-        <Switch id={`${id}-startup`} aria-label={tr('settings.startup')} aria-describedby={`${id}-startup-hint`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
+      <div className="settings__choice" onClick={activateSwitchFromHint}>
+        <Field layout="choice-trailing" label={tr('settings.startup')} hint={tr(autostart?.confirmed === null ? 'settings.startupUnknown' : 'settings.startupHint')}>
+          <Switch id={`${id}-startup`} disabled={autostart ? autostart.busy || autostart.confirmed === null : false} checked={autostart ? autostart.confirmed ?? false : settings.startWithWindows} onCheckedChange={value => autostart ? autostart.change(value) : update('startWithWindows', value)} />
+        </Field>
       </div>
       {autostart?.error && <Notice tone="danger" summary={`${autostart.error} `} actions={<Button variant="neutral" size="sm" type="button" onClick={autostart.retry}>{tr('settings.retryStartup')}</Button>} />}
-      <div className="settings__row">
-        <label htmlFor={`${id}-news`}><strong>{tr('settings.news')}</strong><span id={`${id}-news-hint`}>{tr('settings.newsHint')}</span></label>
-        <Switch id={`${id}-news`} aria-label={tr('settings.news')} aria-describedby={`${id}-news-hint`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
+      <div className="settings__choice" onClick={activateSwitchFromHint}>
+        <Field layout="choice-trailing" label={tr('settings.news')} hint={tr('settings.newsHint')}>
+          <Switch id={`${id}-news`} checked={settings.showNewsOnOpen} onCheckedChange={value => update('showNewsOnOpen', value)} />
+        </Field>
       </div>
-      <div className="settings__row">
-        <Label htmlFor={`${id}-hide-local`}><strong id={`${id}-hide-local-label`}>{tr('settings.hideLocalApps')}</strong><span id={`${id}-hide-local-hint`}>{tr('settings.hideLocalAppsHint')}</span></Label>
-        <Switch id={`${id}-hide-local`} aria-labelledby={`${id}-hide-local-label`} aria-describedby={`${id}-hide-local-hint`} checked={settings.hideLocalApps} onCheckedChange={value => update('hideLocalApps', value)} />
+      <div className="settings__choice" onClick={activateSwitchFromHint}>
+        <Field layout="choice-trailing" label={tr('settings.hideLocalApps')} hint={tr('settings.hideLocalAppsHint')}>
+          <Switch id={`${id}-hide-local`} checked={settings.hideLocalApps} onCheckedChange={value => update('hideLocalApps', value)} />
+        </Field>
       </div>
         </div></PanelBody>
       </Panel>
@@ -94,9 +106,10 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <div className="settings__preview-panel" aria-hidden="true"><strong>{tr('settings.preview')}</strong><span>{tr('settings.panel')}</span></div>
       </div>
       <p className="settings__hint">{tr('settings.blurHint')}</p>
-      <div className="settings__row">
-        <label htmlFor={`${id}-compact`}><strong>{tr('settings.compact')}</strong><span id={`${id}-compact-hint`}>{tr('settings.compactHint')}</span></label>
-        <Switch id={`${id}-compact`} aria-label={tr('settings.compact')} aria-describedby={`${id}-compact-hint`} checked={settings.compact} onCheckedChange={value => update('compact', value)} />
+      <div className="settings__choice" onClick={activateSwitchFromHint}>
+        <Field layout="choice-trailing" label={tr('settings.compact')} hint={tr('settings.compactHint')}>
+          <Switch id={`${id}-compact`} checked={settings.compact} onCheckedChange={value => update('compact', value)} />
+        </Field>
       </div>
         </div></PanelBody>
       </Panel>

@@ -1,4 +1,4 @@
-import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, IconButton, Notice, PageHeader } from '@egdev/ui';
+import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, IconButton, Notice, PageHeader } from '@egdev/ui';
 import { LinkIcon } from '../apps/action-icons';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useRef, useState } from 'react';
@@ -79,17 +79,16 @@ export function LocalAppsView({ names, cycle, openId, onDisclosureChange }: { na
     {rows.map(row => {
       const other = row.duplicateOf && (lookup.find(item => item.id === row.duplicateOf)?.name ?? row.duplicateOf);
       return <Collapsible className="app-card" key={row.id} open={(onDisclosureChange ? openId === `local:${row.id}` : standaloneOpen === row.id)} onOpenChange={open => onDisclosureChange ? onDisclosureChange(row.id, open) : setStandaloneOpen(open ? row.id : null)}>
-        <div className="app-row"><CollapsibleTrigger><span className="row-label">
+        <CollapsibleHeader actions={<>
+          {row.state !== 'ready' && <Button type="button" variant="neutral" size="sm" aria-label={t(locale, 'localApps.repairFor', { name: row.name })} disabled={busy} onClick={() => void action(row, 'repair')}>{t(locale, 'localApps.repair')}</Button>}
+          <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: row.name })} title={t(locale, row.state === 'ready' ? 'appControl.requestOpen' : 'localApps.missing')} disabled={busy || row.state !== 'ready'} onClick={() => void action(row, 'open')} />
+        </>}><CollapsibleTrigger motion="none"><span className="row-label">
           <LocalAppIcon row={row} />
           <span className="app-info"><strong>{row.name}</strong><Badge tone="brand">{t(locale, 'localApps.badge')}</Badge>
             {' · '}<span className="secondary">{t(locale, 'appControl.runningUnknown')}</span>
           </span></span></CollapsibleTrigger>
-          <div className="row-actions">
-            {row.state !== 'ready' && <Button type="button" variant="neutral" size="sm" aria-label={t(locale, 'localApps.repairFor', { name: row.name })} disabled={busy} onClick={() => void action(row, 'repair')}>{t(locale, 'localApps.repair')}</Button>}
-            <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: row.name })} title={t(locale, row.state === 'ready' ? 'appControl.requestOpen' : 'localApps.missing')} disabled={busy || row.state !== 'ready'} onClick={() => void action(row, 'open')} />
-          </div>
-        </div>
-        <CollapsibleContent><div className="detail-inner">
+        </CollapsibleHeader>
+        <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
           {row.executable && <p className="meta local-path">{row.executable}</p>}
           <p className="meta">{t(locale, 'localApps.manual')}</p>
           {row.state !== 'ready' && <p className="status-warning">{t(locale, 'localApps.missing')}</p>}

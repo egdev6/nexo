@@ -38,9 +38,6 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .apps-section-header { margin: var(--space-2) 0 var(--space-3); }
 .secondary, .meta { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .app-card { margin-bottom: calc(var(--space-3) * var(--hub-density)); }
-.app-row { display: flex; align-items: center; gap: var(--space-3); padding-right: calc(var(--space-4) * var(--hub-density)); }
-.app-row > .eg-collapsible__trigger { flex: 1; min-width: 0; height: auto; padding: calc(var(--space-4) * var(--hub-density)); }
-.app-row > .catalog-install { flex: 0 1 auto; }
 .update-notes { overflow-wrap: anywhere; white-space: pre-wrap; }
 .row-label { display: flex; align-items: center; gap: var(--space-4); }
 .app-icon { display: grid; place-items: center; flex: none; width: var(--space-12); height: var(--space-12); border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-surface-3); font: 800 var(--space-6)/1 var(--font-display); }
@@ -65,19 +62,7 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .empty-state p { margin: 0 0 var(--space-3); }
 @media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { margin-left: var(--space-4); margin-right: var(--space-4); } .main-tabs > [role='tablist']::before { left: calc(-1 * var(--space-4)); right: calc(-1 * var(--space-4)); } .heading p { display: none; } }
 @media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } }
-/* My apps: the frame belongs to the card; actions are siblings of the trigger. */
-.app-row:has(> .row-actions) { --header-action-width: var(--space-10); position: relative; padding-right: 0; }
-.app-row:has(> .row-actions > :nth-child(2)) { --header-action-width: calc(2 * var(--space-10) + var(--space-2)); }
-.app-row:has(> .row-actions > .eg-btn) { --header-action-width: calc(3 * var(--space-10)); }
-.app-row > .eg-collapsible__trigger > span:first-child { min-width: 0; margin-right: calc(var(--header-action-width, 0px) + var(--space-2)); }
-.app-row > .eg-collapsible__trigger, .app-row > .eg-collapsible__trigger:active { scale: 1 !important; translate: none !important; transform: none !important; transition-property: background, color, box-shadow, border-color !important; }
-.app-row > .row-actions { position: absolute; z-index: 1; top: 50%; right: calc(var(--space-4) * var(--hub-density) + var(--space-4) + var(--space-2)); display: flex; align-items: center; gap: var(--space-2); transform: translateY(-50%); }
-.app-card > .eg-collapsible__content { padding: 0; overflow: hidden; }
-.app-card > .eg-collapsible__content[data-state='open'] { animation: app-detail-open var(--duration-fast) var(--ease-out); }
-.app-card > .eg-collapsible__content[data-state='closed'] { animation: app-detail-close var(--duration-fast) var(--ease-out); }
-@keyframes app-detail-open { from { height: 0; opacity: 0; } to { height: var(--radix-collapsible-content-height); opacity: 1; } }
-@keyframes app-detail-close { from { height: var(--radix-collapsible-content-height); opacity: 1; } to { height: 0; opacity: 0; } }
-.detail-inner { display: flow-root; padding: var(--space-3) var(--space-4) var(--space-2); overflow-wrap: anywhere; }
+.detail-inner { display: flow-root; padding: var(--space-1) var(--space-2) 0; overflow-wrap: anywhere; }
 .detail-inner .update-version { display: flex; align-items: center; gap: var(--space-2); }
 .detail-inner .eg-social { margin-bottom: var(--space-2); }
 .eg-social__list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }

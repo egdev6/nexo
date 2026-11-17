@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs } from '@egdev/ui';
+import { Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs } from '@egdev/ui';
 import { LinkIcon } from './apps/action-icons';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
@@ -91,17 +91,18 @@ function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, inst
   const update = official && availableUpdate(official, catalogState?.catalog);
   const canShow = !!onOpen && !!official && app.responsive && app.capabilities.includes('show') && !busy && !updateRunning(installs, app.app.id);
   return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
-    <div className="app-row"><CollapsibleTrigger>
+    <CollapsibleHeader actions={<>
+      {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
+      <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
+    </>}><CollapsibleTrigger motion="none">
       <span className="row-label"><AppIcon app={{ id: app.app.id, name: app.app.name, iconUrl: official?.iconUrl }} />
         <span className="app-info"><strong>{app.app.name}</strong>
           {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
         </span>
       </span>
-    </CollapsibleTrigger><div className="row-actions">{official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
-      <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
-    </div></div>
+    </CollapsibleTrigger></CollapsibleHeader>
     {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} part="feedback" />}
-    <CollapsibleContent><div className="detail-inner">
+    <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
       <AppDetails app={official} version={official?.installationState === 'installed' ? official.version : undefined} newVersion={update?.status === 'available' ? update.version : undefined} showInstalledVersion={official?.installationState !== 'unknown'} />
       {update?.status === 'unverifiable' && <p className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</p>}
       {official && <UpdateNotes app={official} catalogState={catalogState} />}
@@ -120,15 +121,16 @@ function AppRow({ app, onOpen, onClose, busy, stale, catalogState, installs, ope
   const locale = useLocale();
   const update = availableUpdate(app, catalogState?.catalog);
   return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
-    <div className="app-row">
-      <CollapsibleTrigger><span className="row-label"><AppIcon app={app} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
-      <div className="row-actions"><UpdateControl app={app} catalogState={catalogState} installs={installs} />
-        {app.source === 'official' && app.runningState === 'running' ?
-          <ProcessCloseAction app={app} onClose={onClose} busy={busy || updateRunning(installs, app.id)} stale={stale} /> :
-          <OpenAction app={app} onOpen={onOpen} busy={busy || updateRunning(installs, app.id)} stale={stale} />}</div>
-    </div>
+    <CollapsibleHeader actions={<>
+      <UpdateControl app={app} catalogState={catalogState} installs={installs} />
+      {app.source === 'official' && app.runningState === 'running' ?
+        <ProcessCloseAction app={app} onClose={onClose} busy={busy || updateRunning(installs, app.id)} stale={stale} /> :
+        <OpenAction app={app} onOpen={onOpen} busy={busy || updateRunning(installs, app.id)} stale={stale} />}
+    </>}>
+      <CollapsibleTrigger motion="none"><span className="row-label"><AppIcon app={app} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
+    </CollapsibleHeader>
     <UpdateControl app={app} catalogState={catalogState} installs={installs} part="feedback" />
-    <CollapsibleContent><div className="detail-inner">
+    <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
       <AppDetails app={app} version={app.version} newVersion={update?.status === 'available' ? update.version : undefined} />
       {update?.status === 'unverifiable' && <p className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</p>}
       <UpdateNotes app={app} catalogState={catalogState} />

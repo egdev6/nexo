@@ -60,7 +60,10 @@ it('shows manual local rows after official apps with duplicate and availability 
 
 it('opens only by opaque manual ID and reports a request, not running state', async () => {
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Open Work' }));
+  const open = await screen.findByRole('button', { name: 'Open Work' });
+  const trigger = screen.getByRole('button', { name: /^Work/, expanded: false });
+  fireEvent.click(open);
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
   const status = (await screen.findByText('Launch requested; execution is not confirmed')).closest('[role="status"]');
   expect(status?.classList.contains('eg-notice')).toBe(true);
   expect(status?.getAttribute('data-tone')).toBe('success');
