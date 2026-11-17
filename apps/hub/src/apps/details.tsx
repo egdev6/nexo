@@ -1,5 +1,5 @@
 import { useState, type MouseEvent, type MouseEventHandler } from 'react';
-import { Badge, Icon, Link, Notice, SocialLinks, type SocialLinkItem } from '@egdev/ui';
+import { Badge, Icon, Link, Notice, SocialLinks, Text, type SocialLinkItem } from '@egdev/ui';
 import { t } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import type { HubApp } from '../model';
@@ -39,8 +39,8 @@ export function AppDetails({ app, version, newVersion, showInstalledVersion = tr
     return href ? <Link href={href} onClick={open} variant="underlined" arrow={false}>{value}</Link> : <span>{value}</span>;
   };
   return <>
-    {showInstalledVersion && <p className="meta">{t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}</p>}
-    {newVersion && <p className="meta update-version"><Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}</p>}
+    {showInstalledVersion && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}</Text>}
+    {newVersion && <Text variant="body" foreground="secondary" className="meta update-version"><Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}</Text>}
     <AppSocialLinks app={app} className="detail-social" onClick={open} />
     {failed && <Notice tone="danger" size="sm" summary={t(locale, 'app.externalError')} />}
   </>;

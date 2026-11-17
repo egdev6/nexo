@@ -1,4 +1,4 @@
-import { Button, Field, Heading, Icon, IconButton, Notice, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import { Button, Field, Heading, Icon, IconButton, Notice, PageHeader, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties, MouseEvent } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
@@ -147,10 +147,11 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
   </>;
 
   return <section className="settings" aria-label={tr('common.settings')}>
-    <header className="settings__header">
-      <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
-      <div><h1>{tr('common.settings')}</h1><p>{tr('settings.subtitle')}</p></div>
-    </header>
+    <div className="settings__header">
+      <PageHeader title={tr('common.settings')} lede={tr('settings.subtitle')} leadingAction={
+        <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
+      } />
+    </div>
     <Tabs className="settings__tabs" variant="segmented" fullWidth labelWrap label={tr('settings.sections')} items={[
       { value: 'general', label: tr('settings.general'), content: general },
       { value: 'appearance', label: tr('settings.appearance'), content: appearance },

@@ -28,6 +28,27 @@ it('renders the bilingual intro as a section header with tagged copy and hidden 
   expect(heading.parentElement?.classList.contains('eg-section-head')).toBe(true);
 });
 
+it('uses text-only SelectTile choices with keyboard preview and confirmation', async () => {
+  const onChoose = vi.fn();
+  const onPreview = vi.fn();
+  render(<FirstRun onChoose={onChoose} onPreview={onPreview} />);
+  const group = screen.getByRole('radiogroup', { name: 'Idioma / Language' });
+  const spanish = screen.getByRole('radio', { name: 'Español' });
+  const english = screen.getByRole('radio', { name: 'English' });
+  expect(group.classList.contains('eg-select-tile')).toBe(true);
+  expect(group.querySelector('img')).toBeNull();
+  expect(spanish.getAttribute('aria-checked')).toBe('true');
+  spanish.focus();
+  fireEvent.keyDown(spanish, { key: 'ArrowRight' });
+  await waitFor(() => expect(english.getAttribute('aria-checked')).toBe('true'));
+  expect(onPreview).toHaveBeenLastCalledWith('en');
+  expect(onChoose).not.toHaveBeenCalled();
+  const button = screen.getByRole('button', { name: 'Continue' });
+  expect(button.getAttribute('lang')).toBe('en');
+  fireEvent.click(button);
+  expect(onChoose).toHaveBeenCalledExactlyOnceWith('en');
+});
+
 it('previews language changes without committing until continuing', () => {
   const onChoose = vi.fn();
   const onPreview = vi.fn();

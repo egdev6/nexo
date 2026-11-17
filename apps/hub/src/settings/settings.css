@@ -1,9 +1,6 @@
 /* Settings area; shared EGDEV tokens and components are loaded by the shell. */
 .settings { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 var(--font-sans); }
-.settings__header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
-.settings__header > div { flex: 1; min-width: 0; }
-.settings__header h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
-.settings__header p { margin: var(--space-1) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
+.settings__header { padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
 .settings__back-icon { transform: rotate(180deg); }
 .settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
 .settings__tabs > [role='tabpanel'] { padding: var(--space-4) var(--space-6) var(--space-5); }

@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
 import { LocaleProvider } from '../i18n/use-locale';
 import { NewsPopup } from './index';
-import nexoLogo from '../../src-tauri/app-icon.svg';
 
 afterEach(cleanup);
 
@@ -32,12 +31,12 @@ function setup() {
   return { onClose, onDontShowChange };
 }
 
-it('renders the Nexo logo in the news header and retains the close control', () => {
+it('uses the DS dialog title without a header logo and retains the close control', () => {
   setup(); fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
-  const mark = dialog.querySelector('header img');
-  expect(mark?.getAttribute('src')).toBe(nexoLogo);
-  expect(mark?.getAttribute('alt')).toBe('');
+  expect(dialog.classList.contains('eg-dialog')).toBe(true);
+  expect(within(dialog).getByRole('heading', { name: 'Novedades' })).toBeTruthy();
+  expect(dialog.querySelector('header img')).toBeNull();
   expect(within(dialog).getByRole('button', { name: 'Cerrar novedades' })).toBeTruthy();
 });
 
@@ -46,32 +45,32 @@ it('renders nothing while closed', () => {
   expect(container.childElementCount).toBe(0);
 });
 
-it('opens an in-panel labelled modal, traps focus and restores both focus and inert state on close', () => {
+it('uses DS initial focus and traps focus, then restores the previous focus', async () => {
   const { onClose } = setup();
   const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
   trigger.focus(); fireEvent.click(trigger);
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   expect(dialog.getAttribute('aria-modal')).toBe('true');
   expect(dialog.closest('main')).toBeTruthy();
-  expect(trigger.hasAttribute('inert')).toBe(true);
+  expect(trigger.getAttribute('aria-hidden')).toBe('true');
+  const first = within(dialog).getByRole('region', { name: 'Últimas novedades' });
   const close = within(dialog).getByRole('button', { name: 'Cerrar novedades' });
-  const checkbox = within(dialog).getByRole('checkbox', { name: 'No mostrar al abrir' });
-  expect(document.activeElement).toBe(close);
-  close.focus(); fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
-  expect(document.activeElement).toBe(checkbox);
-  fireEvent.keyDown(checkbox, { key: 'Tab' });
+  expect(document.activeElement).toBe(first);
+  close.focus(); fireEvent.keyDown(close, { key: 'Tab' });
+  expect(document.activeElement).toBe(first);
+  fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
   expect(document.activeElement).toBe(close);
   trigger.focus();
   expect(dialog.contains(document.activeElement)).toBe(true);
   fireEvent.click(close);
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(trigger.hasAttribute('inert')).toBe(false);
+  expect(trigger.hasAttribute('aria-hidden')).toBe(false);
   expect(screen.getByText('Contenido ya inerte').hasAttribute('inert')).toBe(true);
-  expect(document.activeElement).toBe(trigger);
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
 });
 
-it('closes with Escape without propagating it and reopens on the latest item', () => {
+it('closes with Escape without propagating it and reopens on the latest item', async () => {
   const { onClose } = setup();
   const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
   trigger.focus(); fireEvent.click(trigger);
@@ -82,9 +81,24 @@ it('closes with Escape without propagating it and reopens on the latest item', (
   expect(event.defaultPrevented).toBe(true);
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(document.activeElement).toBe(trigger);
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
   fireEvent.click(trigger);
   expect(screen.getByRole('button', { name: 'Ver en el catálogo: Pizarra · muestra' })).toBeTruthy();
+});
+
+it('closes on a scrim click and restores focus', async () => {
+  const { onClose } = setup();
+  const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
+  trigger.focus(); fireEvent.click(trigger);
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
+  const scrim = dialog.closest('.eg-dialog-backdrop');
+  expect(scrim?.parentElement).toBe(trigger.parentElement);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  fireEvent.pointerDown(scrim!, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(scrim!);
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await waitFor(() => expect(document.activeElement).toBe(trigger));
 });
 
 it('uses manual carousel navigation and associates the external illustrative CTA with the current item', () => {
@@ -119,7 +133,7 @@ it('uses manual carousel navigation and associates the external illustrative CTA
   expect(first.getAttribute('aria-current')).toBe('true');
 });
 
-it('returns focus to a stable panel control if the initial trigger was unmounted', () => {
+it('returns focus to a stable panel control if the initial trigger was unmounted', async () => {
   function InitialOpen() {
     const [open, setOpen] = useState(false);
     return <main><button>Cabecera</button>{!open && <button onClick={() => setOpen(true)}>Elegir idioma</button>}
@@ -130,7 +144,8 @@ it('returns focus to a stable panel control if the initial trigger was unmounted
   const trigger = screen.getByRole('button', { name: 'Elegir idioma' });
   trigger.focus(); fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' }));
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cabecera' }));
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cabecera' })));
+
 });
 
 it.each([

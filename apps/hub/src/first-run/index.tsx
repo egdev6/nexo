@@ -1,4 +1,4 @@
-import { Button, RadioGroup, SectionHeader } from '@egdev/ui';
+import { Button, SectionHeader, SelectTile } from '@egdev/ui';
 import { useState } from 'react';
 import type { FirstRunProps, Language } from '../model';
 import { t } from '../i18n';
@@ -12,7 +12,7 @@ export function FirstRun({ onChoose, onPreview }: FirstRunProps) {
       title={[[t('es', 'firstRun.titleEs'), 'es'], [' '], ['-', undefined, true], [' '], [t('es', 'firstRun.titleEn'), 'en']]}
       lede={[[t('es', 'firstRun.hintEs'), 'es'], [' '], ['-', undefined, true], [' '], [t('es', 'firstRun.hintEn'), 'en']]} />
     <div className="first-run__legend"><span lang="es">{t('es', 'firstRun.languageEs')}</span> <span lang="en">{t('es', 'firstRun.languageEn')}</span></div>
-    <RadioGroup className="first-run__choices" label={t('es', 'firstRun.label')} orientation="horizontal" value={language}
+    <SelectTile className="first-run__choices" type="single" variant="text-only" label={t('es', 'firstRun.label')} value={language}
       options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]}
       onValueChange={value => { const next = value as Language; setLanguage(next); onPreview?.(next); }} />
     <Button className="first-run__continue" type="button" lang={language} onClick={() => onChoose(language)}>

@@ -56,9 +56,9 @@ it('keeps the real news modal and its scrim inside the sliding panel for entry a
   emit('flyout-motion', { phase: 'waiting', generation: 1, sequence: 1 });
   emit('flyout-visibility', { visible: true, sequence: 1, cycle: 1, at: '2026-01-01T00:00:00.000Z' });
   const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
-  const overlay = dialog.closest('.news-overlay');
+  const overlay = dialog.closest('.eg-dialog-backdrop');
   expect(overlay?.parentElement).toBe(panel);
-  expect(overlay?.querySelector('.news-scrim')).toBeTruthy();
+  for (const name of ['absolute', 'inset-0', 'grid', 'place-items-center']) expect(overlay?.classList.contains(name)).toBe(true);
 
   emit('flyout-motion', { phase: 'entering', generation: 1, sequence: 2 });
   expect(panel.classList.contains('flyout--entering')).toBe(true);
@@ -77,16 +77,42 @@ it('keeps the real news modal and its scrim inside the sliding panel for entry a
   expect(screen.queryByRole('dialog')).toBeNull();
 });
 
+it('blurs only Nexo-owned background siblings and respects reduced transparency', async () => {
+  render(<FlyoutPanel apps={[]} news={sampleNews} />);
+  await waitFor(() => expect(bridge.events.has('flyout-visibility')).toBe(true));
+  const panel = screen.getByRole('main');
+  expect(panel.hasAttribute('data-news-open')).toBe(false);
+  emit('flyout-visibility', { visible: true, sequence: 1, cycle: 1, at: '2026-01-01T00:00:00.000Z' });
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
+  expect(panel.hasAttribute('data-news-open')).toBe(true);
+  const css = postcss.parse(readFileSync(`${cwd()}/src/style.css`, 'utf8') as string);
+  const rule = css.nodes.find(node => node.type === 'rule' && node.nodes.some(decl => decl.type === 'decl' && decl.prop === 'filter' && decl.value.startsWith('blur(')));
+  expect(rule?.type).toBe('rule');
+  if (!rule || rule.type !== 'rule') throw new Error('Missing background blur rule');
+  expect(rule.selector).not.toContain('.eg-');
+  const filter = rule.nodes.find(decl => decl.type === 'decl' && decl.prop === 'filter');
+  expect(filter?.type === 'decl' && filter.value).toMatch(/^blur\(.*var\(--space-/);
+  for (const name of ['panel-head', 'panel-notices', 'main-tabs']) {
+    expect(panel.querySelector(`.${name}`)?.matches(rule.selector), name).toBe(true);
+  }
+  for (const name of ['area-scroll', 'settings__foot']) {
+    const sibling = document.createElement('div');
+    sibling.className = name;
+    panel.append(sibling);
+    expect(sibling.matches(rule.selector), name).toBe(true);
+    sibling.remove();
+  }
+  expect(dialog.closest('.eg-dialog-backdrop')?.matches(rule.selector)).toBe(false);
+  expect(dialog.matches(rule.selector)).toBe(false);
+  expect(rule.nodes.some(decl => decl.type === 'decl' && decl.prop === 'transition')).toBe(false);
+  const reduced = css.nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(prefers-reduced-transparency: reduce)');
+  expect(reduced?.type === 'atrule' && reduced.nodes?.some(node => node.type === 'rule' && node.selector === rule.selector && node.nodes.some(decl => decl.type === 'decl' && decl.prop === 'filter' && decl.value === 'none'))).toBe(true);
+});
+
 it('clips the modal and scrim to the positioned, painted sliding panel', () => {
   const panel = declarations('style.css', '.flyout');
   const opaque = declarations('style.css', '.flyout[data-backdrop="opaque"]');
-  const overlay = declarations('news/news.css', '.news-overlay');
-  const scrim = declarations('news/news.css', '.news-scrim');
   expect(panel.position).toBe('relative');
   expect(panel.overflow).toBe('hidden');
   expect(opaque.background).toBe('var(--color-surface-0)');
-  expect(overlay.position).toBe('absolute');
-  expect(overlay.inset).toBe('0');
-  expect(scrim.position).toBe('absolute');
-  expect(scrim.inset).toBe('0');
 });

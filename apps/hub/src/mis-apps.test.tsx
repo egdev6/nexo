@@ -187,6 +187,26 @@ it('does not offer updates for equal, older or unkeyed versions and explains unv
   expect(native.update).not.toHaveBeenCalled(); expect(refresh).not.toHaveBeenCalled();
 });
 
+it('uses semantic DS text for secondary, warning and muted app copy', async () => {
+  await show();
+  const status = card('Official').getByText('Estado de ejecución desconocido');
+  expect(status.classList.contains('eg-text')).toBe(true);
+  expect(status.classList.contains('text-fg-secondary')).toBe(true);
+  fireEvent.click(toggle('Official'));
+  const description = card('Official').getByText('Official app');
+  expect(description.tagName).toBe('P');
+  expect(description.classList.contains('eg-text')).toBe(true);
+  expect(description.classList.contains('text-fg-secondary')).toBe(true);
+  fireEvent.click(toggle('Local One'));
+  const warning = card('Local One').getByText('Ejecutable ausente o inaccesible');
+  expect(warning.classList.contains('eg-text')).toBe(true);
+  expect(warning.classList.contains('text-status-warning')).toBe(true);
+  expect((card('Local One').getByRole('button', { name: 'Abrir Local One' }) as HTMLButtonElement).disabled).toBe(true);
+  const foot = screen.getByText('Las apps locales se cierran desde la propia app.');
+  expect(foot.classList.contains('eg-text')).toBe(true);
+  expect(foot.classList.contains('text-fg-muted')).toBe(true);
+});
+
 it('keeps local path, provenance, warnings and close hint in its detail', async () => {
   await show(); fireEvent.click(toggle('Local One'));
   const local = card('Local One');

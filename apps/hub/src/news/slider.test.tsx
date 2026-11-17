@@ -13,6 +13,7 @@ import { cwd } from 'node:process';
 // Vitest mocks CSS imports (including ?raw), so load the actual stylesheet for computed-style checks.
 // Under jsdom import.meta.url is not a file URL; Vitest's root (cwd) is apps/hub.
 const newsCss = readFileSync(`${cwd()}/src/news/news.css`, 'utf8') as string;
+const appCss = readFileSync(`${cwd()}/src/style.css`, 'utf8') as string;
 // jsdom cannot parse the complete layered DS stylesheet; retain its actual layout utilities.
 const dsCss = readFileSync(`${cwd()}/node_modules/@egdev/ui/dist/styles.css`, 'utf8') as string;
 const layoutUtilities = new Set(['.flex', '.overflow-x-auto', '.basis-full', '.shrink-0']);
@@ -26,7 +27,7 @@ const items: NewsItem[] = Array.from({ length: 6 }, (_, index) => ({
 let style: HTMLStyleElement;
 beforeEach(() => {
   style = document.createElement('style');
-  style.textContent = `${dsLayoutRules.join('\n')}\n${newsCss}`;
+  style.textContent = `${dsLayoutRules.join('\n')}\n${newsCss}\n${appCss}`;
   document.head.append(style);
 });
 afterEach(() => { cleanup(); style.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -98,18 +99,18 @@ it('shows one item as static content with no carousel, navigation, indicators or
   expect(within(dialog).getByRole('button', { name: 'Ver en el catálogo: Noticia 1 · muestra' }).getAttribute('data-app-id')).toBe('app-0');
 });
 
-it.each([2, 3, 4])('adapts the carousel, controls and indicators to %i items', count => {
+it.each([2, 3, 4])('reaches all %i items with arrows and progress but no navigation dots', count => {
   const { dialog } = open(count);
   const groups = slides(dialog, count);
   expect(groups).toHaveLength(count);
   expectPosition(dialog, groups, 0);
-  const indicators = within(dialog).getAllByRole('button', { name: /^Ir a / });
-  expect(indicators).toHaveLength(count);
-  expect(indicators[0].getAttribute('aria-current')).toBe('true');
+  expect(within(dialog).queryByRole('group', { name: 'Seleccionar diapositiva' })).toBeNull();
+  expect(within(dialog).queryByRole('button', { name: /^Ir a / })).toBeNull();
   expect(Number(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow'))).toBeCloseTo(100 / count);
-  fireEvent.click(indicators[count - 1]);
-  expectPosition(dialog, groups, count - 1);
-  expect(indicators[count - 1].getAttribute('aria-current')).toBe('true');
+  for (let index = 1; index < count; index++) {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
+    expectPosition(dialog, groups, index);
+  }
   expect(within(dialog).getByRole('progressbar', { hidden: true }).getAttribute('aria-valuenow')).toBe('100');
   expect(within(dialog).getByRole('button', { name: `Ver en el catálogo: Noticia ${count} · muestra` })).toBeTruthy();
 });
@@ -120,7 +121,7 @@ it('caps the supplied newest-first items at four without presenting or marking t
   expect(groups).toHaveLength(4);
   expect(within(dialog).queryByText('Noticia 5')).toBeNull();
   expect(within(dialog).queryByText('Noticia 6')).toBeNull();
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 4 de 4: Noticia 4' }));
+  fireEvent.keyDown(within(dialog).getByRole('region', { name: 'Últimas novedades' }), { key: 'End' });
   expect(onShown.mock.calls.map(([item]) => item.id)).toEqual(['news-0', 'news-3']);
 });
 
@@ -179,7 +180,7 @@ it('uses the full-width scroll and snap layout for every news slide', () => {
   expectPosition(dialog, groups, 0);
 });
 
-it('moves every item with arrows, dots and keys and stays aligned after scroll feedback', () => {
+it('moves every item with arrows and keys and stays aligned after scroll feedback', () => {
   const { dialog, onShown } = open(3);
   const groups = slides(dialog, 3);
   const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
@@ -202,12 +203,10 @@ it('moves every item with arrows, dots and keys and stays aligned after scroll f
     expectPosition(dialog, groups, index);
     expect(offset()).toBe(index * 300);
   }
-  for (let index = 0; index < groups.length; index++) {
-    fireEvent.click(within(dialog).getByRole('button', { name: `Ir a ${index + 1} de 3: Noticia ${index + 1}` }));
-    expectPosition(dialog, groups, index);
-    expect(offset()).toBe(index * 300);
-  }
   region.focus();
+  fireEvent.keyDown(region, { key: 'End' });
+  expectPosition(dialog, groups, groups.length - 1);
+  expect(offset()).toBe((groups.length - 1) * 300);
   for (let index = groups.length - 2; index >= 0; index--) {
     fireEvent.keyDown(region, { key: 'ArrowLeft' });
     expectPosition(dialog, groups, index);
@@ -233,7 +232,7 @@ it('does not snap back when programmatic scrolling emits synchronous feedback', 
   const { dialog } = open(3);
   const groups = slides(dialog, 3);
   const { track, offset } = layout(groups);
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Ir a 3 de 3: Noticia 3' }));
+  fireEvent.keyDown(within(dialog).getByRole('region', { name: 'Últimas novedades' }), { key: 'End' });
   expect(offset()).toBe(600);
   const scrollTo = vi.mocked(track.scrollTo as (options: ScrollToOptions) => void);
   const move = scrollTo.getMockImplementation()!;
@@ -301,9 +300,10 @@ it('resets to the newest item when displayed ids change and on reopening', () =>
   expect(within(dialog).getByRole('group', { name: '1 de 2: Noticia 4' }).getAttribute('aria-hidden')).toBeNull();
 });
 
-it('localizes indicator names', () => {
+it('localizes carousel arrows without navigation dots', () => {
   render(<LocaleProvider locale="en"><main><NewsPopup items={items.slice(0, 2)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main></LocaleProvider>);
-  expect(screen.getByRole('button', { name: 'Go to 1 of 2: Noticia 1' }).getAttribute('aria-current')).toBe('true');
-  fireEvent.click(screen.getByRole('button', { name: 'Go to 2 of 2: Noticia 2' }));
+  expect(screen.queryByRole('group', { name: 'Select slide' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Go to / })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Next slide' }));
   expect(screen.getByRole('button', { name: 'View in catalog: Noticia 2 · sample' })).toBeTruthy();
 });

@@ -26,7 +26,7 @@ Status: approved (L2).
   - the first-run language choice as `SelectTile variant="text-only"` (#413);
   - secondary and status text as `Text foreground` (#396).
 
-  Route: writer, test-first, visual check. Status: pending.
+  Route: writer, test-first, visual check. Status: done (all four adopted: news popup on the DS Dialog scoped to the panel with Nexo's own background blur and no dots, PageHeader leadingAction, SelectTile text-only, Text foreground; adoption 89.95 % → 91.08 %; allowlist stays 5; 577 tests; confirmed by the maintainer: "está OK").
 - T9 (S3, S4) Close: run the audit mode, record the before and after numbers, update the skill with anything learned (for example, the `AppIcon` name clash), and prepare a Nexo test release. Route: inline. Status: pending.
 
 ## Open questions
@@ -43,3 +43,5 @@ Status: approved (L2).
 - L4 (verbatim): "esos tabs de app no deberían estar (posiblemente con eso el scroll de tabs se arregla)" — T4 review: with Tabs fullWidth the DS tablist is a scroll container, so Nexo's ::before opaque band overflows (both scrollbars) and is clipped (windows behind show through).
 - L5 (verbatim): "alinear" / "titulo perimera linea y subtitulo segunda" / "aumentar padding a 16" — T6 add-local dialog review; padding decision: DS default body padding (19.2px, aligned with the header), chosen by the maintainer over an exact 16px override.
 - L6: the maintainer chose "Pedirlo al design system" for the stacked dialog header. Filed egdev-design-system#458 (`headerLayout="stacked"`); Nexo keeps the inline DS header until it ships (no exception).
+- L7: T8 news popup — the maintainer chose "Adoptar el Dialog del DS con esas diferencias" (no logo in the title, scrim click closes, DS initial focus).
+- L8 (verbatim): "pon efecto blur al fondo y quita los puntos de navegacion" — news popup review: blur Nexo's own elements behind the dialog (the DS overlay has no blur prop) and remove Nexo's own navigation dots.

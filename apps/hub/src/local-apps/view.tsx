@@ -1,4 +1,4 @@
-import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader } from '@egdev/ui';
+import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, Text } from '@egdev/ui';
 import { isTauri } from '@tauri-apps/api/core';
 import { useEffect, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
@@ -84,15 +84,15 @@ export function LocalAppsView({ names, cycle, openId, onDisclosureChange }: { na
         </>}><CollapsibleTrigger motion="none"><span className="row-label">
           <LocalAppIcon row={row} />
           <span className="app-info"><strong>{row.name}</strong><Badge tone="brand">{t(locale, 'localApps.badge')}</Badge>
-            {' · '}<span className="secondary">{t(locale, 'appControl.runningUnknown')}</span>
+            {' · '}<Text asChild variant="body" foreground="secondary"><span>{t(locale, 'appControl.runningUnknown')}</span></Text>
           </span></span></CollapsibleTrigger>
         </CollapsibleHeader>
         <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
-          {row.executable && <p className="meta local-path">{row.executable}</p>}
-          <p className="meta">{t(locale, 'localApps.manual')}</p>
-          {row.state !== 'ready' && <p className="status-warning">{t(locale, 'localApps.missing')}</p>}
-          {other && <p className="status-warning">{t(locale, 'localApps.duplicate', { name: other })}</p>}
-          <p className="meta">{t(locale, 'appControl.closeWithoutPlugin')}</p>
+          {row.executable && <Text variant="body" foreground="secondary" className="meta local-path">{row.executable}</Text>}
+          <Text variant="body" foreground="secondary" className="meta">{t(locale, 'localApps.manual')}</Text>
+          {row.state !== 'ready' && <Text variant="body" foreground="warning" className="meta">{t(locale, 'localApps.missing')}</Text>}
+          {other && <Text variant="body" foreground="warning" className="meta">{t(locale, 'localApps.duplicate', { name: other })}</Text>}
+          <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.closeWithoutPlugin')}</Text>
         </div></CollapsibleContent>
       </Collapsible>;
     })}
