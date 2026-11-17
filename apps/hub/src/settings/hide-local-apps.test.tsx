@@ -81,6 +81,7 @@ it.each([
   expect(screen.queryByRole('button', { name: refresh })).toBeNull();
   expect(screen.queryByText('Editor')).toBeNull();
   expect(screen.queryByText(note)).toBeNull();
+  expect(screen.queryByText('Las apps locales se cierran desde la propia app.')).toBeNull();
   expect(screen.getByText('Official')).toBeTruthy();
   expect(screen.getByText(count, { exact: false })).toBeTruthy();
   tab(catalog); expect(screen.getByText('Available')).toBeTruthy(); tab(myApps);
