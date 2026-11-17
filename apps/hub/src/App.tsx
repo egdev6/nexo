@@ -158,7 +158,7 @@ function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, o
     {installed.length ? installed.map(app => <AppRow key={app.id} app={app} onOpen={onOpen} onClose={onProcessClose} busy={actionBusy} stale={stale} catalogState={catalogState} installs={installs} {...disclosure(`official:${app.id}`)} />) : <div className="empty-state"><p>{allInstalled.length ? t(locale, 'appControl.connectedAbove') : t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>{t(locale, 'app.viewCatalog')}</Button></div>}
     {apps.filter(app => !isInstalled(app) && !ids.has(app.id) && installs.entries.get(app.id)?.operation === 'update').map(app => <UpdateControl key={app.id} app={app} catalogState={catalogState} installs={installs} part="feedback" />)}
     {!hideLocalApps && <LocalAppsView names={[...apps.map(app => ({ id: app.id, name: app.name })), ...connected.map(entry => entry.app)]} cycle={localCycle} openId={openRow} onDisclosureChange={(id, open) => disclosure(`local:${id}`).onOpenChange(open)} />}
-    <p className="foot">{t(locale, onRefresh ? 'appControl.officialCloseFoot' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</p>
+    {!(onRefresh && hideLocalApps) && <p className="foot">{t(locale, onRefresh ? 'appControl.officialCloseFoot' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</p>}
   </>;
 }
 
