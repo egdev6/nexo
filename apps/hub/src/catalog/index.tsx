@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Link, Notice } from '@egdev/ui';
+import { AppIcon, Button, Link, Notice } from '@egdev/ui';
 import { openExternal } from '../apps/external';
 import { AppSocialLinks, useExternalLinks } from '../apps/details';
 import type { CatalogViewProps, HubApp } from '../model';
@@ -29,7 +29,7 @@ function CatalogCard({ app, focused = false, reason, installs }: { app: HubApp; 
   return <article ref={ref} tabIndex={focused ? -1 : undefined} className="catalog-card" aria-label={app.name}>
     <div className="catalog-art" aria-hidden="true">
       {banner && !bannerFailed ? <img src={banner} alt="" onError={() => setBannerFailed(true)} /> :
-        <span className="catalog-initial">{app.name.trim().charAt(0).toUpperCase()}</span>}
+        <AppIcon size="lg" monogram={app.name.trim().charAt(0).toUpperCase()} src={app.iconUrl} />}
     </div>
     <div className="catalog-card-body">
       <h3>{app.name}</h3>

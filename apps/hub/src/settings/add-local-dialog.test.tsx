@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
 import { readFileSync } from 'node:fs';
 import { LocaleProvider } from '../i18n/use-locale';
 import { defaultSettings } from '../sample';
 import { SettingsView } from './index';
+import { mockImageLoading } from '../test-helpers/image-loading';
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
@@ -16,9 +17,12 @@ const icon = { token: 'icon-token', preview: 'data:image/png;base64,aWNvbg==' };
 let apps: { id: string; name: string }[];
 let failures: Record<string, string>;
 let cancelled: string | null;
+let failedSources: Set<string>;
+let images: HTMLImageElement[];
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  failedSources = new Set(); images = mockImageLoading(failedSources);
   apps = []; failures = {}; cancelled = null;
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { token?: string; name?: string; iconToken?: string }) => {
@@ -36,7 +40,7 @@ beforeEach(() => {
     throw new Error(`Unexpected command ${command}`);
   });
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
 async function openSettings(locale: 'es' | 'en' = 'es', accent = defaultSettings.accent) {
   render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale, accent }} onChange={vi.fn()} onClose={vi.fn()} /></LocaleProvider>);
@@ -166,7 +170,10 @@ it('prefills and edits the name, previews and removes a selected icon, and creat
   const { dialog } = await openDialog(); await selectExecutable(dialog);
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Nombre' }), { target: { value: 'My Paint' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
-  await waitFor(() => expect(within(dialog).getByRole('img', { name: /vista previa/i }).querySelector('img')?.getAttribute('src')).toBe(icon.preview));
+  const preview = within(dialog).getByRole('img', { name: /vista previa/i });
+  expect(preview.classList.contains('eg-app-icon')).toBe(true);
+  await waitFor(() => expect(preview.querySelector('img')?.getAttribute('src')).toBe(icon.preview));
+  expect(preview.querySelector('img')?.getAttribute('alt')).toBe('');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Quitar' }));
   expect(within(dialog).getByRole('img', { name: /vista previa/i }).textContent).toContain('M');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
@@ -176,6 +183,19 @@ it('prefills and edits the name, previews and removes a selected icon, and creat
   expect(await screen.findByText('My Paint')).toBeTruthy();
   expect(screen.getByText('Puede existir otra app con el mismo nombre o ejecutable.')).toBeTruthy();
   expect(apps).toHaveLength(1);
+});
+
+it('shows the uppercase initial when the selected preview image fails', async () => {
+  failedSources.add(icon.preview);
+  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Nombre' }), { target: { value: ' editor' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
+  const preview = within(dialog).getByRole('img', { name: /vista previa/i });
+  await waitFor(() => expect(images.some(image => image.getAttribute('src') === icon.preview)).toBe(true));
+  expect(preview.classList.contains('eg-app-icon')).toBe(true);
+  expect(preview.textContent).toBe('E');
+  expect(preview.querySelector('img')).toBeNull();
+  expect(apps).toEqual([]);
 });
 
 it('keeps the selected icon and app unchanged on native picker cancellation or invalid icon', async () => {

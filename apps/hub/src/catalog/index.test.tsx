@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { HubApp, Language } from '../model';
 import { CatalogView, catalogBannerUrl } from './index';
+import { mockImageLoading } from '../test-helpers/image-loading';
 // @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
 import { readFileSync } from 'node:fs';
 // @ts-ignore Vitest's root is apps/hub.
@@ -12,8 +13,9 @@ const css = readFileSync(`${cwd()}/src/catalog/catalog.css`, 'utf8') as string;
 const native = vi.hoisted(() => ({ invoke: vi.fn(), locale: 'es' as Language }));
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: native.invoke }));
 vi.mock('../i18n/use-locale', () => ({ useLocale: () => native.locale }));
-beforeEach(() => { native.locale = 'es'; native.invoke.mockReset(); native.invoke.mockResolvedValue(null); });
-afterEach(cleanup);
+let failedSources: Set<string>;
+beforeEach(() => { native.locale = 'es'; native.invoke.mockReset(); native.invoke.mockResolvedValue(null); failedSources = new Set(); mockImageLoading(failedSources); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 const apps: HubApp[] = [
   { id: 'pizarra', name: 'Pizarra', installed: false, running: false, integration: 'catalog', description: 'Ideas', tagline: 'Ideas a la vista', tags: ['Ideas', 'Organización'], version: '1.2.3', links: { github: 'https://github.com/example', youtube: 'https://youtube.com/example' } },
@@ -43,7 +45,7 @@ it.each(['', '../secret', 'App', 'app/other', 'app?x', 'app%2fother', 'app\n', '
   expect(catalogBannerUrl(id)).toBeUndefined();
 });
 
-it('loads the conventional banner, never the old artwork, and replaces a missing banner with the initial', () => {
+it('keeps the banner and shows the decorative catalog logo when the banner fails', async () => {
   const app = { ...apps[0], source: 'official' as const, artUrl: 'https://example.com/art.png', iconUrl: 'https://example.com/icon.png' };
   render(<CatalogView apps={[app]} />);
   const card = screen.getByRole('article', { name: 'Pizarra' });
@@ -51,8 +53,22 @@ it('loads the conventional banner, never the old artwork, and replaces a missing
   expect(image?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/pizarra.webp');
   expect(image?.getAttribute('alt')).toBe('');
   fireEvent.error(image!);
-  expect(card.querySelector('img')).toBeNull();
-  expect(within(card).getByText('P')).toBeTruthy();
+  const identity = card.querySelector('.eg-app-icon');
+  expect(identity?.getAttribute('aria-hidden')).toBe('true');
+  await waitFor(() => expect(identity?.querySelector('img')?.getAttribute('src')).toBe(app.iconUrl));
+  expect(identity?.querySelector('img')?.getAttribute('alt')).toBe('');
+});
+
+it('shows the uppercase initial if both the banner and catalog logo fail', () => {
+  const url = 'https://example.com/icon.png';
+  failedSources.add(url);
+  render(<CatalogView apps={[{ ...apps[0], name: ' pizarra', iconUrl: url }]} />);
+  const card = screen.getByRole('article', { name: /pizarra/i });
+  fireEvent.error(card.querySelector('img')!);
+  const identity = card.querySelector('.eg-app-icon');
+  expect(identity?.getAttribute('aria-hidden')).toBe('true');
+  expect(identity?.textContent).toBe('P');
+  expect(identity?.querySelector('img')).toBeNull();
 });
 
 it('removes a broken image and shows the app initial', () => {
@@ -80,7 +96,7 @@ it('uses equal-height cards, cover banners and bottom-pinned actions', () => {
   expect(css).toMatch(/\.catalog-grid\s*\{[^}]*grid-auto-rows:\s*1fr/s);
   expect(css).toMatch(/\.catalog-card\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
   expect(css).toMatch(/\.catalog-art\s*\{[^}]*width:\s*100%[^}]*height:\s*var\(--space-24\)/s);
-  expect(css).toMatch(/\.catalog-art img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/s);
+  expect(css).toMatch(/\.catalog-art\s*>\s*img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/s);
   expect(css).toMatch(/\.catalog-card-body\s*\{[^}]*display:\s*flex[^}]*flex:\s*1[^}]*flex-direction:\s*column/s);
   expect(css).toMatch(/\.catalog-actions\s*\{[^}]*margin-top:\s*auto/s);
 });

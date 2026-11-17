@@ -1,6 +1,5 @@
 import { useId } from 'react';
-import { Button, IconButton, ProgressBar } from '@egdev/ui';
-import { DownloadIcon } from '../../apps/action-icons';
+import { Button, Icon, IconButton, ProgressBar } from '@egdev/ui';
 import type { HubApp } from '../../model';
 import { formatNumber, t, type MessageKey, type Params } from '../../i18n';
 import { useLocale } from '../../i18n/use-locale';
@@ -39,7 +38,7 @@ export function InstallAction({ app, reason, warning, installs, focused = false,
   const retry = !!error && !unverifiable;
   if (mode === 'update' && !canOffer && !entry) return null;
   if (compact && part === 'action') return canOffer && (!focused || !reason) ?
-    <IconButton type="button" size="md" variant="secondary" icon={<DownloadIcon />} label={t(locale, 'update.action', { version: version! })} title={t(locale, 'update.action', { version: version! })} disabled={!!reason || !installs} aria-describedby={reason ? id : undefined} onClick={() => installs?.startUpdate(app.id)} /> : null;
+    <IconButton type="button" size="md" variant="secondary" icon={<Icon name="download" />} label={t(locale, 'update.action', { version: version! })} title={t(locale, 'update.action', { version: version! })} disabled={!!reason || !installs} aria-describedby={reason ? id : undefined} onClick={() => installs?.startUpdate(app.id)} /> : null;
   return <div className={compact ? 'catalog-install update-feedback' : 'catalog-install'}>
     {message && <div role="alert" className="catalog-install-error">{message}</div>}
     {result && <div role="status" className="catalog-install-status">{t(locale, `update.${result.status}`, { version: result.version })}</div>}

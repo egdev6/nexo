@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Badge, Button, Carousel, Checkbox, Field, Icon, IconButton, VisuallyHidden } from '@egdev/ui';
+import { AppIcon, Badge, Button, Carousel, Checkbox, Field, Icon, IconButton, VisuallyHidden } from '@egdev/ui';
 import type { NewsItem, NewsPopupProps } from '../model';
 import { catalogBannerUrl } from '../catalog';
 import { formatNumber, t } from '../i18n';
@@ -18,7 +18,7 @@ function NewsBanner({ item }: { item: SlideItem }) {
   const [failed, setFailed] = useState(false);
   return <div className="news-hero" aria-hidden="true">
     {banner && !failed ? <img src={banner} alt="" onError={() => setFailed(true)} /> :
-      <span className="catalog-initial">{(item.appName ?? item.title).trim().charAt(0).toUpperCase()}</span>}
+      <AppIcon size="lg" monogram={(item.appName ?? item.title).trim().charAt(0).toUpperCase()} />}
   </div>;
 }
 

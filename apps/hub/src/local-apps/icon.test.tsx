@@ -5,6 +5,7 @@ import { LocaleProvider } from '../i18n/use-locale';
 import { LocalManagement } from '../settings/local-management';
 import { localAppIcon, type LocalAppRow } from './index';
 import { LocalAppsView } from './view';
+import { mockImageLoading } from '../test-helpers/image-loading';
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
@@ -15,8 +16,12 @@ const path = 'C:\\Nexo\\local-icons\\icon-old.png';
 let row: LocalAppRow;
 let iconResponse: string | null;
 let cancel: boolean;
+let failedSources: Set<string>;
+let images: HTMLImageElement[];
 
 beforeEach(() => {
+  failedSources = new Set();
+  images = mockImageLoading(failedSources);
   row = { id: 'local:manual:1', source: 'local', name: 'Editor', state: 'ready', origin: { kind: 'manual', id: 'manual-1' }, iconPath: path };
   iconResponse = png;
   cancel = false;
@@ -33,7 +38,7 @@ beforeEach(() => {
     return null;
   });
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 type View = 'apps' | 'settings';
 function mount(view: View) {
@@ -45,7 +50,7 @@ function entry(name: string, view: View): HTMLElement {
   return element;
 }
 function avatar(name: string, view: View): HTMLElement {
-  const element = entry(name, view).querySelector('.app-icon');
+  const element = entry(name, view).querySelector('.eg-app-icon');
   if (!(element instanceof HTMLElement)) throw new Error('Missing local avatar');
   return element;
 }
@@ -66,6 +71,7 @@ it('requests native icon data using only the opaque app ID', async () => {
 it.each(['apps', 'settings'] as const)('%s renders PNG and ICO local icons as decorative images', async view => {
   mount(view);
   const editor = await loaded(view);
+  expect(avatar('Editor', view).getAttribute('aria-hidden')).toBe('true');
   await waitFor(() => expect(editor.querySelector('img')?.getAttribute('src')).toBe(png));
   expect(editor.querySelector('img')?.getAttribute('alt')).toBe('');
   expect(bridge.invoke.mock.calls.filter(([command]) => command === 'local_app_icon')).toEqual([['local_app_icon', { id: 'manual-1' }]]);
@@ -109,13 +115,14 @@ it.each(['apps', 'settings'] as const)('%s falls back to the letter if native ic
   expect(avatar('Editor', view).textContent).toBe('E');
 });
 
-it.each(['apps', 'settings'] as const)('%s falls back to the letter when the image fails to load', async view => {
+it.each(['apps', 'settings'] as const)('%s falls back to the uppercase letter when the image fails to load', async view => {
+  failedSources.add(png);
+  row.name = 'editor';
   mount(view);
-  const editor = await loaded(view);
-  await waitFor(() => expect(editor.querySelector('img')).not.toBeNull());
-  fireEvent.error(editor.querySelector('img')!);
-  expect(editor.querySelector('img')).toBeNull();
-  expect(avatar('Editor', view).textContent).toBe('E');
+  await screen.findByText('editor');
+  await waitFor(() => expect(images.some(image => image.getAttribute('src') === png)).toBe(true));
+  expect(avatar('editor', view).textContent).toBe('E');
+  expect(entry('editor', view).querySelector('img')).toBeNull();
 });
 
 it('refetches after a successful icon picker even when the list path is unchanged, and shows it on reopening Mis apps', async () => {

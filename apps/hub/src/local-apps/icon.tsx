@@ -1,3 +1,4 @@
+import { AppIcon } from '@egdev/ui';
 import { useEffect, useRef, useState } from 'react';
 import { localAppIcon, type LocalAppRow } from './index';
 
@@ -34,8 +35,5 @@ function useLocalAppIcon(row: LocalAppRow, revision: number) {
 
 export function LocalAppIcon({ row, revision = 0 }: { row: LocalAppRow; revision?: number }) {
   const icon = useLocalAppIcon(row, revision);
-  const [failed, setFailed] = useState<IconEntry | null>(null);
-  return <span aria-hidden="true" className="app-icon" style={{ display: 'grid', fontSize: 'var(--space-6)', color: 'var(--color-fg-default)' }}>
-    {icon?.url && icon !== failed ? <img src={icon.url} alt="" onError={() => setFailed(icon)} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 'inherit' }} /> : row.name[0]}
-  </span>;
+  return <AppIcon size="lg" monogram={row.name.trim().charAt(0).toUpperCase()} src={icon?.url ?? undefined} />;
 }

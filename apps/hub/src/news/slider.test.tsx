@@ -136,7 +136,7 @@ it('uses the catalog banner in a fixed cover area for each news item', () => {
     expect(getComputedStyle(image!).objectFit).toBe('cover');
   });
   expect(newsCss).toMatch(/\.news-hero\s*\{[^}]*height:\s*calc\(/s);
-  expect(newsCss).toMatch(/\.news-hero img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/s);
+  expect(newsCss).toMatch(/\.news-hero\s*>\s*img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/s);
 });
 
 it('replaces a failed banner with the catalog app initial and retries for a changed app', () => {
@@ -148,7 +148,8 @@ it('replaces a failed banner with the catalog app initial and retries for a chan
   fireEvent.error(image!);
   expect(hero.querySelector('img')).toBeNull();
   expect(hero.textContent).toBe('Ó');
-  expect(hero.querySelector('.catalog-initial')?.textContent).toBe('Ó');
+  expect(hero.querySelector('.eg-app-icon')?.textContent).toBe('Ó');
+  expect(hero.querySelector('.eg-app-icon')?.getAttribute('aria-hidden')).toBe('true');
   const betaItem = { ...item, appId: 'beta', appName: 'Beta' };
   view.rerender(<main><NewsPopup items={[betaItem]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
   expect(screen.getByRole('article').querySelector('.news-hero img')?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/beta.webp');
@@ -160,6 +161,7 @@ it('uses the catalog initial without requesting a banner for an invalid app id',
   const hero = screen.getByRole('article').querySelector('.news-hero')!;
   expect(hero.querySelector('img')).toBeNull();
   expect(hero.textContent).toBe('P');
+  expect(hero.querySelector('.eg-app-icon')?.getAttribute('aria-hidden')).toBe('true');
 });
 
 it('uses the full-width scroll and snap layout for every news slide', () => {

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs } from '@egdev/ui';
-import { LinkIcon } from './apps/action-icons';
+import { AppIcon, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs } from '@egdev/ui';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
 import { closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
@@ -38,22 +37,13 @@ function OpenAction({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: s
   const locale = useLocale();
   const enabled = !!onOpen && app.source === 'official' && app.installationState === 'installed' && app.canOpen === true && !busy && !stale;
   const title = stale ? t(locale, 'appControl.staleTitle') : app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, enabled ? 'appControl.requestOpen' : 'appControl.openUnavailable');
-  return <IconButton variant="ghost" size="md" type="button" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.name })} title={title} disabled={!enabled} onClick={() => onOpen?.(app.id)} />;
+  return <IconButton variant="ghost" size="md" type="button" icon={<Icon name="external-link" />} label={t(locale, 'appControl.openFor', { name: app.name })} title={title} disabled={!enabled} onClick={() => onOpen?.(app.id)} />;
 }
 
 function ProcessCloseAction({ app, onClose, busy, stale }: { app: HubApp; onClose?: (id: string) => void; busy: boolean; stale: boolean }) {
   const locale = useLocale();
   const enabled = !!onClose && app.source === 'official' && app.installationState === 'installed' && !busy && !stale;
   return <IconButton variant="ghost" size="md" type="button" icon={<Icon name="close" />} label={t(locale, 'appControl.closeFor', { name: app.name })} title={t(locale, stale ? 'appControl.staleTitle' : 'appControl.requestClose')} disabled={!enabled} onClick={() => onClose?.(app.id)} />;
-}
-
-// TODO(egdev-design-system#410): Replace with the DS square app identity once it supports image and initials.
-export function AppIcon({ app }: { app: Pick<HubApp, 'id' | 'name' | 'iconUrl'> }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  const logo = app.iconUrl && failed !== app.iconUrl ? app.iconUrl : undefined;
-  return <span aria-hidden="true" className={`app-icon ${logo ? 'app-icon--logo' : app.id === 'antena' ? 'brand-icon' : ''}`}>
-    {logo ? <img src={logo} alt="" onError={() => setFailed(logo)} /> : app.name.trim().charAt(0).toUpperCase()}
-  </span>;
 }
 
 function Status({ app }: { app: HubApp }) {
@@ -93,9 +83,9 @@ function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, inst
   return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
     <CollapsibleHeader actions={<>
       {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
-      <IconButton type="button" variant="ghost" icon={<LinkIcon />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
+      <IconButton type="button" variant="ghost" icon={<Icon name="external-link" />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
     </>}><CollapsibleTrigger motion="none">
-      <span className="row-label"><AppIcon app={{ id: app.app.id, name: app.app.name, iconUrl: official?.iconUrl }} />
+      <span className="row-label"><AppIcon size="lg" monogram={app.app.name.trim().charAt(0).toUpperCase()} src={official?.iconUrl} />
         <span className="app-info"><strong>{app.app.name}</strong>
           {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <span className="secondary">{t(locale, 'app.unresponsive')}</span>}
         </span>
@@ -127,7 +117,7 @@ function AppRow({ app, onOpen, onClose, busy, stale, catalogState, installs, ope
         <ProcessCloseAction app={app} onClose={onClose} busy={busy || updateRunning(installs, app.id)} stale={stale} /> :
         <OpenAction app={app} onOpen={onOpen} busy={busy || updateRunning(installs, app.id)} stale={stale} />}
     </>}>
-      <CollapsibleTrigger motion="none"><span className="row-label"><AppIcon app={app} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
+      <CollapsibleTrigger motion="none"><span className="row-label"><AppIcon size="lg" monogram={app.name.trim().charAt(0).toUpperCase()} src={app.iconUrl} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
     </CollapsibleHeader>
     <UpdateControl app={app} catalogState={catalogState} installs={installs} part="feedback" />
     <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">

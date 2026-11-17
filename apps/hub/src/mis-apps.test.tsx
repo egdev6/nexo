@@ -49,15 +49,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('uses the canvas external-link glyph for installed, connected and local open buttons', async () => {
+it('uses the decorative DS external-link glyph for installed, connected and local open buttons', async () => {
   await show();
-  const paths = ['M15 3h6v6', 'M10 14 21 3', 'M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4'];
+  const reference = render(<IconButton label="reference" variant="ghost" icon={<Icon name="external-link" />} />).container.querySelector('svg')!;
   for (const name of ['Official', 'Plugin', 'Local One']) {
     const svg = card(name).getByRole('button', { name: `Abrir ${name}` }).querySelector('svg')!;
-    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
-    expect(svg.getAttribute('stroke')).toBe('currentColor');
-    expect(svg.getAttribute('stroke-width')).toBe('2');
-    expect(Array.from(svg.querySelectorAll('path'), path => path.getAttribute('d'))).toEqual(paths);
+    expect(svg.isEqualNode(reference)).toBe(true);
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
   }
 });
 
@@ -98,7 +96,9 @@ it('uses sibling icon actions without toggling, starts only keyed updates, and p
   const trigger = toggle('Official');
   const update = card('Official').getByRole('button', { name: 'Actualizar a v2.0.0' });
   const open = card('Official').getByRole('button', { name: 'Abrir Official' });
-  render(<><IconButton label="secondary reference" variant="secondary" icon={<Icon name="arrow-down" />} /><IconButton label="ghost reference" variant="ghost" icon={<Icon name="arrow-down" />} /></>);
+  const reference = render(<><IconButton label="secondary reference" variant="secondary" icon={<Icon name="download" />} /><IconButton label="ghost reference" variant="ghost" icon={<Icon name="arrow-down" />} /></>);
+  expect(update.querySelector('svg')?.isEqualNode(reference.container.querySelector('svg'))).toBe(true);
+  expect(update.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   expect(update.className).toBe(screen.getByRole('button', { name: 'secondary reference' }).className);
   expect(open.className).toBe(screen.getByRole('button', { name: 'ghost reference' }).className);
   expect(trigger.contains(update)).toBe(false); expect(trigger.contains(open)).toBe(false);

@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogContent, DialogTrigger, Field, FieldMessage, Input, Label, Notice, Stack } from '@egdev/ui';
+import { AppIcon, Button, Dialog, DialogContent, DialogTrigger, Field, FieldMessage, Input, Label, Notice, Stack } from '@egdev/ui';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
@@ -24,7 +24,6 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
   const [exeError, setExeError] = useState<MessageKey | null>(null);
   const [iconError, setIconError] = useState<MessageKey | null>(null);
   const [saveError, setSaveError] = useState<MessageKey | null>(null);
-  const [imageFailed, setImageFailed] = useState(false);
 
   // The body portal can mount after its parent effect. Attach when the dialog
   // itself mounts, before paint, and restore any existing values on unmount.
@@ -49,7 +48,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
     active.current = false;
     setOpen(false);
     setExecutable(null); setName(''); setIcon(null);
-    setExeError(null); setIconError(null); setSaveError(null); setImageFailed(false);
+    setExeError(null); setIconError(null); setSaveError(null);
     revokingRef.current = true; setRevoking(true);
     void cancelLocalSelection().then(() => { setCleanupError(false); }, () => { setCleanupError(true); }).finally(() => {
       revokingRef.current = false; setRevoking(false);
@@ -81,7 +80,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
       try {
         const selected = await pickLocalIconFile();
         if (!active.current || !selected) return;
-        setIcon(selected); setImageFailed(false); setIconError(null);
+        setIcon(selected); setIconError(null);
       } catch (error) { if (active.current) setIconError(errorKey(error)); }
     });
   }
@@ -103,7 +102,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
       }
     });
   }
-  const preview = icon && /^data:image\/(?:png|x-icon);base64,[A-Za-z0-9+/]+={0,2}$/.test(icon.preview) && !imageFailed ? icon.preview : null;
+  const preview = icon && /^data:image\/(?:png|x-icon);base64,[A-Za-z0-9+/]+={0,2}$/.test(icon.preview) ? icon.preview : undefined;
   const initial = name.trim().charAt(0).toUpperCase() || '?';
 
   return <>
@@ -129,9 +128,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
           <div className="local-app-field" role="group" aria-label={t(locale, 'settingsLocal.iconLabel')}>
             <span className="local-app-label">{t(locale, 'settingsLocal.iconLabel')}</span>
             <div className="local-app-row">
-              <div className="local-app-preview" role="img" aria-label={t(locale, 'settingsLocal.iconPreview')}>
-                {preview ? <img src={preview} alt="" onError={() => setImageFailed(true)} /> : <span aria-hidden="true">{initial}</span>}
-              </div>
+              <AppIcon size="lg" label={t(locale, 'settingsLocal.iconPreview')} monogram={initial} src={preview} />
               <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseIcon()}>{t(locale, 'settingsLocal.chooseIcon')}</Button>
               <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => { setIcon(null); setIconError(null); }}>{t(locale, 'settingsLocal.clearIcon')}</Button>
             </div>
