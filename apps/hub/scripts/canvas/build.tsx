@@ -93,9 +93,10 @@ const cssPaths = [
   'apps/hub/src/settings/settings.css', 'apps/hub/src/first-run/first-run.css',
 ];
 const width = JSON.parse(read('apps/hub/src-tauri/tauri.conf.json')).app.windows.find((window: any) => window.label === 'main').width as number;
-const marginMatch = read('apps/hub/src-tauri/src/position.rs').match(/let margin = \(([\d.]+) \* scale\)/);
-if (!marginMatch) throw new Error('Cannot determine flyout margin from position.rs');
-const margin = Math.round(Number(marginMatch[1]));
+// The flyout is flush with the right edge and fills the work area height (position.rs); fail if that changes.
+const position = read('apps/hub/src-tauri/src/position.rs');
+if (!/y: area\.y,/.test(position) || !/height: area\.height,/.test(position)) throw new Error('Cannot determine flyout placement from position.rs');
+const margin = 0;
 const boardWidth = 786;
 const boardHeight = 1080;
 const taskbarHeight = 48;
@@ -124,17 +125,29 @@ function prunedCss(html: string) {
   }).join('\n');
 }
 
+const bannerPlaceholder = '<svg viewBox="0 0 16 9" preserveAspectRatio="none"><defs><linearGradient id="canvas-banner" x2="1" y2="1"><stop offset="0" stop-color="#3a2a30"/><stop offset="1" stop-color="#16171b"/></linearGradient></defs><rect width="16" height="9" fill="url(#canvas-banner)"/></svg>';
+
 function capture() {
   const original = document.querySelector('main.flyout');
   if (!original) throw new Error('Flyout did not render');
   const copy = original.cloneNode(true) as HTMLElement;
   for (const image of copy.querySelectorAll('img')) {
-    if (!image.classList.contains('n-mark') && !image.classList.contains('news-mark')) throw new Error('Unexpected image in canvas fixture');
+    if (!image.classList.contains('n-mark') && !image.classList.contains('news-mark')) {
+      // Remote catalog banners would break the self-contained capture; keep their box with an inline placeholder.
+      if (!/^https?:/.test(image.getAttribute('src') ?? '')) throw new Error(`Unexpected image in canvas fixture: ${image.getAttribute('src')}`);
+      const banner = new DOMParser().parseFromString(bannerPlaceholder, 'image/svg+xml').documentElement;
+      banner.setAttribute('class', image.className);
+      banner.setAttribute('aria-hidden', 'true');
+      image.replaceWith(document.importNode(banner, true));
+      continue;
+    }
     const svg = new DOMParser().parseFromString(appIcon, 'image/svg+xml').documentElement;
     svg.setAttribute('class', image.className);
     svg.setAttribute('aria-hidden', 'true');
     image.replaceWith(document.importNode(svg, true));
   }
+  // External links keep their look but must not point outside the self-contained capture.
+  for (const link of copy.querySelectorAll('a[href^="http"]')) link.setAttribute('href', '#');
   return copy.outerHTML;
 }
 function selectTab(name: string) {
@@ -149,7 +162,7 @@ async function mount(firstRun = false, withNews = false) {
   render(<App apps={apps} news={withNews ? news : []} catalogState={{ status: 'ready', catalog }} onAppsRefresh={() => {}} />);
   await waitFor(() => {
     if (!document.querySelector('.flyout')) throw new Error('Waiting for flyout');
-    if (firstRun ? !screen.queryByRole('button', { name: 'Continuar' }) : !screen.queryByRole('button', { name: 'Ajustes' })) throw new Error('Waiting for settings');
+    if (firstRun ? !screen.queryByRole('button', { name: 'Continuar' }) : !screen.queryByRole('button', { name: 'Ajustes', hidden: true })) throw new Error('Waiting for settings');
   });
   if (!firstRun) await waitFor(() => { if (!screen.queryByText('OBS Studio') || !bridge.receive) throw new Error('Waiting for local apps and progress'); });
 }
@@ -172,6 +185,12 @@ function wrap(title: string, flyout: string) {
 export async function buildArtboards(): Promise<{ file: string; html: string }[]> {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
   await mount();
+  // Cards start collapsed and only one stays open; open the app with an update so its notes show.
+  for (const name of ['Antena']) {
+    const trigger = [...document.querySelectorAll<HTMLElement>('.app-card [aria-expanded="false"]')].find(item => item.querySelector('strong')?.textContent === name);
+    if (!trigger) throw new Error(`Missing collapsed app card: ${name}`);
+    fireEvent.click(trigger);
+  }
   const myApps = capture();
   selectTab('Catálogo');
   await waitFor(() => { if ((screen.getByRole('button', { name: 'Instalar Cadencia' }) as HTMLButtonElement).disabled) throw new Error('Waiting for installation connection'); });
@@ -179,16 +198,16 @@ export async function buildArtboards(): Promise<{ file: string; html: string }[]
   act(() => bridge.receive!({ id: 'cadencia', phase: 'downloading', received: 60, total: 100 }));
   const catalogue = capture();
   await mount(false, true);
-  await screen.findByRole('dialog', { name: 'Novedades al abrir' });
+  await screen.findByRole('dialog', { name: 'Novedades' });
   const newsBoard = capture();
   await mount();
   fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
   await screen.findByRole('switch', { name: 'Iniciar con Windows' });
   const snapshots: Record<string, string> = { general: capture() };
   selectTab('Apariencia'); snapshots.appearance = capture();
-  selectTab('Fuentes del catálogo');
-  await waitFor(() => { if (!screen.queryByText('Catálogo de trabajo') || !screen.queryByText('Editor de vídeo') || !screen.queryByText('No se pudo leer la fuente local.')) throw new Error('Waiting for local management and source error'); });
-  snapshots.sources = capture();
+  selectTab('Apps locales');
+  await waitFor(() => { if (!screen.queryByText('Editor de vídeo')) throw new Error('Waiting for local apps'); });
+  snapshots.localApps = capture();
   selectTab('Acerca de'); snapshots.about = capture();
   await mount(true);
   const firstRun = capture();
@@ -200,7 +219,7 @@ export async function buildArtboards(): Promise<{ file: string; html: string }[]
     { file: '03-novedades.html', html: wrap('Novedades', newsBoard) },
     { file: '04a-ajustes-general.html', html: wrap('Ajustes · General', snapshots.general) },
     { file: '04b-ajustes-apariencia.html', html: wrap('Ajustes · Apariencia', snapshots.appearance) },
-    { file: '04c-ajustes-fuentes-del-catalogo.html', html: wrap('Ajustes · Fuentes del catálogo', snapshots.sources) },
+    { file: '04c-ajustes-apps-locales.html', html: wrap('Ajustes · Apps locales', snapshots.localApps) },
     { file: '04d-ajustes-acerca-de.html', html: wrap('Ajustes · Acerca de', snapshots.about) },
     { file: '05-primer-uso.html', html: wrap('Primer uso', firstRun) },
   ];
