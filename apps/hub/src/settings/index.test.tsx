@@ -60,6 +60,10 @@ it.each([
   tab(appearance); checkHeading(appearance);
   tab(localApps); checkHeading(localApps);
   tab(about); checkHeading(about); checkHeading(author);
+  const links = within(screen.getByRole('region', { name: author })).getAllByRole('link');
+  expect(links.length).toBeGreaterThan(0);
+  // Author social links use the DS outline IconButton look.
+  for (const link of links) expect(link.classList.contains('border-border-hairline-strong')).toBe(true);
 });
 
 it('switches the four settings sections with the keyboard and shows their content', async () => {
