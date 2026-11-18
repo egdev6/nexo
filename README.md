@@ -83,7 +83,8 @@ From `apps/hub`:
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the frontend development server. |
-| `npm test` | Run frontend tests, including the design-system guard. |
+| `npm test` | Run frontend tests. |
+| `npm run ds:doctor` | Check the design-system install and run its guard (raw elements, internal selectors, allowlist). |
 | `npm run build` | Check TypeScript and build the frontend. |
 | `npm run app:dev` | Run the desktop app in development. |
 

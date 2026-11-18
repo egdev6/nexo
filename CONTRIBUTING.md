@@ -45,15 +45,15 @@ The Windows CI workflow is currently disabled while the repository is private; v
 
 Follow [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Use `@egdev/ui` for shared UI and `@egdev/tokens` for visual values; check `@egdev/mcp` for components before writing JSX. Do not add local duplicates of design-system tokens or components. Request missing capabilities upstream; any temporary workaround needs an issue-linked code comment and guard allowlist entry with a removal condition. Do not add `.eg-*` overrides outside `apps/hub/src/theme/`. Existing exceptions are migration debt, not permission for new overrides. Verify browser-dependent behavior in the actual Tauri WebView2.
 
-The guard test lives at [`apps/hub/src/design-system-guard.test.ts`](./apps/hub/src/design-system-guard.test.ts) and runs with `npm test` from `apps/hub`. Do not bypass it to introduce new untracked exceptions.
+The guard runs with `npm run ds:doctor` (`egdev-ds doctor`) from `apps/hub`, in CI and in `scripts/check.sh`. It rejects raw `<button>`, `<input>`, `<a>` and `<label>` and DS-internal selectors outside `src/theme/` unless they have an entry in [`apps/hub/src/design-system-allowlist.ts`](./apps/hub/src/design-system-allowlist.ts). Do not bypass it to introduce new untracked exceptions.
 
-Design-system upgrades are separate reviewed changes. To preview one from the repository root:
+Design-system upgrades are separate reviewed changes, made with the `egdev-ds` CLI from a packed release. To preview one from the repository root:
 
 ```sh
-node apps/hub/scripts/ds-vendor.mjs --app apps/hub --commit <sha> --dry-run
+node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub --dry-run
 ```
 
-The default design-system checkout is `../egdev-design-system`; use `--ds <path>` to change it. The script checks the commit against `origin/main`, vendors the selected packages and verifies lockfile integrity. A dry run uses the cached remote ref and does not fetch. `--allow-unmerged` is for temporary testing only and changes `node_modules`, not the vendored files; the script prints the revert command. After an upgrade, restart the dev server with `--force` and regenerate `design/system.md`. Follow the ADR for prerequisites, pinned versions, regeneration and the complete upgrade procedure.
+The CLI verifies the tarballs against the release, updates the manifest and lockfile and rolls everything back on failure. After an upgrade, run `npm run ds:doctor`, restart the dev server with `--force` and regenerate `design/system.md`. Follow the ADR for pinned versions, regeneration and the complete upgrade procedure.
 
 ---
 
@@ -98,12 +98,12 @@ El workflow de CI de Windows está desactivado mientras el repositorio es privad
 
 Seguid el [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Usad `@egdev/ui` para la UI compartida y `@egdev/tokens` para los valores visuales; consultad los componentes con `@egdev/mcp` antes de escribir JSX. No añadáis duplicados locales de tokens o componentes del design system. Solicitad las capacidades que falten en el proyecto original; toda solución temporal necesita un comentario enlazado a una issue y una entrada en la lista de excepciones del guard con condición de retirada. No añadáis sobrescrituras `.eg-*` fuera de `apps/hub/src/theme/`. Las excepciones existentes son deuda de migración, no permiso para crear otras. Verificad el comportamiento que depende del navegador en el WebView2 real de Tauri.
 
-El test de protección está en [`apps/hub/src/design-system-guard.test.ts`](./apps/hub/src/design-system-guard.test.ts) y se ejecuta con `npm test` desde `apps/hub`. No lo eludáis para introducir excepciones sin seguimiento.
+La protección se ejecuta con `npm run ds:doctor` (`egdev-ds doctor`) desde `apps/hub`, en CI y en `scripts/check.sh`. Rechaza `<button>`, `<input>`, `<a>` y `<label>` sin componente y los selectores internos del design system fuera de `src/theme/`, salvo que tengan una entrada en [`apps/hub/src/design-system-allowlist.ts`](./apps/hub/src/design-system-allowlist.ts). No la eludáis para introducir excepciones sin seguimiento.
 
-Las actualizaciones del design system son cambios separados y revisados. Para previsualizar una desde la raíz del repositorio:
+Las actualizaciones del design system son cambios separados y revisados, hechos con la CLI `egdev-ds` a partir de una release empaquetada. Para previsualizar una desde la raíz del repositorio:
 
 ```sh
-node apps/hub/scripts/ds-vendor.mjs --app apps/hub --commit <sha> --dry-run
+node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub --dry-run
 ```
 
-Por defecto se usa el checkout `../egdev-design-system`; con `--ds <path>` podéis cambiarlo. El script comprueba el commit frente a `origin/main`, vendoriza los paquetes elegidos y verifica la integridad del lockfile. La previsualización usa la referencia remota en caché y no hace fetch. `--allow-unmerged` solo sirve para pruebas temporales y modifica `node_modules`, no los archivos vendorizados; el script muestra el comando para revertirlo. Tras una actualización, reiniciad el servidor de desarrollo con `--force` y regenerad `design/system.md`. Seguid el ADR para los requisitos, las versiones fijadas, la regeneración y el procedimiento completo.
+La CLI verifica los tarballs contra la release, actualiza el manifiesto y el lockfile y lo revierte todo si algo falla. Tras una actualización, ejecutad `npm run ds:doctor`, reiniciad el servidor de desarrollo con `--force` y regenerad `design/system.md`. Seguid el ADR para las versiones fijadas, la regeneración y el procedimiento completo.

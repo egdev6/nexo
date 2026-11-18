@@ -83,7 +83,8 @@ Desde `apps/hub`:
 | Comando | Función |
 | --- | --- |
 | `npm run dev` | Iniciar el servidor de desarrollo del frontend. |
-| `npm test` | Ejecutar los tests del frontend, incluida la protección del design system. |
+| `npm test` | Ejecutar los tests del frontend. |
+| `npm run ds:doctor` | Comprobar la instalación del design system y ejecutar su protección (elementos sin componente, selectores internos, lista de excepciones). |
 | `npm run build` | Comprobar TypeScript y compilar el frontend. |
 | `npm run app:dev` | Ejecutar la aplicación de escritorio en desarrollo. |
 

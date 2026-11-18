@@ -24,10 +24,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Node 22
+      - name: Node 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           package-manager-cache: false
 
       - name: Rust stable
@@ -42,6 +42,10 @@ jobs:
       - name: Install locked frontend dependencies
         working-directory: apps/hub
         run: npm ci
+
+      - name: Design system doctor
+        working-directory: apps/hub
+        run: npm run ds:doctor
 
       - name: Frontend tests
         working-directory: apps/hub
