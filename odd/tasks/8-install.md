@@ -109,7 +109,7 @@ All units are proposed and **not authorized**. ODD publication, assignment/start
   - Outcome: first of #7/#8 supplies v3 keys, allowlist, separate feed/cache and Rust/TS validation; the other reuses it.
   - Checks/exit: valid/invalid keys and URLs, host/path/redirect escapes, v1/v2 parity and old readers, cache separation,
     fallback with install blocked, native source binding, key changes and approved release publishing plan.
-- T3 (S1, A2, A6–A10) Download, verify and install service — route: focused writer, test-first; status: in progress (x64 NSIS asset gate complete; explicit pre-spawn cleanup API added; native approval, command integration, progress/cancellation and client pending).
+- T3 (S1, A2, A6–A10) Download, verify and install service — route: focused writer, test-first; status: done (PR #32, bf8fc14; native approval, command integration, progress/cancellation and client included).
   - Outcome: ID-bound approval, per-app single-flight, bounded streaming, detached verification, protected temp files,
     unelevated process, cancellation, cleanup and fresh #6 detection behind injectable boundaries.
   - Checks/exit: fake HTTP/filesystem/signature/process/registry cover limits, timeouts, redirects, tampering, races,
@@ -118,7 +118,7 @@ All units are proposed and **not authorized**. ODD publication, assignment/start
   - Outcome: confirmation, disabled reasons, progress, cancellation, errors and truthful installation states in ES/EN.
   - Checks/exit: behavior tests cover unknown/installed/installing, retries, locale changes and progress, preserving
     existing catalog, connected/local/sample rows, News and tray behavior. Coordinate changes shared with #7/#9.
-- T5 (S1, A4, A7–A12) Windows evidence and delivery preparation — route: maintainer/verifier; status: pending; a separately authorized manual Windows real-install check is required before closing #8.
+- T5 (S1, A4, A7–A12) Windows evidence and delivery preparation — route: maintainer/verifier; status: done (maintainer confirmed a real Windows install on 2026-11-19; per-step and environment details not recorded; PR #32 merged and #8 closed).
   - Outcome: verify actual release redirects, signatures, installer flags, per-user behavior and re-detection on an
     isolated Windows account/VM. Real downloads/installations and machine changes require separate authorization.
   - Exit: record environment, deterministic and authorized native results and any gaps; PR, merge and closure remain separate.
@@ -127,3 +127,4 @@ All units are proposed and **not authorized**. ODD publication, assignment/start
 
 - L1 (verbatim): Parent: "¿Preparo sus ODD en paralelo, como las tandas anteriores?" User: "si". Parent interpretation: draft the ODDs for #7, #8 and #9 in parallel only; no publication, assignment or implementation is authorized.
 - L2 (verbatim): Parent: "Un ajuste a la recomendación del borrador de #8: proponía bloquear la instalación mientras GitHub redirigiera a otro host. Lo comprobé: las descargas de releases redirigen a `release-assets.githubusercontent.com`. Bloquear eso impediría instalar cualquier app, así que recomiendo permitir **solo** esa redirección de GitHub. La firma es la verdadera garantía: aunque el host fallara, un instalador sin firma válida no se ejecuta. ¿Apruebo los tres ODD con esas recomendaciones, los publico y arranco la implementación en paralelo?" User: "si". Effect: A4 and D1 updated; T2-T4 authorized.
+- L3 (2026-11-19) Status reconciliation: T3 and T5 done; PR #32 merged as bf8fc14 with the install service and independent verification, and #8 is closed. Maintainer confirmed on 2026-11-19: "Instalación real (#8)". This confirms a real Windows install, not the environment or each individual manual check.
