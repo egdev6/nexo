@@ -98,11 +98,11 @@ cargo build --workspace
 
 `scripts/check.sh --windows` runs the local verification, including native Windows tests and Clippy from WSL; see [Contributing](./CONTRIBUTING.md) for prerequisites. CI is disabled while the repository is private, so verify changes locally.
 
-These workspace checks cover the hub and catalog. The shared protocol and tray plugin live in the public repository [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo), pinned by the hub at `v0.1.0`, and are tested by its CI.
+These workspace checks cover the hub and catalog. The shared protocol and tray plugin live in the public repository [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo), pinned by the hub at `v0.1.1`, and are tested by its CI.
 
 ## Architecture
 
-- `apps/hub/` contains the Tauri and React hub; the shared protocol (`nexo-protocol`) and the [Windows tray client](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/crates/tauri-plugin-nexo/README.md) come from the public repository [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo); `crates/nexo-catalog/` validates catalog data.
+- `apps/hub/` contains the Tauri and React hub; the shared protocol (`nexo-protocol`) and the [Windows tray client](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/crates/tauri-plugin-nexo/README.md) come from the public repository [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo); `crates/nexo-catalog/` validates catalog data.
 - Left-click the tray icon to show or hide the flyout. Its X button and Escape also hide it; right-click and choose **Salir** to quit. A second launch shows the existing panel. The fixed-size, always-on-top flyout fills the work area's height, covers its right edge and scrolls when needed. It stays open on focus loss; tabs support arrow keys, Home and End.
 - The hub serves the IPC protocol for apps using `tauri-plugin-nexo`, whose actions appear in its tray menu. For installed official apps without the plugin, it detects the matching executable's process and reports whether it is open, stopped or unknown. A close request behaves like the app's X button, never forces termination and warns if the app remains open, for example in its tray. Close local apps from within the app.
 - Settings persist in the app configuration directory. **Hide local apps** is off by default; enabling it hides their section in My apps without affecting their management in Settings.
@@ -118,9 +118,9 @@ Start with an issue, then work on a branch and open a pull request. Run the loca
 - [Official catalog repository](https://github.com/egdev6/nexo-catalog)
 - [Design-system decision (ADR 0001)](./docs/decisions/0001-adopt-egdev-design-system.md)
 - [Catalog format and loading](./docs/catalog.md)
-- [IPC protocol](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/docs/protocol.md)
+- [IPC protocol](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/docs/protocol.md)
 - [Startup troubleshooting](./docs/troubleshooting.md)
-- [Tauri plugin guide](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/crates/tauri-plugin-nexo/README.md)
+- [Tauri plugin guide](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/crates/tauri-plugin-nexo/README.md)
 
 ## License
 

@@ -324,4 +324,4 @@ Approved by the maintainer when this version was reviewed:
 This copy is a historical snapshot, retained for references in `odd/`. The canonical
 [protocol specification](https://github.com/egdev6/tauri-plugin-nexo/blob/main/docs/protocol.md)
 is maintained in the public repository; the hub currently uses the
-[v0.1.0 version](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/docs/protocol.md).
+[v0.1.1 version](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/docs/protocol.md).
