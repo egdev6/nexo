@@ -37,12 +37,12 @@
   box-shadow: var(--shadow-edge-strong), 0 0 14px -4px var(--color-alpha-red-65);
   color: var(--color-fg-default);
 }
-.flyout .eg-switch[aria-checked='true'], .flyout [role='radio'][aria-checked='true'] {
+.flyout .eg-switch[aria-checked='true'], .flyout .eg-radio-group [role='radio'][aria-checked='true'] {
   border-color: var(--color-primitive-red-neon);
   background: var(--gradient-btn-primary);
   box-shadow: var(--shadow-btn-primary);
 }
-.flyout .eg-switch[aria-checked='true'] > span, .flyout [role='radio'][aria-checked='true'] > span { background: var(--color-action-primary-solid-fg); }
+.flyout .eg-switch[aria-checked='true'] > span, .flyout .eg-radio-group [role='radio'][aria-checked='true'] > span { background: var(--color-action-primary-solid-fg); }
 .flyout .eg-slider > span:first-child { background: var(--color-border-control); }
 .flyout .eg-slider > span:first-child > span { background: var(--color-primitive-red-neon); }
 .settings__swatch[aria-pressed='true'] { border-color: var(--color-fg-default); box-shadow: var(--shadow-focus); }

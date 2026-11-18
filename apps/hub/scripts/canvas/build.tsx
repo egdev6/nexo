@@ -131,6 +131,9 @@ function capture() {
   const original = document.querySelector('main.flyout');
   if (!original) throw new Error('Flyout did not render');
   const copy = original.cloneNode(true) as HTMLElement;
+  // The mocked bridge makes the app think it is native, so the window motion leaves the panel off-screen; capture it at rest.
+  copy.className = 'flyout';
+  copy.removeAttribute('data-backdrop');
   for (const image of copy.querySelectorAll('img')) {
     if (!image.classList.contains('n-mark') && !image.classList.contains('news-mark')) {
       // Remote catalog banners would break the self-contained capture; keep their box with an inline placeholder.

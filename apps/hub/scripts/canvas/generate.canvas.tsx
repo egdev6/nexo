@@ -30,6 +30,8 @@ it('generates self-contained Windows captures for each real component state and 
   for (const [index, doc] of docs.entries()) {
     expect(doc.documentElement.lang).toBe('es');
     expect(doc.querySelector('.flyout')).toBeTruthy();
+    expect(doc.querySelector('.flyout')?.className).toBe('flyout');
+    expect(doc.querySelector('.flyout')?.hasAttribute('data-backdrop')).toBe(false);
     expect(doc.querySelector('.win-taskbar svg')).toBeTruthy();
     const css = doc.querySelector('style')?.textContent ?? '';
     expect(css).toContain('--font-sans: "Barlow", system-ui, sans-serif');
@@ -80,6 +82,9 @@ it('generates self-contained Windows captures for each real component state and 
   expect(docs[6].body.textContent).toMatch(/Versión 0\.1\.0/);
   expect(docs[6].body.textContent).toContain('Tipografía Barlow · SIL Open Font License 1.1');
   expect(docs[7].body.textContent).toMatch(/Elige tu idioma/);
+  // Only RadioGroup radios get the contrast fill; SelectTile overlays and color swatches are radios too.
+  expect(contrastCss).not.toMatch(/\.flyout \[role='radio'\]/);
+  expect(contrastCss).toContain(".flyout .eg-radio-group [role='radio'][aria-checked='true']");
   expect(docs[7].body.textContent).toMatch(/Continuar/);
   for (const board of boards) writeFileSync(resolve('../../design/nexo-hub-actual', board.file), board.html);
 });

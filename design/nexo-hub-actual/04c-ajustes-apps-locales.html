@@ -4312,7 +4312,6 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 .flyout[data-backdrop="opaque"] { background: var(--color-surface-0); backdrop-filter: none; transition: none; }
 .flyout[data-news-open] > :is(.panel-head, .panel-notices, .main-tabs, .area-scroll, .settings__foot) { filter: blur(calc(var(--space-1) * 1.5)); }
 body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
-.flyout--waiting { transform: translateX(100%); }
 .flyout--entering.flyout, .flyout--exiting.flyout { transition: transform 200ms ease-out; }
 .panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); background: var(--gradient-sheen), var(--color-surface-0); }
 .panel-notices { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-6) var(--space-1); background: var(--color-surface-0); }
@@ -4329,7 +4328,7 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .row-label { display: flex; align-items: center; gap: var(--space-4); }
 @media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { --menu-band-gutter: var(--space-4); margin-left: var(--space-4); margin-right: var(--space-4); } .heading p { display: none; } }
 @media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } .flyout[data-news-open] > :is(.panel-head, .panel-notices, .main-tabs, .area-scroll, .settings__foot) { filter: none; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } .flyout--waiting { transform: none; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 /* src/catalog/catalog.css */
 @media (max-width: 390px) { }
@@ -4410,12 +4409,12 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
   box-shadow: var(--shadow-edge-strong), 0 0 14px -4px var(--color-alpha-red-65);
   color: var(--color-fg-default);
 }
-.flyout .eg-switch[aria-checked='true'], .flyout [role='radio'][aria-checked='true'] {
+.flyout .eg-switch[aria-checked='true'], .flyout .eg-radio-group [role='radio'][aria-checked='true'] {
   border-color: var(--color-primitive-red-neon);
   background: var(--gradient-btn-primary);
   box-shadow: var(--shadow-btn-primary);
 }
-.flyout .eg-switch[aria-checked='true'] > span, .flyout [role='radio'][aria-checked='true'] > span { background: var(--color-action-primary-solid-fg); }
+.flyout .eg-switch[aria-checked='true'] > span, .flyout .eg-radio-group [role='radio'][aria-checked='true'] > span { background: var(--color-action-primary-solid-fg); }
 .flyout .eg-slider > span:first-child { background: var(--color-border-control); }
 .flyout .eg-slider > span:first-child > span { background: var(--color-primitive-red-neon); }
 .settings__swatch[aria-pressed='true'] { border-color: var(--color-fg-default); box-shadow: var(--shadow-focus); }
@@ -4428,7 +4427,7 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .first-run :is(h1, .first-run__description):not(:has(> span[aria-hidden='true'])) > span[lang='es']::after {
   content: ''; display: inline-block; width: .35em; margin-inline: .3em; border-top: 1px solid currentColor; vertical-align: middle;
 }
-</style></head><body><div class="desktop"><div id="root" class="win-frame"><main class="flyout flyout--waiting" data-backdrop="opaque" aria-labelledby="panel-title" style="--color-fg-brand-default: var(--color-primitive-red-neon); --color-fg-brand-raised: var(--color-primitive-red-neon); --color-fg-brand-hover: var(--color-primitive-red-light); --color-border-brand: var(--color-alpha-red-45); --color-border-brand-strong: var(--color-primitive-red-dark); --color-action-primary-solid-bg: var(--color-primitive-red-neon); --color-action-primary-solid-bg-hover: var(--color-primitive-red-light); --color-action-primary-solid-fg: var(--color-primitive-black); --color-focus-ring: var(--color-primitive-red-neon); --shadow-focus: 0 0 0 2px #141518, 0 0 0 4px #FF0036; --gradient-btn-primary: linear-gradient(180deg, #FF2D57 0%, #FF0036 52%, #EE0031 100%); --gradient-btn-primary-hover: linear-gradient(180deg, #FF4A6E 0%, #FF1A49 52%, #F00033 100%); --shadow-btn-primary: inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.6), 0 8px 22px -8px rgba(255, 0, 54, 0.7); --shadow-btn-primary-hover: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 0, 54, 0.35), 0 10px 30px -6px rgba(255, 0, 54, 0.75); --color-state-selected: var(--color-action-primary-solid-bg); --color-on-selected: var(--color-action-primary-solid-fg); --gradient-state-selected: var(--gradient-btn-primary); --shadow-state-selected: var(--shadow-btn-primary); --shadow-state-indicator: var(--shadow-glow-base); --color-link-default: var(--color-fg-brand-raised); --color-link-hover: var(--color-primitive-red-200); --gradient-chip-active: linear-gradient(180deg, rgba(255, 0, 54, 0.24), rgba(255, 0, 54, 0.09)); --shadow-glow-base: 0 4px 20px 0 rgba(255, 0, 54, 0.15); --shadow-glow-active: 0 8px 30px 0 rgba(255, 0, 54, 0.30); --hub-accent: #ff0036; --hub-density: 1; --hub-opacity: 0.85; --hub-blur: 24px;"><header class="panel-head"><div class="heading"><svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128" class="n-mark" aria-hidden="true">
+</style></head><body><div class="desktop"><div id="root" class="win-frame"><main class="flyout" aria-labelledby="panel-title" style="--color-fg-brand-default: var(--color-primitive-red-neon); --color-fg-brand-raised: var(--color-primitive-red-neon); --color-fg-brand-hover: var(--color-primitive-red-light); --color-border-brand: var(--color-alpha-red-45); --color-border-brand-strong: var(--color-primitive-red-dark); --color-action-primary-solid-bg: var(--color-primitive-red-neon); --color-action-primary-solid-bg-hover: var(--color-primitive-red-light); --color-action-primary-solid-fg: var(--color-primitive-black); --color-focus-ring: var(--color-primitive-red-neon); --shadow-focus: 0 0 0 2px #141518, 0 0 0 4px #FF0036; --gradient-btn-primary: linear-gradient(180deg, #FF2D57 0%, #FF0036 52%, #EE0031 100%); --gradient-btn-primary-hover: linear-gradient(180deg, #FF4A6E 0%, #FF1A49 52%, #F00033 100%); --shadow-btn-primary: inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.6), 0 8px 22px -8px rgba(255, 0, 54, 0.7); --shadow-btn-primary-hover: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 0, 54, 0.35), 0 10px 30px -6px rgba(255, 0, 54, 0.75); --color-state-selected: var(--color-action-primary-solid-bg); --color-on-selected: var(--color-action-primary-solid-fg); --gradient-state-selected: var(--gradient-btn-primary); --shadow-state-selected: var(--shadow-btn-primary); --shadow-state-indicator: var(--shadow-glow-base); --color-link-default: var(--color-fg-brand-raised); --color-link-hover: var(--color-primitive-red-200); --gradient-chip-active: linear-gradient(180deg, rgba(255, 0, 54, 0.24), rgba(255, 0, 54, 0.09)); --shadow-glow-base: 0 4px 20px 0 rgba(255, 0, 54, 0.15); --shadow-glow-active: 0 8px 30px 0 rgba(255, 0, 54, 0.30); --hub-accent: #ff0036; --hub-density: 1; --hub-opacity: 0.85; --hub-blur: 24px;"><header class="panel-head"><div class="heading"><svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128" class="n-mark" aria-hidden="true">
   <rect x="13" y="15" width="102" height="88" rx="21" transform="translate(0 7)" fill="none" stroke="#800C1D" stroke-width="13"></rect>
   <g fill="#800C1D" transform="translate(0 5)">
     <rect x="32" y="33" width="25" height="20" rx="6"></rect>
