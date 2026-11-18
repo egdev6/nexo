@@ -8,14 +8,15 @@ Accepted. Adapted from [egdev-website ADR 0007](https://github.com/egdev6/egdev-
 
 Nexo is a Tauri 2 desktop hub with a React and Vite frontend. The hub and its agents use the same versioned [EGDEV design system](https://github.com/egdev6/egdev-design-system), rather than maintaining a second token contract and general-purpose component set. App-specific composition remains Nexo's responsibility.
 
-The packages below are pinned to the tarballs from design-system commit `e712915`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
+The packages below are pinned to the tarballs from design-system commit `ba7a38e`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@egdev/tokens` | `0.5.0` | Visual tokens and CSS. |
-| `@egdev/ui` | `0.3.1` | Shared UI components. |
-| `@egdev/system` | `0.4.1` | Dev dependency supplying the generated agent reference. |
-| `@egdev/mcp` | `0.4.1` | Dev dependency supplying the agents' MCP server. |
+| `@egdev/tokens` | `0.5.1` | Visual tokens and CSS. |
+| `@egdev/ui` | `0.3.2` | Shared UI components. |
+| `@egdev/system` | `0.4.2` | Dev dependency supplying the generated agent reference. |
+| `@egdev/mcp` | `0.4.2` | Dev dependency supplying the agents' MCP server. |
+| `@egdev/cli` | `0.1.0` | Dev dependency supplying `egdev-ds` (upgrades and `npm run ds:doctor`). |
 
 ## Rules
 
@@ -23,14 +24,23 @@ The packages below are pinned to the tarballs from design-system commit `e712915
 2. Request missing tokens, components or variants as issues in [egdev-design-system](https://github.com/egdev6/egdev-design-system/issues), rather than silently maintaining a parallel implementation. A temporary workaround must have an `egdev-design-system#N` comment in code and an issue-linked guard allowlist entry, with a removal condition.
 3. Do not override `.eg-*` classes outside `apps/hub/src/theme/`. Existing exceptions are migration debt, not permission for new overrides.
 4. `design/system.md` is generated from `@egdev/system`, not edited by hand. The sync removes the renderer's trailing space after empty anatomy arrows, without changing the content. Agents connect using the root `.mcp.json`. From the repository root, regenerate it with `node apps/hub/scripts/sync-design-system-md.mjs` after installing the hub dependencies.
-5. Pin exact versions. Each design-system bump is its own reviewed change. Use the upgrade procedure below to pack at the selected commit, vendor the archives, update the npm specifiers and lockfile, verify integrity, regenerate the reference and restart dev servers.
+5. Pin exact versions. Each design-system bump is its own reviewed change. Use the `egdev-ds` upgrade procedure below to vendor a packed release, update the npm specifiers and lockfile, verify integrity, regenerate the reference and restart dev servers.
 6. Verify browser-dependent behavior in the real Tauri WebView2 via CDP, not only in Chrome or jsdom.
 
 The flyout frame and native window chrome, and the debug registry menu, are legitimately app-specific; they are not general-purpose design-system components.
 
 ## Packing and upgrading
 
-From the repository root, preview and then, as a separate reviewed change, vendor a commit:
+Upgrade with the `egdev-ds` CLI from the design system. The DS maintainers pack a release into `../egdev-design-system/release/` (`release.json` records the commit, dirty flag and sha256 of each tarball). From the repository root, preview and then, as a separate reviewed change, apply it:
+
+```sh
+node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub --dry-run
+node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub
+```
+
+The CLI copies the tarballs as `egdev-<pkg>-<version>-<dscommit>.tgz` after checking them against `release.json`, rewrites `package.json` and `package-lock.json`, runs `npm install`, verifies the lockfile, removes the previous tarballs and prints the changelog diff. Any failure rolls everything back. Then check the app from `apps/hub` with `npm run ds:doctor` (add `--from ../../../egdev-design-system/release` to include the release checks); its options live in `apps/hub/egdev-ds.json` and its codes are documented in `egdev-design-system/packages/cli/README.md`.
+
+The previous script, `ds-vendor.mjs`, remains until a follow-up change removes it together with the local guard now covered by `ds:doctor`. Its procedure, for reference: from the repository root, preview and then, as a separate reviewed change, vendor a commit:
 
 ```sh
 node apps/hub/scripts/ds-vendor.mjs --app apps/hub --commit <sha> --dry-run
@@ -43,7 +53,7 @@ For an upgrade the script fetches, checks ancestry, builds and packs in a tempor
 
 For a **temporary test only**, `--allow-unmerged` permits commits outside `origin/main` and always extracts the selected archives into `node_modules/@egdev/` without changing the manifest, lockfile or vendor directory, even if the commit is merged. Revert from the app directory with `rm -rf node_modules/@egdev && npm install --offline`. Do not commit temporary results. `--dry-run` also works with this mode. Exit codes are 0 for success, 2 for invalid arguments or unmerged refusal, and 1 for operational or integrity failures.
 
-After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The current generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` hard-code the `e712915` header; update both to the new commit in that reviewed bump before regenerating.
+After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The current generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` hard-code the `ba7a38e` header; update both to the new commit in that reviewed bump before regenerating.
 
 ## Current overrides and migration
 
