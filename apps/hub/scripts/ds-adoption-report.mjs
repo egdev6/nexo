@@ -9,7 +9,7 @@ const rawInteractive = new Set(['button', 'input', 'a', 'label', 'select', 'text
 // Count interactive composites once per JSX invocation, not once per generated control.
 const interactiveDsComponents = [
   'AlertDialogAction', 'AlertDialogCancel', 'AlertDialogTrigger', 'Button', 'Carousel',
-  'Checkbox', 'Chip', 'ChipGroup', 'CollapsibleTrigger', 'CommandPalette', 'DialogClose',
+  'Checkbox', 'Chip', 'ChipGroup', 'CollapsibleTrigger', 'ColorSwatchGroup', 'CommandPalette', 'DialogClose',
   'DialogTrigger', 'Dropzone', 'IconButton', 'Input', 'Label', 'Link', 'Menu', 'MenuTrigger',
   'PopoverClose', 'PopoverTrigger', 'RadioGroup', 'SearchTrigger', 'Select', 'SelectTile',
   'Slider', 'SocialLinks', 'Switch', 'Tabs', 'Textarea', 'Toggle',
