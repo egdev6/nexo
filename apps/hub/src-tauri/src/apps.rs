@@ -43,6 +43,27 @@ pub(crate) async fn close_connected_app(
     }
 }
 
+/// Runs one item of the menu a connected app reported. The hub rechecks the
+/// connection generation, the menu revision, the menu capability and that the item
+/// is enabled before sending the protocol `action` message.
+#[cfg(windows)]
+#[tauri::command]
+pub(crate) fn activate_connected_menu_item(
+    app: tauri::AppHandle,
+    id: String,
+    generation: u64,
+    menu_revision: u64,
+    item_id: String,
+    hub: tauri::State<'_, crate::ipc::Hub>,
+) -> Result<(), String> {
+    if hub.action(&id, generation, menu_revision, &item_id) {
+        Ok(())
+    } else {
+        let locale = crate::config::bootstrap_locale(&app);
+        Err(crate::i18n::text(locale, "unavailable").into())
+    }
+}
+
 #[cfg(windows)]
 fn official_catalog(app: tauri::AppHandle) -> Result<Catalog, String> {
     let text = match crate::catalog_cache::read_catalog_v3_cache(app.clone())? {

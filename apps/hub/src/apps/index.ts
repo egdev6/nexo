@@ -45,6 +45,11 @@ export async function closeOfficialApp(id: string): Promise<{ status: 'closed' |
   return invoke('close_official_app', { id });
 }
 
+/** Asks a connected app to run one of the menu items it reported; native code rechecks generation, revision and enabled state. */
+export async function activateConnectedMenuItem(id: string, generation: number, menuRevision: number, itemId: string): Promise<void> {
+  await invoke('activate_connected_menu_item', { id, generation, menuRevision, itemId });
+}
+
 /** Requests a plugin's existing graceful quit protocol; it does not terminate a process. */
 export async function closeConnectedApp(id: string): Promise<void> {
   await invoke('close_connected_app', { id });
