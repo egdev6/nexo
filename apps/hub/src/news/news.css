@@ -1,5 +1,7 @@
 .news-carousel { min-width: 0; }
-.news-carousel [role='region']:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.news-carousel [role='region'] { border-radius: var(--radius-md); }
+.news-carousel [role='region']:focus-visible { outline: none; }
+.news-carousel [role='region']:focus-visible:not([data-entry-focus]) { box-shadow: var(--shadow-focus); }
 .news-slide { padding: var(--space-2); }
 .news-hero { position: relative; display: grid; place-items: center; width: 100%; height: calc(var(--space-20) + var(--space-16)); margin-bottom: var(--space-4); overflow: hidden; border-radius: var(--radius-md); background: var(--color-surface-3); }
 .news-hero > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }

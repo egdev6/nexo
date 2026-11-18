@@ -43,6 +43,8 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
   const instructionsId = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  // The dialog focuses the carousel on open; keep its ring hidden until the keyboard is used or focus leaves.
+  const [entryFocus, setEntryFocus] = useState(true);
   const previousFocus = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null);
   const onShownRef = useRef(onShown);
   onShownRef.current = onShown;
@@ -108,7 +110,8 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
       <div className="news-carousel">
         {displayed.length === 0 ? <p>{t(locale, 'news.empty')}</p> : displayed.length === 1 ? slideContent(displayed[0]) :
           <div role="region" aria-roledescription="carousel" aria-label={t(locale, 'news.latest')} aria-describedby={instructionsId}
-            tabIndex={0} onKeyDown={onSliderKeyDown}>
+            tabIndex={0} data-entry-focus={entryFocus || undefined} onBlur={() => setEntryFocus(false)}
+            onKeyDown={event => { setEntryFocus(false); onSliderKeyDown(event); }}>
             <Carousel label={t(locale, 'news.latest')} trackLayout="full-width" messages={messages} value={current?.id}
               onValueChange={value => select(displayed.findIndex(item => item.id === value))}
               items={displayed.map((item, index) => ({ value: item.id, label: item.title, children: slideContent(item, index === selected) }))} />
