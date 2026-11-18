@@ -134,3 +134,12 @@ test('CLI --json emits the complete report without extra output', () => {
   assert.equal(report.adoptionPercent, 100 * report.totals.ds / (report.totals.ds + report.totals.custom + report.totals.rawInteractive));
   assert.equal(report.workaroundCount, report.workarounds.length);
 });
+
+test('counts ColorSwatchGroup as an interactive DS composite', () => {
+  const report = analyzeSources([{ file: 'apps/hub/src/swatches.tsx', content: [
+    "import { ColorSwatchGroup } from '@egdev/ui';",
+    'const view = <ColorSwatchGroup label="Accent" options={[]} />;',
+  ].join('\n') }]);
+  assert.equal(report.totals.ds, 1);
+  assert.equal(report.totals.dsInteractive, 1);
+});
