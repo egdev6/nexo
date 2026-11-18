@@ -10,11 +10,12 @@
     "test:ds-adoption": "vitest run --configLoader runner scripts/ds-adoption-report.test.mjs",
     "canvas": "vitest run --config vitest.canvas.config.ts",
     "tauri": "tauri",
-    "app:dev": "tauri dev"
+    "app:dev": "tauri dev",
+    "ds:doctor": "egdev-ds doctor ."
   },
   "dependencies": {
-    "@egdev/tokens": "file:vendor/egdev-tokens-0.5.0-e712915.tgz",
-    "@egdev/ui": "file:vendor/egdev-ui-0.3.1-e712915.tgz",
+    "@egdev/tokens": "file:vendor/egdev-tokens-0.5.1-ba7a38e.tgz",
+    "@egdev/ui": "file:vendor/egdev-ui-0.3.2-ba7a38e.tgz",
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
     "@tauri-apps/api": "^2.8.0",
@@ -22,8 +23,8 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@egdev/mcp": "file:vendor/egdev-mcp-0.4.1-e712915.tgz",
-    "@egdev/system": "file:vendor/egdev-system-0.4.1-e712915.tgz",
+    "@egdev/mcp": "file:vendor/egdev-mcp-0.4.2-ba7a38e.tgz",
+    "@egdev/system": "file:vendor/egdev-system-0.4.2-ba7a38e.tgz",
     "@tauri-apps/cli": "^2.8.0",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.1.0",
@@ -32,7 +33,8 @@
     "jsdom": "^31.0.1",
     "typescript": "^5.9.0",
     "vite": "^7.1.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "@egdev/cli": "file:vendor/egdev-cli-0.1.0-ba7a38e.tgz"
   },
   "overrides": {
     "@egdev/system": "$@egdev/system"
