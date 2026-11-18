@@ -282,3 +282,41 @@ it('keeps reduced motion while removing the custom row positioning and disclosur
   expect(css).toMatch(/prefers-reduced-motion:\s*reduce/);
   expect(css).toMatch(/animation:\s*none\s*!important/);
 });
+
+it('runs a reported menu item through the hub, keeps disabled items inert and reports failures', async () => {
+  await show();
+  act(() => native.publish!({ revision: 2, apps: [{ app: { id: 'plugin', name: 'Plugin', version: '9.0.0' }, capabilities: ['show', 'quit', 'menu'], unified: true, responsive: true, generation: 3, menu_revision: 4, menu: [
+    { id: 'open-panel', label: 'Abrir el panel', enabled: true },
+    { id: 'pause', label: 'Pausar', enabled: false, checked: true },
+  ] }] }));
+  fireEvent.click(toggle('Plugin'));
+  fireEvent.click(card('Plugin').getByRole('button', { name: 'Abrir el panel' }));
+  await waitFor(() => expect(native.invoke).toHaveBeenCalledWith('activate_connected_menu_item', { id: 'plugin', generation: 3, menuRevision: 4, itemId: 'open-panel' }));
+  const disabled = card('Plugin').getByRole('button', { name: /Pausar.*desactivada.*marcada/i });
+  expect(disabled.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(disabled);
+  expect(native.invoke.mock.calls.filter(([command]) => command === 'activate_connected_menu_item')).toHaveLength(1);
+  native.invoke.mockRejectedValueOnce('La app ya no está disponible.');
+  fireEvent.click(card('Plugin').getByRole('button', { name: 'Abrir el panel' }));
+  expect(await screen.findByText('La app ya no está disponible.')).toBeTruthy();
+});
+
+it('rescans installed apps when a connected app leaves the hub, and again while it finishes exiting', async () => {
+  const refresh = await show();
+  refresh.mockClear();
+  act(() => native.publish!({ revision: 2, apps: [{ app: { id: 'plugin', name: 'Plugin', version: '9.0.1' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  expect(refresh).not.toHaveBeenCalled();
+  vi.useFakeTimers();
+  try {
+    act(() => native.publish!({ revision: 3, apps: [] }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(refresh).toHaveBeenCalledTimes(2);
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(refresh).toHaveBeenCalledTimes(3);
+    act(() => { vi.advanceTimersByTime(60000); });
+    expect(refresh).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.useRealTimers();
+  }
+});

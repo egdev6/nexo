@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { AppIcon, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
-import { closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
+import { activateConnectedMenuItem, closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
 import { CatalogView } from './catalog';
 import { useCatalogInstalls, type CatalogInstalls } from './catalog/install/use-installs';
 import { InstallAction } from './catalog/install/action';
@@ -32,6 +32,9 @@ import nexoLogo from '../src-tauri/app-icon.svg';
 import './style.css';
 
 type Tab = 'apps' | 'catalog';
+
+/** Rescans after an app leaves the registry, measured from its departure. */
+const DEPARTURE_RESCAN_DELAYS_MS = [2000, 6000];
 
 function OpenAction({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: string) => void; busy: boolean; stale: boolean }) {
   const locale = useLocale();
@@ -76,7 +79,7 @@ function UpdateNotes({ app, catalogState }: { app: HubApp; catalogState?: Catalo
   return notes ? <Text asChild variant="body" foreground="secondary" className="meta update-notes"><div><strong>{notes.title}</strong><p>{notes.text}</p></div></Text> : null;
 }
 
-function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, installs, open, onOpenChange }: { app: RegistryApp; official?: HubApp; onClose?: (id: string) => void; onOpen?: (id: string) => void; busy: boolean; catalogState?: CatalogState; installs: CatalogInstalls; open: boolean; onOpenChange: (open: boolean) => void }) {
+function ConnectedRow({ app, official, onClose, onOpen, onMenuAction, busy, catalogState, installs, open, onOpenChange }: { app: RegistryApp; official?: HubApp; onClose?: (id: string) => void; onOpen?: (id: string) => void; onMenuAction?: (app: RegistryApp, itemId: string) => void; busy: boolean; catalogState?: CatalogState; installs: CatalogInstalls; open: boolean; onOpenChange: (open: boolean) => void }) {
   const locale = useLocale();
   const update = official && availableUpdate(official, catalogState?.catalog);
   const canShow = !!onOpen && !!official && app.responsive && app.capabilities.includes('show') && !busy && !updateRunning(installs, app.app.id);
@@ -101,7 +104,7 @@ function ConnectedRow({ app, official, onClose, onOpen, busy, catalogState, inst
         <Button type="button" size="sm" variant="secondary" aria-label={t(locale, 'appControl.closeFor', { name: app.app.name })} disabled={busy} onClick={() => onClose(app.app.id)}>{t(locale, 'common.close')}</Button> :
         <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.closeUnavailable')}</Text>)}
       {app.menu.length > 0 && <><Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedMenu')}</Text><ul className="registry-menu">
-        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</li>)}
+        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}><Button type="button" size="sm" variant="neutral" disabled={!onMenuAction || !app.responsive || !item.enabled || !app.capabilities.includes('menu')} onClick={() => onMenuAction?.(app, item.id)}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</Button></li>)}
       </ul></>}
     </div></CollapsibleContent>
   </Collapsible>;
@@ -135,7 +138,7 @@ function isInstalled(app: HubApp) {
   return app.statusKnown !== false && app.installed && app.installationState !== 'unknown' && app.installationState !== 'notInstalled';
 }
 
-function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, onRefresh, onClose, onProcessClose, onOpen, actionBusy, stale, hideLocalApps, localCycle, catalogState, installs }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean; onRefresh?: () => void; onClose?: (id: string) => void; onProcessClose?: (id: string) => void; onOpen?: (id: string) => void; actionBusy: boolean; stale: boolean; hideLocalApps: boolean; localCycle?: number; catalogState?: CatalogState; installs: CatalogInstalls }) {
+function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, onRefresh, onClose, onProcessClose, onOpen, onMenuAction, actionBusy, stale, hideLocalApps, localCycle, catalogState, installs }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean; onRefresh?: () => void; onClose?: (id: string) => void; onMenuAction?: (app: RegistryApp, itemId: string) => void; onProcessClose?: (id: string) => void; onOpen?: (id: string) => void; actionBusy: boolean; stale: boolean; hideLocalApps: boolean; localCycle?: number; catalogState?: CatalogState; installs: CatalogInstalls }) {
   const locale = useLocale();
   const ids = new Set(connected.map(entry => entry.app.id));
   const allInstalled = apps.filter(isInstalled);
@@ -144,7 +147,7 @@ function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, o
   const disclosure = (id: string) => ({ open: openRow === id, onOpenChange: (open: boolean) => setOpenRow(current => open ? id : current === id ? null : current) });
   return <>
     {connected.length > 0 && <section aria-label={t(locale, 'app.connectedPlural')}><div className="apps-section-header"><PageHeader level={2} title={t(locale, 'app.connectedPlural')} /></div>
-      {connected.map(app => <ConnectedRow key={app.app.id} app={app} official={apps.find(item => item.source === 'official' && item.id === app.app.id)} onClose={onClose} onOpen={onOpen} busy={actionBusy} catalogState={catalogState} installs={installs} {...disclosure(`connected:${app.app.id}`)} />)}
+      {connected.map(app => <ConnectedRow key={app.app.id} app={app} official={apps.find(item => item.source === 'official' && item.id === app.app.id)} onClose={onClose} onOpen={onOpen} onMenuAction={onMenuAction} busy={actionBusy} catalogState={catalogState} installs={installs} {...disclosure(`connected:${app.app.id}`)} />)}
     </section>}
     <div className="apps-section-header"><PageHeader level={2} title={t(locale, 'app.installed')} actions={onRefresh && <Button variant="neutral" size="sm" onClick={onRefresh}>{t(locale, 'appControl.refresh')}</Button>} /></div>
     {installed.length ? installed.map(app => <AppRow key={app.id} app={app} onOpen={onOpen} onClose={onProcessClose} busy={actionBusy} stale={stale} catalogState={catalogState} installs={installs} {...disclosure(`official:${app.id}`)} />) : <div className="empty-state"><p>{allInstalled.length ? t(locale, 'appControl.connectedAbove') : t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>{t(locale, 'app.viewCatalog')}</Button></div>}
@@ -223,6 +226,11 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       .catch(error => setActionMessage({ error: true, text: String(error) }))
       .finally(() => { setActionBusy(false); onAppsRefresh?.(); });
   }
+  function runMenuItem(app: RegistryApp, itemId: string) {
+    setActionMessage(null);
+    void activateConnectedMenuItem(app.app.id, app.generation, app.menu_revision, itemId)
+      .catch(error => setActionMessage({ error: true, text: String(error) }));
+  }
   function closeProcessApp(id: string) {
     setActionBusy(true); setActionMessage(null);
     void closeOfficialApp(id).then(result => setActionMessage({ error: false, warning: result.status === 'stillRunning', text: result.message }))
@@ -240,10 +248,24 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       console.error('No se pudo leer el registro de Nexo.', error);
       if (mounted) setRegistryFailed(true);
     };
+    // An app that leaves the registry (for example after an accepted quit) may still be exiting:
+    // rescan now and twice more so its card does not keep a stale «running» state.
+    const rescans: ReturnType<typeof setTimeout>[] = [];
+    let latest = -1;
+    let ids = new Set<string>();
     void subscribeRegistry(next => {
-      if (mounted) setRegistry(current => next.revision >= current.revision ? next : current);
+      if (!mounted || next.revision < latest) return;
+      latest = next.revision;
+      const nextIds = new Set(next.apps.map(entry => entry.app.id));
+      const left = [...ids].some(id => !nextIds.has(id));
+      ids = nextIds;
+      setRegistry(current => next.revision >= current.revision ? next : current);
+      if (left) {
+        refreshAppsRef.current?.();
+        for (const delay of DEPARTURE_RESCAN_DELAYS_MS) rescans.push(setTimeout(() => { if (mounted) refreshAppsRef.current?.(); }, delay));
+      }
     }, failed).then(stop => { if (mounted) unlisten = stop; else stop(); }).catch(failed);
-    return () => { mounted = false; unlisten?.(); };
+    return () => { mounted = false; unlisten?.(); rescans.forEach(clearTimeout); };
   }, []);
 
   useEffect(() => {
@@ -342,7 +364,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
     </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <Tabs className="main-tabs" variant="segmented" fullWidth label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /> },
+        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onMenuAction={onAppsRefresh ? runMenuItem : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /> },
         { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /> },
       ]} />}
     {settings && <NewsPopup key={snapshot?.cycle} items={snapshot?.items ?? []} seenKeys={snapshot?.seenKeys} open={newsOpen} onClose={finishNews} dontShow={!settings.showNewsOnOpen}

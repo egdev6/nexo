@@ -746,6 +746,7 @@ pub fn run() {
             apps::open_official_app,
             apps::close_official_app,
             apps::close_connected_app,
+            apps::activate_connected_menu_item,
             open_external::open_external,
             install_app,
             update_app,

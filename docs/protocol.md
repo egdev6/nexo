@@ -201,7 +201,7 @@ window.
 {"v":1,"type":"show"}
 ```
 
-**`action`** — the user clicked one of the app's menu items.
+**`action`** — the user clicked one of the app's menu items, in the hub's tray menu or in the app's card in the hub panel.
 
 ```json
 {"v":1,"type":"action","item_id":"pause"}
