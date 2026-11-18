@@ -75,7 +75,9 @@ it('keeps the existing link colour through the DS hover role', () => {
   const link = screen.getByRole('link', { name: 'Catalog' });
   expect(link.getAttribute('href')).toBe('/catalog');
   expect(link.classList.contains('text-link-default')).toBe(true);
-  expect(link.classList.contains('hover:text-link-hover')).toBe(true);
+  // DS 0.3.1 Link: underlined at rest, hover removes the underline instead of changing colour.
+  for (const name of ['underline', 'hover:no-underline']) expect(link.classList.contains(name)).toBe(true);
+  expect(link.classList.contains('hover:text-link-hover')).toBe(false);
   expect(paintFor(link)).toEqual([['color', 'var(--color-link-hover)']]);
 });
 

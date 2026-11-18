@@ -13,8 +13,8 @@
     "app:dev": "tauri dev"
   },
   "dependencies": {
-    "@egdev/tokens": "file:vendor/egdev-tokens-0.5.0-62a1a52.tgz",
-    "@egdev/ui": "file:vendor/egdev-ui-0.3.0-62a1a52.tgz",
+    "@egdev/tokens": "file:vendor/egdev-tokens-0.5.0-e712915.tgz",
+    "@egdev/ui": "file:vendor/egdev-ui-0.3.1-e712915.tgz",
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
     "@tauri-apps/api": "^2.8.0",
@@ -22,8 +22,8 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@egdev/mcp": "file:vendor/egdev-mcp-0.4.0-62a1a52.tgz",
-    "@egdev/system": "file:vendor/egdev-system-0.4.0-62a1a52.tgz",
+    "@egdev/mcp": "file:vendor/egdev-mcp-0.4.1-e712915.tgz",
+    "@egdev/system": "file:vendor/egdev-system-0.4.1-e712915.tgz",
     "@tauri-apps/cli": "^2.8.0",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.1.0",

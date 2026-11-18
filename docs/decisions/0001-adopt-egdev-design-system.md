@@ -8,14 +8,14 @@ Accepted. Adapted from [egdev-website ADR 0007](https://github.com/egdev6/egdev-
 
 Nexo is a Tauri 2 desktop hub with a React and Vite frontend. The hub and its agents use the same versioned [EGDEV design system](https://github.com/egdev6/egdev-design-system), rather than maintaining a second token contract and general-purpose component set. App-specific composition remains Nexo's responsibility.
 
-The packages below are pinned to the tarballs from design-system commit `62a1a52`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
+The packages below are pinned to the tarballs from design-system commit `e712915`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
 
 | Package | Version | Role |
 | --- | --- | --- |
 | `@egdev/tokens` | `0.5.0` | Visual tokens and CSS. |
-| `@egdev/ui` | `0.3.0` | Shared UI components. |
-| `@egdev/system` | `0.4.0` | Dev dependency supplying the generated agent reference. |
-| `@egdev/mcp` | `0.4.0` | Dev dependency supplying the agents' MCP server. |
+| `@egdev/ui` | `0.3.1` | Shared UI components. |
+| `@egdev/system` | `0.4.1` | Dev dependency supplying the generated agent reference. |
+| `@egdev/mcp` | `0.4.1` | Dev dependency supplying the agents' MCP server. |
 
 ## Rules
 
@@ -43,7 +43,7 @@ For an upgrade the script fetches, checks ancestry, builds and packs in a tempor
 
 For a **temporary test only**, `--allow-unmerged` permits commits outside `origin/main` and always extracts the selected archives into `node_modules/@egdev/` without changing the manifest, lockfile or vendor directory, even if the commit is merged. Revert from the app directory with `rm -rf node_modules/@egdev && npm install --offline`. Do not commit temporary results. `--dry-run` also works with this mode. Exit codes are 0 for success, 2 for invalid arguments or unmerged refusal, and 1 for operational or integrity failures.
 
-After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The current generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` hard-code the `62a1a52` header; update both to the new commit in that reviewed bump before regenerating.
+After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The current generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` hard-code the `e712915` header; update both to the new commit in that reviewed bump before regenerating.
 
 ## Current overrides and migration
 

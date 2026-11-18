@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const header = '<!-- Generated from EGDEV design system 62a1a52; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->\n\n';
+const header = '<!-- Generated from EGDEV design system e712915; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->\n\n';
 const expectedTools = ['get_component', 'get_design_system_md', 'get_material_recipe', 'get_tokens', 'list_components'];
 
 // Exercise the actual repository MCP configuration, not a separately configured server.
