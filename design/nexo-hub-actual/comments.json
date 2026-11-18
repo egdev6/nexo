@@ -261,9 +261,10 @@
       "excerpt": "Muestra de diseño · búsqueda de actualizaciones aún no disponible.",
       "comment": "añade otra card Autor, con botones tipo socialButtons con mis redes sociales",
       "createdAt": "2026-11-15T15:23:29.994Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:46:34.283Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-15T16:11:07.320Z",
+      "resolution": "Card Autor con SocialLinks; sin «Cerrar ajustes» (se sale con la flecha); quitadas las fuentes del catálogo y pestaña «Apps locales»; cards del catálogo con banner fijo, redes y acciones abajo; popup de Novedades centrado."
     },
     {
       "id": "7fac0zva",
@@ -272,9 +273,10 @@
       "excerpt": "Cerrar ajustes",
       "comment": "este botón quitalo, se cierra con el <-",
       "createdAt": "2026-11-15T15:24:21.147Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:46:34.283Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-15T16:11:07.320Z",
+      "resolution": "Card Autor con SocialLinks; sin «Cerrar ajustes» (se sale con la flecha); quitadas las fuentes del catálogo y pestaña «Apps locales»; cards del catálogo con banner fijo, redes y acciones abajo; popup de Novedades centrado."
     },
     {
       "id": "jdn8rei1",
@@ -283,9 +285,10 @@
       "excerpt": "FUENTES DEL CATÁLOGO Catálogo oficial egdev Fuente oficial Catálogo de trabajo Fuente local configurada C:\\Nexo\\catalogo.json Actualizar Cambiar archivo Eliminar No se pudo leer la fuente local. Añadir fuente local Recargar fuentes",
       "comment": "El catálogo se nutre del repo público. este bloque tiene sentido?",
       "createdAt": "2026-11-15T15:25:33.953Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:46:34.283Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-15T16:11:07.320Z",
+      "resolution": "Card Autor con SocialLinks; sin «Cerrar ajustes» (se sale con la flecha); quitadas las fuentes del catálogo y pestaña «Apps locales»; cards del catálogo con banner fijo, redes y acciones abajo; popup de Novedades centrado."
     },
     {
       "id": "x038tw81",
@@ -306,9 +309,10 @@
       "excerpt": "P Ideas Organización Pizarra Tus ideas de un vistazo. Instalar",
       "comment": "-quita badges\n-la imagen superior con este tamaño fijo (altura y anchura) la imagen añadida de adapta al espacio. Habría que añadir el banner que tenemos en github de las apps.\n-Acciones ancladas en la parte inferior de la card.\nEntre descripción y acciones poner los socialButtons con github y youtube",
       "createdAt": "2026-11-15T15:29:16.357Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:46:34.283Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-15T16:11:07.320Z",
+      "resolution": "Card Autor con SocialLinks; sin «Cerrar ajustes» (se sale con la flecha); quitadas las fuentes del catálogo y pestaña «Apps locales»; cards del catálogo con banner fijo, redes y acciones abajo; popup de Novedades centrado."
     },
     {
       "id": "wydp58rm",
@@ -317,9 +321,34 @@
       "excerpt": "",
       "comment": "centrar en vertical el popup",
       "createdAt": "2026-11-15T15:46:18.084Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-15T15:46:34.283Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-15T16:11:07.320Z",
+      "resolution": "Card Autor con SocialLinks; sin «Cerrar ajustes» (se sale con la flecha); quitadas las fuentes del catálogo y pestaña «Apps locales»; cards del catálogo con banner fijo, redes y acciones abajo; popup de Novedades centrado."
+    },
+    {
+      "id": "rtdnfz5x",
+      "file": "05-primer-uso.html",
+      "selector": "#root > main > div:nth-of-type(2) > section > div:nth-of-type(2) > div:nth-of-type(1) > button",
+      "excerpt": "",
+      "comment": "no se ve texto",
+      "createdAt": "2026-11-18T13:38:43.484Z",
+      "status": "resolved",
+      "sentAt": "2026-11-18T13:38:43.561Z",
+      "resolvedAt": "2026-11-18T13:41:21.908Z",
+      "resolution": "El relleno de contraste del canvas pintaba todos los role=radio marcados y tapaba el texto del SelectTile; ahora solo afecta a .eg-radio-group (también arregla el swatch seleccionado, que salía negro). Artboards regenerados."
+    },
+    {
+      "id": "dcbg0rvw",
+      "file": "04d-ajustes-acerca-de.html",
+      "selector": "#radix-_r_1d_-content-about > section:nth-of-type(2) > div > div:nth-of-type(2) > div > div > ul > li:nth-of-type(1) > a",
+      "excerpt": "YouTube",
+      "comment": "en estos usa tambien la varinat outlined",
+      "createdAt": "2026-11-18T13:39:04.183Z",
+      "status": "resolved",
+      "sentAt": "2026-11-18T13:39:04.197Z",
+      "resolvedAt": "2026-11-18T13:42:45.966Z",
+      "resolution": "Redes del autor (Acerca de) con SocialLinks variant=\"outline\" en src/settings/index.tsx, con test; artboards regenerados."
     }
   ]
 }
