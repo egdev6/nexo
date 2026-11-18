@@ -100,7 +100,7 @@ cargo build --workspace
 
 ## Arquitectura
 
-- `apps/hub/` contiene el hub Tauri y React; el protocolo compartido (`nexo-protocol`) y el [cliente de bandeja de Windows](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/crates/tauri-plugin-nexo/README.md) vienen del repositorio público [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo); `crates/nexo-catalog/` valida los datos del catálogo.
+- `apps/hub/` contiene el hub Tauri y React; el protocolo compartido (`nexo-protocol`) y el [cliente de bandeja de Windows](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/crates/tauri-plugin-nexo/README.md) vienen del repositorio público [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo); `crates/nexo-catalog/` valida los datos del catálogo.
 - Un clic izquierdo en el icono de la bandeja muestra u oculta el panel. El botón X y Escape también lo ocultan; con clic derecho y **Salir** cerráis la aplicación. Una segunda ejecución muestra el panel existente. El panel tiene tamaño fijo, permanece por encima de las demás ventanas, ocupa la altura del área de trabajo, cubre su borde derecho y se desplaza cuando hace falta. Sigue abierto al perder el foco; las pestañas admiten flechas, Inicio y Fin.
 - El hub sirve el protocolo IPC para apps que usan `tauri-plugin-nexo`, cuyas acciones aparecen en su menú de bandeja. Para apps oficiales instaladas sin el plugin, detecta el proceso del ejecutable correspondiente e indica si está abierto, detenido o si su estado es desconocido. La solicitud de cierre equivale al botón X de la app, nunca fuerza la terminación y avisa si la app sigue abierta, por ejemplo en su bandeja. Las apps locales se cierran desde la propia aplicación.
 - Los ajustes se guardan en el directorio de configuración de la aplicación. **Ocultar apps locales** está desactivado por defecto; al activarlo se oculta su sección de Mis apps sin afectar a su gestión desde Ajustes.
@@ -116,9 +116,9 @@ Empezad con una issue, trabajad en una rama y abrid una pull request. Ejecutad l
 - [Repositorio del catálogo oficial](https://github.com/egdev6/nexo-catalog)
 - [Decisión del design system (ADR 0001)](./docs/decisions/0001-adopt-egdev-design-system.md)
 - [Formato y carga del catálogo](./docs/catalog.md)
-- [Protocolo IPC](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/docs/protocol.md)
+- [Protocolo IPC](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/docs/protocol.md)
 - [Resolución de problemas de arranque](./docs/troubleshooting.md)
-- [Guía del plugin Tauri](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.0/crates/tauri-plugin-nexo/README.md)
+- [Guía del plugin Tauri](https://github.com/egdev6/tauri-plugin-nexo/blob/v0.1.1/crates/tauri-plugin-nexo/README.md)
 
 ## Licencia
 
