@@ -54,7 +54,18 @@ impl Scratch {
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
-        fs::create_dir(&path).unwrap();
+        // The workspace refuses a group- or world-writable root, so create it private
+        // explicitly instead of inheriting the caller's umask (0002 would give 0775).
+        #[cfg(unix)]
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(not(unix))]
+        let builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        builder.create(&path).unwrap();
         Self(path)
     }
     pub(super) fn factory(&self) -> PrivateFactory {
