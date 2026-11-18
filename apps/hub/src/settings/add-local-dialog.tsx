@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { cancelLocalSelection, createLocalApp, pickLocalExecutable, pickLocalIconFile, type ExecutablePick, type IconPick, type LocalAppSelection } from '../local-apps';
-import { accentVariables, DEFAULT_ACCENT, normalizeHex } from './palette';
+import { applyAccentVariables, DEFAULT_ACCENT, normalizeHex } from './palette';
 
 type Props = { accent: string; disabled: boolean; errorKey: (error: unknown) => MessageKey; onAdded: (result: LocalAppSelection) => Promise<void> };
 
@@ -30,13 +30,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
   const themeRef = useCallback((node: HTMLSpanElement | null) => {
     const dialog = node?.closest<HTMLElement>('.local-app-dialog');
     if (!dialog) return;
-    const variables = Object.entries(accentVariables(accent));
-    const previous = variables.map(([name]) => [name, dialog.style.getPropertyValue(name), dialog.style.getPropertyPriority(name)] as const);
-    variables.forEach(([name, value]) => dialog.style.setProperty(name, String(value)));
-    return () => previous.forEach(([name, value, priority]) => {
-      if (value) dialog.style.setProperty(name, value, priority);
-      else dialog.style.removeProperty(name);
-    });
+    return applyAccentVariables(dialog, accent);
   }, [accent]);
 
   useEffect(() => () => {
@@ -108,7 +102,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
   return <>
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild><Button variant="neutral" size="sm" type="button" disabled={disabled}>{t(locale, 'settingsLocal.addApp')}</Button></DialogTrigger>
-      <DialogContent className="local-app-dialog" bodyPadding="default" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} title={t(locale, 'settingsLocal.dialogTitle')} description={t(locale, 'settingsLocal.dialogIntro')} dismissLabel={t(locale, 'settingsLocal.closeDialog')}
+      <DialogContent className="local-app-dialog" bodyPadding="default" headerLayout="stacked" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} title={t(locale, 'settingsLocal.dialogTitle')} description={t(locale, 'settingsLocal.dialogIntro')} dismissLabel={t(locale, 'settingsLocal.closeDialog')}
         actions={<><Button variant="neutral" labelWrap type="button" disabled={busy} onClick={close}>{t(locale, 'settingsLocal.cancel')}</Button>
           <Button variant="primary" labelWrap type="button" disabled={busy || !executable || !name.trim()} onClick={() => void create()}>{t(locale, 'settingsLocal.add')}</Button></>}>
         <span ref={themeRef} hidden />

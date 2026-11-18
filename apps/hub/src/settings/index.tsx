@@ -1,4 +1,4 @@
-import { Button, Field, Heading, Icon, IconButton, Notice, PageHeader, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
+import { Button, ColorSwatchGroup, Field, Heading, Icon, IconButton, Notice, PageHeader, Panel, PanelBody, PanelHeader, RadioGroup, Slider, SocialLinks, Switch, Tabs } from '@egdev/ui';
 import type { CSSProperties, MouseEvent } from 'react';
 import { useId } from 'react';
 import type { HubSettings, Language, SettingsViewProps } from '../model';
@@ -9,7 +9,6 @@ import { useExternalLinks } from '../apps/details';
 import { LocalManagement } from './local-management';
 import './settings.css';
 
-// TODO(egdev-design-system#418): Preserve the appearance accent until Panel supports an accent border.
 const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 const colorNames: MessageKey[] = ['settings.colorRed', 'settings.colorOrange', 'settings.colorYellow', 'settings.colorGreen', 'settings.colorCyan', 'settings.colorBlue', 'settings.colorPurple', 'settings.colorPink'];
 
@@ -69,27 +68,17 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
   </>;
 
   const appearance = <>
-    <section className="settings__group settings__appearance" aria-labelledby={`${id}-appearance`}>
-      <Panel variant="banded">
+    <section className="settings__group" aria-labelledby={`${id}-appearance`}>
+      <Panel variant="banded" accentEdge="start">
         <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-appearance`}>{tr('settings.appearance')}</Heading></PanelHeader>
         <PanelBody><div>
-      <fieldset className="settings__colors">
-        <legend>{tr('settings.accent')}</legend>
-        <div className="settings__swatches" role="group" aria-label={tr('settings.accents')}>
-          {ACCENT_PRESETS.map((color, index) => <button className="settings__swatch" type="button" key={color}
-            style={{ backgroundColor: color }} aria-label={tr('settings.useColor', { name: tr(colorNames[index]), color })} aria-pressed={selected === color}
-            onClick={() => update('accent', color)} />)}
-          <label className="settings__swatch settings__custom" title={tr('settings.chooseColor')}>
-            <input type="color" aria-label={tr('settings.chooseAccent')} value={selected}
-              onChange={event => update('accent', event.currentTarget.value)} />
-            <span aria-hidden="true">+</span>
-          </label>
-        </div>
-        <div className="settings__tones" role="group" aria-label={tr('settings.tones')}>
-          {tones.map((tone, index) => <span key={index}><i aria-hidden="true" style={{ backgroundColor: tone }} /><code>{tone}</code></span>)}
-        </div>
-        <Button className="settings__reset" variant="neutral" size="sm" type="button" onClick={() => update('accent', DEFAULT_ACCENT)}>{tr('settings.reset')}</Button>
-      </fieldset>
+      <ColorSwatchGroup label={tr('settings.accent')}
+        options={ACCENT_PRESETS.map((value, index) => ({ value, label: tr(colorNames[index]) }))}
+        value={selected} onValueChange={color => update('accent', color)} customLabel={tr('settings.chooseAccent')} />
+      <div className="settings__tones" role="group" aria-label={tr('settings.tones')}>
+        {tones.map((tone, index) => <span key={index}><i aria-hidden="true" style={{ backgroundColor: tone }} /><code>{tone}</code></span>)}
+      </div>
+      <Button className="settings__reset" variant="neutral" size="sm" type="button" onClick={() => update('accent', DEFAULT_ACCENT)}>{tr('settings.reset')}</Button>
       <Field className="settings__range" label={tr('settings.opacity')} readout={`${formatNumber(locale, settings.opacity)} %`}>
         <Slider label={tr('settings.opacity')} min={0} max={100} step={1} value={settings.opacity}
           valueText={value => `${formatNumber(locale, value)} %`} onValueChange={value => update('opacity', value)} />

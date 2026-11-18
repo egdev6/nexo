@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
+import { createAccentTheme } from '@egdev/tokens/accent';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
@@ -37,6 +39,16 @@ it('uses the DS dialog title without a header logo and retains the close control
   expect(dialog.classList.contains('eg-dialog')).toBe(true);
   expect(within(dialog).getByRole('heading', { name: 'Novedades' })).toBeTruthy();
   expect(dialog.querySelector('header img')).toBeNull();
+  expect(within(dialog).getByRole('button', { name: 'Cerrar novedades' })).toBeTruthy();
+});
+
+it('keeps its portal inside the flyout theme scope', () => {
+  const variables = createAccentTheme('#123456').variables;
+  render(<main style={variables as CSSProperties}><NewsPopup items={items} open onClose={vi.fn()} dontShow={false} onDontShowChange={vi.fn()} /></main>);
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
+  const main = screen.getByRole('main');
+  expect(dialog.closest('main')).toBe(main);
+  for (const [name, value] of Object.entries(variables)) expect(main.style.getPropertyValue(name), name).toBe(value);
   expect(within(dialog).getByRole('button', { name: 'Cerrar novedades' })).toBeTruthy();
 });
 

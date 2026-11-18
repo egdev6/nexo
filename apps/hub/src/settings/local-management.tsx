@@ -1,12 +1,12 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogTrigger, Button, Heading, Input, Notice, Panel, PanelBody, PanelHeader } from '@egdev/ui';
 import { isTauri } from '@tauri-apps/api/core';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { listLocalApps, pickLocalAppIcon, removeLocalApp, updateLocalApp, type LocalAppRow, type LocalAppSelection } from '../local-apps';
 import { LocalAppIcon } from '../local-apps/icon';
 import { AddLocalDialog } from './add-local-dialog';
-import { DEFAULT_ACCENT } from './palette';
+import { applyAccentVariables, DEFAULT_ACCENT, normalizeHex } from './palette';
 
 const errors: Readonly<Record<string, MessageKey>> = {
   'nexo.local.missing': 'localApps.errorMissing',
@@ -45,6 +45,10 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [iconRevisions, setIconRevisions] = useState<Map<string, number>>(() => new Map());
+  const themeRef = useCallback((node: HTMLSpanElement | null) => {
+    const dialog = node?.closest<HTMLElement>('.local-app-alert-dialog');
+    if (dialog) return applyAccentVariables(dialog, accent);
+  }, [accent]);
 
   async function refreshRows() {
     try { setRows(await listLocalApps()); setListError(null); }
@@ -111,8 +115,9 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
                 else setConfirmation(null);
               }}>
                 <AlertDialogTrigger asChild><Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.removeFor', params)}>{t(locale, 'settingsLocal.remove')}</Button></AlertDialogTrigger>
-                <AlertDialogContent tone="danger" title={t(locale, 'settingsLocal.confirmAppFor', params)} description={t(locale, 'settingsLocal.confirmApp')}
+                <AlertDialogContent className="local-app-alert-dialog" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} tone="danger" title={t(locale, 'settingsLocal.confirmAppFor', params)} description={t(locale, 'settingsLocal.confirmApp')}
                   actions={<>
+                    <span ref={themeRef} hidden />
                     <AlertDialogCancel asChild><Button variant="neutral" size="sm" type="button" disabled={disabled}>{t(locale, 'settingsLocal.cancel')}</Button></AlertDialogCancel>
                     <AlertDialogAction asChild><Button variant="primary" size="sm" type="button" disabled={disabled} onClick={event => {
                       event.preventDefault();

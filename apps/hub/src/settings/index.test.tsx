@@ -118,14 +118,17 @@ it.each([
 it('selects each preset with a visible selected state and emits full settings', () => {
   const { onChange } = setup();
   tab('Apariencia');
-  const presets = ['#ff0036', '#ff7a00', '#ffd400', '#22c55e', '#00c2ff', '#3b82f6', '#8b5cf6', '#ff3fb4'];
-  for (const accent of presets) {
-    const swatch = screen.getByRole('button', { name: new RegExp(accent, 'i') });
+  const presets = [
+    ['rojo', '#ff0036'], ['naranja', '#ff7a00'], ['amarillo', '#ffd400'], ['verde', '#22c55e'],
+    ['cian', '#00c2ff'], ['azul', '#3b82f6'], ['morado', '#8b5cf6'], ['rosa', '#ff3fb4'],
+  ];
+  for (const [name, accent] of presets.slice(1)) {
+    const swatch = screen.getByRole('radio', { name });
     fireEvent.click(swatch);
-    expect(swatch.getAttribute('aria-pressed')).toBe('true');
+    expect(swatch.getAttribute('aria-checked')).toBe('true');
     expect(onChange).toHaveBeenLastCalledWith({ ...initial, accent });
   }
-  expect(onChange).toHaveBeenCalledTimes(8);
+  expect(onChange).toHaveBeenCalledTimes(7);
   fireEvent.click(screen.getByRole('button', { name: 'Restablecer rojo egdev' }));
   expect(onChange).toHaveBeenLastCalledWith(initial);
 });
@@ -137,7 +140,7 @@ it('selects a custom native color and displays the derived tones', () => {
   expect(onChange).toHaveBeenLastCalledWith({ ...initial, accent: '#123456' });
   const tones = screen.getByRole('group', { name: 'Tonos derivados' });
   for (const tone of ['#256bb1', '#eef3f9', '#96b8da']) expect(within(tones).getByText(tone)).toBeTruthy();
-  expect(screen.getByRole('button', { name: /#ff0036/i }).getAttribute('aria-pressed')).toBe('false');
+  expect(screen.getByRole('radio', { name: 'rojo' }).getAttribute('aria-checked')).toBe('false');
 });
 
 it.each([

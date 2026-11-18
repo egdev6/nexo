@@ -31,8 +31,6 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .main-tabs { flex: 1; min-height: 0; overflow: hidden; isolation: isolate; }
 /* Shadows paint the opaque band without scroll overflow; shifted copies cover rounded corners at the gutters. */
 .main-tabs > [role='tablist'] { --menu-band-gutter: var(--space-6); position: relative; flex: none; width: auto; margin: var(--space-4) var(--space-6) 0; box-shadow: var(--shadow-well), 0 0 0 calc(var(--space-4) + 1px) var(--color-surface-0), calc(-1 * (var(--menu-band-gutter) + var(--radius-md))) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0), calc(var(--menu-band-gutter) + var(--radius-md)) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0); }
-/* Keep the selected border and inset highlight, but prevent its outer glow from bleeding above the menu. */
-.main-tabs > [role='tablist'] > [role='tab'][aria-selected='true'] { box-shadow: var(--shadow-edge-strong); }
 .main-tabs > [role='tabpanel'] { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-4) var(--space-6) var(--space-5); }
 .area-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .apps-section-header { margin: var(--space-2) 0 var(--space-3); }
