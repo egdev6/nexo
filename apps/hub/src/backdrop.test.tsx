@@ -261,9 +261,9 @@ it('leaves selected menu tab paint and focus to the DS while retaining the opaqu
   const selected = screen.getByRole('tab', { name: 'Mis apps', selected: true });
   const other = screen.getByRole('tab', { name: 'Catálogo', selected: false });
   for (const tab of [selected, other]) {
-    expect(tab.classList.contains('data-[state=active]:border-border-brand')).toBe(true);
-    expect(tab.classList.contains('data-[state=active]:bg-state-selected-surface')).toBe(true);
-    expect(tab.classList.contains('data-[state=active]:before:bg-border-brand')).toBe(true);
+    expect(tab.classList.contains('data-[state=active]:border-state-selected')).toBe(true);
+    expect(tab.classList.contains('data-[state=active]:[background:var(--gradient-chip-active),var(--color-surface-1)]')).toBe(true);
+    expect(tab.classList.contains('data-[state=active]:shadow-[var(--shadow-edge-strong)]')).toBe(true);
     expect(tab.classList.contains('data-[state=active]:focus-visible:shadow-focus')).toBe(true);
   }
   const sources = [css, readFileSync(`${cwd()}/src/theme/family.css`, 'utf8') as string];
