@@ -40,18 +40,7 @@ node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub
 
 The CLI copies the tarballs as `egdev-<pkg>-<version>-<dscommit>.tgz` after checking them against `release.json`, rewrites `package.json` and `package-lock.json`, runs `npm install`, verifies the lockfile, removes the previous tarballs and prints the changelog diff. Any failure rolls everything back. Then check the app from `apps/hub` with `npm run ds:doctor` (add `--from ../../../egdev-design-system/release` to include the release checks); its options live in `apps/hub/egdev-ds.json` and its codes are documented in `egdev-design-system/packages/cli/README.md`.
 
-The previous script, `ds-vendor.mjs`, remains until a follow-up change removes it together with the local guard now covered by `ds:doctor`. Its procedure, for reference: from the repository root, preview and then, as a separate reviewed change, vendor a commit:
-
-```sh
-node apps/hub/scripts/ds-vendor.mjs --app apps/hub --commit <sha> --dry-run
-node apps/hub/scripts/ds-vendor.mjs --app apps/hub --commit <sha>
-```
-
-The script resolves `--app` relative to the current directory and defaults the DS checkout to `../egdev-design-system`; use `--ds <path>` for another checkout. It detects supported direct dependencies and packages in vendored `file:` overrides (`ui`, `tokens`, `system`, `mcp`), or accepts a comma-separated `--packages` subset of those declarations. Node, git, pnpm, npm and `tar` must be available. The commit must be on `origin/main`. A dry run does not fetch: its ancestry check uses the locally cached remote ref, so fetch separately if that ref or commit is unavailable or stale.
-
-For an upgrade the script fetches, checks ancestry, builds and packs in a temporary detached worktree, and removes the worktree even on failure. It tries `pnpm install --frozen-lockfile --offline` first and retries without `--offline` if needed (which can access the network). It uses `egdev-<pkg>-<version>-<dscommit>.tgz`, rewrites direct `file:` specifiers and overrides, updates lockfile paths and SHA-512 integrity from the new archives, runs `npm install --offline`, and verifies all locked vendored integrities. The same commit performs only the local ancestry and integrity checks. An npm failure restores the original manifest and lockfile, but may leave `node_modules` incomplete; repair it with `npm install --offline` in the app after resolving the failure.
-
-For a **temporary test only**, `--allow-unmerged` permits commits outside `origin/main` and always extracts the selected archives into `node_modules/@egdev/` without changing the manifest, lockfile or vendor directory, even if the commit is merged. Revert from the app directory with `rm -rf node_modules/@egdev && npm install --offline`. Do not commit temporary results. `--dry-run` also works with this mode. Exit codes are 0 for success, 2 for invalid arguments or unmerged refusal, and 1 for operational or integrity failures.
+The same `npm run ds:doctor` is the design-system guard, run in CI and by `scripts/check.sh`. It rejects raw `<button>`, `<input>`, `<a>` and `<label>` in non-test `.tsx` files under `apps/hub/src/` (except as the sole child of an `asChild` component), and `.eg-*` or `[role=tab]` selectors in CSS outside `apps/hub/src/theme/`. Exceptions go in `apps/hub/src/design-system-allowlist.ts`, each with an issue and a reason; doctor reports invalid or stale entries. It replaced the local `ds-vendor.mjs` script and `design-system-guard.ts` test.
 
 After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The current generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` hard-code the `ba7a38e` header; update both to the new commit in that reviewed bump before regenerating.
 

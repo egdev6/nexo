@@ -43,6 +43,10 @@ jobs:
         working-directory: apps/hub
         run: npm ci
 
+      - name: Design system doctor
+        working-directory: apps/hub
+        run: npm run ds:doctor
+
       - name: Frontend tests
         working-directory: apps/hub
         run: npm test

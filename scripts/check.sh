@@ -105,6 +105,7 @@ fi
   cd apps/hub || exit 1
   export npm_config_update_notifier=false
   step tsc npx tsc --noEmit
+  step ds-doctor npm run -s ds:doctor
   # --configLoader runner avoids writing node_modules/.vite-temp, so parallel runs do not collide.
   if ! step vitest npx vitest run --configLoader runner --reporter=verbose; then
     { echo "## vitest"; grep -E '^\s*(×|FAIL)' "$logs/vitest.log" | sort -u; echo; } >> "$failures"
