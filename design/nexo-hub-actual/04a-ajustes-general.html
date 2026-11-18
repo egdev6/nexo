@@ -165,6 +165,17 @@
   --color-surface-1: var(--color-primitive-graphite-900);
   --color-surface-2: var(--color-primitive-graphite-850);
   --color-surface-3: var(--color-primitive-graphite-750);
+  --color-app-page: var(--color-surface-0);
+  --color-app-card: var(--color-surface-1);
+  --color-app-card-header: var(--color-surface-2);
+  --color-app-inset: var(--color-surface-0);
+  --color-control-well: var(--color-surface-0);
+  --color-control-boundary: var(--color-border-control);
+  --color-state-selected: var(--color-action-primary-solid-bg);
+  --color-on-selected: var(--color-action-primary-solid-fg);
+  --color-state-selected-surface: var(--color-surface-3);
+  --color-link-default: var(--color-fg-brand-raised);
+  --color-link-hover: var(--color-primitive-red-200);
   --color-surface-overlay: rgba(35, 36, 40, 0.84);
   --color-border-hairline: rgba(255, 255, 255, 0.08);
   --color-border-hairline-strong: rgba(255, 255, 255, 0.14);
@@ -219,6 +230,11 @@
   --text-label-eyebrow--line-height: 1.2;
   --text-label-eyebrow--font-weight: 700;
   --text-label-eyebrow--letter-spacing: 0.12em;
+  --text-nav-row: 13.5px;
+  --text-nav-group: 14px;
+  --text-nav-group--line-height: 1;
+  --text-nav-group--letter-spacing: 0.14em;
+  --text-nav-count: 11.5px;
   --text-meta: 11.2px;
   --text-meta--line-height: 1.3;
   --text-meta--font-weight: 600;
@@ -374,12 +390,16 @@
   --gradient-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 42%);
   --gradient-glass-card: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015) 45%);
   --gradient-btn-primary: linear-gradient(180deg, #FF2D57 0%, #FF0036 52%, #EE0031 100%);
+  --gradient-state-selected: var(--gradient-btn-primary);
+  --shadow-state-selected: var(--shadow-btn-primary);
+  --shadow-state-indicator: var(--shadow-glow-base);
   --gradient-btn-primary-hover: linear-gradient(180deg, #FF4A6E 0%, #FF1A49 52%, #F00033 100%);
   --gradient-btn-secondary: linear-gradient(180deg, rgba(255, 0, 54, 0.20) 0%, rgba(255, 0, 54, 0.08) 100%);
   --gradient-btn-secondary-hover: linear-gradient(180deg, rgba(255, 0, 54, 0.30) 0%, rgba(255, 0, 54, 0.13) 100%);
   --gradient-chip-active: linear-gradient(180deg, rgba(255, 0, 54, 0.24), rgba(255, 0, 54, 0.09));
   --gradient-post-new: linear-gradient(180deg, rgba(255, 0, 54, 0.11), rgba(255, 0, 54, 0.03) 60%);
   --gradient-progress: linear-gradient(180deg, #FF4A6E, #FF0036 60%, #D9002D);
+  --gradient-spectrum: conic-gradient(#FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000);
   --gradient-hot: radial-gradient(120% 80% at 85% -10%, rgba(255, 0, 54, 0.26), transparent 55%), linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 40%), #22121A;
 }
 @keyframes pulse {
@@ -871,6 +891,13 @@
     color: var(--color-fg-default);
     box-shadow: var(--shadow-edge-strong),var(--shadow-elev-1);
   }
+  .eg-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    font-family: var(--font-sans);
+  }
   .eg-field__wrap>.eg-icon {
     position: absolute;
     left: 12px;
@@ -1029,6 +1056,9 @@
   .inset-\[5\%\] {
     inset: 5%;
   }
+  .start-0\.5 {
+    inset-inline-start: calc(var(--space-1) * 0.5);
+  }
   .end-\[var\(--space-4\)\] {
     inset-inline-end: var(--space-4);
   }
@@ -1038,11 +1068,11 @@
   .top-\[calc\(var\(--nav-height\)\+var\(--space-10\)\)\] {
     top: calc(var(--nav-height) + var(--space-10));
   }
+  .top-\[calc\(var\(--space-4\)\+\(var\(--text-heading-small\)\*var\(--text-heading-small--line-height\)-var\(--space-12\)\)\/2\)\] {
+    top: calc(var(--space-4) + (var(--text-heading-small) * var(--text-heading-small--line-height) - var(--space-12)) / 2);
+  }
   .top-\[var\(--eg-zone-y\)\] {
     top: var(--eg-zone-y);
-  }
-  .top-\[var\(--space-4\)\] {
-    top: var(--space-4);
   }
   .right-\[calc\(var\(--space-6\)\+env\(safe-area-inset-right\,0px\)\)\] {
     right: calc(var(--space-6) + env(safe-area-inset-right,0px));
@@ -1050,11 +1080,23 @@
   .bottom-\[calc\(var\(--space-6\)\+env\(safe-area-inset-bottom\,0px\)\)\] {
     bottom: calc(var(--space-6) + env(safe-area-inset-bottom,0px));
   }
-  .left-0\.5 {
-    left: calc(var(--space-1) * 0.5);
-  }
   .left-\[var\(--eg-zone-x\)\] {
     left: var(--eg-zone-x);
+  }
+  .col-start-1 {
+    grid-column-start: 1;
+  }
+  .row-start-1 {
+    grid-row-start: 1;
+  }
+  .m-0 {
+    margin: var(--space-0);
+  }
+  .mt-\[calc\(var\(--space-1\)\*5\.625\)\] {
+    margin-top: calc(var(--space-1) * 5.625);
+  }
+  .mb-\[calc\(var\(--space-1\)\*1\.875\)\] {
+    margin-bottom: calc(var(--space-1) * 1.875);
   }
   .box-border {
     box-sizing: border-box;
@@ -1155,6 +1197,9 @@
   .min-h-8\.5 {
     min-height: calc(var(--space-1) * 8.5);
   }
+  .min-h-9 {
+    min-height: calc(var(--space-1) * 9);
+  }
   .min-h-10 {
     min-height: var(--space-10);
   }
@@ -1212,6 +1257,9 @@
   .w-\[var\(--space-24\)\] {
     width: var(--space-24);
   }
+  .w-full {
+    width: 100%;
+  }
   .max-w-\[40ch\] {
     max-width: 40ch;
   }
@@ -1254,17 +1302,29 @@
   .max-w-\[var\(--radix-tooltip-content-available-width\)\] {
     max-width: var(--radix-tooltip-content-available-width);
   }
+  .min-w-0 {
+    min-width: var(--space-0);
+  }
+  .min-w-\[calc\(var\(--space-1\)\*7\.5\)\] {
+    min-width: calc(var(--space-1) * 7.5);
+  }
   .min-w-\[var\(--radix-select-trigger-width\)\] {
     min-width: var(--radix-select-trigger-width);
   }
   .min-w-\[var\(--space-10\)\] {
     min-width: var(--space-10);
   }
+  .flex-1 {
+    flex: 1;
+  }
   .flex-none {
     flex: none;
   }
   .shrink-0 {
     flex-shrink: 0;
+  }
+  .grow {
+    flex-grow: 1;
   }
   .basis-\[calc\(var\(--space-24\)\*2\.5\)\] {
     flex-basis: calc(var(--space-24) * 2.5);
@@ -1294,11 +1354,20 @@
   .cursor-pointer {
     cursor: pointer;
   }
+  .scroll-px-1\.5 {
+    scroll-padding-inline: calc(var(--space-1) * 1.5);
+  }
   .\[scrollbar-width\:none\] {
     scrollbar-width: none;
   }
   .\[scrollbar-width\:thin\] {
     scrollbar-width: thin;
+  }
+  .auto-cols-\[1fr\] {
+    grid-auto-columns: 1fr;
+  }
+  .grid-flow-col {
+    grid-auto-flow: column;
   }
   .grid-cols-\[auto_1fr\] {
     grid-template-columns: auto 1fr;
@@ -1342,6 +1411,9 @@
   .flex-col {
     flex-direction: column;
   }
+  .flex-nowrap {
+    flex-wrap: nowrap;
+  }
   .flex-wrap {
     flex-wrap: wrap;
   }
@@ -1351,14 +1423,41 @@
   .items-center {
     align-items: center;
   }
+  .items-start {
+    align-items: flex-start;
+  }
+  .items-stretch {
+    align-items: stretch;
+  }
+  .justify-between {
+    justify-content: space-between;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .justify-start {
+    justify-content: flex-start;
+  }
   .gap-0 {
     gap: var(--space-0);
   }
   .gap-0\.5 {
     gap: calc(var(--space-1) * 0.5);
   }
+  .gap-1\.5 {
+    gap: calc(var(--space-1) * 1.5);
+  }
   .gap-2 {
     gap: var(--space-2);
+  }
+  .gap-3 {
+    gap: var(--space-3);
+  }
+  .gap-4 {
+    gap: var(--space-4);
+  }
+  .gap-\[calc\(var\(--space-1\)\*3\.125\)\] {
+    gap: calc(var(--space-1) * 3.125);
   }
   .gap-\[var\(--space-2\)\] {
     gap: var(--space-2);
@@ -1366,17 +1465,26 @@
   .gap-\[var\(--space-3\)\] {
     gap: var(--space-3);
   }
+  .gap-x-4 {
+    column-gap: var(--space-4);
+  }
   .gap-x-6 {
     column-gap: var(--space-6);
   }
   .gap-y-1 {
     row-gap: var(--space-1);
   }
-  .self-start {
-    align-self: flex-start;
+  .gap-y-4 {
+    row-gap: var(--space-4);
+  }
+  .self-stretch {
+    align-self: stretch;
   }
   .overflow-visible {
     overflow: visible;
+  }
+  .overflow-x-auto {
+    overflow-x: auto;
   }
   .rounded-\[calc\(var\(--radius-md\)---spacing\(0\.75\)\)\] {
     border-radius: calc(var(--radius-md) - calc(var(--space-1) * 0.75));
@@ -1396,6 +1504,12 @@
   .rounded-md {
     border-radius: var(--radius-md, 9.6px);
   }
+  .rounded-none {
+    border-radius: var(--radius-none, 0px);
+  }
+  .rounded-xl {
+    border-radius: var(--radius-xl, 17.6px);
+  }
   .border {
     border-style: var(--tw-border-style);
     border-width: 1px;
@@ -1408,13 +1522,29 @@
     border-style: var(--tw-border-style);
     border-width: var(--border-width);
   }
+  .border-x-0 {
+    border-inline-style: var(--tw-border-style);
+    border-inline-width: 0px;
+  }
   .border-s-\[length\:calc\(var\(--border-width\)\*2\)\] {
     border-inline-start-style: var(--tw-border-style);
     border-inline-start-width: calc(var(--border-width) * 2);
   }
+  .border-s-\[length\:calc\(var\(--space-1\)\*0\.625\)\] {
+    border-inline-start-style: var(--tw-border-style);
+    border-inline-start-width: calc(var(--space-1) * 0.625);
+  }
+  .border-t-0 {
+    border-top-style: var(--tw-border-style);
+    border-top-width: 0px;
+  }
   .border-t-\[length\:var\(--border-width\)\] {
     border-top-style: var(--tw-border-style);
     border-top-width: var(--border-width);
+  }
+  .border-b {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
   }
   .border-b-\[length\:var\(--border-width\)\] {
     border-bottom-style: var(--tw-border-style);
@@ -1436,26 +1566,38 @@
   .border-border-brand {
     border-color: var(--color-border-brand, var(--color-alpha-red-45));
   }
-  .border-border-control {
-    border-color: var(--color-border-control, var(--color-primitive-graphite-500));
-  }
   .border-border-hairline {
     border-color: var(--color-border-hairline, rgba(255, 255, 255, 0.08));
+  }
+  .border-control-boundary {
+    border-color: var(--color-control-boundary, var(--color-border-control));
+  }
+  .border-transparent {
+    border-color: transparent;
+  }
+  .bg-\[color\:var\(--eg-swatch-color\)\] {
+    background-color: var(--eg-swatch-color);
   }
   .bg-\[var\(--color-alpha-black-42\)\] {
     background-color: var(--color-alpha-black-42);
   }
-  .bg-action-primary-solid-fg {
-    background-color: var(--color-action-primary-solid-fg, var(--color-primitive-black));
+  .bg-control-well {
+    background-color: var(--color-control-well, var(--color-surface-0));
   }
   .bg-fg-secondary {
     background-color: var(--color-fg-secondary, var(--color-primitive-neutral-200));
+  }
+  .bg-on-selected {
+    background-color: var(--color-on-selected, var(--color-action-primary-solid-fg));
   }
   .bg-surface-0 {
     background-color: var(--color-surface-0, var(--color-primitive-graphite-950));
   }
   .bg-surface-1 {
     background-color: var(--color-surface-1, var(--color-primitive-graphite-900));
+  }
+  .bg-surface-2 {
+    background-color: var(--color-surface-2, var(--color-primitive-graphite-850));
   }
   .bg-transparent {
     background-color: transparent;
@@ -1478,6 +1620,12 @@
   .bg-\[image\:var\(--gradient-sheen\)\] {
     background-image: var(--gradient-sheen);
   }
+  .bg-\[image\:var\(--gradient-spectrum\)\] {
+    background-image: var(--gradient-spectrum);
+  }
+  .bg-none {
+    background-image: none;
+  }
   .fill-none {
     fill: none;
   }
@@ -1490,8 +1638,14 @@
   .p-0 {
     padding: var(--space-0);
   }
-  .p-0\.75 {
-    padding: calc(var(--space-1) * 0.75);
+  .p-1\.5 {
+    padding: calc(var(--space-1) * 1.5);
+  }
+  .p-4 {
+    padding: var(--space-4);
+  }
+  .p-\[var\(--space-3\)\] {
+    padding: var(--space-3);
   }
   .p-\[var\(--space-6\)\] {
     padding: var(--space-6);
@@ -1499,11 +1653,20 @@
   .px-3 {
     padding-inline: var(--space-3);
   }
+  .px-\[calc\(var\(--space-1\)\*2\.5\)\] {
+    padding-inline: calc(var(--space-1) * 2.5);
+  }
   .px-\[var\(--gutter\)\] {
     padding-inline: var(--gutter);
   }
   .px-\[var\(--space-6\)\] {
     padding-inline: var(--space-6);
+  }
+  .py-\[calc\(var\(--space-1\)\*1\.5625\)\] {
+    padding-block: calc(var(--space-1) * 1.5625);
+  }
+  .py-\[calc\(var\(--space-1\)\*2\.1875\)\] {
+    padding-block: calc(var(--space-1) * 2.1875);
   }
   .py-\[var\(--space-4\)\] {
     padding-block: var(--space-4);
@@ -1535,8 +1698,23 @@
   .align-middle {
     vertical-align: middle;
   }
+  .font-display {
+    font-family: var(--font-display, "Barlow Condensed", "Arial Narrow", sans-serif);
+  }
   .font-sans {
     font-family: var(--font-sans, "Barlow", system-ui, sans-serif);
+  }
+  .text-body-default {
+    font-size: var(--text-body-default, 12.8px);
+    line-height: var(--tw-leading, var(--text-body-default--line-height, 1.6));
+    letter-spacing: var(--tw-tracking, var(--text-body-default--letter-spacing, 0));
+    font-weight: var(--tw-font-weight, var(--text-body-default--font-weight, 500));
+  }
+  .text-heading-small {
+    font-size: var(--text-heading-small, 19.2px);
+    line-height: var(--tw-leading, var(--text-heading-small--line-height, 1.2));
+    letter-spacing: var(--tw-tracking, var(--text-heading-small--letter-spacing, 0));
+    font-weight: var(--tw-font-weight, var(--text-heading-small--font-weight, 700));
   }
   .text-label-default {
     font-size: var(--text-label-default, 11.2px);
@@ -1547,6 +1725,14 @@
   .leading-\[var\(--text-body-default--line-height\)\] {
     --tw-leading: var(--text-body-default--line-height);
     line-height: var(--text-body-default--line-height);
+  }
+  .leading-\[var\(--text-label-default--line-height\)\] {
+    --tw-leading: var(--text-label-default--line-height);
+    line-height: var(--text-label-default--line-height);
+  }
+  .leading-\[var\(--text-nav-group--line-height\)\] {
+    --tw-leading: var(--text-nav-group--line-height);
+    line-height: var(--text-nav-group--line-height);
   }
   .\[line-height\:var\(--text-meta--line-height\)\] {
     line-height: var(--text-meta--line-height);
@@ -1559,17 +1745,35 @@
     --tw-font-weight: var(--text-body-muted--font-weight);
     font-weight: var(--text-body-muted--font-weight);
   }
+  .font-\[var\(--text-label-default--font-weight\)\] {
+    --tw-font-weight: var(--text-label-default--font-weight);
+    font-weight: var(--text-label-default--font-weight);
+  }
+  .font-\[var\(--text-label-eyebrow--font-weight\)\] {
+    --tw-font-weight: var(--text-label-eyebrow--font-weight);
+    font-weight: var(--text-label-eyebrow--font-weight);
+  }
   .\[font-weight\:var\(--text-body-default--font-weight\)\] {
     font-weight: var(--text-body-default--font-weight);
   }
   .\[font-weight\:var\(--text-cta-label--font-weight\)\] {
     font-weight: var(--text-cta-label--font-weight);
   }
+  .tracking-\[var\(--text-label-default--letter-spacing\)\] {
+    --tw-tracking: var(--text-label-default--letter-spacing);
+    letter-spacing: var(--text-label-default--letter-spacing);
+  }
   .\[letter-spacing\:var\(--text-label-eyebrow--letter-spacing\)\] {
     letter-spacing: var(--text-label-eyebrow--letter-spacing);
   }
   .\[overflow-wrap\:anywhere\] {
     overflow-wrap: anywhere;
+  }
+  .wrap-anywhere {
+    overflow-wrap: anywhere;
+  }
+  .wrap-break-word {
+    overflow-wrap: break-word;
   }
   .whitespace-nowrap {
     white-space: nowrap;
@@ -1583,8 +1787,14 @@
   .text-fg-default {
     color: var(--color-fg-default, var(--color-primitive-white));
   }
+  .text-fg-muted {
+    color: var(--color-fg-muted, var(--color-primitive-graphite-400));
+  }
   .text-fg-secondary {
     color: var(--color-fg-secondary, var(--color-primitive-neutral-200));
+  }
+  .uppercase {
+    text-transform: uppercase;
   }
   .no-underline {
     text-decoration-line: none;
@@ -1619,6 +1829,14 @@
   }
   .shadow-\[var\(--shadow-well\)\] {
     --tw-shadow: var(--shadow-well);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow-edge {
+    --tw-shadow: inset 0 1px 0 var(--tw-shadow-color, rgba(255, 255, 255, 0.07));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow-none {
+    --tw-shadow: 0 0 #0000;
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .\[box-shadow\:none\] {
@@ -1707,6 +1925,9 @@
   }
   .\[transition-property\:background\,color\,box-shadow\,border-color\,translate\,scale\] {
     transition-property: background,color,box-shadow,border-color,translate,scale;
+  }
+  .\[transition-property\:none\] {
+    transition-property: none;
   }
   .duration-\(--duration-fast\) {
     --tw-duration: var(--duration-fast);
@@ -1825,8 +2046,6 @@
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 0px;
   }
-  @media (hover: hover) {
-  }
   .group-has-\[\:disabled\]\:opacity-45:is(:where(.group):has(:is(:disabled)) *) {
     opacity: 45%;
   }
@@ -1867,16 +2086,8 @@
   .group-aria-\[current\=page\]\:text-fg-brand-default:is(:where(.group)[aria-current="page"] *) {
     color: var(--color-fg-brand-default, var(--color-primitive-red-neon));
   }
-  .group-aria-\[current\=page\]\/nav-link\:text-fg-brand-raised:is(:where(.group\/nav-link)[aria-current="page"] *) {
-    color: var(--color-fg-brand-raised, var(--color-primitive-red-neon));
-  }
-  .group-aria-\[current\=page\]\/nav-link\:text-fg-default:is(:where(.group\/nav-link)[aria-current="page"] *) {
-    color: var(--color-fg-default, var(--color-primitive-white));
-  }
-  @media (hover: hover) {
-    .group-aria-\[current\=page\]\/nav-link\:group-hover\/nav-link\:text-fg-brand-raised:is(:where(.group\/nav-link)[aria-current="page"] *):is(:where(.group\/nav-link):hover *) {
-      color: var(--color-fg-brand-raised, var(--color-primitive-red-neon));
-    }
+  .group-aria-\[current\=page\]\/nav-link\:block:is(:where(.group\/nav-link)[aria-current="page"] *) {
+    display: block;
   }
   .group-data-highlighted\:text-fg-brand-default:is(:where(.group)[data-highlighted] *) {
     color: var(--color-fg-brand-default, var(--color-primitive-red-neon));
@@ -1889,6 +2100,20 @@
     line-height: var(--tw-leading, var(--text-body-default--line-height, 1.6));
     letter-spacing: var(--tw-tracking, var(--text-body-default--letter-spacing, 0));
     font-weight: var(--tw-font-weight, var(--text-body-default--font-weight, 500));
+  }
+  .group-data-\[state\=checked\]\:outline-\(length\:--focus-width\):is(:where(.group)[data-state="checked"] *) {
+    outline-style: var(--tw-outline-style);
+    outline-width: var(--focus-width);
+  }
+  .group-data-\[state\=checked\]\:outline-offset-\(--focus-width\):is(:where(.group)[data-state="checked"] *) {
+    outline-offset: var(--focus-width);
+  }
+  .group-data-\[state\=checked\]\:outline-fg-default:is(:where(.group)[data-state="checked"] *) {
+    outline-color: var(--color-fg-default, var(--color-primitive-white));
+  }
+  .group-data-\[state\=checked\]\:outline-solid:is(:where(.group)[data-state="checked"] *) {
+    --tw-outline-style: solid;
+    outline-style: solid;
   }
   .group-data-\[state\=closed\]\/nav-trigger\:-rotate-90:is(:where(.group\/nav-trigger)[data-state="closed"] *) {
     rotate: calc(90deg * -1);
@@ -1928,6 +2153,9 @@
   }
   .group-data-\[state\=on\]\/toggle\:text-fg-brand-raised:is(:where(.group\/toggle)[data-state="on"] *) {
     color: var(--color-fg-brand-raised, var(--color-primitive-red-neon));
+  }
+  .group-data-\[state\=open\]\/collapsible\:rotate-0:is(:where(.group\/collapsible)[data-state="open"] *) {
+    rotate: 0deg;
   }
   .group-data-\[state\=open\]\/collapsible\:rotate-180:is(:where(.group\/collapsible)[data-state="open"] *) {
     rotate: 180deg;
@@ -2015,13 +2243,48 @@
   .group-\[\:not\(\[data-disabled\]\)\:hover\]\/icon-button\:text-fg-brand-default:is(:where(.group\/icon-button):is(:not([data-disabled]):hover) *) {
     color: var(--color-fg-brand-default, var(--color-primitive-red-neon));
   }
+  .group-\[\:nth-child\(1_of_\[data-nav-group\]\)\]\/nav-group\:mt-\[calc\(var\(--space-1\)\*1\.25\)\]:is(:where(.group\/nav-group):is(:nth-child(1 of [data-nav-group])) *) {
+    margin-top: calc(var(--space-1) * 1.25);
+  }
+  .before\:\[inset-block\:0\]::before {
+    content: var(--tw-content);
+    inset-block: 0;
+  }
+  .before\:\[inset-block\:var\(--border-width\)\]::before {
+    content: var(--tw-content);
+    inset-block: var(--border-width);
+  }
+  .before\:\[inset-inline-start\:0\]::before {
+    content: var(--tw-content);
+    inset-inline-start: 0;
+  }
+  .before\:\[inset-inline-start\:var\(--border-width\)\]::before {
+    content: var(--tw-content);
+    inset-inline-start: var(--border-width);
+  }
   .before\:rounded-\[inherit\]::before {
     content: var(--tw-content);
     border-radius: inherit;
   }
+  .before\:rounded-ss-\[calc\(var\(--radius-xl\)-var\(--border-width\)\)\]::before {
+    content: var(--tw-content);
+    border-start-start-radius: calc(var(--radius-xl) - var(--border-width));
+  }
+  .before\:rounded-es-\[calc\(var\(--radius-xl\)-var\(--border-width\)\)\]::before {
+    content: var(--tw-content);
+    border-end-start-radius: calc(var(--radius-xl) - var(--border-width));
+  }
   .before\:content-\[\'\'\]::before {
     --tw-content: '';
     content: var(--tw-content);
+  }
+  .before\:\[inline-size\:var\(--space-1\)\]::before {
+    content: var(--tw-content);
+    inline-size: var(--space-1);
+  }
+  .after\:h-\[calc\(var\(--space-1\)\*0\.625\)\]::after {
+    content: var(--tw-content);
+    height: calc(var(--space-1) * 0.625);
   }
   .first\:rounded-t-\[calc\(var\(--radius-xl\)-var\(--border-width\)\)\]:first-child {
     border-top-left-radius: calc(var(--radius-xl) - var(--border-width));
@@ -2034,8 +2297,6 @@
   @media (hover: hover) {
     .hover\:border-fg-muted:hover {
       border-color: var(--color-fg-muted, var(--color-primitive-graphite-400));
-    }
-    @supports (color: color-mix(in lab, red, red)) {
     }
     @supports (color: color-mix(in lab, red, red)) {
     }
@@ -2125,8 +2386,25 @@
   .has-\[\:disabled\]\:pointer-events-none:has(:is(:disabled)) {
     pointer-events: none;
   }
+  .has-\[\:disabled\]\:cursor-not-allowed:has(:is(:disabled)) {
+    cursor: not-allowed;
+  }
   .has-\[\:disabled\]\:opacity-45:has(:is(:disabled)) {
     opacity: 45%;
+  }
+  .has-\[\:focus-visible\]\:outline-\(length\:--focus-width\):has(:is(:focus-visible)) {
+    outline-style: var(--tw-outline-style);
+    outline-width: var(--focus-width);
+  }
+  .has-\[\:focus-visible\]\:outline-offset-\(--focus-offset\):has(:is(:focus-visible)) {
+    outline-offset: var(--focus-offset);
+  }
+  .has-\[\:focus-visible\]\:outline-focus-ring:has(:is(:focus-visible)) {
+    outline-color: var(--color-focus-ring, var(--color-primitive-red-neon));
+  }
+  .has-\[\:focus-visible\]\:outline-solid:has(:is(:focus-visible)) {
+    --tw-outline-style: solid;
+    outline-style: solid;
   }
   .has-\[\[data-disabled\]\]\:opacity-45:has(:is([data-disabled])) {
     opacity: 45%;
@@ -2199,6 +2477,10 @@
   .aria-\[current\=location\]\:underline[aria-current="location"] {
     text-decoration-line: underline;
   }
+  .aria-\[current\=page\]\:font-\[var\(--text-label-default--font-weight\)\][aria-current="page"] {
+    --tw-font-weight: var(--text-label-default--font-weight);
+    font-weight: var(--text-label-default--font-weight);
+  }
   .aria-\[current\=page\]\:text-fg-default[aria-current="page"] {
     color: var(--color-fg-default, var(--color-primitive-white));
   }
@@ -2239,19 +2521,9 @@
     --tw-content: '';
     content: var(--tw-content);
   }
-  .aria-\[current\=page\]\:after\:bg-fg-brand-default[aria-current="page"]::after {
+  .aria-\[current\=page\]\:after\:bg-bg-flood[aria-current="page"]::after {
     content: var(--tw-content);
-    background-color: var(--color-fg-brand-default, var(--color-primitive-red-neon));
-  }
-  .aria-\[current\=page\]\:after\:shadow-glow-base[aria-current="page"]::after {
-    content: var(--tw-content);
-    --tw-shadow: 0 4px 20px 0 var(--tw-shadow-color, rgba(255, 0, 54, 0.15));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-  @media (hover: hover) {
-    .aria-\[current\=page\]\:hover\:bg-surface-3[aria-current="page"]:hover {
-      background-color: var(--color-surface-3, var(--color-primitive-graphite-750));
-    }
+    background-color: var(--color-bg-flood, var(--color-primitive-red-neon));
   }
   .aria-\[current\=true\]\:\!bg-bg-brand-subtle[aria-current="true"] {
     background-color: var(--color-bg-brand-subtle, var(--color-alpha-red-10)) !important;
@@ -2390,8 +2662,14 @@
   .data-\[side\=top\]\:mb-1[data-side="top"] {
     margin-bottom: var(--space-1);
   }
-  .data-\[state\=active\]\:bg-surface-3[data-state="active"] {
-    background-color: var(--color-surface-3, var(--color-primitive-graphite-750));
+  .data-\[state\=active\]\:border-border-brand[data-state="active"] {
+    border-color: var(--color-border-brand, var(--color-alpha-red-45));
+  }
+  .data-\[state\=active\]\:border-state-selected[data-state="active"] {
+    border-color: var(--color-state-selected, var(--color-action-primary-solid-bg));
+  }
+  .data-\[state\=active\]\:bg-state-selected-surface[data-state="active"] {
+    background-color: var(--color-state-selected-surface, var(--color-surface-3));
   }
   .data-\[state\=active\]\:bg-\[image\:var\(--gradient-sheen\)\][data-state="active"] {
     background-image: var(--gradient-sheen);
@@ -2403,13 +2681,48 @@
     --tw-shadow: var(--shadow-edge-strong), var(--shadow-elev-1);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .data-\[state\=active\]\:after\:bg-fg-brand-default[data-state="active"]::after {
-    content: var(--tw-content);
-    background-color: var(--color-fg-brand-default, var(--color-primitive-red-neon));
+  .data-\[state\=active\]\:shadow-\[var\(--shadow-edge-strong\)\][data-state="active"] {
+    --tw-shadow: var(--shadow-edge-strong);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .data-\[state\=active\]\:after\:shadow-glow-base[data-state="active"]::after {
+  .data-\[state\=active\]\:\[background\:var\(--gradient-chip-active\)\,var\(--color-surface-1\)\][data-state="active"] {
+    background: var(--gradient-chip-active),var(--color-surface-1);
+  }
+  .data-\[state\=active\]\:before\:pointer-events-none[data-state="active"]::before {
     content: var(--tw-content);
-    --tw-shadow: 0 4px 20px 0 var(--tw-shadow-color, rgba(255, 0, 54, 0.15));
+    pointer-events: none;
+  }
+  .data-\[state\=active\]\:before\:absolute[data-state="active"]::before {
+    content: var(--tw-content);
+    position: absolute;
+  }
+  .data-\[state\=active\]\:before\:inset-0[data-state="active"]::before {
+    content: var(--tw-content);
+    inset: var(--space-0);
+  }
+  .data-\[state\=active\]\:before\:-z-10[data-state="active"]::before {
+    content: var(--tw-content);
+    z-index: calc(10 * -1);
+  }
+  .data-\[state\=active\]\:before\:rounded-\[inherit\][data-state="active"]::before {
+    content: var(--tw-content);
+    border-radius: inherit;
+  }
+  .data-\[state\=active\]\:before\:bg-border-brand[data-state="active"]::before {
+    content: var(--tw-content);
+    background-color: var(--color-border-brand, var(--color-alpha-red-45));
+  }
+  .data-\[state\=active\]\:before\:content-\[\'\'\][data-state="active"]::before {
+    --tw-content: '';
+    content: var(--tw-content);
+  }
+  .data-\[state\=active\]\:after\:bg-state-selected[data-state="active"]::after {
+    content: var(--tw-content);
+    background-color: var(--color-state-selected, var(--color-action-primary-solid-bg));
+  }
+  .data-\[state\=active\]\:after\:shadow-\[var\(--shadow-state-indicator\)\][data-state="active"]::after {
+    content: var(--tw-content);
+    --tw-shadow: var(--shadow-state-indicator);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .data-\[state\=active\]\:focus-visible\:shadow-focus[data-state="active"]:focus-visible {
@@ -2423,17 +2736,27 @@
   .data-\[state\=checked\]\:border-action-primary-solid-bg[data-state="checked"] {
     border-color: var(--color-action-primary-solid-bg, var(--color-primitive-red-neon));
   }
-  .data-\[state\=checked\]\:bg-action-primary-solid-fg[data-state="checked"] {
-    background-color: var(--color-action-primary-solid-fg, var(--color-primitive-black));
+  .data-\[state\=checked\]\:border-state-selected[data-state="checked"] {
+    border-color: var(--color-state-selected, var(--color-action-primary-solid-bg));
+  }
+  .data-\[state\=checked\]\:bg-on-selected[data-state="checked"] {
+    background-color: var(--color-on-selected, var(--color-action-primary-solid-fg));
   }
   .data-\[state\=checked\]\:bg-\[image\:var\(--gradient-btn-primary\)\][data-state="checked"] {
     background-image: var(--gradient-btn-primary);
+  }
+  .data-\[state\=checked\]\:bg-\[image\:var\(--gradient-state-selected\)\][data-state="checked"] {
+    background-image: var(--gradient-state-selected);
   }
   .data-\[state\=checked\]\:text-fg-default[data-state="checked"] {
     color: var(--color-fg-default, var(--color-primitive-white));
   }
   .data-\[state\=checked\]\:shadow-\[var\(--shadow-btn-primary\)\][data-state="checked"] {
     --tw-shadow: var(--shadow-btn-primary);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .data-\[state\=checked\]\:shadow-\[var\(--shadow-state-selected\)\][data-state="checked"] {
+    --tw-shadow: var(--shadow-state-selected);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .group-aria-invalid\:data-\[state\=checked\]\:border-status-danger:is(:where(.group)[aria-invalid="true"] *)[data-state="checked"] {
@@ -2449,6 +2772,9 @@
   }
   .aria-invalid\:data-\[state\=checked\]\:border-status-danger[aria-invalid="true"][data-state="checked"] {
     border-color: var(--color-status-danger, var(--color-primitive-red-300));
+  }
+  .data-\[state\=closed\]\:hidden[data-state="closed"] {
+    display: none;
   }
   .data-\[state\=critical\]\:\[--eg-gauge-fill\:var\(--color-status-danger\)\][data-state="critical"] {
     --eg-gauge-fill: var(--color-status-danger);
@@ -2555,6 +2881,9 @@
   }
   .data-\[state\=glass\]\:bg-surface-overlay[data-state="glass"] {
     background-color: var(--color-surface-overlay, rgba(35, 36, 40, 0.84));
+  }
+  .data-\[state\=glass\]\:bg-none[data-state="glass"] {
+    background-image: none;
   }
   .data-\[state\=glass\]\:shadow-\[var\(--shadow-edge-strong\)\,var\(--shadow-elev-3\)\][data-state="glass"] {
     --tw-shadow: var(--shadow-edge-strong), var(--shadow-elev-3);
@@ -2682,10 +3011,10 @@
   .data-\[state\=on\]\:border-border-hairline-strong[data-state="on"] {
     border-color: var(--color-border-hairline-strong, rgba(255, 255, 255, 0.14));
   }
-  .data-\[state\=on\]\:border-primitive-red-neon\/60[data-state="on"] {
+  .data-\[state\=on\]\:border-state-selected\/60[data-state="on"] {
     border-color: color-mix(in srgb, #FF0036 60%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
-      border-color: color-mix(in oklab, var(--color-primitive-red-neon, #FF0036) 60%, transparent);
+      border-color: color-mix(in oklab, var(--color-state-selected, var(--color-action-primary-solid-bg)) 60%, transparent);
     }
   }
   .data-\[state\=on\]\:bg-surface-3[data-state="on"] {
@@ -2774,6 +3103,19 @@
     background-image: none;
   }
   .data-\[state\=stopped\]\:shadow-none[data-state="stopped"] {
+    --tw-shadow: 0 0 #0000;
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .data-\[state\=transparent\]\:border-transparent[data-state="transparent"] {
+    border-color: transparent;
+  }
+  .data-\[state\=transparent\]\:bg-transparent[data-state="transparent"] {
+    background-color: transparent;
+  }
+  .data-\[state\=transparent\]\:bg-none[data-state="transparent"] {
+    background-image: none;
+  }
+  .data-\[state\=transparent\]\:shadow-none[data-state="transparent"] {
     --tw-shadow: 0 0 #0000;
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
@@ -2928,6 +3270,14 @@
   .data-\[variant\=row\]\:p-3[data-variant="row"] {
     padding: var(--space-3);
   }
+  @supports (not selector(::-webkit-scrollbar)) {
+    .supports-\[not_selector\(\:\:-webkit-scrollbar\)\]\:\[scrollbar-width\:thin\] {
+      scrollbar-width: thin;
+    }
+    .supports-\[not_selector\(\:\:-webkit-scrollbar\)\]\:\[scrollbar-color\:var\(--color-border-control\)_transparent\] {
+      scrollbar-color: var(--color-border-control) transparent;
+    }
+  }
   @media (prefers-reduced-motion: no-preference) {
     .motion-safe\:animate-\[eg-status-dot-pulse_2\.4s_var\(--ease-out\)_infinite\] {
       animation: eg-status-dot-pulse 2.4s var(--ease-out) infinite;
@@ -3020,6 +3370,10 @@
       display: none;
     }
   }
+  .rtl\:data-\[state\=checked\]\:-translate-x-4:where(:dir(rtl), [dir="rtl"], [dir="rtl"] *)[data-state="checked"] {
+    --tw-translate-x: calc(var(--space-4) * -1);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
   @starting-style {
     .data-\[state\=open\]\:starting\:opacity-0[data-state="open"] {
       opacity: 0%;
@@ -3041,7 +3395,21 @@
       }
     }
   }
+  @media (forced-colors: active) {
+    .forced-colors\:group-data-\[state\=checked\]\:outline-\[color\:CanvasText\]:is(:where(.group)[data-state="checked"] *) {
+      outline-color: CanvasText;
+    }
+    .forced-colors\:focus-visible\:outline-\[color\:Highlight\]:focus-visible {
+      outline-color: Highlight;
+    }
+    .forced-colors\:has-\[\:focus-visible\]\:outline-\[color\:Highlight\]:has(:is(:focus-visible)) {
+      outline-color: Highlight;
+    }
+  }
   @media (pointer: coarse) {
+    .pointer-coarse\:min-h-14 {
+      min-height: var(--space-14);
+    }
     .pointer-coarse\:min-h-\[var\(--space-12\)\] {
       min-height: var(--space-12);
     }
@@ -3080,6 +3448,9 @@
   .\[\&_strong\]\:font-\(weight\:--text-cta-label--font-weight\) strong {
     --tw-font-weight: var(--text-cta-label--font-weight);
     font-weight: var(--text-cta-label--font-weight);
+  }
+  .\[\&_strong\]\:\[font-weight\:var\(--text-heading-small--font-weight\)\] strong {
+    font-weight: var(--text-heading-small--font-weight);
   }
   .\[\&_strong\]\:text-fg-default strong {
     color: var(--color-fg-default, var(--color-primitive-white));
@@ -3134,6 +3505,29 @@
   .\[\&_time\>small\]\:uppercase time > small {
     text-transform: uppercase;
   }
+  .\[\&\:\:-webkit-scrollbar\]\:hidden::-webkit-scrollbar {
+    display: none;
+  }
+  .\[\&\:\:-webkit-scrollbar\]\:h-1\.5::-webkit-scrollbar {
+    height: calc(var(--space-1) * 1.5);
+  }
+  .\[\&\:\:-webkit-scrollbar-button\]\:hidden::-webkit-scrollbar-button {
+    display: none;
+  }
+  .\[\&\:\:-webkit-scrollbar-thumb\]\:rounded-full::-webkit-scrollbar-thumb {
+    border-radius: var(--radius-full, 9999px);
+  }
+  .\[\&\:\:-webkit-scrollbar-thumb\]\:bg-border-control::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-control, var(--color-primitive-graphite-500));
+  }
+  @media (hover: hover) {
+    .hover\:\[\&\:\:-webkit-scrollbar-thumb\]\:bg-fg-muted:hover::-webkit-scrollbar-thumb {
+      background-color: var(--color-fg-muted, var(--color-primitive-graphite-400));
+    }
+  }
+  .\[\&\:\:-webkit-scrollbar-track\]\:bg-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
   .data-\[variant\=editorial\]\:\[\&\:is\(a\)\]\:cursor-pointer[data-variant="editorial"]:is(a) {
     cursor: pointer;
   }
@@ -3185,10 +3579,19 @@
     --tw-translate-y: 1px;
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
+  .\[\&\:not\(\[aria-disabled\=true\]\)\:active\]\:translate-none:not([aria-disabled=true]):active {
+    translate: none;
+  }
   .\[\&\:not\(\[aria-disabled\=true\]\)\:active\]\:scale-97:not([aria-disabled=true]):active {
     --tw-scale-x: 97%;
     --tw-scale-y: 97%;
     --tw-scale-z: 97%;
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+  .\[\&\:not\(\[aria-disabled\=true\]\)\:active\]\:scale-100:not([aria-disabled=true]):active {
+    --tw-scale-x: 100%;
+    --tw-scale-y: 100%;
+    --tw-scale-z: 100%;
     scale: var(--tw-scale-x) var(--tw-scale-y);
   }
   .\[\&\:not\(\[aria-disabled\=true\]\)\:active\]\:bg-action-primary-solid-bg:not([aria-disabled=true]):active {
@@ -3318,6 +3721,15 @@
       color: var(--color-fg-brand-raised, var(--color-primitive-red-neon));
     }
   }
+  .\[\&\>\:first-child\]\:min-w-14 > :first-child {
+    min-width: var(--space-14);
+  }
+  .\[\&\>\:first-child\]\:grow > :first-child {
+    flex-grow: 1;
+  }
+  .\[\&\>\:first-child\]\:basis-14 > :first-child {
+    flex-basis: var(--space-14);
+  }
   .aria-\[current\=true\]\:\[\&\>\:first-child\]\:relative[aria-current="true"] > :first-child {
     position: relative;
   }
@@ -3349,6 +3761,12 @@
   }
   .\[\&\>a\]\:h-full > a {
     height: 100%;
+  }
+  .\[\&\>button\]\:col-start-2 > button {
+    grid-column-start: 2;
+  }
+  .\[\&\>button\]\:row-start-1 > button {
+    grid-row-start: 1;
   }
   .\[\&\>img\]\:h-full > img {
     height: 100%;
@@ -3606,6 +4024,10 @@
   syntax: "*";
   inherits: false;
 }
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
 @property --tw-ordinal {
   syntax: "*";
   inherits: false;
@@ -3842,6 +4264,7 @@
       --tw-gradient-to-position: 100%;
       --tw-leading: initial;
       --tw-font-weight: initial;
+      --tw-tracking: initial;
       --tw-ordinal: initial;
       --tw-slashed-zero: initial;
       --tw-numeric-figure: initial;
@@ -3897,57 +4320,55 @@
 /* src/style.css */
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
-html, body, #root { width: 100%; height: 100%; margin: 0; }
+html, body, #root { width: 100%; height: 100%; margin: 0; background: transparent; }
 body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 var(--font-sans); background: transparent; overflow: hidden; }
 [hidden] { display: none !important; }
-.flyout { position: relative; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--color-surface-2); border: 1px solid var(--color-border-hairline-strong); border-radius: var(--radius-xl); box-shadow: var(--shadow-edge-strong), var(--shadow-elev-3); }
+.flyout { position: relative; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--color-surface-0); border-left: var(--border-width) solid var(--color-border-hairline-strong); }
 @supports (backdrop-filter: blur(20px)) and (background: color-mix(in srgb, black 50%, transparent)) {
-  .flyout { background: color-mix(in srgb, var(--color-surface-2) calc(var(--hub-opacity) * 100%), transparent); backdrop-filter: blur(var(--hub-blur)) saturate(150%); }
+  .flyout { background: color-mix(in srgb, var(--color-surface-0) calc(var(--hub-opacity) * 100%), transparent); backdrop-filter: blur(var(--hub-blur)) saturate(150%); }
 }
-.panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
+.flyout[data-backdrop="opaque"] { background: var(--color-surface-0); backdrop-filter: none; transition: none; }
+.flyout[data-news-open] > :is(.panel-head, .panel-notices, .main-tabs, .area-scroll, .settings__foot) { filter: blur(calc(var(--space-1) * 1.5)); }
+body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
+.flyout--entering.flyout, .flyout--exiting.flyout { transition: transform 200ms ease-out; }
+.panel-head { flex: none; padding: var(--space-5) var(--space-6) var(--space-4); background: var(--gradient-sheen), var(--color-surface-0); }
+.panel-notices { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-6) var(--space-1); background: var(--color-surface-0); }
+.panel-notices:empty { display: none; }
 .heading { display: flex; align-items: center; gap: var(--space-3); }
 .heading h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
 .heading p { margin: 0 auto 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .n-mark { display: block; width: var(--space-6); height: var(--space-6); flex: none; }
 .head-actions { display: flex; gap: var(--space-2); }
 .head-actions { margin-left: auto; }
-.main-tabs > [role='tablist'] { flex: none; align-self: stretch; margin: var(--space-4) var(--space-6) 0; }
-.main-tabs > [role='tablist'] > [role='tab'] { flex: 1; justify-content: center; }
+.main-tabs > [role='tablist'] { --menu-band-gutter: var(--space-6); position: relative; flex: none; width: auto; margin: var(--space-4) var(--space-6) 0; box-shadow: var(--shadow-well), 0 0 0 calc(var(--space-4) + 1px) var(--color-surface-0), calc(-1 * (var(--menu-band-gutter) + var(--radius-md))) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0), calc(var(--menu-band-gutter) + var(--radius-md)) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0); }
 .main-tabs > [role='tabpanel'] { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-4) var(--space-6) var(--space-5); }
 .area-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
-@media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { margin-left: var(--space-4); margin-right: var(--space-4); } .heading p { display: none; } }
-@media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-2); backdrop-filter: none; } }
+@media (max-width: 400px) { .panel-head { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .main-tabs > [role='tablist'] { --menu-band-gutter: var(--space-4); margin-left: var(--space-4); margin-right: var(--space-4); } .heading p { display: none; } }
+@media (prefers-reduced-transparency: reduce) { .flyout { background: var(--color-surface-0); backdrop-filter: none; } .flyout[data-news-open] > :is(.panel-head, .panel-notices, .main-tabs, .area-scroll, .settings__foot) { filter: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 /* src/catalog/catalog.css */
 @media (max-width: 390px) { }
 
 /* src/news/news.css */
-.news-carousel .eg-carousel > .overflow-x-auto > [role='group'] { flex: 0 0 100%; min-width: 0; }
-.news-indicator[aria-current='true'] svg { fill: var(--color-fg-brand-default); }
-@supports not (backdrop-filter: blur(20px)) { }
-@media (prefers-reduced-transparency: reduce) { }
-@media (prefers-reduced-motion: reduce) { }
+.news-carousel [role='region'] { border-radius: var(--radius-md); }
+.news-carousel [role='region']:focus-visible { outline: none; }
+.news-carousel [role='region']:focus-visible:not([data-entry-focus]) { box-shadow: var(--shadow-focus); }
 
 /* src/settings/settings.css */
 .settings { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 var(--font-sans); }
-.settings__header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
-.settings__header > div { flex: 1; min-width: 0; }
-.settings__header h1 { margin: 0; font: 700 var(--space-5)/1.2 var(--font-sans); }
-.settings__header p { margin: var(--space-1) 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
+.settings__header { padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-border-hairline); background: var(--gradient-sheen); }
 .settings__back-icon { transform: rotate(180deg); }
-.settings__tabs > [role='tablist'] { flex-wrap: wrap; align-self: flex-start; max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
-.settings__tabs > [role='tablist'] > [role='tab'] { white-space: normal; text-align: left; }
+.settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-12)); margin: var(--space-4) var(--space-6) 0; }
 .settings__tabs > [role='tabpanel'] { padding: var(--space-4) var(--space-6) var(--space-5); }
-.settings__group { margin: 0 0 var(--space-3); padding: calc(var(--space-4) * var(--hub-density, 1)); border: 1px solid var(--color-border-hairline); border-radius: var(--radius-lg); background: var(--gradient-sheen), var(--color-surface-1); box-shadow: var(--shadow-edge); }
-.settings__group h2 { margin: 0 0 var(--space-3); font: 700 var(--text-body-default)/1.2 var(--font-sans); }
+.settings__group { margin: 0 0 var(--space-3); }
 .settings__row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: calc(var(--space-2) * var(--hub-density, 1)) 0; border-top: 1px solid var(--color-border-hairline); }
-.settings__row strong, .settings__row span { display: block; }
-.settings__row label, .settings__row > div:first-child { flex: 1; min-width: 0; }
-.settings__row strong { font-weight: 600; }
-.settings__row span { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
-.settings__row .eg-radio-group span, .settings__row .eg-switch span { display: initial; }
-.settings__swatch[aria-pressed='true'] { border-color: var(--color-fg-default); box-shadow: 0 0 0 2px var(--color-surface-1), 0 0 0 4px var(--color-fg-default); }
+.settings__choice { padding: calc(var(--space-2) * var(--hub-density, 1)) 0; border-top: 1px solid var(--color-border-hairline); }
+.settings__rows > .settings__row:first-child { border-top: 0; }
+.settings__row > div:first-child > strong, .settings__row > div:first-child:not(.row-label) > span { display: block; }
+.settings__row > div:first-child { flex: 1; min-width: 0; }
+.settings__row > div:first-child > strong { font-weight: 600; }
+.settings__row > div:first-child:not(.row-label) > span { color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .settings__foot { margin: var(--space-3) 0 0; padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-1); color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .settings__local-entry .settings__row > div:first-child { overflow-wrap: anywhere; }
 @media (max-width: 400px) { .settings__header, .settings__tabs > [role='tabpanel'] { padding-left: var(--space-4); padding-right: var(--space-4); } .settings__tabs > [role='tablist'] { max-width: calc(100% - var(--space-8)); margin-left: var(--space-4); margin-right: var(--space-4); } }
@@ -3955,17 +4376,17 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 @supports not (backdrop-filter: blur(1px)) { }
 
 /* src/first-run/first-run.css */
-.first-run__choices > div:has([data-state='checked']) { border-color: var(--color-fg-default); background: var(--color-surface-3); }
 @media (max-width: 400px) { }
 @media (max-width: 380px) { }
 
 
 .desktop { position: relative; width: 786px; height: 1080px; overflow: hidden; background: radial-gradient(ellipse at 35% 20%, #687d8e 0%, transparent 47%), radial-gradient(ellipse at 90% 75%, #526775 0%, transparent 48%), linear-gradient(135deg, #273f50, #667887 55%, #293d4c); }
-#root.win-frame { position: absolute; top: 13px; right: 13px; width: 600px; height: 1006px; border-radius: 8px; box-shadow: 0 16px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.13); }
+#root.win-frame { position: absolute; top: 0px; right: 0px; width: 600px; height: 1032px; border-radius: 8px; box-shadow: 0 16px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.13); }
 .win-frame .flyout { border-radius: 8px; }
 .win-taskbar { position: absolute; bottom: 0; left: 0; right: 0; height: 48px; display: flex; justify-content: flex-end; align-items: center; gap: 14px; padding: 0 18px; background: rgba(31,36,42,.9); border-top: 1px solid rgba(255,255,255,.12); color: #fff; font: 12px/1.2 'Segoe UI', sans-serif; }
 .win-taskbar svg { width: 16px; height: 16px; flex: none; }
 .win-clock { text-align: right; line-height: 1.4; font-variant-numeric: tabular-nums; }
+
 /* egdev family contrast (from Quorb) */
 #root.win-frame { position: absolute; top: 0; right: 0; width: 600px; height: 1032px; border-radius: 0; box-shadow: -16px 0 48px rgba(0,0,0,.45), -1px 0 0 rgba(255,255,255,.13); }
 .win-frame .flyout { border: 0; border-radius: 0; background: var(--color-bg-canvas); backdrop-filter: none; }
@@ -4005,12 +4426,12 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
   box-shadow: var(--shadow-edge-strong), 0 0 14px -4px var(--color-alpha-red-65);
   color: var(--color-fg-default);
 }
-.flyout .eg-switch[aria-checked='true'], .flyout [role='radio'][aria-checked='true'] {
+.flyout .eg-switch[aria-checked='true'], .flyout .eg-radio-group [role='radio'][aria-checked='true'] {
   border-color: var(--color-primitive-red-neon);
   background: var(--gradient-btn-primary);
   box-shadow: var(--shadow-btn-primary);
 }
-.flyout .eg-switch[aria-checked='true'] > span, .flyout [role='radio'][aria-checked='true'] > span { background: var(--color-action-primary-solid-fg); }
+.flyout .eg-switch[aria-checked='true'] > span, .flyout .eg-radio-group [role='radio'][aria-checked='true'] > span { background: var(--color-action-primary-solid-fg); }
 .flyout .eg-slider > span:first-child { background: var(--color-border-control); }
 .flyout .eg-slider > span:first-child > span { background: var(--color-primitive-red-neon); }
 .settings__swatch[aria-pressed='true'] { border-color: var(--color-fg-default); box-shadow: var(--shadow-focus); }
@@ -4023,7 +4444,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
 .first-run :is(h1, .first-run__description):not(:has(> span[aria-hidden='true'])) > span[lang='es']::after {
   content: ''; display: inline-block; width: .35em; margin-inline: .3em; border-top: 1px solid currentColor; vertical-align: middle;
 }
-</style></head><body><div class="desktop"><div id="root" class="win-frame"><main class="flyout" aria-labelledby="panel-title" style="--hub-accent: #ff0036; --hub-accent-light: #ffebef; --hub-accent-mid: #ff859f; --color-fg-brand-default: #ff0036; --color-fg-brand-raised: #ffebef; --color-fg-brand-hover: #ff859f; --color-border-brand: #ff859f; --color-action-primary-solid-bg: #ff0036; --color-action-primary-solid-bg-hover: #ff859f; --hub-density: 1; --hub-opacity: 0.85; --hub-blur: 24px;"><header class="panel-head"><div class="heading"><svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128" class="n-mark" aria-hidden="true">
+</style></head><body><div class="desktop"><div id="root" class="win-frame"><main class="flyout" aria-labelledby="panel-title" style="--color-fg-brand-default: var(--color-primitive-red-neon); --color-fg-brand-raised: var(--color-primitive-red-neon); --color-fg-brand-hover: var(--color-primitive-red-light); --color-border-brand: var(--color-alpha-red-45); --color-border-brand-strong: var(--color-primitive-red-dark); --color-action-primary-solid-bg: var(--color-primitive-red-neon); --color-action-primary-solid-bg-hover: var(--color-primitive-red-light); --color-action-primary-solid-fg: var(--color-primitive-black); --color-focus-ring: var(--color-primitive-red-neon); --shadow-focus: 0 0 0 2px #141518, 0 0 0 4px #FF0036; --gradient-btn-primary: linear-gradient(180deg, #FF2D57 0%, #FF0036 52%, #EE0031 100%); --gradient-btn-primary-hover: linear-gradient(180deg, #FF4A6E 0%, #FF1A49 52%, #F00033 100%); --shadow-btn-primary: inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.6), 0 8px 22px -8px rgba(255, 0, 54, 0.7); --shadow-btn-primary-hover: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 0, 54, 0.35), 0 10px 30px -6px rgba(255, 0, 54, 0.75); --color-state-selected: var(--color-action-primary-solid-bg); --color-on-selected: var(--color-action-primary-solid-fg); --gradient-state-selected: var(--gradient-btn-primary); --shadow-state-selected: var(--shadow-btn-primary); --shadow-state-indicator: var(--shadow-glow-base); --color-link-default: var(--color-fg-brand-raised); --color-link-hover: var(--color-primitive-red-200); --gradient-chip-active: linear-gradient(180deg, rgba(255, 0, 54, 0.24), rgba(255, 0, 54, 0.09)); --shadow-glow-base: 0 4px 20px 0 rgba(255, 0, 54, 0.15); --shadow-glow-active: 0 8px 30px 0 rgba(255, 0, 54, 0.30); --hub-accent: #ff0036; --hub-density: 1; --hub-opacity: 0.85; --hub-blur: 24px;"><header class="panel-head"><div class="heading"><svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128" class="n-mark" aria-hidden="true">
   <rect x="13" y="15" width="102" height="88" rx="21" transform="translate(0 7)" fill="none" stroke="#800C1D" stroke-width="13"></rect>
   <g fill="#800C1D" transform="translate(0 5)">
     <rect x="32" y="33" width="25" height="20" rx="6"></rect>
@@ -4038,7 +4459,7 @@ body { color: var(--color-fg-default); font: 500 var(--text-body-default)/1.6 va
     <rect x="32" y="65" width="25" height="20" rx="6"></rect>
     <rect x="71" y="65" width="25" height="20" rx="6"></rect>
   </g>
-</svg><h1 id="panel-title">Nexo</h1><p>· 2 instaladas</p><div class="head-actions"><button title="Cerrar panel" type="button" class="eg-icon-btn group/icon-button box-border inline-grid place-items-center flex-none p-0 border-solid no-underline cursor-pointer transform-none translate-none scale-100 [transition:color_var(--duration-fast)_var(--ease-out),background-color_var(--duration-fast)_var(--ease-out),border-color_var(--duration-base)_var(--ease-out),transform_var(--duration-fast)_var(--ease-spring),translate_var(--duration-fast)_var(--ease-spring),scale_var(--duration-fast)_var(--ease-spring),box-shadow_var(--duration-base)_var(--ease-out)] motion-safe:[&amp;:not([data-disabled]):active]:scale-94 [&amp;:not([data-disabled]):active]:duration-(--duration-press) focus-visible:outline-none focus-visible:shadow-focus data-disabled:opacity-45 data-disabled:pointer-events-none data-disabled:cursor-not-allowed motion-reduce:transition-none motion-reduce:transform-none motion-reduce:translate-none motion-reduce:scale-100 motion-reduce:active:scale-100 border rounded-md border-border-brand bg-surface-1 bg-(image:--gradient-btn-secondary) shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] text-action-primary-fg [&amp;:not([data-disabled]):hover:not(:active)]:bg-(image:--gradient-btn-secondary-hover) [&amp;:not([data-disabled]):hover]:border-primitive-red-neon [&amp;:not([data-disabled]):hover:not(:focus-visible):not(:active)]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1),var(--shadow-glow-base)] [&amp;:not([data-disabled]):active]:bg-none [&amp;:not([data-disabled]):active]:bg-alpha-red-15 [&amp;:not([data-disabled]):active:not(:focus-visible)]:shadow-btn-pressed size-10"><svg class="eg-icon inline-block align-middle stroke-current stroke-(length:--icon-stroke) fill-none shrink-0 transition-colors duration-(--duration-fast) ease-(--ease-out) motion-reduce:transition-none size-(--icon-size)" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg><span style="position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;">Cerrar panel</span></button></div></div></header><div class="area-scroll"><section class="settings" aria-label="Ajustes"><header class="settings__header"><button title="Volver" type="button" class="eg-icon-btn group/icon-button box-border inline-grid place-items-center flex-none p-0 border-solid no-underline cursor-pointer transform-none translate-none scale-100 [transition:color_var(--duration-fast)_var(--ease-out),background-color_var(--duration-fast)_var(--ease-out),border-color_var(--duration-base)_var(--ease-out),transform_var(--duration-fast)_var(--ease-spring),translate_var(--duration-fast)_var(--ease-spring),scale_var(--duration-fast)_var(--ease-spring),box-shadow_var(--duration-base)_var(--ease-out)] motion-safe:[&amp;:not([data-disabled]):active]:scale-94 [&amp;:not([data-disabled]):active]:duration-(--duration-press) focus-visible:outline-none focus-visible:shadow-focus data-disabled:opacity-45 data-disabled:pointer-events-none data-disabled:cursor-not-allowed motion-reduce:transition-none motion-reduce:transform-none motion-reduce:translate-none motion-reduce:scale-100 motion-reduce:active:scale-100 border rounded-md border-border-brand bg-surface-1 bg-(image:--gradient-btn-secondary) shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] text-action-primary-fg [&amp;:not([data-disabled]):hover:not(:active)]:bg-(image:--gradient-btn-secondary-hover) [&amp;:not([data-disabled]):hover]:border-primitive-red-neon [&amp;:not([data-disabled]):hover:not(:focus-visible):not(:active)]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1),var(--shadow-glow-base)] [&amp;:not([data-disabled]):active]:bg-none [&amp;:not([data-disabled]):active]:bg-alpha-red-15 [&amp;:not([data-disabled]):active:not(:focus-visible)]:shadow-btn-pressed size-10"><svg class="eg-icon inline-block align-middle stroke-current stroke-(length:--icon-stroke) fill-none settings__back-icon shrink-0 transition-colors duration-(--duration-fast) ease-(--ease-out) motion-reduce:transition-none size-(--icon-size)" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg><span style="position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;">Volver</span></button><div><h1>Ajustes</h1><p>Nexo · Preferencias del hub</p></div></header><div dir="ltr" data-orientation="horizontal" class="eg-tabs flex flex-col gap-0 border-0 overflow-visible settings__tabs"><div role="tablist" aria-orientation="horizontal" aria-label="Secciones de ajustes" class="eg-surface box-border border border-solid text-fg-default bg-surface-0 border-border-hairline shadow-[var(--shadow-well)] rounded-md inline-flex self-start gap-0.5 p-0.75" tabindex="0" data-orientation="horizontal" style="outline: medium;"><button type="button" role="tab" aria-selected="true" aria-controls="radix-_r_14_-content-general" data-state="active" id="radix-_r_14_-trigger-general" class="relative inline-flex items-center gap-2 border-0 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] data-[state=active]:bg-[image:var(--gradient-sheen)] data-[state=active]:bg-surface-3 data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">General</button><button type="button" role="tab" aria-selected="false" aria-controls="radix-_r_14_-content-appearance" data-state="inactive" id="radix-_r_14_-trigger-appearance" class="relative inline-flex items-center gap-2 border-0 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] data-[state=active]:bg-[image:var(--gradient-sheen)] data-[state=active]:bg-surface-3 data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">Apariencia</button><button type="button" role="tab" aria-selected="false" aria-controls="radix-_r_14_-content-sources" data-state="inactive" id="radix-_r_14_-trigger-sources" class="relative inline-flex items-center gap-2 border-0 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] data-[state=active]:bg-[image:var(--gradient-sheen)] data-[state=active]:bg-surface-3 data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">Apps locales</button><button type="button" role="tab" aria-selected="false" aria-controls="radix-_r_14_-content-about" data-state="inactive" id="radix-_r_14_-trigger-about" class="relative inline-flex items-center gap-2 border-0 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] data-[state=active]:bg-[image:var(--gradient-sheen)] data-[state=active]:bg-surface-3 data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">Acerca de</button></div><div data-state="active" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_14_-trigger-general" id="radix-_r_14_-content-general" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2" style="animation-duration: 0s;"><section class="settings__group" aria-labelledby="_r_13_-general"><h2 id="_r_13_-general">General</h2><div class="settings__row settings__language"><div><strong>Idioma</strong><span>También se elige en el primer uso</span></div><div role="radiogroup" aria-required="false" aria-orientation="horizontal" dir="ltr" aria-label="Idioma" class="eg-radio-group group flex flex-wrap gap-x-6 gap-y-1" tabindex="0" data-orientation="horizontal" style="outline: medium;"><div class="flex items-center gap-2 min-h-10 font-sans text-label-default text-fg-secondary has-[[data-state=checked]]:text-fg-default has-[[data-disabled]]:opacity-45"><button type="button" role="radio" aria-checked="true" data-state="checked" value="es" id="_r_19_-0" class="grid place-items-center box-border p-0 size-5 shrink-0 rounded-full border border-solid border-border-control bg-surface-0 shadow-[var(--shadow-well)] cursor-pointer transition-[border-color,box-shadow] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none hover:border-fg-muted data-[state=checked]:border-action-primary-solid-bg data-[state=checked]:bg-[image:var(--gradient-btn-primary)] data-[state=checked]:shadow-[var(--shadow-btn-primary)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] group-aria-invalid:border-status-danger group-aria-invalid:border-(length:--border-width-invalid) group-aria-invalid:bg-status-danger-bg group-aria-invalid:hover:border-status-danger group-aria-invalid:data-[state=checked]:border-status-danger disabled:pointer-events-none" tabindex="-1" data-orientation="horizontal" data-radix-collection-item=""><span data-state="checked" class="size-2 rounded-full bg-action-primary-solid-fg"></span></button><label for="_r_19_-0" class="cursor-pointer">Español</label></div><div class="flex items-center gap-2 min-h-10 font-sans text-label-default text-fg-secondary has-[[data-state=checked]]:text-fg-default has-[[data-disabled]]:opacity-45"><button type="button" role="radio" aria-checked="false" data-state="unchecked" value="en" id="_r_19_-1" class="grid place-items-center box-border p-0 size-5 shrink-0 rounded-full border border-solid border-border-control bg-surface-0 shadow-[var(--shadow-well)] cursor-pointer transition-[border-color,box-shadow] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none hover:border-fg-muted data-[state=checked]:border-action-primary-solid-bg data-[state=checked]:bg-[image:var(--gradient-btn-primary)] data-[state=checked]:shadow-[var(--shadow-btn-primary)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] group-aria-invalid:border-status-danger group-aria-invalid:border-(length:--border-width-invalid) group-aria-invalid:bg-status-danger-bg group-aria-invalid:hover:border-status-danger group-aria-invalid:data-[state=checked]:border-status-danger disabled:pointer-events-none" tabindex="-1" data-orientation="horizontal" data-radix-collection-item=""></button><label for="_r_19_-1" class="cursor-pointer">English</label></div></div></div><div class="settings__row"><label for="_r_13_-startup"><strong>Iniciar con Windows</strong><span id="_r_13_-startup-hint">Se comprueba con el sistema</span></label><button type="button" role="switch" aria-checked="true" aria-required="false" data-state="checked" value="on" id="_r_13_-startup" aria-label="Iniciar con Windows" aria-describedby="_r_13_-startup-hint" class="eg-switch relative inline-block shrink-0 box-border p-0 w-9 h-5 rounded-full border border-solid border-border-control bg-surface-0 shadow-[var(--shadow-well)] cursor-pointer transition-[background-color,border-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:bg-[image:var(--gradient-btn-primary)] data-[state=checked]:border-action-primary-solid-bg data-[state=checked]:shadow-[var(--shadow-btn-primary)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] aria-invalid:border-status-danger aria-invalid:border-(length:--border-width-invalid) aria-invalid:bg-status-danger-bg aria-invalid:data-[state=checked]:border-status-danger aria-invalid:data-[state=checked]:border-(length:--border-width-invalid) disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed"><span data-state="checked" class="absolute top-0.5 left-0.5 size-3.5 rounded-full bg-fg-secondary transition-[translate,background-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:translate-x-4 data-[state=checked]:bg-action-primary-solid-fg"></span></button></div><div class="settings__row"><label for="_r_13_-news"><strong>Mostrar novedades al abrir</strong><span id="_r_13_-news-hint">Solo aparecen novedades no vistas del catálogo oficial.</span></label><button type="button" role="switch" aria-checked="false" aria-required="false" data-state="unchecked" value="on" id="_r_13_-news" aria-label="Mostrar novedades al abrir" aria-describedby="_r_13_-news-hint" class="eg-switch relative inline-block shrink-0 box-border p-0 w-9 h-5 rounded-full border border-solid border-border-control bg-surface-0 shadow-[var(--shadow-well)] cursor-pointer transition-[background-color,border-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:bg-[image:var(--gradient-btn-primary)] data-[state=checked]:border-action-primary-solid-bg data-[state=checked]:shadow-[var(--shadow-btn-primary)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] aria-invalid:border-status-danger aria-invalid:border-(length:--border-width-invalid) aria-invalid:bg-status-danger-bg aria-invalid:data-[state=checked]:border-status-danger aria-invalid:data-[state=checked]:border-(length:--border-width-invalid) disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed"><span data-state="unchecked" class="absolute top-0.5 left-0.5 size-3.5 rounded-full bg-fg-secondary transition-[translate,background-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:translate-x-4 data-[state=checked]:bg-action-primary-solid-fg"></span></button></div></section><p class="settings__foot">Las preferencias se guardan localmente en este equipo.</p></div><div data-state="inactive" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_14_-trigger-appearance" hidden="" id="radix-_r_14_-content-appearance" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"></div><div data-state="inactive" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_14_-trigger-sources" hidden="" id="radix-_r_14_-content-sources" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"></div><div data-state="inactive" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_14_-trigger-about" hidden="" id="radix-_r_14_-content-about" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"></div></div></section></div></main></div><div class="win-taskbar" aria-label="Barra de tareas de Windows"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4-4 4 4"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" shape-rendering="crispEdges">
+</svg><h1 id="panel-title">Nexo</h1><p>· 2 instaladas</p><div class="head-actions"><button title="Cerrar panel" type="button" class="eg-icon-btn group/icon-button box-border inline-grid place-items-center flex-none p-0 border-solid border-transparent no-underline cursor-pointer transform-none translate-none scale-100 [transition:color_var(--duration-fast)_var(--ease-out),background-color_var(--duration-fast)_var(--ease-out),border-color_var(--duration-base)_var(--ease-out),transform_var(--duration-fast)_var(--ease-spring),translate_var(--duration-fast)_var(--ease-spring),scale_var(--duration-fast)_var(--ease-spring),box-shadow_var(--duration-base)_var(--ease-out)] motion-safe:[&amp;:not([data-disabled]):active]:scale-94 [&amp;:not([data-disabled]):active]:duration-(--duration-press) focus-visible:outline-none focus-visible:shadow-focus data-disabled:opacity-45 data-disabled:pointer-events-none data-disabled:cursor-not-allowed motion-reduce:transition-none motion-reduce:transform-none motion-reduce:translate-none motion-reduce:scale-100 motion-reduce:active:scale-100 border-0 rounded-md bg-transparent bg-none shadow-none text-fg-secondary [&amp;:not([data-disabled]):hover]:text-fg-default [&amp;:not([data-disabled]):hover]:bg-action-primary-bg-default size-10"><svg class="eg-icon inline-block align-middle stroke-current stroke-(length:--icon-stroke) fill-none shrink-0 transition-colors duration-(--duration-fast) ease-(--ease-out) motion-reduce:transition-none size-(--icon-size)" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg><span style="position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;">Cerrar panel</span></button></div></div></header><div class="panel-notices"></div><div class="area-scroll"><section class="settings" aria-label="Ajustes"><div class="settings__header"><header class="eg-page-header flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-4"><div class="flex min-w-0 grow basis-[calc(var(--space-24)*3)] items-start gap-3"><div class="flex-none"><button title="Volver" type="button" class="eg-icon-btn group/icon-button box-border inline-grid place-items-center flex-none p-0 border-solid no-underline cursor-pointer transform-none translate-none scale-100 [transition:color_var(--duration-fast)_var(--ease-out),background-color_var(--duration-fast)_var(--ease-out),border-color_var(--duration-base)_var(--ease-out),transform_var(--duration-fast)_var(--ease-spring),translate_var(--duration-fast)_var(--ease-spring),scale_var(--duration-fast)_var(--ease-spring),box-shadow_var(--duration-base)_var(--ease-out)] motion-safe:[&amp;:not([data-disabled]):active]:scale-94 [&amp;:not([data-disabled]):active]:duration-(--duration-press) focus-visible:outline-none focus-visible:shadow-focus data-disabled:opacity-45 data-disabled:pointer-events-none data-disabled:cursor-not-allowed motion-reduce:transition-none motion-reduce:transform-none motion-reduce:translate-none motion-reduce:scale-100 motion-reduce:active:scale-100 border rounded-md border-border-brand bg-surface-1 bg-(image:--gradient-btn-secondary) shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] text-action-primary-fg [&amp;:not([data-disabled]):hover:not(:active)]:bg-(image:--gradient-btn-secondary-hover) [&amp;:not([data-disabled]):hover]:border-primitive-red-neon [&amp;:not([data-disabled]):hover:not(:focus-visible):not(:active)]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1),var(--shadow-glow-base)] [&amp;:not([data-disabled]):active]:bg-none [&amp;:not([data-disabled]):active]:bg-alpha-red-15 [&amp;:not([data-disabled]):active:not(:focus-visible)]:shadow-btn-pressed size-10"><svg class="eg-icon inline-block align-middle stroke-current stroke-(length:--icon-stroke) fill-none settings__back-icon shrink-0 transition-colors duration-(--duration-fast) ease-(--ease-out) motion-reduce:transition-none size-(--icon-size)" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg><span style="position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;">Volver</span></button></div><div class="eg-stack flex flex-col flex-nowrap gap-2 items-stretch justify-start min-w-0 flex-1"><h1 class="font-sans text-heading-small text-fg-default m-0 wrap-anywhere">Ajustes</h1><p class="m-0 min-w-0 font-sans text-body-default text-fg-secondary wrap-anywhere">Nexo · Preferencias del hub</p></div></div></header></div><div dir="ltr" data-orientation="horizontal" class="eg-tabs flex flex-col gap-0 border-0 overflow-visible settings__tabs"><div role="tablist" aria-orientation="horizontal" aria-label="Secciones de ajustes" class="eg-surface box-border border border-solid text-fg-default bg-surface-0 border-border-hairline shadow-[var(--shadow-well)] rounded-md gap-0.5 grid grid-flow-col auto-cols-[1fr] w-full self-stretch overflow-x-auto p-1.5 scroll-px-1.5 [&amp;::-webkit-scrollbar]:h-1.5 [&amp;::-webkit-scrollbar-track]:bg-transparent [&amp;::-webkit-scrollbar-button]:hidden [&amp;::-webkit-scrollbar-thumb]:rounded-full [&amp;::-webkit-scrollbar-thumb]:bg-border-control hover:[&amp;::-webkit-scrollbar-thumb]:bg-fg-muted supports-[not_selector(::-webkit-scrollbar)]:[scrollbar-width:thin] supports-[not_selector(::-webkit-scrollbar)]:[scrollbar-color:var(--color-border-control)_transparent]" tabindex="0" data-orientation="horizontal" style="outline: medium;"><button type="button" role="tab" aria-selected="true" aria-controls="radix-_r_1d_-content-general" data-state="active" id="radix-_r_1d_-trigger-general" class="relative inline-flex items-center gap-2 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] border border-transparent data-[state=active]:border-state-selected data-[state=active]:[background:var(--gradient-chip-active),var(--color-surface-1)] data-[state=active]:shadow-[var(--shadow-edge-strong)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus justify-center" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">General</button><button type="button" role="tab" aria-selected="false" aria-controls="radix-_r_1d_-content-appearance" data-state="inactive" id="radix-_r_1d_-trigger-appearance" class="relative inline-flex items-center gap-2 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] border border-transparent data-[state=active]:border-state-selected data-[state=active]:[background:var(--gradient-chip-active),var(--color-surface-1)] data-[state=active]:shadow-[var(--shadow-edge-strong)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus justify-center" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">Apariencia</button><button type="button" role="tab" aria-selected="false" aria-controls="radix-_r_1d_-content-local-apps" data-state="inactive" id="radix-_r_1d_-trigger-local-apps" class="relative inline-flex items-center gap-2 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] border border-transparent data-[state=active]:border-state-selected data-[state=active]:[background:var(--gradient-chip-active),var(--color-surface-1)] data-[state=active]:shadow-[var(--shadow-edge-strong)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus justify-center" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">Apps locales</button><button type="button" role="tab" aria-selected="false" aria-controls="radix-_r_1d_-content-about" data-state="inactive" id="radix-_r_1d_-trigger-about" class="relative inline-flex items-center gap-2 bg-transparent cursor-pointer whitespace-nowrap font-sans text-label-default text-fg-secondary transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:text-fg-default data-[state=active]:text-fg-default disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed motion-reduce:transition-none min-h-8.5 px-3 rounded-[calc(var(--radius-md)---spacing(0.75))] border border-transparent data-[state=active]:border-state-selected data-[state=active]:[background:var(--gradient-chip-active),var(--color-surface-1)] data-[state=active]:shadow-[var(--shadow-edge-strong)] focus-visible:outline-none focus-visible:shadow-focus data-[state=active]:focus-visible:shadow-focus justify-center" tabindex="-1" data-orientation="horizontal" data-radix-collection-item="">Acerca de</button></div><div data-state="active" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_1d_-trigger-general" id="radix-_r_1d_-content-general" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2" style="animation-duration: 0s;"><section class="settings__group" aria-labelledby="_r_1c_-general"><div data-tone="surface-1" data-variant="banded" class="eg-surface border border-solid bg-surface-1 bg-[image:var(--gradient-sheen)] rounded-xl border-border-hairline shadow-[var(--shadow-edge),var(--shadow-elev-1)] eg-panel box-border flex flex-col min-w-0 gap-0 p-0 overflow-visible font-sans text-body-default text-fg-default"><div class="eg-surface border border-solid text-fg-default bg-surface-2 bg-[image:var(--gradient-sheen)] border-border-hairline shadow-edge eg-panel__header flex flex-wrap items-center gap-3 box-border min-w-0 p-4 wrap-anywhere rounded-none first:rounded-t-[calc(var(--radius-xl)-var(--border-width))] last:rounded-b-[calc(var(--radius-xl)-var(--border-width))] border-x-0 border-t-0 border-b"><h2 id="_r_1c_-general" class="eg-heading m-0 font-display uppercase wrap-break-word text-heading-small text-fg-default">General</h2></div><div class="eg-panel__body flex flex-col gap-4 box-border min-w-0 p-4 wrap-anywhere rounded-none first:rounded-t-[calc(var(--radius-xl)-var(--border-width))] last:rounded-b-[calc(var(--radius-xl)-var(--border-width))]"><div class="settings__rows"><div class="settings__row settings__language"><div><strong>Idioma</strong><span>También se elige en el primer uso</span></div><div role="radiogroup" aria-required="false" aria-orientation="horizontal" dir="ltr" aria-label="Idioma" class="eg-radio-group group flex flex-wrap gap-x-6 gap-y-1" tabindex="0" data-orientation="horizontal" style="outline: medium;"><div class="flex items-center gap-2 min-h-10 font-sans text-label-default text-fg-secondary has-[[data-state=checked]]:text-fg-default has-[[data-disabled]]:opacity-45"><button type="button" role="radio" aria-checked="true" data-state="checked" value="es" id="_r_1i_-0" class="grid place-items-center box-border p-0 size-5 shrink-0 rounded-full border border-solid border-control-boundary bg-control-well shadow-[var(--shadow-well)] cursor-pointer transition-[border-color,box-shadow] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none hover:border-fg-muted data-[state=checked]:border-state-selected data-[state=checked]:bg-[image:var(--gradient-state-selected)] data-[state=checked]:shadow-[var(--shadow-state-selected)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] group-aria-invalid:border-status-danger group-aria-invalid:border-(length:--border-width-invalid) group-aria-invalid:bg-status-danger-bg group-aria-invalid:hover:border-status-danger group-aria-invalid:data-[state=checked]:border-status-danger disabled:pointer-events-none" tabindex="-1" data-orientation="horizontal" data-radix-collection-item=""><span data-state="checked" class="size-2 rounded-full bg-on-selected"></span></button><label for="_r_1i_-0" class="cursor-pointer">Español</label></div><div class="flex items-center gap-2 min-h-10 font-sans text-label-default text-fg-secondary has-[[data-state=checked]]:text-fg-default has-[[data-disabled]]:opacity-45"><button type="button" role="radio" aria-checked="false" data-state="unchecked" value="en" id="_r_1i_-1" class="grid place-items-center box-border p-0 size-5 shrink-0 rounded-full border border-solid border-control-boundary bg-control-well shadow-[var(--shadow-well)] cursor-pointer transition-[border-color,box-shadow] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none hover:border-fg-muted data-[state=checked]:border-state-selected data-[state=checked]:bg-[image:var(--gradient-state-selected)] data-[state=checked]:shadow-[var(--shadow-state-selected)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] group-aria-invalid:border-status-danger group-aria-invalid:border-(length:--border-width-invalid) group-aria-invalid:bg-status-danger-bg group-aria-invalid:hover:border-status-danger group-aria-invalid:data-[state=checked]:border-status-danger disabled:pointer-events-none" tabindex="-1" data-orientation="horizontal" data-radix-collection-item=""></button><label for="_r_1i_-1" class="cursor-pointer">English</label></div></div></div><div class="settings__choice"><div class="eg-field group min-w-0 font-sans grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 min-h-9 [&amp;&gt;button]:row-start-1 [&amp;&gt;button]:col-start-2"><div class="flex justify-between gap-2 group-has-[:disabled]:opacity-45 group-has-[[data-disabled]]:opacity-45 col-start-1 row-start-1 cursor-pointer min-w-0"><label for="_r_1c_-startup" class="eg-label font-sans text-label-default text-fg-secondary font-[var(--text-body-default--font-weight)] grow flex items-center min-w-0 pointer-coarse:min-h-14 wrap-anywhere">Iniciar con Windows</label></div><div class="min-w-0 group-has-[:disabled]:opacity-45 group-has-[[data-disabled]]:opacity-45 col-start-1"><p id="_r_1m_" class="eg-field-message m-0 flex items-start gap-1.5 min-w-0 font-sans text-label-default font-[var(--text-body-muted--font-weight)] text-fg-muted"><span class="min-w-0">Se comprueba con el sistema</span></p></div><button type="button" role="switch" aria-checked="true" aria-required="false" data-state="checked" value="on" id="_r_1c_-startup" aria-describedby="_r_1m_" class="eg-switch relative inline-block shrink-0 box-border p-0 w-9 h-5 rounded-full border border-solid border-control-boundary bg-control-well shadow-[var(--shadow-well)] cursor-pointer transition-[background-color,border-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:bg-[image:var(--gradient-state-selected)] data-[state=checked]:border-state-selected data-[state=checked]:shadow-[var(--shadow-state-selected)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] aria-invalid:border-status-danger aria-invalid:border-(length:--border-width-invalid) aria-invalid:bg-status-danger-bg aria-invalid:data-[state=checked]:border-status-danger aria-invalid:data-[state=checked]:border-(length:--border-width-invalid) disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed"><span data-state="checked" class="absolute top-0.5 start-0.5 size-3.5 rounded-full bg-fg-secondary transition-[translate,background-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:translate-x-4 rtl:data-[state=checked]:-translate-x-4 data-[state=checked]:bg-on-selected"></span></button></div></div><div class="settings__choice"><div class="eg-field group min-w-0 font-sans grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 min-h-9 [&amp;&gt;button]:row-start-1 [&amp;&gt;button]:col-start-2"><div class="flex justify-between gap-2 group-has-[:disabled]:opacity-45 group-has-[[data-disabled]]:opacity-45 col-start-1 row-start-1 cursor-pointer min-w-0"><label for="_r_1c_-news" class="eg-label font-sans text-label-default text-fg-secondary font-[var(--text-body-default--font-weight)] grow flex items-center min-w-0 pointer-coarse:min-h-14 wrap-anywhere">Mostrar novedades al abrir</label></div><div class="min-w-0 group-has-[:disabled]:opacity-45 group-has-[[data-disabled]]:opacity-45 col-start-1"><p id="_r_1p_" class="eg-field-message m-0 flex items-start gap-1.5 min-w-0 font-sans text-label-default font-[var(--text-body-muted--font-weight)] text-fg-muted"><span class="min-w-0">Muestra las novedades del catálogo oficial cada vez que abres el panel.</span></p></div><button type="button" role="switch" aria-checked="false" aria-required="false" data-state="unchecked" value="on" id="_r_1c_-news" aria-describedby="_r_1p_" class="eg-switch relative inline-block shrink-0 box-border p-0 w-9 h-5 rounded-full border border-solid border-control-boundary bg-control-well shadow-[var(--shadow-well)] cursor-pointer transition-[background-color,border-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:bg-[image:var(--gradient-state-selected)] data-[state=checked]:border-state-selected data-[state=checked]:shadow-[var(--shadow-state-selected)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] aria-invalid:border-status-danger aria-invalid:border-(length:--border-width-invalid) aria-invalid:bg-status-danger-bg aria-invalid:data-[state=checked]:border-status-danger aria-invalid:data-[state=checked]:border-(length:--border-width-invalid) disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed"><span data-state="unchecked" class="absolute top-0.5 start-0.5 size-3.5 rounded-full bg-fg-secondary transition-[translate,background-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:translate-x-4 rtl:data-[state=checked]:-translate-x-4 data-[state=checked]:bg-on-selected"></span></button></div></div><div class="settings__choice"><div class="eg-field group min-w-0 font-sans grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 min-h-9 [&amp;&gt;button]:row-start-1 [&amp;&gt;button]:col-start-2"><div class="flex justify-between gap-2 group-has-[:disabled]:opacity-45 group-has-[[data-disabled]]:opacity-45 col-start-1 row-start-1 cursor-pointer min-w-0"><label for="_r_1c_-hide-local" class="eg-label font-sans text-label-default text-fg-secondary font-[var(--text-body-default--font-weight)] grow flex items-center min-w-0 pointer-coarse:min-h-14 wrap-anywhere">Ocultar apps locales</label></div><div class="min-w-0 group-has-[:disabled]:opacity-45 group-has-[[data-disabled]]:opacity-45 col-start-1"><p id="_r_1s_" class="eg-field-message m-0 flex items-start gap-1.5 min-w-0 font-sans text-label-default font-[var(--text-body-muted--font-weight)] text-fg-muted"><span class="min-w-0">No mostrar la sección Apps locales en Mis apps</span></p></div><button type="button" role="switch" aria-checked="false" aria-required="false" data-state="unchecked" value="on" id="_r_1c_-hide-local" aria-describedby="_r_1s_" class="eg-switch relative inline-block shrink-0 box-border p-0 w-9 h-5 rounded-full border border-solid border-control-boundary bg-control-well shadow-[var(--shadow-well)] cursor-pointer transition-[background-color,border-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:bg-[image:var(--gradient-state-selected)] data-[state=checked]:border-state-selected data-[state=checked]:shadow-[var(--shadow-state-selected)] focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=checked]:focus-visible:shadow-[var(--shadow-focus)] aria-invalid:border-status-danger aria-invalid:border-(length:--border-width-invalid) aria-invalid:bg-status-danger-bg aria-invalid:data-[state=checked]:border-status-danger aria-invalid:data-[state=checked]:border-(length:--border-width-invalid) disabled:opacity-45 disabled:pointer-events-none disabled:cursor-not-allowed"><span data-state="unchecked" class="absolute top-0.5 start-0.5 size-3.5 rounded-full bg-fg-secondary transition-[translate,background-color] ease-out duration-[var(--duration-fast)] motion-reduce:transition-none data-[state=checked]:translate-x-4 rtl:data-[state=checked]:-translate-x-4 data-[state=checked]:bg-on-selected"></span></button></div></div></div></div></div></section><p class="settings__foot">Las preferencias se guardan localmente en este equipo.</p></div><div data-state="inactive" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_1d_-trigger-appearance" hidden="" id="radix-_r_1d_-content-appearance" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"></div><div data-state="inactive" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_1d_-trigger-local-apps" hidden="" id="radix-_r_1d_-content-local-apps" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"></div><div data-state="inactive" data-orientation="horizontal" role="tabpanel" aria-labelledby="radix-_r_1d_-trigger-about" hidden="" id="radix-_r_1d_-content-about" tabindex="0" class="pt-4 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"></div></div></section></div></main></div><div class="win-taskbar" aria-label="Barra de tareas de Windows"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4-4 4 4"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" shape-rendering="crispEdges">
   <path fill="#800C1D" transform="translate(0 1)" d="M2 2h12v2H2z M2 4h2v8H2z M12 4h2v8h-2z M2 12h12v2H2z M5 5h2v2H5z M9 5h2v2H9z M5 9h2v2H5z M9 9h2v2H9z"/>
   <path fill="#E91B35" d="M2 2h12v2H2z M2 4h2v8H2z M12 4h2v8h-2z M2 12h12v2H2z M5 5h2v2H5z M9 5h2v2H9z M5 9h2v2H5z M9 9h2v2H9z"/>
 </svg>

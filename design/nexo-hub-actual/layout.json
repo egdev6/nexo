@@ -17,12 +17,28 @@
       "x": 3252,
       "y": 0
     },
-    "04-ajustes.html": {
+    "04a-ajustes-general.html": {
       "x": 4118,
       "y": 0
     },
-    "05-primer-uso.html": {
+    "04b-ajustes-apariencia.html": {
       "x": 4984,
+      "y": 0
+    },
+    "04c-ajustes-apps-locales.html": {
+      "x": 5850,
+      "y": 0
+    },
+    "04d-ajustes-acerca-de.html": {
+      "x": 6716,
+      "y": 0
+    },
+    "05-primer-uso.html": {
+      "x": 7582,
+      "y": 0
+    },
+    "06-anadir-app.html": {
+      "x": 8448,
       "y": 0
     }
   }

@@ -60,6 +60,10 @@ it.each([
   tab(appearance); checkHeading(appearance);
   tab(localApps); checkHeading(localApps);
   tab(about); checkHeading(about); checkHeading(author);
+  const links = within(screen.getByRole('region', { name: author })).getAllByRole('link');
+  expect(links.length).toBeGreaterThan(0);
+  // Author social links use the DS outline IconButton look.
+  for (const link of links) expect(link.classList.contains('border-border-hairline-strong')).toBe(true);
 });
 
 it('switches the four settings sections with the keyboard and shows their content', async () => {
@@ -87,7 +91,7 @@ it('switches the four settings sections with the keyboard and shows their conten
 it.each([
   ['es', 'Secciones de ajustes', 'General', 'Acerca de'],
   ['en', 'Settings sections', 'General', 'About'],
-] as const)('wraps full-width settings labels and reveals the focused tab in %s', async (locale, label, first, last) => {
+] as const)('centers full-width settings labels on one line and reveals the focused tab in %s', async (locale, label, first, last) => {
   setup(locale);
   const list = screen.getByRole('tablist', { name: label });
   const start = screen.getByRole('tab', { name: first });
@@ -102,7 +106,7 @@ it.each([
   expect(reveal).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
   for (const name of ['grid', 'grid-flow-col', 'auto-cols-[1fr]', 'w-full']) expect(list.classList.contains(name)).toBe(true);
   for (const item of within(list).getAllByRole('tab')) {
-    for (const name of ['whitespace-normal', 'wrap-break-word', 'text-start']) expect(item.classList.contains(name)).toBe(true);
+    for (const name of ['whitespace-nowrap', 'justify-center']) expect(item.classList.contains(name)).toBe(true);
   }
 });
 

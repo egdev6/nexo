@@ -120,7 +120,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-author`}>{tr('settings.author')}</Heading></PanelHeader>
         <PanelBody><div>
       <p className="settings__author-name">{tr('settings.authorName')}</p>
-      <SocialLinks label={tr('settings.authorLinks')} caption={null} inline gap={2} variant="ghost" size="md" onClick={open} items={[
+      <SocialLinks label={tr('settings.authorLinks')} caption={null} inline gap={2} variant="outline" size="md" onClick={open} items={[
         { id: 'youtube', href: 'https://www.youtube.com/@egdev6', label: tr('app.youtube'), icon: <Icon name="youtube" /> },
         { id: 'twitch', href: 'https://twitch.tv/egdev6', label: tr('settings.twitch'), icon: <Icon name="twitch" /> },
         { id: 'x', href: 'https://x.com/egdev66', label: tr('settings.x'), icon: <Icon name="x" /> },
@@ -141,7 +141,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-right" className="settings__back-icon" />} variant="secondary" onClick={onClose} />
       } />
     </div>
-    <Tabs className="settings__tabs" variant="segmented" fullWidth labelWrap label={tr('settings.sections')} items={[
+    <Tabs className="settings__tabs" variant="outline" fullWidth label={tr('settings.sections')} items={[
       { value: 'general', label: tr('settings.general'), content: general },
       { value: 'appearance', label: tr('settings.appearance'), content: appearance },
       { value: 'local-apps', label: tr('localApps.heading'), content: localApps },

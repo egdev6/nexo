@@ -28,14 +28,11 @@
 
   --gradient-btn-secondary: linear-gradient(180deg, color-mix(in srgb, var(--hub-accent) 20%, transparent) 0%, color-mix(in srgb, var(--hub-accent) 8%, transparent) 100%);
   --gradient-btn-secondary-hover: linear-gradient(180deg, var(--color-alpha-red-30) 0%, color-mix(in srgb, var(--hub-accent) 13%, transparent) 100%);
-  --gradient-chip-active: linear-gradient(180deg, color-mix(in srgb, var(--hub-accent) 24%, transparent), color-mix(in srgb, var(--hub-accent) 9%, transparent));
   --gradient-post-new: linear-gradient(180deg, color-mix(in srgb, var(--hub-accent) 11%, transparent), color-mix(in srgb, var(--hub-accent) 3%, transparent) 60%);
   --gradient-progress: linear-gradient(180deg, var(--color-primitive-red-light), var(--color-primitive-red-neon) 60%, var(--color-primitive-red-dark));
   --gradient-section-show: radial-gradient(45% 55% at 22% 50%, var(--color-alpha-red-12), transparent 70%);
   --gradient-hot: radial-gradient(120% 80% at 85% -10%, color-mix(in srgb, var(--hub-accent) 26%, transparent), transparent 55%), linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 40%), color-mix(in srgb, var(--hub-accent) 5%, #1b1c20);
 
-  --shadow-glow-base: 0 4px 20px 0 var(--color-alpha-red-15);
-  --shadow-glow-active: 0 8px 30px 0 var(--color-alpha-red-30);
   --shadow-glow-intense: 0 0 22px 4px var(--color-alpha-red-65), 0 0 55px 8px color-mix(in srgb, var(--hub-accent) 28%, transparent);
   --shadow-cta-hover: 0 0 16px 4px color-mix(in srgb, var(--hub-accent) 35%, transparent), 0 0 45px 10px var(--color-alpha-red-15), inset 0 0 16px 0 color-mix(in srgb, var(--hub-accent) 8%, transparent);
   --shadow-card: 0 0 0 1px var(--color-alpha-red-12), 0 8px 40px 0 var(--color-alpha-red-12), inset 0 0 16px 0 color-mix(in srgb, var(--hub-accent) 8%, transparent);

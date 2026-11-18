@@ -112,6 +112,7 @@ it('opens only present social links through the native policy for official and s
   expect(social.classList.contains('gap-2')).toBe(true);
   expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
   expect(social.parentElement?.classList.contains('detail-social')).toBe(false);
+  for (const link of within(social).getAllByRole('link')) expect(link.classList.contains('border-border-hairline-strong')).toBe(false);
   expect(pizarra.querySelector('p')!.compareDocumentPosition(social) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(social.compareDocumentPosition(pizarra.querySelector('.catalog-actions')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(fireEvent.click(within(social).getByRole('link', { name: /GitHub/i }))).toBe(false);

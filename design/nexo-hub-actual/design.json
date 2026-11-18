@@ -8,7 +8,7 @@
     { "file": "03-novedades.html", "title": "Novedades", "tradeoff": "Modal y carrusel actuales con tres novedades; la captura no ejecuta la navegación React.", "width": 786, "height": 1080 },
     { "file": "04a-ajustes-general.html", "title": "Ajustes · General", "tradeoff": "Idioma, inicio con Windows y novedades; controles estáticos.", "width": 786, "height": 1080 },
     { "file": "04b-ajustes-apariencia.html", "title": "Ajustes · Apariencia", "tradeoff": "Acento y controles reales de opacidad y desenfoque; sin persistencia.", "width": 786, "height": 1080 },
-    { "file": "04c-ajustes-fuentes-del-catalogo.html", "title": "Ajustes · Fuentes del catálogo", "tradeoff": "Gestión de apps locales y fuentes, incluida una fuente con error; puede requerir desplazamiento.", "width": 786, "height": 1080 },
+    { "file": "04c-ajustes-apps-locales.html", "title": "Ajustes · Apps locales", "tradeoff": "Gestión de apps locales, incluida una con el ejecutable ausente; puede requerir desplazamiento.", "width": 786, "height": 1080 },
     { "file": "04d-ajustes-acerca-de.html", "title": "Ajustes · Acerca de", "tradeoff": "Versión y búsqueda de actualizaciones en su estado actual.", "width": 786, "height": 1080 },
     { "file": "05-primer-uso.html", "title": "Primer uso", "tradeoff": "Selección bilingüe real en su estado inicial; controles no conectados al sistema.", "width": 786, "height": 1080 },
     { "file": "06-anadir-app.html", "title": "Añadir app local", "tradeoff": "Formulario centrado con ruta, nombre e icono personalizables; la vista no puede validar rutas locales ni guardar en Nexo.", "width": 786, "height": 1080 }

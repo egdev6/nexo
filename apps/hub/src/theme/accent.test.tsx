@@ -18,8 +18,8 @@ const appTokens = [
   ...['07', '10', '12', '15', '18', '22', '30', '45', '65'].map(n => `--color-alpha-red-${n}`),
   '--logo-red', '--logo-red-shade', '--color-bg-deep', '--color-bg-flood', '--color-fg-on-flood', '--color-bg-brand-subtle', '--color-bg-brand-hover',
   '--color-action-primary-bg-default', '--color-action-primary-bg-hover',
-  '--gradient-btn-secondary', '--gradient-btn-secondary-hover', '--gradient-chip-active', '--gradient-post-new', '--gradient-progress', '--gradient-section-show', '--gradient-hot',
-  '--shadow-glow-base', '--shadow-glow-active', '--shadow-glow-intense', '--shadow-cta-hover', '--shadow-card', '--shadow-glow-hot', '--shadow-ring-brand', '--shadow-hot', '--text-shadow-title-hero',
+  '--gradient-btn-secondary', '--gradient-btn-secondary-hover', '--gradient-post-new', '--gradient-progress', '--gradient-section-show', '--gradient-hot',
+  '--shadow-glow-intense', '--shadow-cta-hover', '--shadow-card', '--shadow-glow-hot', '--shadow-ring-brand', '--shadow-hot', '--text-shadow-title-hero',
 ];
 
 function declarations(source: string, selector: string) {

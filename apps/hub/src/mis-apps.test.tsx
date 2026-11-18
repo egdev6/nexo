@@ -135,6 +135,7 @@ it('shows version links, badge-first update, social links and plugin close in de
   expect(social.classList.contains('gap-2')).toBe(true);
   expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
   expect(social.parentElement?.classList.contains('detail-social')).toBe(true);
+  for (const link of within(social).getAllByRole('link')) expect(link.classList.contains('border-border-hairline-strong')).toBe(true);
   expect(css).not.toContain('.detail-inner .eg-social');
   expect(css).not.toContain('.eg-social__list');
   expect(details.getByText(/Versión instalada:/)).toBeTruthy();

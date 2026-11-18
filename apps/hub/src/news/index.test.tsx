@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
+// @ts-ignore The browser tsconfig excludes Node types; Vitest runs in Node.
+import { readFileSync } from 'node:fs';
+// @ts-ignore The browser tsconfig excludes Node types; Vitest runs in Node.
+import { cwd } from 'node:process';
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createAccentTheme } from '@egdev/tokens/accent';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../model';
 import { LocaleProvider } from '../i18n/use-locale';
@@ -80,6 +84,30 @@ it('uses DS initial focus and traps focus, then restores the previous focus', as
   expect(trigger.hasAttribute('aria-hidden')).toBe(false);
   expect(screen.getByText('Contenido ya inerte').hasAttribute('inert')).toBe(true);
   await waitFor(() => expect(document.activeElement).toBe(trigger));
+});
+
+it('hides the focus ring on the automatic entry focus until the keyboard is used or focus leaves', () => {
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
+  const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
+  expect(document.activeElement).toBe(region);
+  expect(region.hasAttribute('data-entry-focus')).toBe(true);
+  fireEvent.keyDown(region, { key: 'ArrowRight' });
+  expect(region.hasAttribute('data-entry-focus')).toBe(false);
+  const css = readFileSync(`${cwd()}/src/news/news.css`, 'utf8') as string;
+  expect(css).toContain(".news-carousel [role='region']:focus-visible:not([data-entry-focus])");
+});
+
+it('drops the entry-focus marker when focus leaves the carousel', () => {
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
+  const dialog = screen.getByRole('dialog', { name: 'Novedades' });
+  const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
+  act(() => within(dialog).getByRole('button', { name: 'Cerrar novedades' }).focus());
+  expect(region.hasAttribute('data-entry-focus')).toBe(false);
+  act(() => region.focus());
+  expect(region.hasAttribute('data-entry-focus')).toBe(false);
 });
 
 it('closes with Escape without propagating it and reopens on the latest item', async () => {

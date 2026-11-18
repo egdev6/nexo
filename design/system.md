@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system 846c0d6; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system e712915; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -20,9 +20,9 @@ See Typography roles for source-derived font families and sizes; display heading
 Schema: 1.0.0 (schemaVersion)
 | Package | Version | Source |
 | --- | --- | --- |
-| @egdev/effects | 0.2.0 | packages[] · packages/effects/package.json |
-| @egdev/tokens | 0.4.0 | packages[] · packages/tokens/package.json |
-| @egdev/ui | 0.2.0 | packages[] · packages/ui/package.json |
+| @egdev/effects | 0.2.1 | packages[] · packages/effects/package.json |
+| @egdev/tokens | 0.5.0 | packages[] · packages/tokens/package.json |
+| @egdev/ui | 0.3.1 | packages[] · packages/ui/package.json |
 Re-run: `pnpm exec egdev-system-md --write`
 
 ## Typography roles
@@ -311,6 +311,7 @@ Representative source recipes, not a computed cascade; unresolved means no token
 | --gradient-progress | linear-gradient(180deg, #FF4A6E, #FF0036 60%, #D9002D) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-section-show | radial-gradient(45% 55% at 22% 50%, var(--color-alpha-red-12), transparent 70%) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-sheen | linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 42%) | root | Elevated surface | tokens[] · packages/tokens/src/theme.css |
+| --gradient-spectrum | conic-gradient(#FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-state-selected | var(--gradient-btn-primary) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --gradient-vignette | radial-gradient(ellipse 120% 90% at 50% 45%, transparent 35%, rgba(0, 0, 0, 0.55) 75%, rgba(0, 0, 0, 0.92) 100%) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --blur-glass | 16px | theme |  | tokens[] · packages/tokens/src/theme.css |
@@ -1015,24 +1016,21 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Collapsible
 catalog[] · docs/catalog.json · @egdev/ui · molecule · RadioGroup
 - ColorSwatchGroup (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - customFrame base: gap-2 → --spacing-2
-    - customFrame base: px-2 → --spacing-2
-    - customInput base: focus-visible:shadow-focus → --shadow-focus
-    - customLabel base: text-label-default → --text-label-default
-    - group base: gap-2 → --spacing-2
-    - indicator base: rounded-full → --radius-full
-    - item base: gap-2 → --spacing-2
-    - item base: px-2 → --spacing-2
-    - item base: py-1 → --spacing-1
-    - item base: text-start → unresolved
-    - item base: text-label-default → --text-label-default
-    - item base: focus-visible:shadow-focus → --shadow-focus
+    - badge base: rounded-full → --radius-full
+    - customFrame base: rounded-full → --radius-full
+    - customInput base: rounded-full → --radius-full
+    - group base: gap-3 → --spacing-3
+    - item base: rounded-full → --radius-full
+    - item base: p-0 → --spacing-0
     - legend base: text-label-default → --text-label-default
     - output base: text-label-default → --text-label-default
+    - patch base: rounded-full → --radius-full
+    - ring base: rounded-full → --radius-full
     - root base: p-0 → --spacing-0
     - root base: font-sans → --font-sans
-    - surfaceVariants({ tone: 'surface-1', elevation: 1, radius: 'md', padding: 'none' }) · packages/ui/src/molecules/color-swatch-group/useColorSwatchGroup.ts; see Surface anatomy
-  - customLabel: string; Localized visible name for the separate native picker; absent or blank omits it. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
+    - row base: gap-3 → --spacing-3
+    - spectrum base: rounded-full → --radius-full
+  - customLabel: string; Localized accessible name for the separate native picker, visually hidden in the spectrum control; absent or blank omits it. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
   - label: string; Nonblank localized visible legend, radio-group name and current-value prefix. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
   - onValueChange: (value: string) => void; Requests a user-driven color change without normalizing or persisting it. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
   - options: ColorSwatchGroupOption[]; Ordered named presets. Invalid colors, blank labels and later case-insensitive duplicates are skipped. (components[] · packages/ui/src/molecules/color-swatch-group/types.ts)
@@ -1117,6 +1115,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Dialog
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
+    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
@@ -1695,8 +1694,10 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Tabs
     - tabsListVariants variant=underline: gap-1 → --spacing-1
     - tabsListVariants variant=segmented: gap-0.5 → --spacing
     - tabsListVariants variant=segmented: p-0.75 → --spacing
-    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: p-1.5 → --spacing
-    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
+    - tabsListVariants variant=outline: gap-0.5 → --spacing
+    - tabsListVariants variant=outline: p-0.75 → --spacing
+    - tabsListVariants {"variant":"['segmented', 'outline']","fullWidth":"true"}: p-1.5 → --spacing
+    - tabsListVariants {"variant":"['segmented', 'outline']","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
     - tabsPanelVariants base: pt-4 → --spacing-4
     - tabsTriggerVariants base: gap-2 → --spacing-2
     - tabsTriggerVariants base: font-sans → --font-sans
@@ -1709,21 +1710,26 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Tabs
     - tabsTriggerVariants variant=segmented: data-[state=active]:before:rounded-[inherit] → unresolved
     - tabsTriggerVariants variant=segmented: focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
+    - tabsTriggerVariants variant=outline: px-3 → --spacing-3
+    - tabsTriggerVariants variant=outline: rounded-[calc(var(--radius-md)---spacing(0.75))] → --radius-md, --spacing
+    - tabsTriggerVariants variant=outline: data-[state=active]:shadow-[var(--shadow-edge-strong)] → --shadow-edge-strong
+    - tabsTriggerVariants variant=outline: focus-visible:shadow-focus → --shadow-focus
+    - tabsTriggerVariants variant=outline: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
     - tabsTriggerVariants {"variant":"underline","size":"sm"}: px-2 → --spacing-2
-    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: text-start → unresolved
-    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: py-1 → --spacing-1
+    - tabsTriggerVariants {"variant":"['segmented', 'outline']","labelWrap":"true"}: text-start → unresolved
+    - tabsTriggerVariants {"variant":"['segmented', 'outline']","labelWrap":"true"}: py-1 → --spacing-1
     - tabsVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/tabs/useTabs.ts; see Surface anatomy
   - defaultValue: string; Initial uncontrolled selection; when absent, selects the first enabled item. (components[] · packages/ui/src/molecules/tabs/types.ts)
-  - fullWidth: boolean; Fill the available width with equal segmented tabs when they fit; overflowing tabs may be unequal. Has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - fullWidth: boolean; Fill the available width with equal segmented or outline tabs when they fit; overflowing tabs may be unequal. Has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - items: TabsItem[]; Ordered views: unique, non-empty values and at least one enabled item are required. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - label: string; Accessible name of the tablist. (components[] · packages/ui/src/molecules/tabs/types.ts)
-  - labelWrap: boolean; Wrap and start-align segmented labels, including long words; has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - labelWrap: boolean; Wrap and start-align segmented or outline labels, including long words; has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - onValueChange: ((value: string) => void); Notifies a user-driven selection change; incoming prop updates do not emit it. (components[] · packages/ui/src/molecules/tabs/types.ts)
-  - size: enum; Underline height and horizontal padding only; segmented always uses its single height. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - size: enum; Underline height and horizontal padding only; segmented and outline always use their single height. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - value: string; Controlled selection. When absent, Radix manages selection internally. (components[] · packages/ui/src/molecules/tabs/types.ts)
-  - variant: enum; Underline row or recessed segmented well. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - variant: enum; Underline row, recessed segmented well, or outline well whose selected tab shows an accent border and chip sheen over surface-1. (components[] · packages/ui/src/molecules/tabs/types.ts)
 ### TerminalCard
 catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 - TerminalCard (components[] · packages/ui/src/molecules/terminal-card/types.ts)
@@ -2148,15 +2154,15 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · Slot + VisuallyHidden
     - linkVariants base: text-label-default → --text-label-default
     - linkVariants base: focus-visible:[box-shadow:var(--shadow-focus)] → --shadow-focus
     - linkVariants base: focus-visible:rounded-sm → --radius-sm
-    - linkVariants variant=plain: pb-0 → --spacing-0
-    - linkVariants variant=underlined: pb-0.5 → --spacing
+    - linkVariants variant=plain: plainLinkRecipe → unresolved
+    - linkVariants variant=underlined: plainLinkRecipe → unresolved
   - arrow: boolean; Show the trailing decorative right arrow, independent of external. (components[] · packages/ui/src/atoms/link/types.ts)
   - asChild: boolean; Use the native anchor; href supplies its destination. Render onto one prop-spreading, ref-forwarding anchor child through Radix Slot. The child owns href and must preserve anchor navigation semantics. (components[] · packages/ui/src/atoms/link/types.ts)
   - children: ReactNode; Descriptive visible link text; exactly one anchor element when asChild is true. (components[] · packages/ui/src/atoms/link/types.ts)
   - external: boolean; Open in a new tab with safe rel tokens and a hidden notice; the arrow still points right. (components[] · packages/ui/src/atoms/link/types.ts)
   - href: string; Native destination, required unless asChild is true. Not available with asChild: the child supplies its destination. (components[] · packages/ui/src/atoms/link/types.ts)
   - newTabText: string; Localized screen-reader notice appended only when external is true. (components[] · packages/ui/src/atoms/link/types.ts)
-  - variant: enum; Appearance axis: plain keeps the borderless brand-coloured text; underlined adds the 1px brand hairline under the label, which turns neon on hover. Paint only; it never implies interactivity. (components[] · packages/ui/src/atoms/link/types.ts)
+  - variant: enum; Appearance axis. plain is the only treatment: link-coloured text with a text underline at rest that is removed on hover, where the arrow still moves and the colour stays. `underlined` is deprecated: it is an alias that renders exactly like plain, kept so existing consumers do not break, and it will be removed in a later major. Omit the prop instead of requesting underlined. (components[] · packages/ui/src/atoms/link/types.ts)
 ### Logo
 catalog[] · docs/catalog.json · @egdev/ui · atom · —
 - Logo (components[] · packages/ui/src/atoms/logo/types.ts)
@@ -2509,7 +2515,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/atoms/search-trigger/useSearchTrigger.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'none' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
-    - surfaceVariants({ tone: 'surface-1', elevation: 1, radius: 'md', padding: 'none' }) · packages/ui/src/molecules/color-swatch-group/useColorSwatchGroup.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
@@ -2816,6 +2821,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
+    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
@@ -2834,6 +2840,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
+    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
@@ -2852,6 +2859,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - dialogHeadVariants base: py-[var(--space-4)] → --space-4
     - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
     - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
+    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
     - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
     - dialogOverlayLayout flush=true: p-0 → --spacing-0
     - dialogStatusVariants base: text-label-default → --text-label-default
@@ -3797,7 +3805,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/atoms/search-trigger/useSearchTrigger.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'none' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
-    - surfaceVariants({ tone: 'surface-1', elevation: 1, radius: 'md', padding: 'none' }) · packages/ui/src/molecules/color-swatch-group/useColorSwatchGroup.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
@@ -4320,8 +4327,10 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - tabsListVariants variant=underline: gap-1 → --spacing-1
     - tabsListVariants variant=segmented: gap-0.5 → --spacing
     - tabsListVariants variant=segmented: p-0.75 → --spacing
-    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: p-1.5 → --spacing
-    - tabsListVariants {"variant":"segmented","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
+    - tabsListVariants variant=outline: gap-0.5 → --spacing
+    - tabsListVariants variant=outline: p-0.75 → --spacing
+    - tabsListVariants {"variant":"['segmented', 'outline']","fullWidth":"true"}: p-1.5 → --spacing
+    - tabsListVariants {"variant":"['segmented', 'outline']","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
     - tabsPanelVariants base: pt-4 → --spacing-4
     - tabsTriggerVariants base: gap-2 → --spacing-2
     - tabsTriggerVariants base: font-sans → --font-sans
@@ -4334,10 +4343,15 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - tabsTriggerVariants variant=segmented: data-[state=active]:before:rounded-[inherit] → unresolved
     - tabsTriggerVariants variant=segmented: focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
+    - tabsTriggerVariants variant=outline: px-3 → --spacing-3
+    - tabsTriggerVariants variant=outline: rounded-[calc(var(--radius-md)---spacing(0.75))] → --radius-md, --spacing
+    - tabsTriggerVariants variant=outline: data-[state=active]:shadow-[var(--shadow-edge-strong)] → --shadow-edge-strong
+    - tabsTriggerVariants variant=outline: focus-visible:shadow-focus → --shadow-focus
+    - tabsTriggerVariants variant=outline: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
     - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
     - tabsTriggerVariants {"variant":"underline","size":"sm"}: px-2 → --spacing-2
-    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: text-start → unresolved
-    - tabsTriggerVariants {"variant":"segmented","labelWrap":"true"}: py-1 → --spacing-1
+    - tabsTriggerVariants {"variant":"['segmented', 'outline']","labelWrap":"true"}: text-start → unresolved
+    - tabsTriggerVariants {"variant":"['segmented', 'outline']","labelWrap":"true"}: py-1 → --spacing-1
     - tabsVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/tabs/useTabs.ts; see Surface anatomy
 ### tooltipVariants
