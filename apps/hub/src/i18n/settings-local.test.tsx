@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { Button } from '@egdev/ui';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import ts from 'typescript';
 import localManagement from '../settings/local-management.tsx?raw';
@@ -186,6 +187,11 @@ it.each([
 ] as const)('confirms deletion and preserves the app on cancel (%s)', async (locale, triggerLabel, title, description, cancelLabel, removeLabel) => {
   setup(locale); await screen.findByText('Editor');
   const trigger = screen.getByRole('button', { name: triggerLabel });
+  const reference = render(<Button variant="secondary" size="sm" type="button">reference</Button>).container.querySelector('button')!;
+  expect(trigger.className).toBe(reference.className);
+  const rename = screen.getByRole('button', { name: locale === 'es' ? 'Renombrar Editor' : 'Rename Editor' });
+  const neutral = render(<Button variant="neutral" size="sm" type="button">reference</Button>).container.querySelector('button')!;
+  expect(rename.className).toBe(neutral.className);
   fireEvent.click(trigger);
   let dialog = await screen.findByRole('alertdialog', { name: title });
   expect(document.getElementById(dialog.getAttribute('aria-describedby')!)?.textContent).toBe(description);

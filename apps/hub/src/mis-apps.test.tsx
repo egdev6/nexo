@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { Icon, IconButton } from '@egdev/ui';
+import { Button, Icon, IconButton, Link } from '@egdev/ui';
 import postcss from 'postcss';
 // @ts-ignore The browser tsconfig excludes Node types; Vitest runs in Node.
 import { readFileSync } from 'node:fs';
@@ -135,15 +135,25 @@ it('shows version links, badge-first update, social links and plugin close in de
   expect(social.classList.contains('gap-2')).toBe(true);
   expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
   expect(social.parentElement?.classList.contains('detail-social')).toBe(true);
-  for (const link of within(social).getAllByRole('link')) expect(link.classList.contains('border-border-hairline-strong')).toBe(true);
+  for (const link of within(social).getAllByRole('link')) {
+    expect(link.classList.contains('border-border-hairline-strong')).toBe(true);
+    const icon = link.querySelector('svg');
+    expect(icon?.getAttribute('color')).toBe('var(--color-fg-brand-default)');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.classList.contains('stroke-current')).toBe(true);
+  }
   expect(css).not.toContain('.detail-inner .eg-social');
   expect(css).not.toContain('.eg-social__list');
   expect(details.getByText(/Versión instalada:/)).toBeTruthy();
   const installedLink = details.getByRole('link', { name: '1.0.0' });
   expect(installedLink.classList.contains('eg-link')).toBe(true);
   expect(installedLink.getAttribute('href')).toBe('https://github.com/egdev6/official/releases/tag/v1.0.0');
+  const reference = render(<Link href="https://example.com">reference</Link>).container.querySelector('svg')!;
+  expect(reference.getAttribute('aria-hidden')).toBe('true');
+  expect(installedLink.querySelector('svg')?.isEqualNode(reference)).toBe(true);
   const next = details.getByRole('link', { name: '2.0.0' });
   expect(next.getAttribute('href')).toBe('https://github.com/egdev6/official/releases/tag/v2.0.0');
+  expect(next.querySelector('svg')?.isEqualNode(reference)).toBe(true);
   expect(next.parentElement?.textContent).toMatch(/Nueva versión\s*2\.0\.0/);
   fireEvent.click(installedLink); await waitFor(() => expect(native.invoke).toHaveBeenCalledWith('open_external', { url: 'https://github.com/egdev6/official/releases/tag/v1.0.0' }));
   fireEvent.click(details.getByRole('link', { name: /GitHub/i }));
@@ -282,6 +292,29 @@ it('keeps reduced motion while removing the custom row positioning and disclosur
   expect(css).not.toMatch(/\.app-card\s*>\s*\.eg-collapsible__content/);
   expect(css).toMatch(/prefers-reduced-motion:\s*reduce/);
   expect(css).toMatch(/animation:\s*none\s*!important/);
+});
+
+it('wraps reported menu actions in a full-width growing DS cluster', async () => {
+  await show();
+  const labels = ['Abrir el panel', 'Abrir el prompter', 'Abrir el dock', 'Abrir en el navegador', 'Unaetiquetamuylargaparacomprobareldesbordamiento'];
+  act(() => native.publish!({ revision: 2, apps: [{ app: { id: 'plugin', name: 'Plugin', version: '9.0.0' }, capabilities: ['show', 'menu'], unified: true, responsive: true, generation: 3, menu_revision: 4, menu: labels.map((label, index) => ({ id: `action-${index}`, label, enabled: true })) }] }));
+  fireEvent.click(toggle('Plugin'));
+  const buttons = labels.map(name => card('Plugin').getByRole('button', { name }));
+  const list = buttons[0].closest('ul')!;
+  for (const name of ['eg-cluster', 'flex', 'flex-wrap', 'gap-1']) expect(list.classList.contains(name)).toBe(true);
+  expect(Array.from(list.children)).toHaveLength(labels.length);
+  const reference = render(<Button type="button" size="sm" variant="neutral" labelWrap>reference</Button>).container.querySelector('button')!;
+  for (const button of buttons) {
+    expect(button.parentElement?.parentElement).toBe(list);
+    expect(button.classList.contains('registry-menu__action')).toBe(true);
+    for (const className of reference.classList) expect(button.classList.contains(className)).toBe(true);
+  }
+  const declarations = (selector: string) => {
+    const rule = postcss.parse(css).nodes.find(node => node.type === 'rule' && node.selector === selector);
+    return Object.fromEntries(rule?.type === 'rule' ? rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]) : []);
+  };
+  expect(declarations('.registry-menu > li')).toMatchObject({ flex: '1 1 auto', 'min-width': '0', 'max-width': '100%' });
+  expect(declarations('.registry-menu__action').width).toBe('100%');
 });
 
 it('runs a reported menu item through the hub, keeps disabled items inert and reports failures', async () => {

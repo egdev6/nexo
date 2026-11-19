@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import postcss from 'postcss';
 // @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
 import { readFileSync } from 'node:fs';
 import { FirstRun } from '../first-run';
@@ -100,6 +101,28 @@ it('exposes each settings region, heading and controls in a banded panel', async
   }
 });
 
+it('stacks appearance options in a token-spaced flex wrapper without changing their order', () => {
+  settings(); select('Apariencia');
+  const region = screen.getByRole('region', { name: 'Apariencia' });
+  const options = within(region).getByRole('radiogroup', { name: 'Color de acento' }).closest('.settings__options');
+  expect(options?.tagName).toBe('DIV');
+  const controls = [
+    within(region).getByRole('radiogroup', { name: 'Color de acento' }),
+    within(region).getByRole('group', { name: 'Tonos derivados' }),
+    within(region).getByRole('button', { name: 'Restablecer rojo egdev' }),
+    within(region).getByRole('slider', { name: 'Opacidad del fondo' }),
+    within(region).getByRole('slider', { name: 'Desenfoque del fondo' }),
+    within(region).getByRole('img', { name: 'Vista previa de apariencia' }),
+    within(region).getByRole('switch', { name: 'Interfaz compacta' }),
+  ];
+  for (const control of controls) expect(options?.contains(control)).toBe(true);
+  controls.slice(1).forEach((control, index) => expect(controls[index].compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy());
+  const css = postcss.parse(readFileSync('src/settings/settings.css', 'utf8') as string);
+  const rule = css.nodes.find(node => node.type === 'rule' && node.selector === '.settings__options');
+  const declarations = Object.fromEntries(rule?.type === 'rule' ? rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]) : []);
+  expect(declarations).toMatchObject({ display: 'flex', 'flex-direction': 'column', gap: 'var(--space-2)' });
+});
+
 it.each([['es', 'Acerca de', 'Autor'], ['en', 'About', 'Author']] as const)('opens all author profiles through the native policy (%s)', async (locale, about, author) => {
   settings(locale); select(about);
   const card = screen.getByRole('region', { name: author });
@@ -112,6 +135,10 @@ it.each([['es', 'Acerca de', 'Autor'], ['en', 'About', 'Author']] as const)('ope
   for (const [name, url] of profiles) {
     const link = within(card).getByRole('link', { name: new RegExp(name, 'i') });
     expect(link.getAttribute('href')).toBe(url);
+    const icon = link.querySelector('svg');
+    expect(icon?.getAttribute('color')).toBe('var(--color-fg-brand-default)');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.classList.contains('stroke-current')).toBe(true);
     expect(fireEvent.click(link)).toBe(false);
     await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('open_external', { url }));
   }

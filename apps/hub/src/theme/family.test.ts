@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { Link, Slider } from '@egdev/ui';
+import { createAccentTheme } from '@egdev/tokens/accent';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import postcss from 'postcss';
 import { createElement } from 'react';
@@ -70,15 +71,18 @@ it('keeps the slider track contrast on the DS boundary role and lets the DS pain
   });
 });
 
-it('keeps the existing link colour through the DS hover role', () => {
-  render(createElement('main', { className: 'flyout' }, createElement(Link, { href: '/catalog', children: 'Catalog', arrow: false })));
+it('lets DS links use the primary default and custom accent roles without an anchor override', () => {
+  render(createElement('main', { className: 'flyout' }, createElement(Link, { href: '/catalog', children: 'Catalog' })));
   const link = screen.getByRole('link', { name: 'Catalog' });
   expect(link.getAttribute('href')).toBe('/catalog');
   expect(link.classList.contains('text-link-default')).toBe(true);
-  // DS 0.3.1 Link: underlined at rest, hover removes the underline instead of changing colour.
   for (const name of ['underline', 'hover:no-underline']) expect(link.classList.contains(name)).toBe(true);
-  expect(link.classList.contains('hover:text-link-hover')).toBe(false);
-  expect(paintFor(link)).toEqual([['color', 'var(--color-link-hover)']]);
+  expect(paintFor(link)).toEqual([]);
+  const defaults = createAccentTheme('#ff0036').variables;
+  expect(defaults['--color-link-default']).toBe('var(--color-fg-brand-raised)');
+  expect(defaults['--color-fg-brand-raised']).toBe('var(--color-primitive-red-neon)');
+  const custom = createAccentTheme('#123456').variables;
+  expect(custom['--color-link-default']).toBe(custom['--color-action-primary-solid-bg']);
 });
 
 it('preserves the application card, header and preview surfaces', () => {

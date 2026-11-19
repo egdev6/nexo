@@ -37,9 +37,8 @@
 }
 .preview-row { margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); }
 .news-header h2 { font-family: var(--font-display); font-weight: var(--text-display-hero--font-weight); text-transform: uppercase; }
-/* Preserve the established track and link contrast with shared semantic roles. */
+/* Preserve the established track contrast with the shared boundary role. */
 .flyout .eg-slider > span:first-child { background: var(--color-control-boundary); }
-.flyout a { color: var(--color-link-hover); }
 /* The settings preview uses the same surface and transparency as the flyout. */
 .settings__preview-panel { background: var(--color-surface-0); }
 @supports (backdrop-filter: blur(1px)) and (background: color-mix(in srgb, black 50%, transparent)) {

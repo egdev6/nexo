@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { AppIcon, Button, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
+import { AppIcon, Button, Cluster, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
 import { activateConnectedMenuItem, closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
@@ -103,9 +103,9 @@ function ConnectedRow({ app, official, onClose, onOpen, onMenuAction, busy, cata
       {onClose && (app.responsive && app.capabilities.includes('quit') ?
         <Button type="button" size="sm" variant="secondary" aria-label={t(locale, 'appControl.closeFor', { name: app.app.name })} disabled={busy} onClick={() => onClose(app.app.id)}>{t(locale, 'common.close')}</Button> :
         <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.closeUnavailable')}</Text>)}
-      {app.menu.length > 0 && <><Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedMenu')}</Text><ul className="registry-menu">
-        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}><Button type="button" size="sm" variant="neutral" disabled={!onMenuAction || !app.responsive || !item.enabled || !app.capabilities.includes('menu')} onClick={() => onMenuAction?.(app, item.id)}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</Button></li>)}
-      </ul></>}
+      {app.menu.length > 0 && <><Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedMenu')}</Text><Cluster asChild gap={1} alignItems="stretch"><ul className="registry-menu">
+        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}><Button className="registry-menu__action" type="button" size="sm" variant="neutral" labelWrap disabled={!onMenuAction || !app.responsive || !item.enabled || !app.capabilities.includes('menu')} onClick={() => onMenuAction?.(app, item.id)}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</Button></li>)}
+      </ul></Cluster></>}
     </div></CollapsibleContent>
   </Collapsible>;
 }

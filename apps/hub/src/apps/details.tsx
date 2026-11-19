@@ -26,8 +26,8 @@ export function useExternalLinks() {
 export function AppSocialLinks({ app, className, onClick, variant = 'ghost' }: { app?: HubApp; className?: string; onClick: MouseEventHandler<HTMLElement>; variant?: 'ghost' | 'outline' }) {
   const locale = useLocale();
   const items: SocialLinkItem[] = [];
-  if (app?.links?.github) items.push({ id: 'github', href: app.links.github, label: t(locale, 'app.github'), icon: <Icon name="github" /> });
-  if (app?.links?.youtube) items.push({ id: 'youtube', href: app.links.youtube, label: t(locale, 'app.youtube'), icon: <Icon name="youtube" /> });
+  if (app?.links?.github) items.push({ id: 'github', href: app.links.github, label: t(locale, 'app.github'), icon: <Icon name="github" color="var(--color-fg-brand-default)" /> });
+  if (app?.links?.youtube) items.push({ id: 'youtube', href: app.links.youtube, label: t(locale, 'app.youtube'), icon: <Icon name="youtube" color="var(--color-fg-brand-default)" /> });
   return items.length > 0 ? <SocialLinks className={className} items={items} label={t(locale, 'app.socialLinks')} caption={null} inline gap={2} variant={variant} size="md" onClick={onClick} /> : null;
 }
 
@@ -36,7 +36,7 @@ export function AppDetails({ app, version, newVersion, showInstalledVersion = tr
   const { open, failed } = useExternalLinks();
   const versionLink = (value: string) => {
     const href = releaseUrl(app?.links?.github, value);
-    return href ? <Link href={href} onClick={open} arrow={false}>{value}</Link> : <span>{value}</span>;
+    return href ? <Link href={href} onClick={open}>{value}</Link> : <span>{value}</span>;
   };
   return <>
     {showInstalledVersion && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}</Text>}

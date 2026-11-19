@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { Link } from '@egdev/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { HubApp, Language } from '../model';
 import { CatalogView, catalogBannerUrl } from './index';
@@ -112,7 +113,13 @@ it('opens only present social links through the native policy for official and s
   expect(social.classList.contains('gap-2')).toBe(true);
   expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
   expect(social.parentElement?.classList.contains('detail-social')).toBe(false);
-  for (const link of within(social).getAllByRole('link')) expect(link.classList.contains('border-border-hairline-strong')).toBe(false);
+  for (const link of within(social).getAllByRole('link')) {
+    expect(link.classList.contains('border-border-hairline-strong')).toBe(false);
+    const icon = link.querySelector('svg');
+    expect(icon?.getAttribute('color')).toBe('var(--color-fg-brand-default)');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.classList.contains('stroke-current')).toBe(true);
+  }
   expect(pizarra.querySelector('p')!.compareDocumentPosition(social) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(social.compareDocumentPosition(pizarra.querySelector('.catalog-actions')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(fireEvent.click(within(social).getByRole('link', { name: /GitHub/i }))).toBe(false);
@@ -227,6 +234,10 @@ it.each([
   expect(prompt.closest('.catalog-star')).toBeTruthy();
   const anchor = within(prompt.closest('.catalog-star') as HTMLElement).getByRole('link', { name: new RegExp(link) });
   expect(anchor.getAttribute('href')).toBe('https://github.com/egdev6');
+  expect(anchor.classList.contains('text-link-default')).toBe(true);
+  const arrow = render(<Link href="https://example.com">reference</Link>).container.querySelector('svg')!;
+  expect(arrow.getAttribute('aria-hidden')).toBe('true');
+  expect(anchor.querySelector('svg')?.isEqualNode(arrow)).toBe(true);
   fireEvent.click(anchor);
   await waitFor(() => expect(native.invoke).toHaveBeenCalledWith('open_external', { url: 'https://github.com/egdev6' }));
   expect(declarationsFor('.catalog-star').color).toBe('var(--color-fg-secondary)');

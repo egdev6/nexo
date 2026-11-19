@@ -114,7 +114,7 @@ export function LocalManagement({ accent = DEFAULT_ACCENT }: { accent?: string }
                 if (open) { setEditing(null); setConfirmation({ kind: 'app', id: appId }); }
                 else setConfirmation(null);
               }}>
-                <AlertDialogTrigger asChild><Button variant="neutral" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.removeFor', params)}>{t(locale, 'settingsLocal.remove')}</Button></AlertDialogTrigger>
+                <AlertDialogTrigger asChild><Button variant="secondary" size="sm" type="button" disabled={disabled} aria-label={t(locale, 'settingsLocal.removeFor', params)}>{t(locale, 'settingsLocal.remove')}</Button></AlertDialogTrigger>
                 <AlertDialogContent className="local-app-alert-dialog" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} tone="danger" title={t(locale, 'settingsLocal.confirmAppFor', params)} description={t(locale, 'settingsLocal.confirmApp')}
                   actions={<>
                     <span ref={themeRef} hidden />
