@@ -8,7 +8,7 @@ Accepted. Adapted from [egdev-website ADR 0007](https://github.com/egdev6/egdev-
 
 Nexo is a Tauri 2 desktop hub with a React and Vite frontend. The hub and its agents use the same versioned [EGDEV design system](https://github.com/egdev6/egdev-design-system), rather than maintaining a second token contract and general-purpose component set. App-specific composition remains Nexo's responsibility.
 
-The packages below are pinned to the tarballs from design-system commit `ba7a38e`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
+The packages below are pinned to the tarballs from design-system commit `fd25b9f`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
 
 | Package | Version | Role |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ The packages below are pinned to the tarballs from design-system commit `ba7a38e
 | `@egdev/ui` | `0.3.2` | Shared UI components. |
 | `@egdev/system` | `0.4.2` | Dev dependency supplying the generated agent reference. |
 | `@egdev/mcp` | `0.4.2` | Dev dependency supplying the agents' MCP server. |
-| `@egdev/cli` | `0.1.0` | Dev dependency supplying `egdev-ds` (upgrades and `npm run ds:doctor`). |
+| `@egdev/cli` | `0.1.1` | Dev dependency supplying `egdev-ds` (upgrades and `npm run ds:doctor`). |
 
 ## Rules
 
@@ -42,7 +42,7 @@ The CLI copies the tarballs as `egdev-<pkg>-<version>-<dscommit>.tgz` after chec
 
 The same `npm run ds:doctor` is the design-system guard, run in CI and by `scripts/check.sh`. It rejects raw `<button>`, `<input>`, `<a>` and `<label>` in non-test `.tsx` files under `apps/hub/src/` (except as the sole child of an `asChild` component), and `.eg-*` or `[role=tab]` selectors in CSS outside `apps/hub/src/theme/`. Exceptions go in `apps/hub/src/design-system-allowlist.ts`, each with an issue and a reason; doctor reports invalid or stale entries. It replaced the local `ds-vendor.mjs` script and `design-system-guard.ts` test.
 
-After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The current generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` hard-code the `ba7a38e` header; update both to the new commit in that reviewed bump before regenerating.
+After a real upgrade, restart the dev server with `--force` and regenerate `design/system.md` using the command in rule 4. The generator `apps/hub/scripts/sync-design-system-md.mjs` and MCP check `apps/hub/scripts/check-design-system-mcp.mjs` obtain the vendored commit from `egdev-ds status . --json` rather than hard-coding the header.
 
 ## Current overrides and migration
 

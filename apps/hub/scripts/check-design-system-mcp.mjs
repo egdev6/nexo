@@ -1,13 +1,35 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const header = '<!-- Generated from EGDEV design system ba7a38e; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->\n\n';
+const hub = fileURLToPath(new URL('../', import.meta.url));
+const cli = fileURLToPath(new URL('../node_modules/@egdev/cli/bin/egdev-ds.mjs', import.meta.url));
 const expectedTools = ['get_component', 'get_design_system_md', 'get_material_recipe', 'get_tokens', 'list_components'];
+
+export function getDesignSystemCommit() {
+  try {
+    const output = execFileSync(process.execPath, [cli, 'status', '.', '--json'], {
+      cwd: hub,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const { commit } = JSON.parse(output);
+    if (typeof commit !== 'string' || !/^[a-f0-9]{7}$/.test(commit)) {
+      throw new Error('status did not return a valid seven-character commit');
+    }
+    return commit;
+  } catch (error) {
+    const detail = error?.stderr?.toString().trim() || (error instanceof Error ? error.message : String(error));
+    throw new Error(`Unable to read design-system status: ${detail}`, { cause: error });
+  }
+}
 
 // Exercise the actual repository MCP configuration, not a separately configured server.
 export async function checkDesignSystemMcp() {
+  const header = `<!-- Generated from EGDEV design system ${getDesignSystemCommit()}; regenerate: \`node apps/hub/scripts/sync-design-system-md.mjs\` (from repository root). -->\n\n`;
   const config = JSON.parse(await readFile(new URL('../../../.mcp.json', import.meta.url), 'utf8'));
   const server = config.mcpServers['egdev-design-system'];
   assert.equal(server.command, 'node');
@@ -45,4 +67,8 @@ export async function checkDesignSystemMcp() {
   } finally {
     await client.close();
   }
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  await checkDesignSystemMcp();
 }
