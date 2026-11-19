@@ -67,7 +67,7 @@ export function CatalogView({ apps, state = 'ready', stale = false, reason, inst
   const unknown = available.some(app => app.statusKnown === false);
   return <section className="catalog-view" aria-label={t(locale, 'common.catalog')}>
     <div className="catalog-heading"><h2>{t(locale, 'common.officialCatalog')}</h2>{state !== 'loading' && (!failed || available.length > 0) && <span>{t(locale, unknown || !installationKnown ? 'catalog.countCatalog' : 'catalog.countUninstalled', { count: formatNumber(locale, available.length) })}</span>}</div>
-    <p className="catalog-star">{t(locale, 'catalog.starPrompt')} <Link href={AUTHOR_PROFILE} arrow={false} onClick={event => { event.preventDefault(); void openExternal(AUTHOR_PROFILE).catch(() => undefined); }}>{t(locale, 'catalog.starLink')}</Link> ⭐</p>
+    <p className="catalog-star">{t(locale, 'catalog.starPrompt')} <Link href={AUTHOR_PROFILE} onClick={event => { event.preventDefault(); void openExternal(AUTHOR_PROFILE).catch(() => undefined); }}>{t(locale, 'catalog.starLink')}</Link> ⭐</p>
     {state === 'loading' && <p role="status" className="catalog-empty">{t(locale, 'catalog.loading')}</p>}
     {failed && <Notice tone="danger" summary={`${t(locale, state === 'offline' ? 'catalog.offline' : reason === 'unconfigured' ? 'catalog.unconfigured' : 'catalog.error')} ${stale ? t(locale, 'catalog.stale') : ''}`}
       actions={onRetry && <Button type="button" size="sm" variant="neutral" onClick={onRetry}>{t(locale, 'common.retry')}</Button>} />}

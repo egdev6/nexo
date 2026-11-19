@@ -71,7 +71,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
     <section className="settings__group" aria-labelledby={`${id}-appearance`}>
       <Panel variant="banded" accentEdge="start">
         <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-appearance`}>{tr('settings.appearance')}</Heading></PanelHeader>
-        <PanelBody><div>
+        <PanelBody><div className="settings__options">
       <ColorSwatchGroup label={tr('settings.accent')}
         options={ACCENT_PRESETS.map((value, index) => ({ value, label: tr(colorNames[index]) }))}
         value={selected} onValueChange={color => update('accent', color)} customLabel={tr('settings.chooseAccent')} />
@@ -121,12 +121,12 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
         <PanelBody><div>
       <p className="settings__author-name">{tr('settings.authorName')}</p>
       <SocialLinks label={tr('settings.authorLinks')} caption={null} inline gap={2} variant="outline" size="md" onClick={open} items={[
-        { id: 'youtube', href: 'https://www.youtube.com/@egdev6', label: tr('app.youtube'), icon: <Icon name="youtube" /> },
-        { id: 'twitch', href: 'https://twitch.tv/egdev6', label: tr('settings.twitch'), icon: <Icon name="twitch" /> },
-        { id: 'x', href: 'https://x.com/egdev66', label: tr('settings.x'), icon: <Icon name="x" /> },
-        { id: 'linkedin', href: 'https://www.linkedin.com/in/egdev6/', label: tr('settings.linkedin'), icon: <Icon name="linkedin" /> },
-        { id: 'instagram', href: 'https://www.instagram.com/egdev6/', label: tr('settings.instagram'), icon: <Icon name="instagram" /> },
-        { id: 'github', href: 'https://github.com/egdev6', label: tr('app.github'), icon: <Icon name="github" /> },
+        { id: 'youtube', href: 'https://www.youtube.com/@egdev6', label: tr('app.youtube'), icon: <Icon name="youtube" color="var(--color-fg-brand-default)" /> },
+        { id: 'twitch', href: 'https://twitch.tv/egdev6', label: tr('settings.twitch'), icon: <Icon name="twitch" color="var(--color-fg-brand-default)" /> },
+        { id: 'x', href: 'https://x.com/egdev66', label: tr('settings.x'), icon: <Icon name="x" color="var(--color-fg-brand-default)" /> },
+        { id: 'linkedin', href: 'https://www.linkedin.com/in/egdev6/', label: tr('settings.linkedin'), icon: <Icon name="linkedin" color="var(--color-fg-brand-default)" /> },
+        { id: 'instagram', href: 'https://www.instagram.com/egdev6/', label: tr('settings.instagram'), icon: <Icon name="instagram" color="var(--color-fg-brand-default)" /> },
+        { id: 'github', href: 'https://github.com/egdev6', label: tr('app.github'), icon: <Icon name="github" color="var(--color-fg-brand-default)" /> },
       ]} />
       {failed && <Notice tone="danger" size="sm" summary={tr('app.externalError')} />}
         </div></PanelBody>
