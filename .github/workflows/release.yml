@@ -1,8 +1,8 @@
 # Manual release: builds the per-user NSIS installer for Windows (no Windows code signing) and creates a
 # DRAFT GitHub release with the .exe attached, marked as the latest release once published. It only runs by hand and only from main. It never publishes
 # and never creates tags: the v<version> tag is created when the maintainer publishes the reviewed draft.
-# No Tauri updater artifacts yet: Nexo does not update itself while the repository is private, because the
-# updater cannot download private release assets. Add them (key, secrets, latest.json) when Nexo goes public.
+# The installer is signed for the Tauri updater, with its .sig and latest.json attached to the draft.
+# Updates reach users only after the draft is published and the repository is public.
 name: Release
 
 on:
@@ -26,7 +26,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 90 # cold Rust + NSIS build, no cache
     permissions:
-      contents: write # only to create the draft release and upload the installer
+      contents: read
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -47,6 +47,18 @@ jobs:
       - name: Check the version, notes and installer settings
         shell: bash
         run: node apps/hub/scripts/release-check.mjs "$VERSION"
+      - name: Updater public key configured
+        shell: bash
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const text = fs.readFileSync('apps/hub/src-tauri/tauri.conf.json', 'utf8');
+          const key = JSON.parse(text).plugins?.updater?.pubkey;
+          if (text.includes('NEXO_UPDATER_PUBKEY_PLACEHOLDER') || typeof key !== 'string' || !key.trim()) {
+            console.log('::error::Configure a real plugins.updater.pubkey in apps/hub/src-tauri/tauri.conf.json.');
+            process.exit(1);
+          }
+          NODE
       - name: The release does not exist yet
         shell: bash
         env:
@@ -61,7 +73,9 @@ jobs:
         run: npm ci
       - name: Build the installer
         working-directory: apps/hub
-        run: npx tauri build --bundles nsis -- --locked
+        shell: bash
+        # Build hooks and Cargo never receive the signing key; sign the installer in a separate job.
+        run: npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked
       - name: Locate the installer
         id: exe
         shell: bash
@@ -70,11 +84,150 @@ jobs:
           exe="target/release/bundle/nsis/Nexo_${VERSION}_x64-setup.exe"
           test -s "$exe" || { echo "::error::Installer $exe not found."; exit 1; }
           echo "path=$exe" >> "$GITHUB_OUTPUT"
-      - name: Keep the installer
+      - name: Keep the unsigned installer and notes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nexo-windows-unsigned
+          path: |
+            ${{ steps.exe.outputs.path }}
+            docs/releases/v${{ inputs.version }}.md
+          if-no-files-found: error
+          retention-days: 14
+
+  sign-and-release:
+    name: Sign and prepare the release
+    needs: windows
+    runs-on: windows-2022
+    environment: PROD-release
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Updater signing secrets
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          missing=0
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "::error::Missing secret TAURI_SIGNING_PRIVATE_KEY in PROD-release."
+            missing=1
+          fi
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
+            echo "::error::Missing secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD in PROD-release."
+            missing=1
+          fi
+          [ "$missing" -eq 0 ] || exit 1
+      - name: Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: The release still does not exist
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release v$VERSION already exists (draft or published)."
+            exit 1
+          fi
+      - name: Download the unsigned installer and notes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nexo-windows-unsigned
+          path: ${{ runner.temp }}/nexo-unsigned
+      - name: Locate the installer for signing
+        id: exe
+        shell: bash
+        run: |
+          exe="target/release/bundle/nsis/Nexo_${VERSION}_x64-setup.exe"
+          notes="docs/releases/v${VERSION}.md"
+          mkdir -p "$(dirname "$exe")" "$(dirname "$notes")"
+          cp "$RUNNER_TEMP/nexo-unsigned/$exe" "$exe"
+          cp "$RUNNER_TEMP/nexo-unsigned/$notes" "$notes"
+          test -s "$exe" || { echo "::error::Installer $exe not found."; exit 1; }
+          echo "path=$exe" >> "$GITHUB_OUTPUT"
+      - name: Prepare verified signer
+        # Antena's pinned Tauri 2 CLI and SHA-512 digests; no repository code runs with signing secrets.
+        shell: bash
+        run: |
+          node --input-type=module - <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { mkdir, writeFile } from 'node:fs/promises';
+          import path from 'node:path';
+          const packages = [
+            ['cli.tgz', 'https://registry.npmjs.org/@tauri-apps/cli/-/cli-2.12.3.tgz', 'sha512-f7/LsY74SVb1ChmOPw1ajOpxii0GSzDAgmWHRci8JUYuuai04rXsSbFobpmB0sP2DdlvMD/B5ZotEn8GOGMRUg=='],
+            ['cli-win32-x64-msvc.tgz', 'https://registry.npmjs.org/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-2.12.3.tgz', 'sha512-L7wndWAgX2mLW7alswpL3d1R0P9FN2WYBgHaQkAYEBxHHGkY4vFX9CjcRQ1LAxDAMIJxrY7/aDziFJeChS84NQ=='],
+          ];
+          try {
+            const downloads = [];
+            for (const [file, url, expected] of packages) {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error(`Could not download ${file} (${response.status}).`);
+              const data = Buffer.from(await response.arrayBuffer());
+              const actual = 'sha512-' + createHash('sha512').update(data).digest('base64');
+              if (actual !== expected) throw new Error(`SHA-512 mismatch for ${file}.`);
+              downloads.push([file, data]);
+            }
+            const dir = path.join(process.env.RUNNER_TEMP, 'tauri-signer');
+            await mkdir(dir, { recursive: true });
+            for (const [file, data] of downloads) await writeFile(path.join(dir, file), data);
+            console.log('Tauri 2.12.3 signer verified.');
+          } catch (error) {
+            console.error(`Signer verification failed: ${error.message}`);
+            process.exitCode = 1;
+          }
+          NODE
+          # Git Bash tar treats a drive-letter archive path as remote; extract relative paths instead.
+          cd "$RUNNER_TEMP/tauri-signer"
+          mkdir -p node_modules/@tauri-apps/cli node_modules/@tauri-apps/cli-win32-x64-msvc
+          tar -xzf cli.tgz -C node_modules/@tauri-apps/cli --strip-components=1
+          tar -xzf cli-win32-x64-msvc.tgz -C node_modules/@tauri-apps/cli-win32-x64-msvc --strip-components=1
+      - name: Sign the installer
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          EXE: ${{ steps.exe.outputs.path }}
+        run: node "$RUNNER_TEMP/tauri-signer/node_modules/@tauri-apps/cli/tauri.js" signer sign --app-version "$VERSION" "$EXE"
+      - name: Check the updater signature
+        shell: bash
+        env:
+          EXE: ${{ steps.exe.outputs.path }}
+        run: |
+          test -s "$EXE.sig" || { echo "::error::Updater signature $EXE.sig was not generated."; exit 1; }
+      - name: Updater manifest (latest.json)
+        shell: bash
+        env:
+          EXE: ${{ steps.exe.outputs.path }}
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const { VERSION, EXE } = process.env;
+          const manifest = {
+            version: VERSION,
+            notes: fs.readFileSync(`docs/releases/v${VERSION}.md`, 'utf8').replace(/\r\n/g, '\n'),
+            pub_date: new Date().toISOString(),
+            platforms: {
+              'windows-x86_64': {
+                signature: fs.readFileSync(`${EXE}.sig`, 'utf8').trim(),
+                url: `https://github.com/egdev6/nexo/releases/download/v${VERSION}/Nexo_${VERSION}_x64-setup.exe`,
+              },
+            },
+          };
+          fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2) + '\n');
+          NODE
+      - name: Keep the installer and updater artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nexo-windows-installer
-          path: ${{ steps.exe.outputs.path }}
+          path: |
+            ${{ steps.exe.outputs.path }}
+            ${{ steps.exe.outputs.path }}.sig
+            latest.json
           if-no-files-found: error
           retention-days: 14
       - name: Draft release
@@ -83,4 +236,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EXE: ${{ steps.exe.outputs.path }}
         run: |
-          gh release create "v$VERSION" "$EXE" --draft --latest --target "$GITHUB_SHA" --title "Nexo $VERSION" --notes-file "docs/releases/v$VERSION.md" --repo "$GITHUB_REPOSITORY"
+          gh release create "v$VERSION" "$EXE" "$EXE.sig" latest.json --draft --latest --target "$GITHUB_SHA" --title "Nexo $VERSION" --notes-file "docs/releases/v$VERSION.md" --repo "$GITHUB_REPOSITORY"

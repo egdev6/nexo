@@ -41,6 +41,10 @@ See the [README](./README.md#scripts) for the individual frontend and Rust comma
 
 The Windows CI workflow is currently disabled while the repository is private; validate locally rather than relying on CI.
 
+### Release signing setup (maintainers)
+
+One time, generate a Tauri updater key pair from `apps/hub` with `npx tauri signer generate -w <path>`, choosing a private path outside the repository and a non-empty password. Keep the private key out of the repository. Create the GitHub Actions environment `PROD-release` and set its secrets `TAURI_SIGNING_PRIVATE_KEY` (the private key contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (its password). Put the generated public key in `apps/hub/src-tauri/tauri.conf.json` as `plugins.updater.pubkey`. Updates reach users only after the draft release is published and the repository is public.
+
 ### Design system
 
 Follow [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Use `@egdev/ui` for shared UI and `@egdev/tokens` for visual values; check `@egdev/mcp` for components before writing JSX. Do not add local duplicates of design-system tokens or components. Request missing capabilities upstream; any temporary workaround needs an issue-linked code comment and guard allowlist entry with a removal condition. Do not add `.eg-*` overrides outside `apps/hub/src/theme/`. Existing exceptions are migration debt, not permission for new overrides. Verify browser-dependent behavior in the actual Tauri WebView2.
@@ -93,6 +97,10 @@ Consultad el [README](./README.es.md#scripts) para los comandos individuales del
 4. Abrid una pull request enlazada a la issue. Completad la plantilla de PR, incluidos los comandos exactos, sus resultados observados, riesgos y tareas pendientes. Si habéis usado IA, describid su aportación y pedid a una persona que verifique el resultado.
 
 El workflow de CI de Windows está desactivado mientras el repositorio es privado; verificad los cambios localmente en lugar de depender de CI.
+
+### Configuración de firma de releases (mantenedores)
+
+Una sola vez, generad un par de claves del updater de Tauri desde `apps/hub` con `npx tauri signer generate -w <path>`, eligiendo una ruta privada fuera del repositorio y una contraseña no vacía. Mantened la clave privada fuera del repositorio. Cread el entorno de GitHub Actions `PROD-release` y configurad sus secretos `TAURI_SIGNING_PRIVATE_KEY` (el contenido de la clave privada) y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (su contraseña). Poned la clave pública generada en `apps/hub/src-tauri/tauri.conf.json` como `plugins.updater.pubkey`. Las actualizaciones solo llegan a los usuarios cuando se publica el borrador de la release y el repositorio es público.
 
 ### Design system
 
