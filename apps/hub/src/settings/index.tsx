@@ -69,7 +69,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
 
   const appearance = <>
     <section className="settings__group" aria-labelledby={`${id}-appearance`}>
-      <Panel variant="banded" accentEdge="start">
+      <Panel variant="banded">
         <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-appearance`}>{tr('settings.appearance')}</Heading></PanelHeader>
         <PanelBody><div className="settings__options">
       <ColorSwatchGroup label={tr('settings.accent')}
