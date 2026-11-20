@@ -20,7 +20,7 @@
 | T3 | S7 | maintainer: generate key pair, add secrets, give public key | blocked | |
 | T4 | S1, S5 | parent: pubkey in config, 0.2.0 bump, notes, docs (README limits, troubleshooting), close #79 | pending | |
 | T5 | all | verify (Risk: items 2, 5) | done: PASS WITH NOTES (S2-S4, S6, S7 met; Windows cfg code not compiled on Linux) | |
-| T7 | S4, S2 | worker (tests) + parent (fix, cargo sandbox denied to worker): fix T5 advisories (L7) | done: Linux 315 cargo tests + clippy, 586 vitest, tsc, ds:doctor; native Windows clippy -D warnings + 326 tests | (next commit) |
+| T7 | S4, S2 | worker (tests) + parent (fix, cargo sandbox denied to worker): fix T5 advisories (L7) | done: Linux 315 cargo tests + clippy, 586 vitest, tsc, ds:doctor; native Windows clippy -D warnings + 326 tests | 41df7be |
 | T6 | S1, S4 | maintainer: Windows check (release 0.2.0, then a later version updates it) | pending | |
 
 ## Log

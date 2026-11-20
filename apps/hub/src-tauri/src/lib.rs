@@ -34,8 +34,8 @@ mod position;
 mod registry_presentation;
 #[cfg(windows)]
 mod runtime;
-mod startup_log;
 mod self_update;
+mod startup_log;
 #[cfg(any(windows, test))]
 mod tray;
 mod tray_icon;
