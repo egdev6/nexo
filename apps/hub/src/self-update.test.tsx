@@ -51,6 +51,22 @@ it('checks silently at startup and only shows an actionable notice for a new ver
   expect(bridge.install).not.toHaveBeenCalled();
 });
 
+it('disables the About check while the startup check is pending without invoking another check', async () => {
+  const pending = deferred<null>();
+  bridge.check.mockReturnValue(pending.promise);
+  render(<App apps={[]} news={[]} />);
+  await waitFor(() => expect(bridge.check).toHaveBeenCalledTimes(1));
+  await about();
+  const checking = screen.getByRole('button', { name: 'Buscando actualizaciones…' });
+  expect(checking.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(checking);
+  expect(bridge.check).toHaveBeenCalledTimes(1);
+  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'self_update_check')).toHaveLength(1);
+  await act(async () => pending.resolve(null));
+  expect(screen.getByRole('button', { name: 'Buscar actualizaciones' }).hasAttribute('disabled')).toBe(false);
+  expect(screen.queryByText('Nexo está actualizado.')).toBeNull();
+});
+
 it('keeps the startup panel quiet when no update exists or the check fails', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   bridge.check.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(null);

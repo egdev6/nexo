@@ -36,7 +36,8 @@
     "updater": {
       "pubkey": "NEXO_UPDATER_PUBKEY_PLACEHOLDER",
       "endpoints": ["https://github.com/egdev6/nexo/releases/latest/download/latest.json"],
-      "windows": { "installMode": "passive" }
+      "windows": { "installMode": "passive" },
+      "requireSignedVersion": true
     }
   },
   "bundle": {

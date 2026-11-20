@@ -19,7 +19,8 @@
 | T2 | S2, S7 | worker (release workflow, Risk: item 5) | done (YAML parse, latest.json dry run, integrity simulation; actionlint unavailable) | d716675 |
 | T3 | S7 | maintainer: generate key pair, add secrets, give public key | blocked | |
 | T4 | S1, S5 | parent: pubkey in config, 0.2.0 bump, notes, docs (README limits, troubleshooting), close #79 | pending | |
-| T5 | all | verify (Risk: items 2, 5) | pending | |
+| T5 | all | verify (Risk: items 2, 5) | done: PASS WITH NOTES (S2-S4, S6, S7 met; Windows cfg code not compiled on Linux) | |
+| T7 | S4, S2 | worker (tests) + parent (fix, cargo sandbox denied to worker): fix T5 advisories (L7) | done: Linux 315 cargo tests + clippy, 586 vitest, tsc, ds:doctor; native Windows clippy -D warnings + 326 tests | (next commit) |
 | T6 | S1, S4 | maintainer: Windows check (release 0.2.0, then a later version updates it) | pending | |
 
 ## Log
@@ -29,4 +30,5 @@
 - L3 (exploration): no self-update today; catalog update path (install_service.rs) cannot update Nexo itself (would ask itself to quit; still-running check fails). No updater/process plugins; CSP connect-src only egdev6.github.io (native updater is unaffected). release.yml:4-5 says Nexo does not self-update while the repo is private. Authenticode signing is out of scope (paid certificate, not feasible by Monday).
 - L4 (T1 worker): Rust-side commands only (no webview capability); busy indicator instead of percentage progress; updater `on_before_exit` shuts down the hub IPC before the plugin launches NSIS — check recovery if the installer launch fails.
 - L5 (T2 worker): kept Antena's pinned @tauri-apps/cli 2.12.3 + hash (Nexo locks 2.12.4; hash not verifiable offline); no tag-existence check, like the previous Nexo flow.
+- L7 (T5 verify advisories): (1) if ShellExecuteW fails after `on_before_exit` ran (hub.shutdown + tray removed), Nexo stays half-alive — recover by restarting/exiting; (2) enable `requireSignedVersion` (workflow already signs with --app-version; first signed release, no compat cost); (3) add test: manual check while startup check pending issues no second invoke.
 - L6 (slices): slice 1 = 1b6e0da (hub, 394 lines); slice 2 = d716675 (release workflow, own commit for Risk item 5).
