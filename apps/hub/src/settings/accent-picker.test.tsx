@@ -39,7 +39,7 @@ function selectTab(name: string) {
   fireEvent.click(tab);
 }
 
-it('uses the DS brand edge on the appearance panel only', () => {
+it('shows no DS brand edge on any settings panel', () => {
   setup();
   const general = screen.getByRole('region', { name: 'General' });
   expect(general.querySelector('.eg-panel')?.classList.contains('before:bg-fg-brand-default')).toBe(false);
@@ -47,8 +47,7 @@ it('uses the DS brand edge on the appearance panel only', () => {
   const region = screen.getByRole('region', { name: 'Apariencia' });
   const panel = region.querySelector('.eg-panel');
   expect(panel?.getAttribute('data-variant')).toBe('banded');
-  expect(panel?.classList.contains('before:bg-fg-brand-default')).toBe(true);
-  expect(panel?.classList.contains('before:[inline-size:var(--space-1)]')).toBe(true);
+  expect(panel?.classList.contains('before:bg-fg-brand-default')).toBe(false);
   expect(region.classList.contains('settings__appearance')).toBe(false);
   selectTab('Acerca de');
   for (const name of ['Acerca de', 'Autor']) {
