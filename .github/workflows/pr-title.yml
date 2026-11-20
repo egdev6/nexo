@@ -1,0 +1,24 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Validate Conventional Commits title
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?: [^[:space:]].*$'
+          if [[ "$PR_TITLE" == *$'\n'* || ! "$PR_TITLE" =~ $pattern ]]; then
+            echo '::error::PR title must use Conventional Commits (e.g. feat(scope): summary).' >&2
+            exit 1
+          fi

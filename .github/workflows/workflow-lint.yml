@@ -1,0 +1,40 @@
+name: Workflow security
+
+on:
+  pull_request:
+    paths: ['.github/**']
+  push:
+    paths: ['.github/**']
+
+permissions:
+  contents: read
+
+jobs:
+  workflow-lint:
+    name: Workflow lint (actionlint + zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run actionlint
+        shell: bash
+        run: |
+          # actionlint v1.7.12 Linux x86_64, SHA-256 from the GitHub release asset.
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            --output "$RUNNER_TEMP/actionlint.tar.gz"
+          printf '%s  %s\n' '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8' "$RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: Run zizmor
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --disable-pip-version-check 'zizmor==1.32.0'
+          # Offline audits avoid passing a token to a fork's pull request.
+          "$RUNNER_TEMP/zizmor/bin/zizmor" --offline --persona regular --min-severity medium --strict-collection .github/workflows
