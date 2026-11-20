@@ -8,14 +8,14 @@ Accepted. Adapted from [egdev-website ADR 0007](https://github.com/egdev6/egdev-
 
 Nexo is a Tauri 2 desktop hub with a React and Vite frontend. The hub and its agents use the same versioned [EGDEV design system](https://github.com/egdev6/egdev-design-system), rather than maintaining a second token contract and general-purpose component set. App-specific composition remains Nexo's responsibility.
 
-The packages below are pinned to the tarballs from design-system commit `fd25b9f`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
+The packages below are pinned to the tarballs from design-system commit `96635dd`, vendored in `apps/hub/vendor/` as `egdev-<pkg>-<version>-<dscommit>.tgz` and installed with exact `file:` specifiers. The MCP's transitive `@egdev/system` dependency is overridden to the same vendored package.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@egdev/tokens` | `0.5.1` | Visual tokens and CSS. |
-| `@egdev/ui` | `0.3.2` | Shared UI components. |
-| `@egdev/system` | `0.4.2` | Dev dependency supplying the generated agent reference. |
-| `@egdev/mcp` | `0.4.2` | Dev dependency supplying the agents' MCP server. |
+| `@egdev/tokens` | `0.6.1` | Visual tokens and CSS. |
+| `@egdev/ui` | `0.6.0` | Shared UI components. |
+| `@egdev/system` | `0.7.0` | Dev dependency supplying the generated agent reference. |
+| `@egdev/mcp` | `0.4.6` | Dev dependency supplying the agents' MCP server. |
 | `@egdev/cli` | `0.1.1` | Dev dependency supplying `egdev-ds` (upgrades and `npm run ds:doctor`). |
 
 ## Rules

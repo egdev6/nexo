@@ -92,7 +92,7 @@ it('blurs only Nexo-owned background siblings and respects reduced transparency'
   expect(rule.selector).not.toContain('.eg-');
   const filter = rule.nodes.find(decl => decl.type === 'decl' && decl.prop === 'filter');
   expect(filter?.type === 'decl' && filter.value).toMatch(/^blur\(.*var\(--space-/);
-  for (const name of ['panel-head', 'panel-notices', 'main-tabs']) {
+  for (const name of ['panel-head', 'panel-notices', 'main-tabs-frame']) {
     expect(panel.querySelector(`.${name}`)?.matches(rule.selector), name).toBe(true);
   }
   for (const name of ['area-scroll', 'settings__foot']) {

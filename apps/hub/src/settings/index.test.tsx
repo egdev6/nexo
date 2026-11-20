@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import postcss from 'postcss';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { HubSettings, Language } from '../model';
 import { SettingsView } from './index';
@@ -108,6 +109,22 @@ it.each([
   for (const item of within(list).getAllByRole('tab')) {
     for (const name of ['whitespace-nowrap', 'justify-center']) expect(item.classList.contains(name)).toBe(true);
   }
+});
+
+it('keeps the settings tab row and content within responsive host gutters', () => {
+  setup();
+  const list = screen.getByRole('tablist', { name: 'Secciones de ajustes' });
+  expect(list.closest('.settings__tabs')).toBeTruthy();
+  const sheet = postcss.parse(settingsCss);
+  const root = sheet.nodes.find(node => node.type === 'rule' && node.selector === '.settings__tabs');
+  const properties = root?.type === 'rule' ? Object.fromEntries(root.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  expect(properties.padding).toBe('var(--space-4) var(--space-6) var(--space-5)');
+  const media = sheet.nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
+  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selectors.includes('.settings__tabs')) : undefined;
+  const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  expect(narrowProps['padding-left']).toBe('var(--space-4)');
+  expect(narrowProps['padding-right']).toBe('var(--space-4)');
+  expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(screen.getByRole('tab', { name: 'General' }).id);
 });
 
 it.each([
