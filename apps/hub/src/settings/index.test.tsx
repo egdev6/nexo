@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { HubSettings, Language } from '../model';
 import { SettingsView } from './index';
 import { LocaleProvider } from '../i18n/use-locale';
+import { version as buildVersion } from '../../package.json';
 // @ts-ignore Vitest runs in Node; the browser tsconfig excludes Node types.
 import { readFileSync } from 'node:fs';
 const settingsCss = readFileSync('src/settings/settings.css', 'utf8') as string;
@@ -85,7 +86,7 @@ it('switches the four settings sections with the keyboard and shows their conten
   fireEvent.keyDown(localApps, { key: 'ArrowRight' });
   const about = screen.getByRole('tab', { name: 'Acerca de' });
   await waitFor(() => expect(document.activeElement).toBe(about));
-  expect(screen.getByText(/Versión 0\.1\.0/)).toBeTruthy();
+  expect(screen.getByText(`Versión ${buildVersion}`)).toBeTruthy();
   expect(screen.getByRole('button', { name: /Buscar actualizaciones/ }).hasAttribute('disabled')).toBe(true);
 });
 

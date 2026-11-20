@@ -35,6 +35,7 @@ mod registry_presentation;
 #[cfg(windows)]
 mod runtime;
 mod startup_log;
+mod self_update;
 #[cfg(any(windows, test))]
 mod tray;
 mod tray_icon;
@@ -707,6 +708,8 @@ pub fn run() {
         .manage(MotionState::default())
         .manage(config::ConfigLock::default())
         .manage(i18n::Presentation::default())
+        .manage(self_update::PendingUpdate::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name("Nexo")
@@ -725,6 +728,9 @@ pub fn run() {
         .manage(runtime::Routes::default())
         .manage(local_apps::windows::SelectionState::default())
         .invoke_handler(tauri::generate_handler![
+            self_update::app_version,
+            self_update::self_update_check,
+            self_update::self_update_install,
             backdrop_available,
             set_surface_clip,
             flyout_painted,
@@ -766,6 +772,9 @@ pub fn run() {
         ]);
     #[cfg(not(windows))]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        self_update::app_version,
+        self_update::self_update_check,
+        self_update::self_update_install,
         backdrop_available,
         flyout_painted,
         flyout_motion_finished,

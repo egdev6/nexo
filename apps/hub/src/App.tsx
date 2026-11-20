@@ -20,6 +20,7 @@ import { selectOfficialNews } from './news/selection';
 import { useFlyoutVisibility } from './news/use-flyout';
 import { defaultSettings, sampleApps, sampleNews } from './sample';
 import { SettingsView } from './settings';
+import { useSelfUpdate } from './self-update';
 import { accentVariables, DEFAULT_ACCENT, normalizeHex } from './settings/palette';
 import { useSettings } from './settings/use-settings';
 import { exitHubOnly, subscribeRegistry } from './shell/registry';
@@ -199,6 +200,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const firstRun = !settings?.firstRunComplete;
   const usable = store.fileState === 'ready' || store.fileState === 'missing';
   const native = isTauri();
+  const selfUpdate = useSelfUpdate(native, store.flush);
   const motion = useFlyoutMotion();
   const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(() => {
     finishNews();
@@ -369,6 +371,8 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       </div>
     </div></header>
     <div className="panel-notices">
+      {!showSettings && (selfUpdate.state.phase === 'available' || selfUpdate.state.phase === 'installing') && <Notice tone="info" summary={t(locale, 'selfUpdate.available', { version: selfUpdate.state.update.version })} actions={<Button variant="neutral" size="sm" type="button" disabled={selfUpdate.state.phase === 'installing'} onClick={selfUpdate.install}>{t(locale, selfUpdate.state.phase === 'installing' ? 'selfUpdate.installing' : 'common.install')}</Button>} />}
+      {!showSettings && selfUpdate.state.phase === 'error' && <Notice tone="danger" summary={t(locale, selfUpdate.state.operation === 'check' ? 'selfUpdate.checkError' : 'selfUpdate.installError')} actions={<Button variant="neutral" size="sm" type="button" onClick={selfUpdate.check}>{t(locale, 'common.retry')}</Button>} />}
       {visibilityError && <Notice tone="danger" summary={t(locale, 'app.visibilityError', { error: visibilityError })} />}
       {registryFailed && <Notice tone="danger" summary={t(locale, 'app.registryError')} />}
       {actionMessage && <Notice size="sm" tone={actionMessage.error ? 'danger' : actionMessage.warning ? 'warning' : 'success'} summary={actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text} />}
@@ -382,7 +386,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       {!store.error && <p role="alert">{t(locale, store.fileState === 'future' ? 'app.futureSettings' : 'app.unreadableSettings')}</p>}
       {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>{t(locale, 'app.recoverSettings')}</Button>}
       <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
-    </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
+    </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} selfUpdate={selfUpdate} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
       <MainTabsFrame><Tabs className="main-tabs" variant="outline" fullWidth fill label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
         { value: 'apps', label: t(locale, 'app.myApps'), content: <div className="main-tab-content"><InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onMenuAction={onAppsRefresh ? runMenuItem : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /></div> },
         { value: 'catalog', label: t(locale, 'common.catalog'), content: <div className="main-tab-content"><CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /></div> },

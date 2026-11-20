@@ -32,6 +32,13 @@
       "csp": "default-src 'self'; style-src 'self'; img-src 'self' data: https://egdev6.github.io; connect-src ipc: http://ipc.localhost https://egdev6.github.io"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "NEXO_UPDATER_PUBKEY_PLACEHOLDER",
+      "endpoints": ["https://github.com/egdev6/nexo/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
