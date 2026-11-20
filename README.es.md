@@ -97,7 +97,7 @@ cargo test --workspace
 cargo build --workspace
 ```
 
-`scripts/check.sh --windows` ejecuta la verificación local, incluidos los tests y Clippy nativos de Windows desde WSL; consultad [Contribuir](./CONTRIBUTING.md) para los requisitos. CI está desactivada mientras el repositorio es privado, así que verificad los cambios localmente.
+`scripts/check.sh --windows` ejecuta la verificación local, incluidos los tests y Clippy nativos de Windows desde WSL; consultad [Contribuir](./CONTRIBUTING.md) para los requisitos. CI ejecuta las mismas comprobaciones en Windows en cada pull request.
 
 ## Arquitectura
 

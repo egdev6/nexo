@@ -97,7 +97,7 @@ cargo test --workspace
 cargo build --workspace
 ```
 
-`scripts/check.sh --windows` runs the local verification, including native Windows tests and Clippy from WSL; see [Contributing](./CONTRIBUTING.md) for prerequisites. CI is disabled while the repository is private, so verify changes locally.
+`scripts/check.sh --windows` runs the local verification, including native Windows tests and Clippy from WSL; see [Contributing](./CONTRIBUTING.md) for prerequisites. CI runs the same checks on Windows for every pull request.
 
 These workspace checks cover the hub and catalog. The shared protocol and tray plugin live in the public repository [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo), pinned by the hub at `v0.1.1`, and are tested by its CI.
 
