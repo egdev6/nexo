@@ -39,7 +39,11 @@ See the [README](./README.md#scripts) for the individual frontend and Rust comma
    Run it from WSL with the Linux Rust/Node toolchains and dependencies available, plus Windows Rust and PowerShell accessible through WSL. It runs Linux and native Windows Rust checks, frontend checks and a diff check, and records logs under `target/check-logs/`. Do not treat Linux-only results as native Windows verification.
 4. Open a pull request linked to the issue. Complete the PR template, including exact commands and observed results, risks and follow-ups. If AI was used, describe its contribution and have a human verify the result.
 
-The Windows CI workflow is currently disabled while the repository is private; validate locally rather than relying on CI.
+The Windows CI workflow (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`. Run the local checks before opening a pull request anyway: CI confirms them, it does not replace them.
+
+### Release signing setup (maintainers)
+
+One time, generate a Tauri updater key pair from `apps/hub` with `npx tauri signer generate -w <path>`, choosing a private path outside the repository and a non-empty password. Keep the private key out of the repository. Create the GitHub Actions environment `PROD-release` and set its secrets `TAURI_SIGNING_PRIVATE_KEY` (the private key contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (its password). Put the generated public key in `apps/hub/src-tauri/tauri.conf.json` as `plugins.updater.pubkey`. Updates reach users only after the draft release is published and the repository is public.
 
 ### Design system
 
@@ -92,7 +96,11 @@ Consultad el [README](./README.es.md#scripts) para los comandos individuales del
    Ejecutadlo desde WSL con las herramientas y dependencias de Rust y Node para Linux, además de Rust y PowerShell de Windows accesibles desde WSL. Comprueba Rust en Linux y Windows nativo, el frontend y el diff, y guarda los registros en `target/check-logs/`. Los resultados solo de Linux no equivalen a una verificación en Windows nativo.
 4. Abrid una pull request enlazada a la issue. Completad la plantilla de PR, incluidos los comandos exactos, sus resultados observados, riesgos y tareas pendientes. Si habéis usado IA, describid su aportación y pedid a una persona que verifique el resultado.
 
-El workflow de CI de Windows está desactivado mientras el repositorio es privado; verificad los cambios localmente en lugar de depender de CI.
+El workflow de CI de Windows (`.github/workflows/ci.yml`) se ejecuta en cada pull request y en cada push a `main`. Aun así, ejecutad las comprobaciones locales antes de abrir una pull request: CI las confirma, no las sustituye.
+
+### Configuración de firma de releases (mantenedores)
+
+Una sola vez, generad un par de claves del updater de Tauri desde `apps/hub` con `npx tauri signer generate -w <path>`, eligiendo una ruta privada fuera del repositorio y una contraseña no vacía. Mantened la clave privada fuera del repositorio. Cread el entorno de GitHub Actions `PROD-release` y configurad sus secretos `TAURI_SIGNING_PRIVATE_KEY` (el contenido de la clave privada) y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (su contraseña). Poned la clave pública generada en `apps/hub/src-tauri/tauri.conf.json` como `plugins.updater.pubkey`. Las actualizaciones solo llegan a los usuarios cuando se publica el borrador de la release y el repositorio es público.
 
 ### Design system
 

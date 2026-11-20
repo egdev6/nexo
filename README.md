@@ -56,7 +56,7 @@ The panel stays open while you work elsewhere. It uses the Windows tray for quic
 
 ### Install
 
-On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [Releases](https://github.com/egdev6/nexo/releases) and run it. The latest release, `v0.1.1`, contains `Nexo_0.1.1_x64-setup.exe`. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. Updates are installed over the existing version; Nexo does not yet update itself.
+On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [Releases](https://github.com/egdev6/nexo/releases) and run it. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. From 0.2.0 on, Nexo checks for new versions at startup and from **Settings › About**, and installs them after you confirm; earlier versions must be updated by installing the new one over them.
 
 The repository is private, so access to the release requires permission.
 
@@ -97,7 +97,7 @@ cargo test --workspace
 cargo build --workspace
 ```
 
-`scripts/check.sh --windows` runs the local verification, including native Windows tests and Clippy from WSL; see [Contributing](./CONTRIBUTING.md) for prerequisites. CI is disabled while the repository is private, so verify changes locally.
+`scripts/check.sh --windows` runs the local verification, including native Windows tests and Clippy from WSL; see [Contributing](./CONTRIBUTING.md) for prerequisites. CI runs the same checks on Windows for every pull request.
 
 These workspace checks cover the hub and catalog. The shared protocol and tray plugin live in the public repository [egdev6/tauri-plugin-nexo](https://github.com/egdev6/tauri-plugin-nexo), pinned by the hub at `v0.1.1`, and are tested by its CI.
 

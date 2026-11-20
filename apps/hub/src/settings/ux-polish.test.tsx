@@ -9,6 +9,7 @@ import { NewsPopup } from '../news';
 import { defaultSettings } from '../sample';
 import { LocaleProvider } from '../i18n/use-locale';
 import { SettingsView } from './index';
+import { version as buildVersion } from '../../package.json';
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
@@ -95,7 +96,7 @@ it('exposes each settings region, heading and controls in a banded panel', async
       expect(within(region).getByRole('button', { name: 'Eliminar Editor' })).toBeTruthy();
       expect(within(region).getByRole('button', { name: 'Añadir app' })).toBeTruthy();
     } else {
-      expect(within(screen.getByRole('region', { name: 'Acerca de' })).getByText(/Versión 0\.1\.0/)).toBeTruthy();
+      expect(within(screen.getByRole('region', { name: 'Acerca de' })).getByText(`Versión ${buildVersion}`)).toBeTruthy();
       expect(within(screen.getByRole('region', { name: 'Autor' })).getByRole('link', { name: /YouTube/i })).toBeTruthy();
     }
   }

@@ -87,7 +87,7 @@ it('localizes launch failures and keeps the stored rows unchanged', async () => 
   expect(card('Work').getByText('Running status unknown')).toBeTruthy();
   expect(rows).toHaveLength(2);
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_open', { id: 'manual-1' });
-  expect(bridge.invoke.mock.calls.some(([command]) => /update|remove|bind/.test(command))).toBe(false);
+  expect(bridge.invoke.mock.calls.some(([command]) => command !== 'self_update_check' && /update|remove|bind/.test(command))).toBe(false);
 });
 
 it('reports a failed local app list as a compact alert', async () => {

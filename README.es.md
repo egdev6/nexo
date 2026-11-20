@@ -56,7 +56,7 @@ El panel permanece abierto mientras trabajáis en otras ventanas. Utiliza la ban
 
 ### Instalar
 
-En Windows 10 u 11, descargad `Nexo_<version>_x64-setup.exe` desde [Releases](https://github.com/egdev6/nexo/releases) y ejecutadlo. La última versión, `v0.1.1`, contiene `Nexo_0.1.1_x64-setup.exe`. La instalación es por usuario y no requiere permisos de administrador. El instalador no tiene firma de código de Windows, por lo que SmartScreen puede pedir confirmación. Las actualizaciones se instalan sobre la versión existente; Nexo todavía no se actualiza solo.
+En Windows 10 u 11, descargad `Nexo_<version>_x64-setup.exe` desde [Releases](https://github.com/egdev6/nexo/releases) y ejecutadlo. La instalación es por usuario y no requiere permisos de administrador. El instalador no tiene firma de código de Windows, por lo que SmartScreen puede pedir confirmación. Desde la 0.2.0, Nexo busca versiones nuevas al arrancar y desde **Ajustes › Acerca de**, y las instala cuando lo confirmáis; las versiones anteriores se actualizan instalando la nueva encima.
 
 El repositorio es privado, por lo que necesitáis permiso para acceder a la release.
 
@@ -97,7 +97,7 @@ cargo test --workspace
 cargo build --workspace
 ```
 
-`scripts/check.sh --windows` ejecuta la verificación local, incluidos los tests y Clippy nativos de Windows desde WSL; consultad [Contribuir](./CONTRIBUTING.md) para los requisitos. CI está desactivada mientras el repositorio es privado, así que verificad los cambios localmente.
+`scripts/check.sh --windows` ejecuta la verificación local, incluidos los tests y Clippy nativos de Windows desde WSL; consultad [Contribuir](./CONTRIBUTING.md) para los requisitos. CI ejecuta las mismas comprobaciones en Windows en cada pull request.
 
 ## Arquitectura
 

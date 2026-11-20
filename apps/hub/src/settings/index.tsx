@@ -6,6 +6,8 @@ import { formatNumber, t, type MessageKey, type Params } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
 import { ACCENT_PRESETS, DEFAULT_ACCENT, derivePalette, normalizeHex } from './palette';
 import { useExternalLinks } from '../apps/details';
+import type { SelfUpdate } from '../self-update';
+import { version as buildVersion } from '../../package.json';
 import { LocalManagement } from './local-management';
 import './settings.css';
 
@@ -21,7 +23,7 @@ function activateSwitchFromHint(event: MouseEvent<HTMLDivElement>) {
   if (descriptions.some(id => control.ownerDocument.getElementById(id)?.contains(target))) control.click();
 }
 
-export function SettingsView({ settings, onChange, onClose, autostart, languagePending }: SettingsViewProps) {
+export function SettingsView({ settings, onChange, onClose, autostart, languagePending, selfUpdate }: SettingsViewProps & { selfUpdate?: SelfUpdate }) {
   const locale = useLocale();
   const tr = (key: MessageKey, params?: Params) => t(locale, key, params);
   const id = useId();
@@ -109,8 +111,11 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
       <Panel variant="banded">
         <PanelHeader><Heading level={2} variant="compact" foreground="default" id={`${id}-about`}>{tr('settings.about')}</Heading></PanelHeader>
         <PanelBody><div className="settings__rows">
-      <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: '0.1.0' })}</span></div>
-        <Button variant="neutral" size="sm" type="button" disabled>{tr('settings.updates')}</Button></div>
+      <div className="settings__row"><div><strong>Nexo</strong><span className="settings__version">{tr('settings.version', { version: selfUpdate?.version ?? buildVersion })}</span></div>
+        <Button variant="neutral" size="sm" type="button" disabled={!selfUpdate?.enabled || selfUpdate.state.phase === 'checking' || selfUpdate.state.phase === 'installing'} onClick={selfUpdate?.check}>{tr(selfUpdate?.state.phase === 'checking' ? 'selfUpdate.checking' : 'settings.updates')}</Button></div>
+      {selfUpdate?.state.phase === 'current' && <p role="status">{tr('selfUpdate.current')}</p>}
+      {(selfUpdate?.state.phase === 'available' || selfUpdate?.state.phase === 'installing') && <Notice tone="info" summary={tr('selfUpdate.available', { version: selfUpdate.state.update.version })} actions={<Button variant="neutral" size="sm" type="button" disabled={selfUpdate.state.phase === 'installing'} onClick={selfUpdate.install}>{tr(selfUpdate.state.phase === 'installing' ? 'selfUpdate.installing' : 'common.install')}</Button>} />}
+      {selfUpdate?.state.phase === 'error' && <Notice tone="danger" summary={tr(selfUpdate.state.operation === 'check' ? 'selfUpdate.checkError' : 'selfUpdate.installError')} actions={<Button variant="neutral" size="sm" type="button" onClick={selfUpdate.check}>{tr('common.retry')}</Button>} />}
       <p className="settings__hint">{tr('settings.fontCredit')}</p>
         </div></PanelBody>
       </Panel>
