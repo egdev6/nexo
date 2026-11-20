@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system fd25b9f; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system 96635dd; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -20,9 +20,9 @@ See Typography roles for source-derived font families and sizes; display heading
 Schema: 1.0.0 (schemaVersion)
 | Package | Version | Source |
 | --- | --- | --- |
-| @egdev/effects | 0.2.2 | packages[] · packages/effects/package.json |
-| @egdev/tokens | 0.5.1 | packages[] · packages/tokens/package.json |
-| @egdev/ui | 0.3.2 | packages[] · packages/ui/package.json |
+| @egdev/effects | 0.2.6 | packages[] · packages/effects/package.json |
+| @egdev/tokens | 0.6.1 | packages[] · packages/tokens/package.json |
+| @egdev/ui | 0.6.0 | packages[] · packages/ui/package.json |
 Re-run: `pnpm exec egdev-system-md --write`
 
 ## Typography roles
@@ -943,6 +943,23 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
   - href: string; The consumer anchor owns the destination; the slotted branch accepts no href of its own. Destination of the card's single whole-card link. (components[] · packages/ui/src/molecules/article-feature/types.ts)
   - level: enum; Native heading rank only; the title typography never follows the rank. (components[] · packages/ui/src/molecules/article-feature/types.ts)
   - title: string; Visible article title and the card link's name. Blank or whitespace-only warns in development and renders nothing, because an unnamed link is never promised. (components[] · packages/ui/src/molecules/article-feature/types.ts)
+### AttachmentField
+catalog[] · docs/catalog.json · @egdev/ui · molecule · None (composes Dropzone, PhotoFrame, IconButton, FieldMessage, Cluster, VisuallyHidden)
+- AttachmentField (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - Visual anatomy (source classes; unresolved is not a guessed value):
+    - attachmentFieldItemVariants base: p-0 → --spacing-0
+    - attachmentFieldStripVariants base: p-0 → --spacing-0
+  - acceptedTypes: readonly `image/${string}`[]; Allowed MIME types, exact (`image/png`) or subtype wildcard (`image/*`), case-insensitive. A file with an empty type is rejected. Also drives the Dropzone picker filter. Omitted or empty means any `image/*`. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - children: ReactNode; The consumer's control or controls, usually a Field wrapping a Textarea; paste from any descendant is handled. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - defaultValue: File[]; Never combined with `value`. Initial attachments when uncontrolled, read once. Never combined with `value`. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - disabled: boolean; Disables the Dropzone and the Remove buttons and ignores paste. The list stays visible. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - label: string; Accessible name of the attachment list (for example "Attachments"). The list is rendered only when there is at least one item. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - maxFileBytes: number; Largest allowed file size in bytes; a file of exactly this size is accepted. A non-finite or non-positive value is ignored. Omitted means no limit. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - maxFiles: number; Largest number of attachments, counting the current list. A non-integer, non-finite or value below 1 is ignored. Omitted means no limit. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - messages: Partial<AttachmentFieldMessages>; Localizable built-in text and formatters; omitted entries use the English defaults. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - onFilesRejected: ((rejections: AttachmentRejection[]) => void); Called once per intake that rejects at least one file, after `onValueChange`. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - onValueChange: ((files: File[]) => void) \| ((files: File[]) => void); Called with the next full list after a user add or remove; in controlled mode it is a request. Called with the next full list after a user add or remove. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - value: File[]; Controlled attachments; requires `onValueChange`. The list changes only when the parent passes a new value. Omit to leave the list uncontrolled. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
 ### ButtonGroup
 catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 - ButtonGroup (components[] · packages/ui/src/molecules/button-group/types.ts)
@@ -1131,11 +1148,8 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Label + Slot
 - Field (components[] · packages/ui/src/molecules/field/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - fieldCounterVariants base: text-label-default → --text-label-default
-    - fieldCounterVariants base: disabledPart → unresolved
     - fieldFooterRowVariants base: gap-2 → --spacing-2
     - fieldLabelRowVariants base: gap-2 → --spacing-2
-    - fieldLabelRowVariants base: disabledPart → unresolved
-    - fieldMessageVariants base: disabledPart → unresolved
     - fieldReadoutVariants base: text-label-default → --text-label-default
     - fieldVariants base: font-sans → --font-sans
     - fieldVariants layout=stacked: gap-1.5 → --spacing
@@ -1479,12 +1493,15 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
   - PanelHeader: Supplied identity/context, without generated heading semantics. Children: Supplied identity/context zone; no generated heading or landmark. Meaningful supplied header content. Omit the part itself when it is not needed. (components[].parts · packages/ui/src/molecules/panel/Panel.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: zoneGeometry → unresolved
+    - panelBodyVariants base: p-4 → --spacing-4
+    - panelBodyVariants base: rounded-none → --radius-none
     - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: zoneGeometry → unresolved
+    - panelFooterVariants base: p-4 → --spacing-4
+    - panelFooterVariants base: rounded-none → --radius-none
     - panelFooterVariants variant=banded: shadow-none → unresolved
     - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: zoneGeometry → unresolved
+    - panelHeaderVariants base: p-4 → --spacing-4
+    - panelHeaderVariants base: rounded-none → --radius-none
     - panelVariants base: gap-0 → --spacing-0
     - panelVariants base: p-0 → --spacing-0
     - panelVariants base: font-sans → --font-sans
@@ -1497,6 +1514,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
   - accentEdge: enum; Opt in to a passive inherited-color edge at logical inline-start. Omission draws no edge. (components[] · packages/ui/src/molecules/panel/types.ts)
   - children: ReactNode; Optional Header, exactly one Body and optional Footer, in direct DOM sibling order. Fragments without wrappers are supported; Panel never parses or repairs the child tree. (components[] · packages/ui/src/molecules/panel/types.ts)
+  - fill: boolean; Opt in to filling the host's block size: Header and Footer stay fixed and only Body scrolls natively. The host owns a definite height; without one Panel stays content-sized. Absence keeps content-sized height. (components[] · packages/ui/src/molecules/panel/types.ts)
   - tone: enum; Explicit Material ownership. Inherit exposes an existing raised host, never infers one. (components[] · packages/ui/src/molecules/panel/types.ts)
   - variant: enum; Shared presentation of the supplied zones, without changing their behavior. (components[] · packages/ui/src/molecules/panel/types.ts)
 ### Popover
@@ -1722,6 +1740,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Tabs
     - tabsVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/tabs/useTabs.ts; see Surface anatomy
   - defaultValue: string; Initial uncontrolled selection; when absent, selects the first enabled item. (components[] · packages/ui/src/molecules/tabs/types.ts)
+  - fill: boolean; Fill the host's block size with a fixed tab list and a natively scrolling active panel. The host must have a definite height; otherwise Tabs stays content-sized and nothing scrolls. The root also carries a bare data-fill attribute in this mode. Inactive panels unmount, so scroll position is not preserved. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - fullWidth: boolean; Fill the available width with equal segmented or outline tabs when they fit; overflowing tabs may be unequal. Has no effect on underline. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - items: TabsItem[]; Ordered views: unique, non-empty values and at least one enabled item are required. (components[] · packages/ui/src/molecules/tabs/types.ts)
   - label: string; Accessible name of the tablist. (components[] · packages/ui/src/molecules/tabs/types.ts)
@@ -2154,8 +2173,8 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · Slot + VisuallyHidden
     - linkVariants base: text-label-default → --text-label-default
     - linkVariants base: focus-visible:[box-shadow:var(--shadow-focus)] → --shadow-focus
     - linkVariants base: focus-visible:rounded-sm → --radius-sm
-    - linkVariants variant=plain: plainLinkRecipe → unresolved
-    - linkVariants variant=underlined: plainLinkRecipe → unresolved
+    - linkVariants variant=plain: pb-0 → --spacing-0
+    - linkVariants variant=underlined: pb-0 → --spacing-0
   - arrow: boolean; Show the trailing decorative right arrow, independent of external. (components[] · packages/ui/src/atoms/link/types.ts)
   - asChild: boolean; Use the native anchor; href supplies its destination. Render onto one prop-spreading, ref-forwarding anchor child through Radix Slot. The child owns href and must preserve anchor navigation semantics. (components[] · packages/ui/src/atoms/link/types.ts)
   - children: ReactNode; Descriptive visible link text; exactly one anchor element when asChild is true. (components[] · packages/ui/src/atoms/link/types.ts)
@@ -2202,6 +2221,7 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · AspectRatio
     - photoFrameViewportVariants variant=framed: rounded-lg → --radius-lg
     - surfaceVariants({         tone: variant === 'framed' ? 'surface-0' : 'surface-1',         elevation: variant === 'framed' ? 2 : 1,         padding: 'none',         radius: 'xl'       }) · packages/ui/src/atoms/photo-frame/usePhotoFrame.ts; see Surface anatomy
   - alt: string; Image alternative; use an explicit empty string for decorative media. (components[] · packages/ui/src/atoms/photo-frame/types.ts)
+  - fit: enum; Static image scaling inside the reserved viewport. `cover` fills and crops; `contain` shows the whole image and letterboxes the spare axis over the media Surface, without changing the reserved size. `focalPoint` still aligns the letterboxed image. Unrecognised values fall back to cover. (components[] · packages/ui/src/atoms/photo-frame/types.ts)
   - focalPoint: enum; Static cover alignment inside the viewport. Corners combine a horizontal and a vertical physical keyword, so the crop never mirrors. Unrecognised values fall back to center. (components[] · packages/ui/src/atoms/photo-frame/types.ts)
   - imageCaption: string; Optional plain caption; blank text omits the caption and its gap. (components[] · packages/ui/src/atoms/photo-frame/types.ts)
   - ratio: number \| PhotoFrameRatio; Reserved viewport proportion. `square` is 1, `portrait` is 4/5 and `landscape` is 4/3; `auto` reserves nothing, so the media fills the height the host layout gives the figure and the host owns that definite height. `auto` also stretches the figure itself (`h-full min-h-0`) so a grid, flex or block host can size it instead of the image's natural height. A number is the width divided by the height and is normalised by AspectRatio; unrepresentable numbers (zero, negative, NaN, infinite) fall back to a square. Unrecognised strings fall back to landscape. (components[] · packages/ui/src/atoms/photo-frame/types.ts)
@@ -2415,10 +2435,16 @@ catalog[] · docs/catalog.json · @egdev/ui · atom · —
 - Textarea (components[] · packages/ui/src/atoms/textarea/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - textareaVariants base: rounded-md → --radius-md
-    - textareaVariants variant=default: well → unresolved
+    - textareaVariants variant=default: px-3 → --spacing-3
+    - textareaVariants variant=default: py-2 → --spacing-2
+    - textareaVariants variant=default: shadow-[var(--shadow-well)] → --shadow-well
+    - textareaVariants variant=default: focus-visible:shadow-[var(--shadow-well),var(--shadow-focus)] → --shadow-well, --shadow-focus
     - textareaVariants variant=default: font-sans → --font-sans
     - textareaVariants variant=default: text-body-default → --text-body-default
-    - textareaVariants variant=code: well → unresolved
+    - textareaVariants variant=code: px-3 → --spacing-3
+    - textareaVariants variant=code: py-2 → --spacing-2
+    - textareaVariants variant=code: shadow-[var(--shadow-well)] → --shadow-well
+    - textareaVariants variant=code: focus-visible:shadow-[var(--shadow-well),var(--shadow-focus)] → --shadow-well, --shadow-focus
     - textareaVariants variant=code: font-mono → --font-mono
     - textareaVariants variant=code: text-code → --text-code
     - textareaVariants variant=prose: p-5 → --spacing-5
@@ -2588,7 +2614,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
     - surfaceVariants {"tone":"raisedTones","elevation":"1"}: shadow-[var(--shadow-edge),var(--shadow-elev-1)] → --shadow-edge, --shadow-elev-1
     - surfaceVariants {"tone":"raisedTones","elevation":"2"}: shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
     - surfaceVariants {"tone":"raisedTones","elevation":"3"}: shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - surfaceVariants {"tone":"surface-0","elevation":"[1, 2, 3]"}: sheen → unresolved
     - surfaceVariants({ tone, elevation: raised ? (elevation ?? 1) : null, padding, radius }) · packages/ui/src/primitives/surface/useSurface.ts; see Surface anatomy
   - asChild: boolean; Merge the material onto one HTMLElement-backed child through Slot instead of a div. (components[] · packages/ui/src/primitives/surface/types.ts)
   - elevation: enum; Light edge and two-layer shadow of a raised tone; well and overlay reject it. (components[] · packages/ui/src/primitives/surface/types.ts)
@@ -3595,12 +3620,15 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 - PanelBody (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: zoneGeometry → unresolved
+    - panelBodyVariants base: p-4 → --spacing-4
+    - panelBodyVariants base: rounded-none → --radius-none
     - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: zoneGeometry → unresolved
+    - panelFooterVariants base: p-4 → --spacing-4
+    - panelFooterVariants base: rounded-none → --radius-none
     - panelFooterVariants variant=banded: shadow-none → unresolved
     - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: zoneGeometry → unresolved
+    - panelHeaderVariants base: p-4 → --spacing-4
+    - panelHeaderVariants base: rounded-none → --radius-none
     - panelVariants base: gap-0 → --spacing-0
     - panelVariants base: p-0 → --spacing-0
     - panelVariants base: font-sans → --font-sans
@@ -3615,12 +3643,15 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 - PanelFooter (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: zoneGeometry → unresolved
+    - panelBodyVariants base: p-4 → --spacing-4
+    - panelBodyVariants base: rounded-none → --radius-none
     - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: zoneGeometry → unresolved
+    - panelFooterVariants base: p-4 → --spacing-4
+    - panelFooterVariants base: rounded-none → --radius-none
     - panelFooterVariants variant=banded: shadow-none → unresolved
     - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: zoneGeometry → unresolved
+    - panelHeaderVariants base: p-4 → --spacing-4
+    - panelHeaderVariants base: rounded-none → --radius-none
     - panelVariants base: gap-0 → --spacing-0
     - panelVariants base: p-0 → --spacing-0
     - panelVariants base: font-sans → --font-sans
@@ -3635,12 +3666,15 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 - PanelHeader (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: zoneGeometry → unresolved
+    - panelBodyVariants base: p-4 → --spacing-4
+    - panelBodyVariants base: rounded-none → --radius-none
     - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: zoneGeometry → unresolved
+    - panelFooterVariants base: p-4 → --spacing-4
+    - panelFooterVariants base: rounded-none → --radius-none
     - panelFooterVariants variant=banded: shadow-none → unresolved
     - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: zoneGeometry → unresolved
+    - panelHeaderVariants base: p-4 → --spacing-4
+    - panelHeaderVariants base: rounded-none → --radius-none
     - panelVariants base: gap-0 → --spacing-0
     - panelVariants base: p-0 → --spacing-0
     - panelVariants base: font-sans → --font-sans
@@ -4299,7 +4333,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - surfaceVariants {"tone":"raisedTones","elevation":"1"}: shadow-[var(--shadow-edge),var(--shadow-elev-1)] → --shadow-edge, --shadow-elev-1
     - surfaceVariants {"tone":"raisedTones","elevation":"2"}: shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
     - surfaceVariants {"tone":"raisedTones","elevation":"3"}: shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - surfaceVariants {"tone":"surface-0","elevation":"[1, 2, 3]"}: sheen → unresolved
     - surfaceVariants({ tone, elevation: raised ? (elevation ?? 1) : null, padding, radius }) · packages/ui/src/primitives/surface/useSurface.ts; see Surface anatomy
 ### tabBarVariants
 - tabBarVariants (components[] · packages/ui/src/organisms/tab-bar/types.ts · @egdev/ui)
@@ -4391,7 +4424,8 @@ Not exported:
 
 - absolute-deadline-text: deadlineText; approved; Countdown (propNaming[] · skills/_shared/prop-naming.json)
 - accent-line-break: accentBreak; approved; Heading, SectionHeader, Text (propNaming[] · skills/_shared/prop-naming.json)
-- accessible-name: label; approved; AppIcon, Avatar, ButtonGroup, CalendarGrid, Carousel, CarouselItem, ChipGroup, ChipGroupOption, ColorSwatchGroup, ColorSwatchGroupOption, CommandPalette, CommandPaletteItem, Countdown, Dropzone, Field, FooterNavigation, FooterNavigationItem, Gauge, GaugeGroup, GaugeGroupRing, Icon, IconButton, Isotipo3D, Kbd, Logo, MeterRow, ModuleRail, NavList, NowStrip, PopoverContent, ProgressBar, ProjectCardCode, RadioGroup, SearchTrigger, SectionNav, SelectTile, SelectTileOption, Slider, SocialLinkItem, SocialLinks, Spinner, Stat, TabBar, Table, Tabs, TerminalCard, Timeline, ToastProvider, Toggle, TopBar (propNaming[] · skills/_shared/prop-naming.json)
+- accepted-file-types: acceptedTypes; approved; AttachmentField (propNaming[] · skills/_shared/prop-naming.json)
+- accessible-name: label; approved; AppIcon, AttachmentField, Avatar, ButtonGroup, CalendarGrid, Carousel, CarouselItem, ChipGroup, ChipGroupOption, ColorSwatchGroup, ColorSwatchGroupOption, CommandPalette, CommandPaletteItem, Countdown, Dropzone, Field, FooterNavigation, FooterNavigationItem, Gauge, GaugeGroup, GaugeGroupRing, Icon, IconButton, Isotipo3D, Kbd, Logo, MeterRow, ModuleRail, NavList, NowStrip, PopoverContent, ProgressBar, ProjectCardCode, RadioGroup, SearchTrigger, SectionNav, SelectTile, SelectTileOption, Slider, SocialLinkItem, SocialLinks, Spinner, Stat, TabBar, Table, Tabs, TerminalCard, Timeline, ToastProvider, Toggle, TopBar (propNaming[] · skills/_shared/prop-naming.json)
 - action-alternative-text: actionAltText; approved; Toast (propNaming[] · skills/_shared/prop-naming.json)
 - active-row: activeRowId; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
 - active-section-id: activeId; approved; SectionNav (propNaming[] · skills/_shared/prop-naming.json)
@@ -4451,6 +4485,7 @@ Not exported:
 - field-message-content: children; proposed; FieldMessage (propNaming[] · skills/_shared/prop-naming.json)
 - figure-caption: figureCaption; approved; PreviewFrame (propNaming[] · skills/_shared/prop-naming.json)
 - files-received: onFiles; approved; Dropzone (propNaming[] · skills/_shared/prop-naming.json)
+- files-rejected: onFilesRejected; approved; AttachmentField (propNaming[] · skills/_shared/prop-naming.json)
 - filled-glyph: filled; approved; Icon (propNaming[] · skills/_shared/prop-naming.json)
 - floating-align: align; approved; Menu, PopoverContent (propNaming[] · skills/_shared/prop-naming.json)
 - floating-side: side; approved; Menu, PopoverContent, Tooltip (propNaming[] · skills/_shared/prop-naming.json)
@@ -4461,17 +4496,19 @@ Not exported:
 - heading-id: titleId; approved; SectionHeader (propNaming[] · skills/_shared/prop-naming.json)
 - heading-level: level; approved; ArticleFeature, CalendarGrid, ChapterBreak, Closing, CommunityCard, FooterNavigation, Heading, Hero, LabStage, ListItemTitle, ModuleCard, NowCard, PageHeader, ProjectCard, SectionHeader, TipCard (propNaming[] · skills/_shared/prop-naming.json)
 - heading-title: title; approved; AlertDialogContent, ArticleFeature, ChapterBreak, Closing, CommunityCard, DialogContent, Hero, LabStage, ModuleCard, NowCard, PageHeader, ProjectCard, SectionHeader, TipCard (propNaming[] · skills/_shared/prop-naming.json)
+- host-fill: fill; approved; Panel, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - icon-glyph-name: name; approved; Icon (propNaming[] · skills/_shared/prop-naming.json)
 - icon-placement: iconPosition; approved; Button (propNaming[] · skills/_shared/prop-naming.json)
 - identity-image-source: src; approved; AppIcon (propNaming[] · skills/_shared/prop-naming.json)
 - image-caption: imageCaption; approved; PhotoFrame (propNaming[] · skills/_shared/prop-naming.json)
+- image-fit: fit; approved; PhotoFrame (propNaming[] · skills/_shared/prop-naming.json)
 - image-focal-point: focalPoint; approved; PhotoFrame, TipCard (propNaming[] · skills/_shared/prop-naming.json)
 - indicator-count: count; approved; Indicator (propNaming[] · skills/_shared/prop-naming.json)
 - indicator-count-cap: max; approved; Indicator (propNaming[] · skills/_shared/prop-naming.json)
 - initial-uncontrolled-open: defaultOpen; approved; AlertDialog, Collapsible, CommandPalette, Dialog, Menu, NavList, Popover, SectionNav (propNaming[] · skills/_shared/prop-naming.json)
 - initial-uncontrolled-pressed: defaultPressed; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - initial-uncontrolled-sort: defaultSort; approved; Table (propNaming[] · skills/_shared/prop-naming.json)
-- initial-uncontrolled-value: defaultValue; approved; Carousel, ChipGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
+- initial-uncontrolled-value: defaultValue; approved; AttachmentField, Carousel, ChipGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - inline-caption-layout: inline; approved; SocialLinks (propNaming[] · skills/_shared/prop-naming.json)
 - inner-padding: padding; approved; CollapsibleContent, DialogContent, Surface (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-drag-rotate: dragRotate; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
@@ -4479,7 +4516,7 @@ Not exported:
 - interaction-interactive-mode: interactive; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-modality: modal; approved; Popover (propNaming[] · skills/_shared/prop-naming.json)
 - interaction-pose-change: onPoseChange; approved; Isotipo3D (propNaming[] · skills/_shared/prop-naming.json)
-- interactive-value-change: onValueChange; approved; Carousel, ChipGroup, ColorSwatchGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
+- interactive-value-change: onValueChange; approved; AttachmentField, Carousel, ChipGroup, ColorSwatchGroup, RadioGroup, Select, SelectTile, Slider, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - item-presentation-status: status; approved; CalendarGridEntry, ListItem, ModuleCard (propNaming[] · skills/_shared/prop-naming.json)
 - keyboard-shortcut-hint: shortcut; approved; CommandPaletteItem, MenuEntry, SearchTrigger (propNaming[] · skills/_shared/prop-naming.json)
 - label-layout: layout; approved; Field (propNaming[] · skills/_shared/prop-naming.json)
@@ -4490,8 +4527,10 @@ Not exported:
 - leading-status-badge: statusBadge; approved; NowCard (propNaming[] · skills/_shared/prop-naming.json)
 - line-particle-direction: lineDirection; approved; AmbientBackground (propNaming[] · skills/_shared/prop-naming.json)
 - live-presentation: live; approved; SelectTileOption (propNaming[] · skills/_shared/prop-naming.json)
-- localized-messages: messages; approved; AppShell, CalendarGrid, Carousel, CommandPalette, MeterRow, ModuleCard, ModuleRail, TabBar, Table, Timeline, WebTemplate (propNaming[] · skills/_shared/prop-naming.json)
+- localized-messages: messages; approved; AppShell, AttachmentField, CalendarGrid, Carousel, CommandPalette, MeterRow, ModuleCard, ModuleRail, TabBar, Table, Timeline, WebTemplate (propNaming[] · skills/_shared/prop-naming.json)
 - main-axis-distribution: justifyContent; approved; Cluster, Stack (propNaming[] · skills/_shared/prop-naming.json)
+- max-file-bytes: maxFileBytes; approved; AttachmentField (propNaming[] · skills/_shared/prop-naming.json)
+- max-file-count: maxFiles; approved; AttachmentField (propNaming[] · skills/_shared/prop-naming.json)
 - measurement-text-equivalent: valueText; approved; Gauge, GaugeGroupRing, MeterRow, ProgressBar, Slider (propNaming[] · skills/_shared/prop-naming.json)
 - menu-entry-kind: kind; approved; MenuEntry, ModuleRail, NavList (propNaming[] · skills/_shared/prop-naming.json)
 - message-summary: summary; approved; Notice, Toast (propNaming[] · skills/_shared/prop-naming.json)
@@ -4515,7 +4554,7 @@ Not exported:
 - pressed-change: onPressedChange; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - pressed-state: pressed; approved; Chip, Toggle (propNaming[] · skills/_shared/prop-naming.json)
 - preview-thumbnail: thumb; approved; SelectTileOption (propNaming[] · skills/_shared/prop-naming.json)
-- primary-value: value; approved; Carousel, CarouselItem, ChipGroup, ChipGroupOption, ColorSwatchGroup, ColorSwatchGroupOption, Gauge, GaugeGroupRing, MeterRow, ProgressBar, RadioGroup, SectionNav, Select, SelectTile, SelectTileOption, Slider, Stat, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
+- primary-value: value; approved; AttachmentField, Carousel, CarouselItem, ChipGroup, ChipGroupOption, ColorSwatchGroup, ColorSwatchGroupOption, Gauge, GaugeGroupRing, MeterRow, ProgressBar, RadioGroup, SectionNav, Select, SelectTile, SelectTileOption, Slider, Stat, Table, Tabs (propNaming[] · skills/_shared/prop-naming.json)
 - product-identity: product; approved; ModuleRail, Sidebar (propNaming[] · skills/_shared/prop-naming.json)
 - quotation-source: source; approved; PullQuote (propNaming[] · skills/_shared/prop-naming.json)
 - quotation-text: text; approved; PullQuote (propNaming[] · skills/_shared/prop-naming.json)
@@ -4596,6 +4635,7 @@ Not exported:
 | --icon-stroke | 1.75 | root |  | tokens[] · packages/tokens/src/theme.css |
 | --logo-red | #E91B35 | root |  | tokens[] · packages/tokens/src/theme.css |
 | --logo-red-shade | #800C1D | root |  | tokens[] · packages/tokens/src/theme.css |
+| --mask-scroll-fade-inline | linear-gradient(to right, transparent, #000), linear-gradient(#000, #000), linear-gradient(to left, transparent, #000) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --mask-section-fade-both | linear-gradient(180deg, transparent, #000 clamp(96px, 14vh, 180px), #000 calc(100% - clamp(96px, 14vh, 180px)), transparent) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --mask-section-fade-bottom | linear-gradient(0deg, transparent, #000 clamp(96px, 14vh, 180px)) | root |  | tokens[] · packages/tokens/src/theme.css |
 | --mask-section-fade-top | linear-gradient(180deg, transparent, #000 clamp(96px, 14vh, 180px)) | root |  | tokens[] · packages/tokens/src/theme.css |

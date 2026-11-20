@@ -11,16 +11,18 @@ interface Request { clip: Clip | null; blur: number; opacity: number; generation
 // The foreground paints the tint/opacity; the independent visual only blurs the
 // desktop behind the currently visible content, never the header or tab row.
 function measure(panel: HTMLElement): Clip | null {
-  const area = panel.querySelector<HTMLElement>('.area-scroll, .main-tabs > [role="tabpanel"]:not([hidden])');
+  const area = panel.querySelector<HTMLElement>('.area-scroll, .main-tabs [role="tabpanel"]:not([hidden])');
   const scale = window.devicePixelRatio;
   if (!area || !Number.isFinite(scale) || scale <= 0) return null;
   const outer = panel.getBoundingClientRect();
   const content = area.getBoundingClientRect();
+  // The Tabs frame owns side gutters; the native blur still spans the whole flyout.
+  const horizontal = area.matches('[role="tabpanel"]') ? area.closest<HTMLElement>('.main-tabs-frame')?.getBoundingClientRect() ?? content : content;
   const width = Math.round(outer.width * scale);
   const height = Math.round(outer.height * scale);
-  const x = Math.max(0, Math.ceil((content.left - outer.left) * scale));
+  const x = Math.max(0, Math.ceil((horizontal.left - outer.left) * scale));
   const y = Math.max(0, Math.ceil((content.top - outer.top) * scale));
-  const right = Math.min(width, Math.floor((content.right - outer.left) * scale));
+  const right = Math.min(width, Math.floor((horizontal.right - outer.left) * scale));
   const bottom = Math.min(height, Math.floor((content.bottom - outer.top) * scale));
   if (width <= 0 || height <= 0 || right <= x || bottom <= y) return null;
   return { width, height, x, y, contentWidth: right - x, contentHeight: bottom - y };
@@ -72,7 +74,7 @@ export function useContentBackdrop(panel: RefObject<HTMLElement | null>, availab
     const observe = () => {
       resize?.disconnect();
       resize?.observe(element);
-      element.querySelectorAll<HTMLElement>('.area-scroll, .panel-head, .main-tabs > [role="tablist"], .main-tabs > [role="tabpanel"]:not([hidden])').forEach(node => resize?.observe(node));
+      element.querySelectorAll<HTMLElement>('.area-scroll, .panel-head, .main-tabs [role="tablist"], .main-tabs [role="tabpanel"]:not([hidden])').forEach(node => resize?.observe(node));
     };
     const mutation = new MutationObserver(() => { observe(); schedule(); });
     mutation.observe(element, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'data-state'] });

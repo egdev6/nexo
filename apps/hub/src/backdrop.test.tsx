@@ -111,6 +111,71 @@ it('resends matching geometry after a native resize even if the measured rectang
   await waitFor(() => expect(bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length).toBeGreaterThan(calls));
 });
 
+it('remeasures the content clip when the wrapped menu row resizes', async () => {
+  measurePanel();
+  const observers: { targets: Set<Element>; notify: () => void }[] = [];
+  vi.stubGlobal('ResizeObserver', class {
+    targets = new Set<Element>();
+    constructor(callback: ResizeObserverCallback) {
+      observers.push({ targets: this.targets, notify: () => callback([], this as unknown as ResizeObserver) });
+    }
+    observe(target: Element) { this.targets.add(target); }
+    unobserve(target: Element) { this.targets.delete(target); }
+    disconnect() { this.targets.clear(); }
+  });
+  const panel = await openPanel();
+  const tablist = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
+  const observer = observers.find(item => item.targets.has(panel));
+  expect(observer?.targets.has(tablist)).toBe(true);
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', expect.objectContaining({ generation: 0 })));
+  const calls = bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length;
+  act(() => observer!.notify());
+  await waitFor(() => expect(bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length).toBeGreaterThan(calls));
+});
+
+it('keeps the menu band aligned to the public tablist as its height changes', async () => {
+  measurePanel();
+  let listBottom = 160;
+  const rectangle = (y: number, height: number) => ({ x: 0, y, left: 0, top: y, right: 480, bottom: y + height, width: 480, height, toJSON: () => ({}) }) as DOMRect;
+  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
+    if (this.matches('.main-tabs-frame')) return rectangle(100, 700);
+    if (this.matches('[role="tablist"]')) return rectangle(112, listBottom - 112);
+    return rectangle(0, 800);
+  });
+  const observers: { targets: Set<Element>; notify: () => void }[] = [];
+  vi.stubGlobal('ResizeObserver', class {
+    targets = new Set<Element>();
+    constructor(callback: ResizeObserverCallback) {
+      observers.push({ targets: this.targets, notify: () => callback([], this as unknown as ResizeObserver) });
+    }
+    observe(target: Element) { this.targets.add(target); }
+    unobserve(target: Element) { this.targets.delete(target); }
+    disconnect() { this.targets.clear(); }
+  });
+  await openPanel();
+  const list = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
+  const frame = list.closest<HTMLElement>('.main-tabs-frame');
+  expect(frame?.style.getPropertyValue('--menu-band-bottom')).toBe('60px');
+  const observer = observers.find(item => frame && item.targets.has(frame) && item.targets.has(list));
+  expect(observer).toBeDefined();
+  listBottom = 180;
+  act(() => observer!.notify());
+  expect(frame?.style.getPropertyValue('--menu-band-bottom')).toBe('80px');
+});
+
+it('keeps the native backdrop full-width when the tab content has side gutters', async () => {
+  measurePanel();
+  const rectangle = (x: number, y: number, width: number, height: number) => ({ x, y, left: x, top: y, right: x + width, bottom: y + height, width, height, toJSON: () => ({}) }) as DOMRect;
+  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
+    return this.matches('.main-tabs > [role="tabpanel"]') ? rectangle(24, 140, 432, 660) : rectangle(0, 0, 480, 800);
+  });
+  await openPanel();
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', {
+    clip: { width: 600, height: 1000, x: 0, y: 175, contentWidth: 600, contentHeight: 825 },
+    blur: 12, opacity: 63, generation: 0,
+  }));
+});
+
 it('does not request a visible native backdrop during motion and remeasures on reopening', async () => {
   measurePanel();
   await openPanel();
@@ -217,43 +282,36 @@ it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opac
   bridge.opacity = opacity;
   const panel = await openPanel();
   const tablist = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
-  expect(tablist.matches(".main-tabs > [role='tablist']")).toBe(true);
+  const tabs = tablist.closest('.main-tabs');
+  expect(tabs?.getAttribute('data-fill')).toBe('');
   expect(panel.style.getPropertyValue('--hub-opacity')).toBe(String(opacity / 100));
-  expect(declarations('.main-tabs').isolation).toBe('isolate');
-  const row = declarations(".main-tabs > [role='tablist']");
-  expect(row.position).toBe('relative');
-  expect(row['--menu-band-gutter']).toBe('var(--space-6)');
-  // Spread shadows do not contribute to scrollable overflow. The extra pixel
-  // overlaps the header, and the side offsets cover the rounded shadow corners.
-  expect(row['box-shadow']).toBe([
-    'var(--shadow-well)',
-    '0 0 0 calc(var(--space-4) + 1px) var(--color-surface-0)',
-    'calc(-1 * (var(--menu-band-gutter) + var(--radius-md))) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0)',
-    'calc(var(--menu-band-gutter) + var(--radius-md)) 0 0 calc(var(--space-4) + 1px) var(--color-surface-0)',
-  ].join(', '));
+  const frame = declarations('.main-tabs-frame');
+  expect(frame.isolation).toBe('isolate');
+  expect(frame['--menu-band-gutter']).toBe('var(--space-6)');
+  const band = declarations('.main-tabs-frame::before');
+  expect(band.position).toBe('absolute');
+  expect(band.background).toBe('var(--color-surface-0)');
+  expect(band.height).toBe('calc(var(--menu-band-bottom, 0px) + var(--space-4))');
   const media = postcss.parse(css).nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
-  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selector === ".main-tabs > [role='tablist']") : undefined;
+  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selector === '.main-tabs-frame') : undefined;
   const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
   expect(narrowProps['--menu-band-gutter']).toBe('var(--space-4)');
-  expect(narrowProps['margin-left']).toBe('var(--space-4)');
-  expect(narrowProps['margin-right']).toBe('var(--space-4)');
 });
 
-it('does not create a scrollable menu band pseudo-element', () => {
-  const pseudoRules: string[] = [];
-  postcss.parse(css).walkRules(rule => {
-    if (rule.selectors.includes(".main-tabs > [role='tablist']::before")) pseudoRules.push(rule.selector);
-  });
-  expect(pseudoRules).toEqual([]);
+it('keeps the menu band outside the scrolling content layout', () => {
+  expect(declarations('.main-tabs-frame').overflow).toBe('hidden');
+  expect(declarations('.main-tabs-frame::before').position).toBe('absolute');
+  expect(declarations('.main-tabs-frame::before')['pointer-events']).toBe('none');
 });
 
 it('fits the full-width menu row inside the existing side gutters', async () => {
   await openPanel();
   const list = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
   expect(list.classList.contains('w-full')).toBe(true);
-  const row = declarations(".main-tabs > [role='tablist']");
-  expect(row.width).toBe('auto');
-  expect(row.margin).toBe('var(--space-4) var(--space-6) 0');
+  const frame = declarations('.main-tabs-frame');
+  expect(frame.padding).toBe('var(--space-4) var(--menu-band-gutter) 0');
+  expect(declarations('.main-tabs')).toEqual({});
+  expect(declarations(".main-tabs > [role='tablist']")).toEqual({});
 });
 
 it('leaves selected menu tab paint and focus to the DS while retaining the opaque row', async () => {
@@ -272,7 +330,7 @@ it('leaves selected menu tab paint and focus to the DS while retaining the opaqu
     tabSelectors.push(...rule.selectors.filter(selector => /\[role\s*=\s*['"]?tab['"]?\s*\]/.test(selector)));
   });
   expect(tabSelectors).toEqual([]);
-  expect(declarations(".main-tabs > [role='tablist']")['box-shadow']).toContain('calc(var(--space-4) + 1px) var(--color-surface-0)');
+  expect(declarations('.main-tabs-frame::before').background).toBe('var(--color-surface-0)');
 });
 
 it('preserves navigation between the two menu tabs', async () => {

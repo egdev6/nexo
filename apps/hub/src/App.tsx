@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { AppIcon, Button, Cluster, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
 import { AppDetails } from './apps/details';
 import { isTauri } from '@tauri-apps/api/core';
@@ -32,6 +32,26 @@ import nexoLogo from '../src-tauri/app-icon.svg';
 import './style.css';
 
 type Tab = 'apps' | 'catalog';
+
+function MainTabsFrame({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const frame = ref.current;
+    const list = frame?.querySelector<HTMLElement>('[role="tablist"]');
+    if (!frame || !list) return;
+    const measure = () => {
+      const bottom = Math.max(0, list.getBoundingClientRect().bottom - frame.getBoundingClientRect().top);
+      frame.style.setProperty('--menu-band-bottom', `${bottom}px`);
+    };
+    measure();
+    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    resize?.observe(frame);
+    resize?.observe(list);
+    window.addEventListener('resize', measure);
+    return () => { resize?.disconnect(); window.removeEventListener('resize', measure); };
+  }, []);
+  return <div ref={ref} className="main-tabs-frame">{children}</div>;
+}
 
 /** Rescans after an app leaves the registry, measured from its departure. */
 const DEPARTURE_RESCAN_DELAYS_MS = [2000, 6000];
@@ -363,10 +383,10 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>{t(locale, 'app.recoverSettings')}</Button>}
       <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
     </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
-      <Tabs className="main-tabs" variant="outline" fullWidth label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: t(locale, 'app.myApps'), content: <InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onMenuAction={onAppsRefresh ? runMenuItem : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /> },
-        { value: 'catalog', label: t(locale, 'common.catalog'), content: <CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /> },
-      ]} />}
+      <MainTabsFrame><Tabs className="main-tabs" variant="outline" fullWidth fill label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
+        { value: 'apps', label: t(locale, 'app.myApps'), content: <div className="main-tab-content"><InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onMenuAction={onAppsRefresh ? runMenuItem : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /></div> },
+        { value: 'catalog', label: t(locale, 'common.catalog'), content: <div className="main-tab-content"><CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /></div> },
+      ]} /></MainTabsFrame>}
     {settings && <NewsPopup key={snapshot?.cycle} items={snapshot?.items ?? []} seenKeys={snapshot?.seenKeys} open={newsOpen} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
       stale={snapshot?.stale} onShown={item => viewed.current.add(item.id)}
       onCatalog={appId => { finishNews(); setShowSettings(false); setTargetAppId(appId); setActive('catalog'); }}
