@@ -56,7 +56,7 @@ The panel stays open while you work elsewhere. It uses the Windows tray for quic
 
 ### Install
 
-On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [Releases](https://github.com/egdev6/nexo/releases) and run it. The latest release, `v0.1.1`, contains `Nexo_0.1.1_x64-setup.exe`. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. Updates are installed over the existing version; Nexo does not yet update itself.
+On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [Releases](https://github.com/egdev6/nexo/releases) and run it. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. From 0.2.0 on, Nexo checks for new versions at startup and from **Settings › About**, and installs them after you confirm; earlier versions must be updated by installing the new one over them.
 
 The repository is private, so access to the release requires permission.
 
