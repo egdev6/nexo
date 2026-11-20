@@ -14,52 +14,111 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: Tests and build (Windows)
-    runs-on: windows-latest
-    timeout-minutes: 30
+  frontend:
+    name: Frontend (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - name: Node 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: apps/hub/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: apps/hub
+        run: npm ci
+      - name: Design system doctor
+        working-directory: apps/hub
+        run: npm run ds:doctor
+      - name: Typecheck and build frontend
+        working-directory: apps/hub
+        run: npm run build
+      - name: Frontend tests
+        working-directory: apps/hub
+        run: npm test
 
+  rust-lint:
+    name: Rust lint (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Rust stable
         uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
         with:
           toolchain: stable
           components: rustfmt, clippy
-
       - name: Rust format is clean
         run: cargo fmt --all -- --check
-
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev patchelf
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/hub/package-lock.json
       - name: Install locked frontend dependencies
         working-directory: apps/hub
         run: npm ci
-
-      - name: Design system doctor
-        working-directory: apps/hub
-        run: npm run ds:doctor
-
-      - name: Frontend tests
-        working-directory: apps/hub
-        run: npm test
-
-      - name: Typecheck and build frontend
+      - name: Build frontend for Tauri
         working-directory: apps/hub
         run: npm run build
-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Rust lint
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+  rust-windows:
+    name: Rust tests and lint (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/hub/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: apps/hub
+        run: npm ci
+      - name: Build frontend for Tauri
+        working-directory: apps/hub
+        run: npm run build
+      - name: Rust stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+        with:
+          toolchain: stable
+          components: clippy
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Rust lint (including Windows-only code)
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Rust tests
         run: cargo test --workspace --locked
-
+      # Unlike the test harnesses, this links the normal executable.
       - name: Build workspace
         run: cargo build --workspace --locked
