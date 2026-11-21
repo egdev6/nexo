@@ -2,12 +2,12 @@ import messages from './messages.json';
 import type { Language } from '../model';
 
 type Paths<T> = T extends string ? [] : { [K in keyof T & string]: [K, ...Paths<T[K]>] }[keyof T & string];
-type Join<T extends string[]> = T extends [infer F extends string, ...infer R extends string[]] ? R['length'] extends 0 ? F : `${F}.${Join<R>}` : never;
+type Join<T extends string[]> = T extends [infer F extends string, ...infer R extends string[]] ? (R['length'] extends 0 ? F : `${F}.${Join<R>}`) : never;
 export type MessageKey = Join<Paths<typeof messages.es>>;
 export type Params = Record<string, string | number>;
 
 export function formatMessage(template: string, params?: Params): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) => params && Object.hasOwn(params, key) ? String(params[key]) : match);
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => (params && Object.hasOwn(params, key) ? String(params[key]) : match));
 }
 
 function lookup(tree: unknown, key: string): string | undefined {
@@ -25,5 +25,5 @@ export function translate(es: unknown, en: unknown, locale: Language, key: strin
 export function t(locale: Language, key: MessageKey, params?: Params): string {
   return translate(messages.es, messages.en, locale, key, params);
 }
-export const intlLocale = (locale: Language): 'es-ES' | 'en-US' => locale === 'en' ? 'en-US' : 'es-ES';
+export const intlLocale = (locale: Language): 'es-ES' | 'en-US' => (locale === 'en' ? 'en-US' : 'es-ES');
 export const formatNumber = (locale: Language, number: number) => new Intl.NumberFormat(intlLocale(locale)).format(number);

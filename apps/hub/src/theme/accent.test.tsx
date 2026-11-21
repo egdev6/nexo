@@ -14,23 +14,49 @@ vi.mock('../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(false
 
 const customSelector = '.flyout[data-custom-accent], .local-app-dialog[data-custom-accent], .local-app-alert-dialog[data-custom-accent]';
 const appTokens = [
-  '--color-primitive-red-neon', '--color-primitive-red-dark', '--color-primitive-red-light', '--color-primitive-red-200', '--color-primitive-red-300', '--color-primitive-red-950',
-  ...['07', '10', '12', '15', '18', '22', '30', '45', '65'].map(n => `--color-alpha-red-${n}`),
-  '--logo-red', '--logo-red-shade', '--color-bg-deep', '--color-bg-flood', '--color-fg-on-flood', '--color-bg-brand-subtle', '--color-bg-brand-hover',
-  '--color-action-primary-bg-default', '--color-action-primary-bg-hover',
-  '--gradient-btn-secondary', '--gradient-btn-secondary-hover', '--gradient-post-new', '--gradient-progress', '--gradient-section-show', '--gradient-hot',
-  '--shadow-glow-intense', '--shadow-cta-hover', '--shadow-card', '--shadow-glow-hot', '--shadow-ring-brand', '--shadow-hot', '--text-shadow-title-hero',
+  '--color-primitive-red-neon',
+  '--color-primitive-red-dark',
+  '--color-primitive-red-light',
+  '--color-primitive-red-200',
+  '--color-primitive-red-300',
+  '--color-primitive-red-950',
+  ...['07', '10', '12', '15', '18', '22', '30', '45', '65'].map((n) => `--color-alpha-red-${n}`),
+  '--logo-red',
+  '--logo-red-shade',
+  '--color-bg-deep',
+  '--color-bg-flood',
+  '--color-fg-on-flood',
+  '--color-bg-brand-subtle',
+  '--color-bg-brand-hover',
+  '--color-action-primary-bg-default',
+  '--color-action-primary-bg-hover',
+  '--gradient-btn-secondary',
+  '--gradient-btn-secondary-hover',
+  '--gradient-post-new',
+  '--gradient-progress',
+  '--gradient-section-show',
+  '--gradient-hot',
+  '--shadow-glow-intense',
+  '--shadow-cta-hover',
+  '--shadow-card',
+  '--shadow-glow-hot',
+  '--shadow-ring-brand',
+  '--shadow-hot',
+  '--text-shadow-title-hero',
 ];
 
 function declarations(source: string, selector: string) {
   const result = new Map<string, string>();
-  postcss.parse(source).walkRules(rule => {
-    if (rule.selector === selector) rule.walkDecls(declaration => { result.set(declaration.prop, declaration.value); });
+  postcss.parse(source).walkRules((rule) => {
+    if (rule.selector === selector)
+      rule.walkDecls((declaration) => {
+        result.set(declaration.prop, declaration.value);
+      });
   });
   return result;
 }
 function contrastWithBlack(hex: string) {
-  const channels = hex.match(/[0-9a-f]{2}/gi)!.map(channel => {
+  const channels = hex.match(/[0-9a-f]{2}/gi)!.map((channel) => {
     const c = parseInt(channel, 16) / 255;
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   });
@@ -38,7 +64,8 @@ function contrastWithBlack(hex: string) {
 }
 function clickTab(name: string) {
   const tab = screen.getByRole('tab', { name });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
 }
 function expectTheme(scope: HTMLElement, accent: string) {
   const theme = createAccentTheme(accent);
@@ -46,7 +73,16 @@ function expectTheme(scope: HTMLElement, accent: string) {
   for (const [name, value] of Object.entries(theme.variables)) expect(scope.style.getPropertyValue(name), name).toBe(value);
 }
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 afterEach(cleanup);
 afterAll(() => vi.unstubAllGlobals());
 

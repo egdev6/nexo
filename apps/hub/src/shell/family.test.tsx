@@ -7,23 +7,34 @@ import { defaultSettings } from '../sample';
 import { hideFlyout } from '../window';
 
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => false, invoke: vi.fn() }));
-vi.mock('../settings/use-settings', () => ({ useSettings: () => ({
-  settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: 63, blur: 12 },
-  fileState: 'ready', languageDraft: null,
-}) }));
+vi.mock('../settings/use-settings', () => ({
+  useSettings: () => ({
+    settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: 63, blur: 12 },
+    fileState: 'ready',
+    languageDraft: null,
+  }),
+}));
 vi.mock('../settings', () => ({ SettingsView: () => <section aria-label="Ajustes">Ajustes abiertos</section> }));
 vi.mock('../news/use-flyout', () => ({ useFlyoutVisibility: () => ({ visibility: null, lastShow: null, error: null }) }));
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 vi.mock('../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(false), hideFlyout: vi.fn() }));
 vi.mock('../local-apps/view', () => ({ LocalAppsView: () => null }));
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 it('uses the design-system ghost variant for both header icon buttons', () => {
-  render(<><FlyoutPanel apps={[]} news={[]} /><IconButton label="Referencia" variant="ghost" icon={<Icon name="close" />} /></>);
+  render(
+    <>
+      <FlyoutPanel apps={[]} news={[]} />
+      <IconButton label="Referencia" variant="ghost" icon={<Icon name="close" />} />
+    </>,
+  );
   const header = screen.getByRole('heading', { name: 'Nexo' }).closest('header')!;
   const expected = screen.getByRole('button', { name: 'Referencia' }).className;
-  expect(['Ajustes', 'Cerrar panel'].map(name => within(header).getByRole('button', { name }).className)).toEqual([expected, expected]);
+  expect(['Ajustes', 'Cerrar panel'].map((name) => within(header).getByRole('button', { name }).className)).toEqual([expected, expected]);
 });
 
 it('keeps header actions and the configured opacity and blur', () => {

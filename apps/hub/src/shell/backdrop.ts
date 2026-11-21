@@ -3,10 +3,19 @@ import { useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
 interface Clip {
-  width: number; height: number;
-  x: number; y: number; contentWidth: number; contentHeight: number;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  contentWidth: number;
+  contentHeight: number;
 }
-interface Request { clip: Clip | null; blur: number; opacity: number; generation: number }
+interface Request {
+  clip: Clip | null;
+  blur: number;
+  opacity: number;
+  generation: number;
+}
 
 // The foreground paints the tint/opacity; the independent visual only blurs the
 // desktop behind the currently visible content, never the header or tab row.
@@ -17,7 +26,7 @@ function measure(panel: HTMLElement): Clip | null {
   const outer = panel.getBoundingClientRect();
   const content = area.getBoundingClientRect();
   // The Tabs frame owns side gutters; the native blur still spans the whole flyout.
-  const horizontal = area.matches('[role="tabpanel"]') ? area.closest<HTMLElement>('.main-tabs-frame')?.getBoundingClientRect() ?? content : content;
+  const horizontal = area.matches('[role="tabpanel"]') ? (area.closest<HTMLElement>('.main-tabs-frame')?.getBoundingClientRect() ?? content) : content;
   const width = Math.round(outer.width * scale);
   const height = Math.round(outer.height * scale);
   const x = Math.max(0, Math.ceil((horizontal.left - outer.left) * scale));
@@ -74,9 +83,14 @@ export function useContentBackdrop(panel: RefObject<HTMLElement | null>, availab
     const observe = () => {
       resize?.disconnect();
       resize?.observe(element);
-      element.querySelectorAll<HTMLElement>('.area-scroll, .panel-head, .main-tabs [role="tablist"], .main-tabs [role="tabpanel"]:not([hidden])').forEach(node => resize?.observe(node));
+      element
+        .querySelectorAll<HTMLElement>('.area-scroll, .panel-head, .main-tabs [role="tablist"], .main-tabs [role="tabpanel"]:not([hidden])')
+        .forEach((node) => resize?.observe(node));
     };
-    const mutation = new MutationObserver(() => { observe(); schedule(); });
+    const mutation = new MutationObserver(() => {
+      observe();
+      schedule();
+    });
     mutation.observe(element, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'data-state'] });
     observe();
     window.addEventListener('resize', onResize);

@@ -15,12 +15,42 @@ const native = vi.hoisted(() => ({ invoke: vi.fn(), locale: 'es' as Language }))
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: native.invoke }));
 vi.mock('../i18n/use-locale', () => ({ useLocale: () => native.locale }));
 let failedSources: Set<string>;
-beforeEach(() => { native.locale = 'es'; native.invoke.mockReset(); native.invoke.mockResolvedValue(null); failedSources = new Set(); mockImageLoading(failedSources); });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  native.locale = 'es';
+  native.invoke.mockReset();
+  native.invoke.mockResolvedValue(null);
+  failedSources = new Set();
+  mockImageLoading(failedSources);
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const apps: HubApp[] = [
-  { id: 'pizarra', name: 'Pizarra', installed: false, running: false, integration: 'catalog', description: 'Ideas', tagline: 'Ideas a la vista', tags: ['Ideas', 'Organización'], version: '1.2.3', links: { github: 'https://github.com/example', youtube: 'https://youtube.com/example' } },
-  { id: 'cadencia', name: 'Cadencia', installed: false, running: false, integration: 'catalog', description: 'Planifica', tagline: 'Tu ritmo', tags: ['Flujo'], links: { github: 'https://github.com/example2' } },
+  {
+    id: 'pizarra',
+    name: 'Pizarra',
+    installed: false,
+    running: false,
+    integration: 'catalog',
+    description: 'Ideas',
+    tagline: 'Ideas a la vista',
+    tags: ['Ideas', 'Organización'],
+    version: '1.2.3',
+    links: { github: 'https://github.com/example', youtube: 'https://youtube.com/example' },
+  },
+  {
+    id: 'cadencia',
+    name: 'Cadencia',
+    installed: false,
+    running: false,
+    integration: 'catalog',
+    description: 'Planifica',
+    tagline: 'Tu ritmo',
+    tags: ['Flujo'],
+    links: { github: 'https://github.com/example2' },
+  },
   { id: 'local', name: 'Local', installed: true, running: false, integration: 'local', description: 'Local' },
 ];
 
@@ -38,11 +68,11 @@ it('shows metadata without tag badges and preserves the sample install action', 
   expect(screen.queryByRole('article', { name: 'Local' })).toBeNull();
 });
 
-it.each(['pizarra', 'app-42', '0', '-'])('builds the exact banner URL for valid id %s', id => {
+it.each(['pizarra', 'app-42', '0', '-'])('builds the exact banner URL for valid id %s', (id) => {
   expect(catalogBannerUrl(id)).toBe(`https://egdev6.github.io/nexo-catalog/banners/${id}.webp`);
 });
 
-it.each(['', '../secret', 'App', 'app/other', 'app?x', 'app%2fother', 'app\n', ' app', 'á'])('rejects invalid banner id %j', id => {
+it.each(['', '../secret', 'App', 'app/other', 'app?x', 'app%2fother', 'app\n', ' app', 'á'])('rejects invalid banner id %j', (id) => {
   expect(catalogBannerUrl(id)).toBeUndefined();
 });
 
@@ -138,7 +168,10 @@ it('opens only present social links through the native policy for official and s
   expect(window.location.href).toBe(location);
 });
 
-it.each([['es', 'No se pudo abrir el enlace.'], ['en', 'Could not open the link.']] as const)('reports native social-link failures in %s and clears them on retry', async (locale, message) => {
+it.each([
+  ['es', 'No se pudo abrir el enlace.'],
+  ['en', 'Could not open the link.'],
+] as const)('reports native social-link failures in %s and clears them on retry', async (locale, message) => {
   native.locale = locale;
   native.invoke.mockRejectedValueOnce(new Error('private diagnostic'));
   render(<CatalogView apps={[apps[0]]} />);
@@ -167,7 +200,7 @@ it('shows a loading message rather than an empty result', () => {
   expect(screen.queryByText('No hay aplicaciones disponibles en el catálogo.')).toBeNull();
 });
 
-it.each(['offline', 'error'] as const)('shows %s and retries while preserving available cached cards', state => {
+it.each(['offline', 'error'] as const)('shows %s and retries while preserving available cached cards', (state) => {
   const retry = vi.fn();
   render(<CatalogView apps={[apps[0]]} state={state} onRetry={retry} />);
   const alert = screen.getByRole('alert');
@@ -205,7 +238,9 @@ it.each([
   expect(button.disabled).toBe(true);
   const warning = within(card).getByText(reason);
   expect(button.getAttribute('aria-describedby')?.split(/\s+/)).toContain(warning.id);
-  expect(within(card).getByText(locale === 'es' ? 'Actualiza el catálogo oficial antes de instalar.' : 'Refresh the official catalog before installing.')).toBeTruthy();
+  expect(
+    within(card).getByText(locale === 'es' ? 'Actualiza el catálogo oficial antes de instalar.' : 'Refresh the official catalog before installing.'),
+  ).toBeTruthy();
   fireEvent.click(button);
   expect(native.invoke).not.toHaveBeenCalled();
 });
@@ -221,7 +256,11 @@ it('preserves the disabled official install action alongside discovery links', (
   render(<CatalogView apps={[app]} state="ready" />);
   const card = screen.getByRole('article', { name: 'Pizarra' });
   expect((within(card).getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(within(card).getByRole('link', { name: /GitHub/i }).getAttribute('href')).toBe(app.links?.github);
+  expect(
+    within(card)
+      .getByRole('link', { name: /GitHub/i })
+      .getAttribute('href'),
+  ).toBe(app.links?.github);
 });
 
 it.each([
@@ -245,5 +284,10 @@ it.each([
 
 function declarationsFor(selector: string) {
   const match = css.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`));
-  return Object.fromEntries((match?.[1] ?? '').split(';').map(part => part.split(':').map(value => value.trim())).filter(pair => pair[0]));
+  return Object.fromEntries(
+    (match?.[1] ?? '')
+      .split(';')
+      .map((part) => part.split(':').map((value) => value.trim()))
+      .filter((pair) => pair[0]),
+  );
 }

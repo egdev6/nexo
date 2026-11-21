@@ -3,7 +3,7 @@ import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing
 import { afterEach, expect, it, vi } from 'vitest';
 import { FirstRun } from './index';
 
-configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
+configure({ getElementError: (message) => new Error(message?.split('\n')[0] ?? 'Element not found') });
 afterEach(cleanup);
 
 it('renders the bilingual intro as a section header with tagged copy and hidden separators', () => {
@@ -18,12 +18,11 @@ it('renders the bilingual intro as a section header with tagged copy and hidden 
     [lede, 'Puedes cambiarlo después en Ajustes.', 'You can change it later in Settings.', ' - '],
   ] as const) {
     expect(element.textContent).toBe(`${spanish}${separator}${english}`);
-    expect([...element.querySelectorAll('[lang]')].map(run => [run.getAttribute('lang'), run.textContent])).toEqual([
-      ['es', spanish], ['en', english],
+    expect([...element.querySelectorAll('[lang]')].map((run) => [run.getAttribute('lang'), run.textContent])).toEqual([
+      ['es', spanish],
+      ['en', english],
     ]);
-    expect([...element.querySelectorAll('[aria-hidden="true"]')].map(run => run.textContent)).toEqual(
-      separator === ' ' ? [] : ['-'],
-    );
+    expect([...element.querySelectorAll('[aria-hidden="true"]')].map((run) => run.textContent)).toEqual(separator === ' ' ? [] : ['-']);
   }
   expect(heading.parentElement?.classList.contains('eg-section-head')).toBe(true);
 });

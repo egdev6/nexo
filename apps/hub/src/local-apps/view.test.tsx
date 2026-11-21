@@ -12,7 +12,18 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) })
 vi.mock('../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(false), hideFlyout: vi.fn() }));
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 
-const official: HubApp = { id: 'official-id', name: 'Official Example', description: 'Official', source: 'official', integration: 'local', installed: true, running: false, statusKnown: true, installationState: 'installed', canOpen: true };
+const official: HubApp = {
+  id: 'official-id',
+  name: 'Official Example',
+  description: 'Official',
+  source: 'official',
+  integration: 'local',
+  installed: true,
+  running: false,
+  statusKnown: true,
+  installationState: 'installed',
+  canOpen: true,
+};
 const rows: LocalAppRow[] = [
   { id: 'local:manual:1', source: 'local', name: 'Work', state: 'ready', origin: { kind: 'manual', id: 'manual-1' }, duplicateOf: 'official-id' },
   { id: 'local:manual:2', source: 'local', name: 'Broken', state: 'missingExecutable', origin: { kind: 'manual', id: 'manual-2' } },
@@ -21,7 +32,8 @@ const rows: LocalAppRow[] = [
 beforeEach(() => {
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string) => {
-    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, language: 'en', firstRunComplete: true, showNewsOnOpen: false, sources: [] } };
+    if (command === 'get_settings')
+      return { state: 'ready', settings: { ...defaultSettings, language: 'en', firstRunComplete: true, showNewsOnOpen: false, sources: [] } };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
     if (command === 'local_apps_list') return rows;
     return null;
@@ -35,14 +47,16 @@ function card(name: string) {
   return within(element as HTMLElement);
 }
 function expand(name: string) {
-  const trigger = card(name).getAllByRole('button').find(button => button.hasAttribute('aria-expanded'))!;
+  const trigger = card(name)
+    .getAllByRole('button')
+    .find((button) => button.hasAttribute('aria-expanded'))!;
   if (trigger.getAttribute('aria-expanded') === 'false') fireEvent.click(trigger);
 }
 
 it('shows manual local rows after official apps with duplicate and availability warnings', async () => {
   render(<FlyoutPanel apps={[official]} news={[]} onAppsRefresh={() => {}} />);
   await screen.findByText('Work');
-  const names = Array.from(document.querySelectorAll('.app-card strong')).map(node => node.textContent);
+  const names = Array.from(document.querySelectorAll('.app-card strong')).map((node) => node.textContent);
   expect(names).toEqual(['Official Example', 'Work', 'Broken']);
   expect(card('Work').getByText('Local')).toBeTruthy();
   expand('Work');
@@ -121,7 +135,10 @@ it('refreshes local state and ignores an older list result', async () => {
   bridge.invoke.mockImplementation(async (command: string) => {
     if (command === 'local_apps_list') {
       lists++;
-      if (lists === 2) return new Promise<LocalAppRow[]>(resolve => { finishOld = resolve; });
+      if (lists === 2)
+        return new Promise<LocalAppRow[]>((resolve) => {
+          finishOld = resolve;
+        });
       if (lists === 3) return [{ ...rows[0], name: 'New name' }];
     }
     return original(command);

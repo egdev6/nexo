@@ -5,7 +5,10 @@ const native = vi.hoisted(() => ({ invoke: vi.fn(), listen: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: native.invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: native.listen }));
 
-beforeEach(() => { native.invoke.mockReset(); native.listen.mockReset(); });
+beforeEach(() => {
+  native.invoke.mockReset();
+  native.listen.mockReset();
+});
 
 describe('install client', () => {
   it('passes only the official id and preserves native install outcomes and errors', async () => {
@@ -19,7 +22,14 @@ describe('install client', () => {
     await expect(installApp('minimal')).rejects.toBe('native error');
   });
   it('passes only the official id to updates and preserves native outcomes', async () => {
-    for (const result of [{ status: 'updated', version: '2.0.0' }, { status: 'upToDate', version: '3.0.0' }, { status: 'versionMismatch', version: '4.0.0' }, { status: 'appStillRunning' }, { status: 'detectionUnknown' }, { status: 'notDetected' }]) {
+    for (const result of [
+      { status: 'updated', version: '2.0.0' },
+      { status: 'upToDate', version: '3.0.0' },
+      { status: 'versionMismatch', version: '4.0.0' },
+      { status: 'appStillRunning' },
+      { status: 'detectionUnknown' },
+      { status: 'notDetected' },
+    ]) {
       native.invoke.mockResolvedValueOnce(result);
       await expect(updateApp('minimal')).resolves.toEqual(result);
     }

@@ -23,41 +23,78 @@ let fail: Record<string, string>;
 let cancel: string | null;
 let duplicate: boolean;
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 beforeEach(() => {
-  apps = [structuredClone(initialApp)]; fail = {}; cancel = null; duplicate = false;
+  apps = [structuredClone(initialApp)];
+  fail = {};
+  cancel = null;
+  duplicate = false;
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { id?: string; name?: string }) => {
     if (fail[command]) throw fail[command];
-    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, sources: [official, { id: 'source-1', label: 'Trabajo', kind: 'local' }] } };
-    if (command === 'local_apps_list') return apps.map(app => ({ id: `manual:${app.id}`, name: app.name, source: 'local', state: 'missingExecutable', origin: { kind: 'manual', id: app.id } }));
-    if (cancel === command) { cancel = null; return null; }
+    if (command === 'get_settings')
+      return { state: 'ready', settings: { ...defaultSettings, sources: [official, { id: 'source-1', label: 'Trabajo', kind: 'local' }] } };
+    if (command === 'local_apps_list')
+      return apps.map((app) => ({
+        id: `manual:${app.id}`,
+        name: app.name,
+        source: 'local',
+        state: 'missingExecutable',
+        origin: { kind: 'manual', id: app.id },
+      }));
+    if (cancel === command) {
+      cancel = null;
+      return null;
+    }
     if (command === 'local_app_pick_executable') return { token: 'exe-token', path: 'C:\\Paint.exe', suggestedName: 'Paint' };
     if (command === 'local_app_cancel_selection') return;
     if (command === 'local_app_create') {
       const app = { id: 'manual-2', name: args?.name ?? 'Paint', executable: 'C:\\Paint.exe', icon: null };
-      apps = [...apps, app]; return { app, duplicate };
+      apps = [...apps, app];
+      return { app, duplicate };
     }
     if (command === 'local_app_update') {
       const name = args?.name?.trim() ?? '';
       if (!name || /[\x00-\x1f]/.test(name)) throw 'nexo.local.invalidName';
-      const app = { ...apps.find(item => item.id === args?.id)!, name };
-      apps = apps.map(item => item.id === app.id ? app : item); return { app, duplicate };
+      const app = { ...apps.find((item) => item.id === args?.id)!, name };
+      apps = apps.map((item) => (item.id === app.id ? app : item));
+      return { app, duplicate };
     }
     if (command === 'local_app_pick_icon') {
-      const app = { ...apps.find(item => item.id === args?.id)!, icon: 'owned.png' };
-      apps = apps.map(item => item.id === app.id ? app : item); return { app, duplicate };
+      const app = { ...apps.find((item) => item.id === args?.id)!, icon: 'owned.png' };
+      apps = apps.map((item) => (item.id === app.id ? app : item));
+      return { app, duplicate };
     }
-    if (command === 'local_app_remove') { apps = apps.filter(item => item.id !== args?.id); return; }
+    if (command === 'local_app_remove') {
+      apps = apps.filter((item) => item.id !== args?.id);
+      return;
+    }
     throw new Error(`Unexpected command ${command}`);
   });
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 function setup(locale: Language = 'es') {
-  const result = render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} sources={[official]} /></LocaleProvider>);
+  const result = render(
+    <LocaleProvider locale={locale}>
+      <SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={vi.fn()} sources={[official]} />
+    </LocaleProvider>,
+  );
   const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Apps locales' : 'Local apps' });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
   return result;
 }
 
@@ -66,7 +103,13 @@ it('does not hard-code visible copy or accessible labels in the local settings v
   const found: string[] = [];
   function visit(node: ts.Node) {
     if (ts.isJsxText(node) && /[A-Za-zÁ-ú]/.test(node.text.trim())) found.push(node.text.trim());
-    if (ts.isJsxAttribute(node) && ['aria-label', 'title', 'label', 'placeholder'].includes(node.name.getText(source)) && node.initializer && ts.isStringLiteral(node.initializer)) found.push(node.initializer.text);
+    if (
+      ts.isJsxAttribute(node) &&
+      ['aria-label', 'title', 'label', 'placeholder'].includes(node.name.getText(source)) &&
+      node.initializer &&
+      ts.isStringLiteral(node.initializer)
+    )
+      found.push(node.initializer.text);
     ts.forEachChild(node, visit);
   }
   visit(source);
@@ -92,7 +135,8 @@ it('lists manual apps without requesting catalog sources or commands', async () 
 });
 
 it('offers localized English controls and keyboard cancellation of an inline edit', async () => {
-  setup('en'); await screen.findByText('Editor');
+  setup('en');
+  await screen.findByText('Editor');
   expect(screen.getByRole('button', { name: 'Add app' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Change icon of Editor' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Rename Editor' }));
@@ -118,7 +162,8 @@ it('lists manual entries with their state and editable controls', async () => {
 });
 
 it('adds through the dialog, leaves picker cancellation unchanged, warns about duplicates and survives reopening', async () => {
-  setup(); await screen.findByText('Editor');
+  setup();
+  await screen.findByText('Editor');
   cancel = 'local_app_pick_executable';
   fireEvent.click(screen.getByRole('button', { name: 'Añadir app' }));
   const dialog = await screen.findByRole('dialog', { name: 'Añadir app local' });
@@ -131,13 +176,15 @@ it('adds through the dialog, leaves picker cancellation unchanged, warns about d
   fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir' }));
   expect(await screen.findByText('Paint')).toBeTruthy();
   expect(screen.getByText('Puede existir otra app con el mismo nombre o ejecutable.')).toBeTruthy();
-  cleanup(); setup();
+  cleanup();
+  setup();
   expect(await screen.findByText('Paint')).toBeTruthy();
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_create', { token: 'exe-token', name: 'Paint', iconToken: undefined });
 });
 
 it('renames inline, retains the previous entry on validation or save failure, and permits editing a missing app', async () => {
-  setup(); await screen.findByText('Editor');
+  setup();
+  await screen.findByText('Editor');
   fireEvent.click(screen.getByRole('button', { name: 'Renombrar Editor' }));
   const input = screen.getByRole('textbox', { name: 'Nombre de Editor' });
   const inputLayout = input.parentElement!;
@@ -165,7 +212,8 @@ it('renames inline, retains the previous entry on validation or save failure, an
 });
 
 it('changes the icon only through the native picker and preserves cancellation and failures', async () => {
-  setup(); await screen.findByText('Editor');
+  setup();
+  await screen.findByText('Editor');
   cancel = 'local_app_pick_icon';
   fireEvent.click(screen.getByRole('button', { name: 'Cambiar icono de Editor' }));
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_pick_icon', { id: 'manual-1' }));
@@ -182,15 +230,38 @@ it('changes the icon only through the native picker and preserves cancellation a
 });
 
 it.each([
-  ['es', 'Eliminar Editor', 'Confirmar eliminación de Editor', 'Se eliminará la entrada; el archivo y los procesos no se modificarán.', 'Cancelar', 'Eliminar app'],
-  ['en', 'Remove Editor', 'Confirm removal of Editor', 'The entry will be removed; the file and running processes will not be changed.', 'Cancel', 'Remove app'],
+  [
+    'es',
+    'Eliminar Editor',
+    'Confirmar eliminación de Editor',
+    'Se eliminará la entrada; el archivo y los procesos no se modificarán.',
+    'Cancelar',
+    'Eliminar app',
+  ],
+  [
+    'en',
+    'Remove Editor',
+    'Confirm removal of Editor',
+    'The entry will be removed; the file and running processes will not be changed.',
+    'Cancel',
+    'Remove app',
+  ],
 ] as const)('confirms deletion and preserves the app on cancel (%s)', async (locale, triggerLabel, title, description, cancelLabel, removeLabel) => {
-  setup(locale); await screen.findByText('Editor');
+  setup(locale);
+  await screen.findByText('Editor');
   const trigger = screen.getByRole('button', { name: triggerLabel });
-  const reference = render(<Button variant="secondary" size="sm" type="button">reference</Button>).container.querySelector('button')!;
+  const reference = render(
+    <Button variant="secondary" size="sm" type="button">
+      reference
+    </Button>,
+  ).container.querySelector('button')!;
   expect(trigger.className).toBe(reference.className);
   const rename = screen.getByRole('button', { name: locale === 'es' ? 'Renombrar Editor' : 'Rename Editor' });
-  const neutral = render(<Button variant="neutral" size="sm" type="button">reference</Button>).container.querySelector('button')!;
+  const neutral = render(
+    <Button variant="neutral" size="sm" type="button">
+      reference
+    </Button>,
+  ).container.querySelector('button')!;
   expect(rename.className).toBe(neutral.className);
   fireEvent.click(trigger);
   let dialog = await screen.findByRole('alertdialog', { name: title });
@@ -214,7 +285,8 @@ it.each([
 });
 
 it('retains the confirmation and app after a failed removal, and permits retry', async () => {
-  setup(); await screen.findByText('Editor');
+  setup();
+  await screen.findByText('Editor');
   fireEvent.click(screen.getByRole('button', { name: 'Eliminar Editor' }));
   const dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Editor' });
   fail.local_app_remove = 'nexo.config.save.unreadable';
@@ -227,12 +299,14 @@ it('retains the confirmation and app after a failed removal, and permits retry',
   await waitFor(() => expect(screen.queryByText('Editor')).toBeNull());
   expect(apps).toEqual([]);
   expect(bridge.invoke.mock.calls.filter(([name]) => name === 'local_app_remove')).toEqual([
-    ['local_app_remove', { id: 'manual-1' }], ['local_app_remove', { id: 'manual-1' }],
+    ['local_app_remove', { id: 'manual-1' }],
+    ['local_app_remove', { id: 'manual-1' }],
   ]);
 });
 
 it('dismisses deletion with Escape without changing the app', async () => {
-  setup(); await screen.findByText('Editor');
+  setup();
+  await screen.findByText('Editor');
   const trigger = screen.getByRole('button', { name: 'Eliminar Editor' });
   fireEvent.click(trigger);
   const dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Editor' });

@@ -8,7 +8,7 @@ export function observeFlyoutFocus(onFocus: (focused: boolean) => void): () => v
   let unlisten: (() => void) | undefined;
   void (async () => {
     try {
-      const stop = await getCurrentWindow().onFocusChanged(event => {
+      const stop = await getCurrentWindow().onFocusChanged((event) => {
         if (active) onFocus(event.payload);
       });
       if (active) unlisten = stop;
@@ -17,5 +17,8 @@ export function observeFlyoutFocus(onFocus: (focused: boolean) => void): () => v
       if (active) console.error('No se pudo observar el foco del panel de Nexo.', error);
     }
   })();
-  return () => { active = false; unlisten?.(); };
+  return () => {
+    active = false;
+    unlisten?.();
+  };
 }

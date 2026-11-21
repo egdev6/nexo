@@ -15,7 +15,11 @@ describe('official catalog endpoints', () => {
   it('limits the webview to the catalog origin for fetches and images', () => {
     const config = JSON.parse(tauriConfig);
     const csp: string = config.app.security.csp;
-    const directive = (name: string) => csp.split(';').map(part => part.trim()).find(part => part.startsWith(`${name} `)) ?? '';
+    const directive = (name: string) =>
+      csp
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name} `)) ?? '';
     expect(directive('connect-src').split(/\s+/)).toEqual(['connect-src', 'ipc:', 'http://ipc.localhost', ORIGIN]);
     expect(directive('img-src').split(/\s+/)).toEqual(['img-src', "'self'", 'data:', ORIGIN]);
   });

@@ -5,7 +5,7 @@ import type { Language } from '../model';
 
 /** Re-render hub-owned native messages in the current locale; preserve external diagnostics. */
 export function localizeAppReason(locale: Language, value: string): string {
-  const keys = Object.keys(messages.es.native).filter(key => key.startsWith('app')) as (keyof typeof messages.es.native)[];
+  const keys = Object.keys(messages.es.native).filter((key) => key.startsWith('app')) as (keyof typeof messages.es.native)[];
   for (const key of keys) {
     for (const template of [messages.es.native[key], messages.en.native[key]]) {
       if (template === value) return t(locale, `native.${key}` as MessageKey);

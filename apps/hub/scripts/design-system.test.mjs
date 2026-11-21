@@ -6,15 +6,12 @@ import { checkDesignSystemMcp } from './check-design-system-mcp.mjs';
 
 const reference = new URL('../../../design/system.md', import.meta.url);
 const statusCommit = 'ca11bac';
-const withCommit = (markdown, commit) => markdown.replace(
-  /^(<!-- Generated from EGDEV design system )[^;]+;/,
-  `$1${commit};`,
-);
+const withCommit = (markdown, commit) => markdown.replace(/^(<!-- Generated from EGDEV design system )[^;]+;/, `$1${commit};`);
 
 function mockStatus(implementation) {
   const runStatus = vi.fn(implementation);
-  vi.doMock('node:child_process', async importOriginal => ({
-    ...await importOriginal(),
+  vi.doMock('node:child_process', async (importOriginal) => ({
+    ...(await importOriginal()),
     execFileSync: runStatus,
   }));
   return runStatus;
@@ -36,8 +33,8 @@ it('serves the vendored design system and keeps its generated reference in sync'
 it('generates the reference with the commit reported by status', async () => {
   const status = mockStatus(() => JSON.stringify({ commit: statusCommit }));
   const writeFile = vi.fn();
-  vi.doMock('node:fs/promises', async importOriginal => ({
-    ...await importOriginal(),
+  vi.doMock('node:fs/promises', async (importOriginal) => ({
+    ...(await importOriginal()),
     writeFile,
   }));
 
@@ -53,13 +50,11 @@ it('checks the MCP reference against the commit reported by status', async () =>
   const status = mockStatus(() => JSON.stringify({ commit: statusCommit }));
   const original = await readFile(reference, 'utf8');
   let markdown = withCommit(original, statusCommit);
-  vi.doMock('node:fs/promises', async importOriginal => {
+  vi.doMock('node:fs/promises', async (importOriginal) => {
     const actual = await importOriginal();
     return {
       ...actual,
-      readFile: (path, ...args) => String(path) === reference.href
-        ? Promise.resolve(markdown)
-        : actual.readFile(path, ...args),
+      readFile: (path, ...args) => (String(path) === reference.href ? Promise.resolve(markdown) : actual.readFile(path, ...args)),
     };
   });
   const { checkDesignSystemMcp: check } = await import('./check-design-system-mcp.mjs');
@@ -71,10 +66,12 @@ it('checks the MCP reference against the commit reported by status', async () =>
 }, 30_000);
 
 it('does not write the reference if status fails', async () => {
-  mockStatus(() => { throw new Error('status command failed'); });
+  mockStatus(() => {
+    throw new Error('status command failed');
+  });
   const writeFile = vi.fn();
-  vi.doMock('node:fs/promises', async importOriginal => ({
-    ...await importOriginal(),
+  vi.doMock('node:fs/promises', async (importOriginal) => ({
+    ...(await importOriginal()),
     writeFile,
   }));
 
@@ -83,15 +80,17 @@ it('does not write the reference if status fails', async () => {
 });
 
 it('fails the MCP check clearly if status fails', async () => {
-  mockStatus(() => { throw new Error('status command failed'); });
+  mockStatus(() => {
+    throw new Error('status command failed');
+  });
   const { checkDesignSystemMcp: check } = await import('./check-design-system-mcp.mjs');
 
   await expect(check()).rejects.toThrow(/status/i);
 }, 30_000);
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const scriptPath = name => fileURLToPath(new URL(`./${name}`, import.meta.url));
-const preload = code => `data:text/javascript,${encodeURIComponent(code)}`;
+const scriptPath = (name) => fileURLToPath(new URL(`./${name}`, import.meta.url));
+const preload = (code) => `data:text/javascript,${encodeURIComponent(code)}`;
 
 it('runs the MCP check as a command and rejects an out-of-sync commit', () => {
   const script = scriptPath('check-design-system-mcp.mjs');

@@ -8,25 +8,33 @@ import { buildArtboards } from './build';
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const contrastCss = readFileSync(resolve('scripts/canvas/egdev-family-contrast.css'), 'utf8');
 const expectedFonts = [
-  ...[400, 500, 600, 700, 800].map(weight => ({ family: 'Barlow', packageName: 'barlow', weight })),
-  ...[400, 600, 700, 800].map(weight => ({ family: 'Barlow Condensed', packageName: 'barlow-condensed', weight })),
+  ...[400, 500, 600, 700, 800].map((weight) => ({ family: 'Barlow', packageName: 'barlow', weight })),
+  ...[400, 600, 700, 800].map((weight) => ({ family: 'Barlow Condensed', packageName: 'barlow-condensed', weight })),
 ].map(({ family, packageName, weight }) => ({
   family,
   style: 'normal',
   display: 'swap',
   weight: String(weight),
-  range: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
-  src: digest(`url(data:font/woff2;base64,${readFileSync(resolve(`node_modules/@fontsource/${packageName}/files/${packageName}-latin-${weight}-normal.woff2`)).toString('base64')}) format('woff2')`),
+  range:
+    'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
+  src: digest(
+    `url(data:font/woff2;base64,${readFileSync(resolve(`node_modules/@fontsource/${packageName}/files/${packageName}-latin-${weight}-normal.woff2`)).toString('base64')}) format('woff2')`,
+  ),
 }));
 
 it('generates self-contained Windows captures for each real component state and settings tab', async () => {
   const boards = await buildArtboards();
-  expect(boards.map(board => board.file)).toEqual([
-    '01-mis-apps.html', '02-catalogo.html', '03-novedades.html',
-    '04a-ajustes-general.html', '04b-ajustes-apariencia.html',
-    '04c-ajustes-apps-locales.html', '04d-ajustes-acerca-de.html', '05-primer-uso.html',
+  expect(boards.map((board) => board.file)).toEqual([
+    '01-mis-apps.html',
+    '02-catalogo.html',
+    '03-novedades.html',
+    '04a-ajustes-general.html',
+    '04b-ajustes-apariencia.html',
+    '04c-ajustes-apps-locales.html',
+    '04d-ajustes-acerca-de.html',
+    '05-primer-uso.html',
   ]);
-  const docs = boards.map(board => new DOMParser().parseFromString(board.html, 'text/html'));
+  const docs = boards.map((board) => new DOMParser().parseFromString(board.html, 'text/html'));
   for (const [index, doc] of docs.entries()) {
     expect(doc.documentElement.lang).toBe('es');
     expect(doc.querySelector('.flyout')).toBeTruthy();
@@ -36,9 +44,11 @@ it('generates self-contained Windows captures for each real component state and 
     const css = doc.querySelector('style')?.textContent ?? '';
     expect(css).toContain('--font-sans: "Barlow", system-ui, sans-serif');
     const fonts: { family: string; style: string; display: string; weight: string; range: string; src: string }[] = [];
-    postcss.parse(css).walkAtRules('font-face', face => {
+    postcss.parse(css).walkAtRules('font-face', (face) => {
       const declarations: Record<string, string> = {};
-      face.walkDecls(declaration => { declarations[declaration.prop] = declaration.value; });
+      face.walkDecls((declaration) => {
+        declarations[declaration.prop] = declaration.value;
+      });
       fonts.push({
         family: declarations['font-family']?.replace(/^['"]|['"]$/g, ''),
         style: declarations['font-style'],

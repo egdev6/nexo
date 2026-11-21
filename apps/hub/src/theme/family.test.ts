@@ -13,13 +13,18 @@ import { FirstRun } from '../first-run';
 
 const family = postcss.parse(readFileSync(`${cwd()}/src/theme/family.css`, 'utf8') as string);
 const paint = new Set(['background', 'background-color', 'background-image', 'border', 'border-color', 'box-shadow', 'color']);
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function paintFor(element: Element) {
   const declarations: [string, string][] = [];
-  family.walkRules(rule => {
-    if (rule.selectors.some(selector => element.matches(selector))) {
-      rule.walkDecls(decl => { if (paint.has(decl.prop)) declarations.push([decl.prop, decl.value]); });
+  family.walkRules((rule) => {
+    if (rule.selectors.some((selector) => element.matches(selector))) {
+      rule.walkDecls((decl) => {
+        if (paint.has(decl.prop)) declarations.push([decl.prop, decl.value]);
+      });
     }
   });
   return declarations;
@@ -27,8 +32,11 @@ function paintFor(element: Element) {
 
 function propertiesFor(selector: string) {
   const declarations: Record<string, string> = {};
-  family.walkRules(rule => {
-    if (rule.selectors.includes(selector)) rule.walkDecls(decl => { declarations[decl.prop] = decl.value; });
+  family.walkRules((rule) => {
+    if (rule.selectors.includes(selector))
+      rule.walkDecls((decl) => {
+        declarations[decl.prop] = decl.value;
+      });
   });
   return declarations;
 }
@@ -46,7 +54,9 @@ it('lets the DS paint and focus the selected first-run language without overridi
     expect(paintFor(card)).toEqual([]);
   }
   const choiceSelectors: string[] = [];
-  family.walkRules(rule => { choiceSelectors.push(...rule.selectors.filter(selector => selector.includes('.first-run__choices'))); });
+  family.walkRules((rule) => {
+    choiceSelectors.push(...rule.selectors.filter((selector) => selector.includes('.first-run__choices')));
+  });
   expect(choiceSelectors).toEqual([]);
   expect(spanish.getAttribute('aria-checked')).toBe('true');
   fireEvent.click(english);
@@ -56,7 +66,14 @@ it('lets the DS paint and focus the selected first-run language without overridi
 });
 
 it('keeps the slider track contrast on the DS boundary role and lets the DS paint the range', () => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   render(createElement('main', { className: 'flyout' }, createElement(Slider, { label: 'Opacity', defaultValue: 63 })));
   const slider = screen.getByRole('slider', { name: 'Opacity' });
   const root = slider.closest('.eg-slider')!;
@@ -92,15 +109,23 @@ it('preserves the application card, header and preview surfaces', () => {
     expect(props.background, selector).toBe('var(--gradient-sheen), var(--color-surface-1)');
     expect(props['box-shadow'], selector).toBe('var(--shadow-edge), var(--shadow-elev-1)');
   }
-  for (const selector of ['.app-card.eg-collapsible:has(> .app-row) > .app-row', '.news-header', '.catalog-card .catalog-art', '.catalog-card:nth-child(even) .catalog-art']) {
+  for (const selector of [
+    '.app-card.eg-collapsible:has(> .app-row) > .app-row',
+    '.news-header',
+    '.catalog-card .catalog-art',
+    '.catalog-card:nth-child(even) .catalog-art',
+  ]) {
     const props = propertiesFor(selector);
     expect(props.background, selector).toBe('var(--gradient-sheen), var(--color-surface-2)');
     expect(props['border-bottom'], selector).toBe('var(--border-width) solid var(--color-border-hairline)');
     expect(props['box-shadow'], selector).toBe('var(--shadow-edge)');
   }
   const previewRules: string[] = [];
-  family.walkRules(rule => {
-    if (rule.selector === '.settings__preview-panel') rule.walkDecls('background', decl => { previewRules.push(decl.value); });
+  family.walkRules((rule) => {
+    if (rule.selector === '.settings__preview-panel')
+      rule.walkDecls('background', (decl) => {
+        previewRules.push(decl.value);
+      });
   });
   expect(previewRules).toEqual([
     'var(--color-surface-0)',

@@ -14,7 +14,7 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => t
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ hide: vi.fn() }) }));
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
-vi.mock('../news/selection', async importOriginal => {
+vi.mock('../news/selection', async (importOriginal) => {
   const original = await importOriginal<typeof import('../news/selection')>();
   return { ...original, selectOfficialNews: vi.fn(original.selectOfficialNews) };
 });
@@ -22,8 +22,18 @@ vi.mock('../news/selection', async importOriginal => {
 const official = windowsCatalog(full.apps);
 const officialProjected = projectCatalogV4(parseCatalogV4(official), 'windows-x86_64');
 const officialText = JSON.stringify(official);
-const secrets = ['PRIVATE_APP_NAME', 'C:\\Secret\\Work.exe', 'C:\\Secret\\private.json', 'icon-private.png', 'PRIVATE_NEWS_TITLE', 'https://private.example/icon.png'];
-const localDocument = { ...official, apps: [{ ...official.apps[0], name: secrets[0], iconUrl: secrets[5], news: [{ ...official.apps[0].news[0], title: secrets[4] }] }] };
+const secrets = [
+  'PRIVATE_APP_NAME',
+  'C:\\Secret\\Work.exe',
+  'C:\\Secret\\private.json',
+  'icon-private.png',
+  'PRIVATE_NEWS_TITLE',
+  'https://private.example/icon.png',
+];
+const localDocument = {
+  ...official,
+  apps: [{ ...official.apps[0], name: secrets[0], iconUrl: secrets[5], news: [{ ...official.apps[0].news[0], title: secrets[4] }] }],
+};
 let officialCache: string | null;
 let previousLanguage: string;
 
@@ -32,27 +42,54 @@ beforeEach(() => {
   vi.clearAllMocks();
   officialCache = null;
   bridge.invoke.mockImplementation(async (command: string, args?: { input?: string }) => {
-    if (command === 'get_settings') return { state: 'ready', settings: {
-      language: 'en', startWithWindows: false, showNewsOnOpen: true, accent: '#ff0036', compact: false,
-      opacity: 85, blur: 24, firstRunComplete: true, newsVisit: null,
-      sources: [{ id: 'official', label: 'Official', kind: 'official' }, { id: 'private', label: secrets[0], kind: 'local', location: secrets[2] }],
-      localApps: [{ id: 'manual', name: secrets[0], executable: secrets[1], icon: secrets[3] }],
-      localBindings: [{ sourceId: 'private', appId: 'example-app', executable: secrets[1] }],
-    } };
+    if (command === 'get_settings')
+      return {
+        state: 'ready',
+        settings: {
+          language: 'en',
+          startWithWindows: false,
+          showNewsOnOpen: true,
+          accent: '#ff0036',
+          compact: false,
+          opacity: 85,
+          blur: 24,
+          firstRunComplete: true,
+          newsVisit: null,
+          sources: [
+            { id: 'official', label: 'Official', kind: 'official' },
+            { id: 'private', label: secrets[0], kind: 'local', location: secrets[2] },
+          ],
+          localApps: [{ id: 'manual', name: secrets[0], executable: secrets[1], icon: secrets[3] }],
+          localBindings: [{ sourceId: 'private', appId: 'example-app', executable: secrets[1] }],
+        },
+      };
     if (command === 'platform_key') return 'windows-x86_64';
     if (command === 'read_catalog_v4_cache') return null;
-    if (command === 'write_catalog_cache') { officialCache = args?.input ?? null; return; }
+    if (command === 'write_catalog_cache') {
+      officialCache = args?.input ?? null;
+      return;
+    }
     if (command === 'installed_apps') return [];
-    if (command === 'local_apps_list') return [
-      { id: 'local:manual:31', source: 'local', name: secrets[0], state: 'ready', origin: { kind: 'manual', id: 'manual' }, iconPath: secrets[3] },
-    ];
+    if (command === 'local_apps_list')
+      return [{ id: 'local:manual:31', source: 'local', name: secrets[0], state: 'ready', origin: { kind: 'manual', id: 'manual' }, iconPath: secrets[3] }];
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
     return null;
   });
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
 });
-afterEach(() => { cleanup(); document.documentElement.lang = previousLanguage; vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  document.documentElement.lang = previousLanguage;
+  vi.unstubAllGlobals();
+});
 
 it('leaves the official projection byte-identical when there are no local rows', async () => {
   const before = JSON.stringify(projectCatalog(officialProjected));
@@ -84,7 +121,12 @@ it('keeps manual records and legacy metadata out of News inputs, requests and of
   }
   expect(fetcher.mock.calls.map(([url]) => url)).toEqual(officialEndpoints);
   expect(officialCache).toBe(officialText);
-  const outbound = JSON.stringify({ requests: fetcher.mock.calls, ipc: bridge.invoke.mock.calls, newsInputs: vi.mocked(selectOfficialNews).mock.calls, cache: officialCache });
+  const outbound = JSON.stringify({
+    requests: fetcher.mock.calls,
+    ipc: bridge.invoke.mock.calls,
+    newsInputs: vi.mocked(selectOfficialNews).mock.calls,
+    cache: officialCache,
+  });
   for (const secret of secrets) expect(outbound).not.toContain(JSON.stringify(secret).slice(1, -1));
   expect(bridge.invoke.mock.calls.filter(([command]) => command === 'write_catalog_cache')).toEqual([['write_catalog_cache', { input: officialText }]]);
 });

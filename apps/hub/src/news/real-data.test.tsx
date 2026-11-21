@@ -8,12 +8,15 @@ import { selectOfficialNews } from './selection';
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => {
-  bridge.listeners.set(name, callback); return () => bridge.listeners.delete(name);
-}) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => {
+    bridge.listeners.set(name, callback);
+    return () => bridge.listeners.delete(name);
+  }),
+}));
 // These tests exercise the unconfigured-endpoint and cache paths without network access;
 // fetching from configured endpoints is covered by catalog/loader.test.ts with an injected fetcher.
-vi.mock('../catalog/loader', async importOriginal => ({
+vi.mock('../catalog/loader', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../catalog/loader')>()),
   OFFICIAL_CATALOG_URL: undefined,
 }));
@@ -26,10 +29,24 @@ function entry(id: string, date: string, kind: Entry['kind'] = 'new'): Entry {
   return { id, title: id, text: `Texto ${id}`, publishedAt: date, kind };
 }
 function app(id: string, releasedAt: string, featured = false, news: Entry[] = []) {
-  return { id, name: id, tagline: `Tag ${id}`, description: `Descripción ${id}`, tags: [], iconUrl: 'https://example.com/icon.png',
-    installerUrl: 'https://example.com/setup.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt, featured, news };
+  return {
+    id,
+    name: id,
+    tagline: `Tag ${id}`,
+    description: `Descripción ${id}`,
+    tags: [],
+    iconUrl: 'https://example.com/icon.png',
+    installerUrl: 'https://example.com/setup.exe',
+    latestJsonUrl: 'https://example.com/latest.json',
+    integrationLevel: 'launch',
+    releasedAt,
+    featured,
+    news,
+  };
 }
-function catalog(apps: ReturnType<typeof app>[]) { return JSON.stringify(windowsCatalog(apps)); }
+function catalog(apps: ReturnType<typeof app>[]) {
+  return JSON.stringify(windowsCatalog(apps));
+}
 const official = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
 let stored: Record<string, unknown>;
 let cache: string | null;
@@ -37,17 +54,41 @@ let failSave: boolean;
 let sequence: number;
 let cycle: number;
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 beforeEach(() => {
   vi.setSystemTime(new Date(today));
-  stored = { language: 'es', startWithWindows: false, showNewsOnOpen: true, accent: '#ff0036', compact: false, opacity: 85, blur: 24,
-    firstRunComplete: true, sources: [official, { id: 'local', label: 'Local', kind: 'local' }] };
-  cache = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
+  stored = {
+    language: 'es',
+    startWithWindows: false,
+    showNewsOnOpen: true,
+    accent: '#ff0036',
+    compact: false,
+    opacity: 85,
+    blur: 24,
+    firstRunComplete: true,
+    sources: [official, { id: 'local', label: 'Local', kind: 'local' }],
+  };
+  cache = null;
+  failSave = false;
+  sequence = 0;
+  cycle = 0;
+  bridge.listeners.clear();
+  bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Record<string, unknown> }) => {
     if (command === 'get_settings') return { state: 'ready', settings: structuredClone(stored) };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
-      stored = { ...stored, ...args?.patch }; return structuredClone(stored);
+      stored = { ...stored, ...args?.patch };
+      return structuredClone(stored);
     }
     if (command === 'platform_key') return 'windows-x86_64';
     if (command === 'read_catalog_v4_cache') return cache;
@@ -57,40 +98,69 @@ beforeEach(() => {
     return null;
   });
 });
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 async function start() {
   render(<App />);
   await screen.findByText('Instaladas');
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('read_catalog_v4_cache'));
 }
 function visibility(visible: boolean) {
-  sequence++; if (visible) cycle++;
+  sequence++;
+  if (visible) cycle++;
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible, sequence, cycle, at: today } }));
 }
-async function open() { visibility(true); return screen.findByRole('dialog', { name: 'Novedades' }); }
-function titles(dialog: HTMLElement) { return Array.from(dialog.querySelectorAll('.news-slide h3'), node => node.textContent); }
-function close() { fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' })); }
+async function open() {
+  visibility(true);
+  return screen.findByRole('dialog', { name: 'Novedades' });
+}
+function titles(dialog: HTMLElement) {
+  return Array.from(dialog.querySelectorAll('.news-slide h3'), (node) => node.textContent);
+}
+function close() {
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' }));
+}
 
 it('opens the real-shaped v4 updates newest first and navigates both detected and unknown apps', async () => {
   const timestamp = '2026-11-16T12:00:00Z';
   vi.setSystemTime(new Date(timestamp));
   const catalogApp = (id: string, name: string, version: string, date: string, featured: boolean) => ({
-    id, name, tagline: `Tag ${name}`, description: `Descripción ${name}`, tags: [],
+    id,
+    name,
+    tagline: `Tag ${name}`,
+    description: `Descripción ${name}`,
+    tags: [],
     iconUrl: `https://egdev6.github.io/nexo-catalog/icons/${id}.png`,
     installerUrl: `https://github.com/egdev6/${id}/releases/download/v${version}/setup.exe`,
     latestJsonUrl: `https://github.com/egdev6/${id}/releases/download/v${version}/latest.json`,
-    integrationLevel: 'update', releasedAt: date, featured, version,
-    news: [{ id: `v${version.replaceAll('.', '-')}`, title: `${name} ${version}`, text: `A new ${name} release is available.`, publishedAt: date, kind: 'update' }],
+    integrationLevel: 'update',
+    releasedAt: date,
+    featured,
+    version,
+    news: [
+      { id: `v${version.replaceAll('.', '-')}`, title: `${name} ${version}`, text: `A new ${name} release is available.`, publishedAt: date, kind: 'update' },
+    ],
   });
-  cache = JSON.stringify(windowsCatalog([
-    { ...catalogApp('antena', 'Antena', '0.15.0', '2026-11-14T08:48:36Z', true), detection: { windows: { displayName: 'antena', publisher: 'EGDEV', executableRelativePath: 'antena.exe' } } },
-    catalogApp('quorb', 'Quorb', '0.8.0', '2026-10-28T14:55:56Z', false),
-  ]));
+  cache = JSON.stringify(
+    windowsCatalog([
+      {
+        ...catalogApp('antena', 'Antena', '0.15.0', '2026-11-14T08:48:36Z', true),
+        detection: { windows: { displayName: 'antena', publisher: 'EGDEV', executableRelativePath: 'antena.exe' } },
+      },
+      catalogApp('quorb', 'Quorb', '0.8.0', '2026-10-28T14:55:56Z', false),
+    ]),
+  );
   const invoke = bridge.invoke.getMockImplementation()!;
-  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'installed_apps' ? [
-    { id: 'antena', state: 'installed', version: '0.15.0', reason: 'Instalación detectada', canOpen: true },
-    { id: 'quorb', state: 'unknown', version: null, reason: 'Sin datos de detección en el catálogo' },
-  ] : invoke(command, args));
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) =>
+    command === 'installed_apps'
+      ? [
+          { id: 'antena', state: 'installed', version: '0.15.0', reason: 'Instalación detectada', canOpen: true },
+          { id: 'quorb', state: 'unknown', version: null, reason: 'Sin datos de detección en el catálogo' },
+        ]
+      : invoke(command, args),
+  );
   render(<App />);
   await screen.findByRole('button', { name: 'Abrir Antena' });
   expect(bridge.invoke).toHaveBeenCalledWith('installed_apps');
@@ -98,7 +168,9 @@ it('opens the real-shaped v4 updates newest first and navigates both detected an
   act(() => bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 1, cycle: 1, at: timestamp } }));
   const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   const region = within(dialog).getByRole('region', { name: 'Últimas novedades' });
-  const groups = within(region).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'diapositiva');
+  const groups = within(region)
+    .getAllByRole('group', { hidden: true })
+    .filter((group) => group.getAttribute('aria-roledescription') === 'diapositiva');
   expect(groups).toHaveLength(2);
   function visible(index: number) {
     const title = index ? 'Quorb 0.8.0' : 'Antena 0.15.0';
@@ -109,29 +181,48 @@ it('opens the real-shaped v4 updates newest first and navigates both detected an
     expect(within(dialog).getByRole('group', { name: `${index + 1} de 2: ${title}` })).toBe(groups[index]);
     expect(within(groups[index]).getByRole('heading', { name: title })).toBeTruthy();
     expect(dialog.textContent).toContain(index ? '02 / 02' : '01 / 02');
-    expect(within(dialog).getByRole('button', { name: /Ver en el catálogo:/ }).getAttribute('data-app-id')).toBe(index ? 'quorb' : 'antena');
+    expect(
+      within(dialog)
+        .getByRole('button', { name: /Ver en el catálogo:/ })
+        .getAttribute('data-app-id'),
+    ).toBe(index ? 'quorb' : 'antena');
   }
   visible(0);
   const next = within(dialog).getByRole('button', { name: 'Diapositiva siguiente' });
-  next.focus(); fireEvent.click(next); visible(1);
+  next.focus();
+  fireEvent.click(next);
+  visible(1);
   const previous = within(dialog).getByRole('button', { name: 'Diapositiva anterior' });
-  previous.focus(); fireEvent.click(previous); visible(0);
-  fireEvent.keyDown(region, { key: 'End' }); visible(1);
-  fireEvent.keyDown(region, { key: 'Home' }); visible(0);
-  groups[0].focus(); fireEvent.keyDown(groups[0], { key: 'ArrowRight' }); visible(1);
-  fireEvent.keyDown(groups[1], { key: 'ArrowLeft' }); visible(0);
+  previous.focus();
+  fireEvent.click(previous);
+  visible(0);
+  fireEvent.keyDown(region, { key: 'End' });
+  visible(1);
+  fireEvent.keyDown(region, { key: 'Home' });
+  visible(0);
+  groups[0].focus();
+  fireEvent.keyDown(groups[0], { key: 'ArrowRight' });
+  visible(1);
+  fireEvent.keyDown(groups[1], { key: 'ArrowLeft' });
+  visible(0);
 });
 
 it('selects only qualifying official events, inclusive boundaries, feature fallbacks and true chronological order', async () => {
   cache = catalog([
-    app('recent', '2026-05-01T12:00:00Z', false, [entry('previous', '2026-05-02T00:00:00Z'), entry('update', '2026-05-31T13:00:00+02:00', 'update'), entry('future', '2026-06-01T00:00:00Z')]),
+    app('recent', '2026-05-01T12:00:00Z', false, [
+      entry('previous', '2026-05-02T00:00:00Z'),
+      entry('update', '2026-05-31T13:00:00+02:00', 'update'),
+      entry('future', '2026-06-01T00:00:00Z'),
+    ]),
     app('release-app', '2026-05-01T12:00:00Z', false, [entry('release', '2026-05-02T00:00:00Z')]),
     app('old', '2025-01-01T00:00:00Z', false, [entry('old-update', today, 'update')]),
     app('featured', '2025-01-01T00:00:00Z', true, [entry('feature-update', '2026-05-30T00:00:00Z', 'update')]),
-    app('outside', '2026-05-01T11:59:59Z'), app('future-app', '2026-06-01T00:00:00Z', true),
+    app('outside', '2026-05-01T11:59:59Z'),
+    app('future-app', '2026-06-01T00:00:00Z', true),
     app('synthetic', '2026-05-30T01:00:00Z'),
   ]);
-  await start(); const dialog = await open();
+  await start();
+  const dialog = await open();
   expect(titles(dialog)).toEqual(['update', 'synthetic', 'feature-update', 'release']);
   expect(within(dialog).getAllByText('Actualización').length).toBeGreaterThan(0);
   expect(within(dialog).getAllByText('Sin ver')).toHaveLength(3);
@@ -146,7 +237,8 @@ it('shows the two real updates of two apps without adding synthetic release slid
     { ...app('alpha', '2026-05-29T00:00:00Z', false, [entry('alpha-update', '2026-05-31T11:00:00Z', 'update')]), name: 'Álfa' },
     { ...app('beta', '2026-05-29T00:00:00Z', true, [entry('beta-update', '2026-05-30T11:00:00Z', 'update')]), name: 'Beta' },
   ]);
-  await start(); const dialog = await open();
+  await start();
+  const dialog = await open();
   expect(titles(dialog)).toEqual(['alpha-update', 'beta-update']);
   expect(dialog.textContent).toContain('01 / 02');
   expect(within(dialog).queryByRole('button', { name: /^Ir a / })).toBeNull();
@@ -172,17 +264,20 @@ it('starts only on an actual show, freezes the snapshot, and records only slides
   ]);
   await start();
   expect(screen.queryByRole('dialog')).toBeNull();
-  const dialog = await open(); expect(titles(dialog)).toEqual(['first', 'second', 'third']);
+  const dialog = await open();
+  expect(titles(dialog)).toEqual(['first', 'second', 'third']);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   close();
   await waitFor(() => expect(stored).toMatchObject({ newsVisit: { lastVisitAt: today, seenKeys: ['n:one:first', 'n:two:second'] } }));
-  fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
-  visibility(false); const again = await open();
+  fireEvent.focus(window);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  visibility(false);
+  const again = await open();
   expect(titles(again)).toEqual(['first', 'second', 'third']);
   expect(within(again).getAllByText('Sin ver')).toHaveLength(1);
 });
 
-it.each(['scrim', 'Escape', 'close', 'catalog'] as const)('clears background blur and records viewed news on %s', async method => {
+it.each(['scrim', 'Escape', 'close', 'catalog'] as const)('clears background blur and records viewed news on %s', async (method) => {
   cache = catalog([
     app('one', '2026-05-30T00:00:00Z', false, [entry('first', today)]),
     app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]),
@@ -198,7 +293,7 @@ it.each(['scrim', 'Escape', 'close', 'catalog'] as const)('clears background blu
   if (method === 'scrim') {
     const scrim = dialog.closest('.eg-dialog-backdrop');
     expect(scrim).toBeTruthy();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
     fireEvent.pointerDown(scrim!, { button: 0, pointerType: 'mouse' });
     fireEvent.click(scrim!);
   } else if (method === 'Escape') {
@@ -219,7 +314,8 @@ it.each(['scrim', 'Escape', 'close', 'catalog'] as const)('clears background blu
 it('freezes the selected catalog news until the next show when the selection changes', async () => {
   const first = entry('first', '2026-05-31T11:00:00Z');
   const second = app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]);
-  const select = (apps: ReturnType<typeof app>[]) => selectOfficialNews(projectCatalogV4(parseCatalogV4(JSON.parse(catalog(apps))), 'windows-x86_64'), Date.parse(today)).items;
+  const select = (apps: ReturnType<typeof app>[]) =>
+    selectOfficialNews(projectCatalogV4(parseCatalogV4(JSON.parse(catalog(apps))), 'windows-x86_64'), Date.parse(today)).items;
   const initial = select([app('one', '2026-05-30T00:00:00Z', false, [first]), second]);
   const changed = select([
     app('one', '2026-05-30T00:00:00Z', false, [first, entry('replacement', '2026-05-31T11:30:00Z', 'update')]),
@@ -245,7 +341,8 @@ it('reopens already-seen news on each native show, not on focus or dismissal', a
   const first = await open();
   expect(titles(first)).toEqual(['one']);
   expect(within(first).queryByText('Sin ver')).toBeNull();
-  close(); fireEvent.focus(window);
+  close();
+  fireEvent.focus(window);
   expect(screen.queryByRole('dialog')).toBeNull();
   visibility(false);
   expect(titles(await open())).toEqual(['one']);
@@ -255,13 +352,18 @@ it('reopens already-seen news on each native show, not on focus or dismissal', a
 
 it('records an actual show that ended before settings finished hydrating', async () => {
   let resolve!: (value: unknown) => void;
-  const deferred = new Promise<unknown>(done => { resolve = done; });
+  const deferred = new Promise<unknown>((done) => {
+    resolve = done;
+  });
   const normal = bridge.invoke.getMockImplementation()!;
-  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'get_settings' ? deferred : normal(command, args));
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => (command === 'get_settings' ? deferred : normal(command, args)));
   render(<App />);
   await waitFor(() => expect(bridge.listeners.has('flyout-visibility')).toBe(true));
-  visibility(true); visibility(false);
-  await act(async () => { resolve({ state: 'ready', settings: structuredClone(stored) }); });
+  visibility(true);
+  visibility(false);
+  await act(async () => {
+    resolve({ state: 'ready', settings: structuredClone(stored) });
+  });
   await screen.findByText('Instaladas');
   await waitFor(() => expect(stored.newsVisit).toMatchObject({ lastVisitAt: today, seenKeys: [] }));
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -269,9 +371,11 @@ it('records an actual show that ended before settings finished hydrating', async
 
 it('recovers the last show time from the native snapshot when subscription started after hide', async () => {
   const normal = bridge.invoke.getMockImplementation()!;
-  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'get_flyout_state'
-    ? { visible: false, sequence: 2, cycle: 1, at: Date.parse(today) + 1000, shownAt: today } : normal(command, args));
-  render(<App />); await screen.findByText('Instaladas');
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) =>
+    command === 'get_flyout_state' ? { visible: false, sequence: 2, cycle: 1, at: Date.parse(today) + 1000, shownAt: today } : normal(command, args),
+  );
+  render(<App />);
+  await screen.findByText('Instaladas');
   await waitFor(() => expect(stored.newsVisit).toMatchObject({ lastVisitAt: today, seenKeys: [] }));
   expect(screen.queryByRole('dialog')).toBeNull();
 });
@@ -281,7 +385,8 @@ it('records the current slide when hide and the next show arrive in the same Rea
     app('one', '2026-05-30T00:00:00Z', false, [entry('first', today)]),
     app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]),
   ]);
-  await start(); await open();
+  await start();
+  await open();
   act(() => {
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: false, sequence: 2, cycle: 1, at: today } });
     bridge.listeners.get('flyout-visibility')?.({ payload: { visible: true, sequence: 3, cycle: 2, at: today } });
@@ -294,33 +399,50 @@ it('records the current slide when hide and the next show arrive in the same Rea
 
 it('caps each show at the same four latest items and does not consume overflow', async () => {
   cache = catalog(Array.from({ length: 12 }, (_, index) => app(`app-${String(index).padStart(2, '0')}`, today)));
-  await start(); const dialog = await open();
+  await start();
+  const dialog = await open();
   expect(titles(dialog)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
   for (let index = 1; index < 4; index++) fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
-  close(); await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:app-00', 'a:app-01', 'a:app-02', 'a:app-03']));
-  visibility(false); const again = await open(); expect(titles(again)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
+  close();
+  await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:app-00', 'a:app-01', 'a:app-02', 'a:app-03']));
+  visibility(false);
+  const again = await open();
+  expect(titles(again)).toEqual(['app-00', 'app-01', 'app-02', 'app-03']);
   expect(within(again).queryByText('Sin ver')).toBeNull();
 });
 
 it('keeps the last confirmed marker on save failure and retries the seen keys together with settings', async () => {
-  cache = catalog([app('one', today)]); failSave = true;
-  await start(); const dialog = await open();
-  fireEvent.click(within(dialog).getByRole('checkbox', { name: 'No mostrar al abrir' })); close();
+  cache = catalog([app('one', today)]);
+  failSave = true;
+  await start();
+  const dialog = await open();
+  fireEvent.click(within(dialog).getByRole('checkbox', { name: 'No mostrar al abrir' }));
+  close();
   expect((await screen.findByRole('alert')).textContent).toMatch(/disco lleno/);
-  expect(stored.newsVisit).toBeUndefined(); expect(stored.showNewsOnOpen).toBe(true);
-  failSave = false; fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+  expect(stored.newsVisit).toBeUndefined();
+  expect(stored.showNewsOnOpen).toBe(true);
+  failSave = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
   await waitFor(() => expect(stored).toMatchObject({ showNewsOnOpen: false, newsVisit: { lastVisitAt: today, seenKeys: ['a:one'] } }));
 });
 
 it('opens late cached data only while visible and does not reopen after dismissal on the same show', async () => {
   let resolve!: (value: string) => void;
-  const deferred = new Promise<string>(done => { resolve = done; });
+  const deferred = new Promise<string>((done) => {
+    resolve = done;
+  });
   const normal = bridge.invoke.getMockImplementation()!;
-  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'read_catalog_v4_cache' ? deferred : normal(command, args));
-  await start(); visibility(true); expect(screen.queryByRole('dialog')).toBeNull();
-  await act(async () => { resolve(catalog([app('late', today)])); });
-  await screen.findByRole('dialog', { name: 'Novedades' }); close();
-  fireEvent.focus(window); expect(screen.queryByRole('dialog')).toBeNull();
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => (command === 'read_catalog_v4_cache' ? deferred : normal(command, args)));
+  await start();
+  visibility(true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await act(async () => {
+    resolve(catalog([app('late', today)]));
+  });
+  await screen.findByRole('dialog', { name: 'Novedades' });
+  close();
+  fireEvent.focus(window);
+  expect(screen.queryByRole('dialog')).toBeNull();
 });
 
 it('orders equal instants by typed key and keeps sub-millisecond instants distinct', async () => {
@@ -330,42 +452,47 @@ it('orders equal instants by typed key and keeps sub-millisecond instants distin
     app('earlier-app', '2026-05-30T00:00:00Z', false, [entry('earlier', '2026-05-31T11:59:00.1230001Z', 'update')]),
     app('later-app', '2026-05-30T00:00:00Z', false, [entry('later', '2026-05-31T11:59:00.1230002Z', 'update')]),
   ]);
-  await start(); expect(titles(await open())).toEqual(['later', 'earlier', 'tie-a', 'tie-b']);
+  await start();
+  expect(titles(await open())).toEqual(['later', 'earlier', 'tie-a', 'tie-b']);
 });
 
 it('does not consume unseen news while opted out and opens it on a later show after opting in', async () => {
-  stored.showNewsOnOpen = false; cache = catalog([app('one', today)]);
-  await start(); visibility(true);
+  stored.showNewsOnOpen = false;
+  cache = catalog([app('one', today)]);
+  await start();
+  visibility(true);
   await waitFor(() => expect(stored.newsVisit).toMatchObject({ seenKeys: [] }));
   expect(screen.queryByRole('dialog')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
   fireEvent.click(screen.getByRole('switch', { name: 'Mostrar novedades al abrir' }));
   await waitFor(() => expect(stored.showNewsOnOpen).toBe(true));
-  visibility(false); const dialog = await open();
+  visibility(false);
+  const dialog = await open();
   expect(titles(dialog)).toEqual(['one']);
 });
 
 it('keeps a stale cache from pruning keys absent from it', async () => {
   stored.newsVisit = { lastVisitAt: '2026-05-01T00:00:00Z', seenKeys: ['a:removed', 'n:removed:old'] };
   cache = catalog([app('one', today)]);
-  await start(); await open(); close();
+  await start();
+  await open();
+  close();
   await waitFor(() => expect((stored.newsVisit as { seenKeys: string[] }).seenKeys).toEqual(['a:removed', 'n:removed:old', 'a:one']));
 });
 
 it('prunes removed keys only after receiving a fresh official catalog and retains synthetic keys for surviving apps', async () => {
   stored.newsVisit = { lastVisitAt: '2026-05-01T00:00:00Z', seenKeys: ['a:one', 'n:one:removed', 'a:removed', 'n:removed:old'] };
   render(<FlyoutPanel apps={[]} news={[]} catalogState={{ status: 'ready' }} validNewsKeys={new Set(['a:one', 'n:one:current'])} />);
-  await screen.findByText('Instaladas'); visibility(true);
+  await screen.findByText('Instaladas');
+  visibility(true);
   await waitFor(() => expect(stored.newsVisit).toMatchObject({ lastVisitAt: today, seenKeys: ['a:one'] }));
   expect(screen.queryByRole('dialog')).toBeNull();
 });
 
 it('navigates from the current slide to the matching catalog card without simulating installation', async () => {
-  cache = catalog([
-    app('one', today, false, [entry('first', today)]),
-    app('two', today, false, [entry('second', today, 'update')]),
-  ]);
-  await start(); const dialog = await open();
+  cache = catalog([app('one', today, false, [entry('first', today)]), app('two', today, false, [entry('second', today, 'update')])]);
+  await start();
+  const dialog = await open();
   expect(titles(dialog)).toEqual(['first', 'second']);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   const cta = within(dialog).getByRole('button', { name: /Ver en el catálogo: second/ });
@@ -381,7 +508,15 @@ it('navigates from the current slide to the matching catalog card without simula
 
 it('focuses an installed official target and reports a disappeared target without substituting a local app', async () => {
   const news = [{ id: 'n:one:first', appId: 'one', badge: 'Nuevo' as const, title: 'first', text: 'Texto', cta: 'Ver en el catálogo' }];
-  const installed = { id: 'one', name: 'one', source: 'official' as const, integration: 'local' as const, installed: true, running: false, description: 'Oficial' };
+  const installed = {
+    id: 'one',
+    name: 'one',
+    source: 'official' as const,
+    integration: 'local' as const,
+    installed: true,
+    running: false,
+    description: 'Oficial',
+  };
   const view = render(<App apps={[installed]} news={news} />);
   await screen.findByText('Instaladas');
   let dialog = await open();
@@ -391,9 +526,13 @@ it('focuses an installed official target and reports a disappeared target withou
   expect(within(target).queryByRole('button', { name: /Instalar/ })).toBeNull();
   view.unmount();
 
-  bridge.listeners.clear(); sequence = 0; cycle = 0; stored.newsVisit = null;
+  bridge.listeners.clear();
+  sequence = 0;
+  cycle = 0;
+  stored.newsVisit = null;
   const next = render(<App apps={[installed]} news={news} />);
-  await screen.findByText('Instaladas'); dialog = await open();
+  await screen.findByText('Instaladas');
+  dialog = await open();
   next.rerender(<App apps={[{ ...installed, source: 'local', name: 'Otra app' }]} news={news} />);
   fireEvent.click(within(dialog).getByRole('button', { name: /Ver en el catálogo/ }));
   expect(screen.getByRole('alert').textContent).toMatch(/ya no está disponible/);

@@ -8,7 +8,7 @@ export function mockImageLoading(failedSources = new Set<string>()) {
     images.push(image);
     Object.defineProperties(image, {
       complete: { get: () => image.hasAttribute('src') },
-      naturalWidth: { get: () => failedSources.has(image.getAttribute('src') ?? '') ? 0 : 100 },
+      naturalWidth: { get: () => (failedSources.has(image.getAttribute('src') ?? '') ? 0 : 100) },
     });
     return image;
   });

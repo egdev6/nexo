@@ -10,10 +10,22 @@ vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: bridge.inv
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('./shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 beforeEach(() => {
-  bridge.invoke.mockReset(); bridge.check.mockReset(); bridge.install.mockReset();
-  bridge.check.mockResolvedValue(null); bridge.install.mockResolvedValue(undefined);
+  bridge.invoke.mockReset();
+  bridge.check.mockReset();
+  bridge.install.mockReset();
+  bridge.check.mockResolvedValue(null);
+  bridge.install.mockResolvedValue(undefined);
   bridge.invoke.mockImplementation(async (command: string) => {
     if (command === 'self_update_check') return bridge.check();
     if (command === 'self_update_install') return bridge.install();
@@ -24,18 +36,25 @@ beforeEach(() => {
     return null;
   });
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((ok, fail) => { resolve = ok; reject = fail; });
+  const promise = new Promise<T>((ok, fail) => {
+    resolve = ok;
+    reject = fail;
+  });
   return { promise, resolve, reject };
 }
 async function about() {
   fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
   const tab = screen.getByRole('tab', { name: 'Acerca de' });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
 }
 
 it('checks silently at startup and only shows an actionable notice for a new version', async () => {
@@ -74,7 +93,8 @@ it('keeps the startup panel quiet when no update exists or the check fails', asy
   await waitFor(() => expect(log).toHaveBeenCalled());
   expect(screen.queryByText(/Hay una versión nueva/)).toBeNull();
   expect(screen.queryByText(/No se pudo buscar actualizaciones/)).toBeNull();
-  view.unmount(); render(<App apps={[]} news={[]} />);
+  view.unmount();
+  render(<App apps={[]} news={[]} />);
   await waitFor(() => expect(bridge.check).toHaveBeenCalledTimes(2));
   expect(screen.queryByText(/Hay una versión nueva/)).toBeNull();
 });
@@ -132,7 +152,8 @@ it('flushes pending settings before installation and stops if saving fails', asy
   fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
   fireEvent.click(screen.getByRole('switch', { name: 'Mostrar novedades al abrir' }));
   const tab = screen.getByRole('tab', { name: 'Acerca de' });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
   fireEvent.click(screen.getByRole('button', { name: 'Instalar' }));
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('save_settings', expect.anything()));
   expect(bridge.install).not.toHaveBeenCalled();
@@ -146,7 +167,11 @@ it('flushes pending settings before installation and stops if saving fails', asy
 it('retains the startup result under React StrictMode without issuing concurrent checks', async () => {
   const pending = deferred<{ version: string }>();
   bridge.check.mockReturnValue(pending.promise);
-  render(<StrictMode><App apps={[]} news={[]} /></StrictMode>);
+  render(
+    <StrictMode>
+      <App apps={[]} news={[]} />
+    </StrictMode>,
+  );
   expect(bridge.check).toHaveBeenCalledTimes(1);
   await act(async () => pending.resolve({ version: '2.2.0' }));
   expect(screen.getByText('Hay una versión nueva: 2.2.0')).toBeTruthy();

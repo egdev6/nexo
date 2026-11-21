@@ -25,20 +25,33 @@ function setup() {
   function Fixture() {
     const [open, setOpen] = useState(false);
     const [dontShow, setDontShow] = useState(false);
-    return <main style={{ position: 'relative' }}>
-      <button onClick={() => setOpen(true)}>Abrir novedades</button>
-      <section inert>Contenido ya inerte</section>
-      <NewsPopup items={items} open={open} dontShow={dontShow}
-        onClose={() => { onClose(); setOpen(false); }}
-        onDontShowChange={value => { onDontShowChange(value); setDontShow(value); }} />
-    </main>;
+    return (
+      <main style={{ position: 'relative' }}>
+        <button onClick={() => setOpen(true)}>Abrir novedades</button>
+        <section inert>Contenido ya inerte</section>
+        <NewsPopup
+          items={items}
+          open={open}
+          dontShow={dontShow}
+          onClose={() => {
+            onClose();
+            setOpen(false);
+          }}
+          onDontShowChange={(value) => {
+            onDontShowChange(value);
+            setDontShow(value);
+          }}
+        />
+      </main>
+    );
   }
   render(<Fixture />);
   return { onClose, onDontShowChange };
 }
 
 it('uses the DS dialog title without a header logo and retains the close control', () => {
-  setup(); fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   expect(dialog.classList.contains('eg-dialog')).toBe(true);
   expect(within(dialog).getByRole('heading', { name: 'Novedades' })).toBeTruthy();
@@ -48,7 +61,11 @@ it('uses the DS dialog title without a header logo and retains the close control
 
 it('keeps its portal inside the flyout theme scope', () => {
   const variables = createAccentTheme('#123456').variables;
-  render(<main style={variables as CSSProperties}><NewsPopup items={items} open onClose={vi.fn()} dontShow={false} onDontShowChange={vi.fn()} /></main>);
+  render(
+    <main style={variables as CSSProperties}>
+      <NewsPopup items={items} open onClose={vi.fn()} dontShow={false} onDontShowChange={vi.fn()} />
+    </main>,
+  );
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   const main = screen.getByRole('main');
   expect(dialog.closest('main')).toBe(main);
@@ -64,7 +81,8 @@ it('renders nothing while closed', () => {
 it('uses DS initial focus and traps focus, then restores the previous focus', async () => {
   const { onClose } = setup();
   const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
-  trigger.focus(); fireEvent.click(trigger);
+  trigger.focus();
+  fireEvent.click(trigger);
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   expect(dialog.getAttribute('aria-modal')).toBe('true');
   expect(dialog.closest('main')).toBeTruthy();
@@ -72,7 +90,8 @@ it('uses DS initial focus and traps focus, then restores the previous focus', as
   const first = within(dialog).getByRole('region', { name: 'Últimas novedades' });
   const close = within(dialog).getByRole('button', { name: 'Cerrar novedades' });
   expect(document.activeElement).toBe(first);
-  close.focus(); fireEvent.keyDown(close, { key: 'Tab' });
+  close.focus();
+  fireEvent.keyDown(close, { key: 'Tab' });
   expect(document.activeElement).toBe(first);
   fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
   expect(document.activeElement).toBe(close);
@@ -113,7 +132,8 @@ it('drops the entry-focus marker when focus leaves the carousel', () => {
 it('closes with Escape without propagating it and reopens on the latest item', async () => {
   const { onClose } = setup();
   const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
-  trigger.focus(); fireEvent.click(trigger);
+  trigger.focus();
+  fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Diapositiva siguiente' }));
   expect(screen.getByRole('button', { name: 'Descubrir: Cadencia · muestra' })).toBeTruthy();
   const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
@@ -129,11 +149,12 @@ it('closes with Escape without propagating it and reopens on the latest item', a
 it('closes on a scrim click and restores focus', async () => {
   const { onClose } = setup();
   const trigger = screen.getByRole('button', { name: 'Abrir novedades' });
-  trigger.focus(); fireEvent.click(trigger);
+  trigger.focus();
+  fireEvent.click(trigger);
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   const scrim = dialog.closest('.eg-dialog-backdrop');
   expect(scrim?.parentElement).toBe(trigger.parentElement);
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
   fireEvent.pointerDown(scrim!, { button: 0, pointerType: 'mouse' });
   fireEvent.click(scrim!);
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
@@ -142,9 +163,12 @@ it('closes on a scrim click and restores focus', async () => {
 });
 
 it('uses manual carousel navigation and associates the external illustrative CTA with the current item', () => {
-  setup(); fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir novedades' }));
   const carousel = screen.getByRole('region', { name: 'Últimas novedades' });
-  const slides = within(carousel).getAllByRole('group', { hidden: true }).filter(group => group.getAttribute('aria-roledescription') === 'diapositiva');
+  const slides = within(carousel)
+    .getAllByRole('group', { hidden: true })
+    .filter((group) => group.getAttribute('aria-roledescription') === 'diapositiva');
   const [first, second] = slides;
   expect(first.getAttribute('aria-label')).toBe('1 de 2: Pizarra');
   expect(second.getAttribute('aria-label')).toBe('2 de 2: Cadencia');
@@ -166,7 +190,8 @@ it('uses manual carousel navigation and associates the external illustrative CTA
   expect(second.getAttribute('aria-current')).toBe('true');
   fireEvent.click(screen.getByRole('button', { name: 'Diapositiva anterior' }));
   expect(first.getAttribute('aria-current')).toBe('true');
-  first.focus(); fireEvent.keyDown(first, { key: 'End' });
+  first.focus();
+  fireEvent.keyDown(first, { key: 'End' });
   expect(second.getAttribute('aria-current')).toBe('true');
   expect(screen.getByRole('button', { name: 'Descubrir: Cadencia · muestra' })).toBeTruthy();
   fireEvent.keyDown(second, { key: 'Home' });
@@ -176,16 +201,20 @@ it('uses manual carousel navigation and associates the external illustrative CTA
 it('returns focus to a stable panel control if the initial trigger was unmounted', async () => {
   function InitialOpen() {
     const [open, setOpen] = useState(false);
-    return <main><button>Cabecera</button>{!open && <button onClick={() => setOpen(true)}>Elegir idioma</button>}
-      <NewsPopup items={items} open={open} onClose={() => setOpen(false)} dontShow={false} onDontShowChange={() => {}} />
-    </main>;
+    return (
+      <main>
+        <button>Cabecera</button>
+        {!open && <button onClick={() => setOpen(true)}>Elegir idioma</button>}
+        <NewsPopup items={items} open={open} onClose={() => setOpen(false)} dontShow={false} onDontShowChange={() => {}} />
+      </main>
+    );
   }
   render(<InitialOpen />);
   const trigger = screen.getByRole('button', { name: 'Elegir idioma' });
-  trigger.focus(); fireEvent.click(trigger);
+  trigger.focus();
+  fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' }));
   await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cabecera' })));
-
 });
 
 it.each([
@@ -196,8 +225,22 @@ it.each([
   const onClose = vi.fn();
   function Fixture() {
     const [dontShow, setDontShow] = useState(false);
-    return <LocaleProvider locale={locale}><main><NewsPopup items={items} open dontShow={dontShow} onClose={onClose}
-      onDontShowChange={value => { onChange(value); setDontShow(value); }} /></main></LocaleProvider>;
+    return (
+      <LocaleProvider locale={locale}>
+        <main>
+          <NewsPopup
+            items={items}
+            open
+            dontShow={dontShow}
+            onClose={onClose}
+            onDontShowChange={(value) => {
+              onChange(value);
+              setDontShow(value);
+            }}
+          />
+        </main>
+      </LocaleProvider>
+    );
   }
   render(<Fixture />);
   const checkbox = screen.getByRole('checkbox', { name });

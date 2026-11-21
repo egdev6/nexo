@@ -10,16 +10,17 @@ import installAction from '../catalog/install/action.tsx?raw';
 import news from '../news/index.tsx?raw';
 import localApps from '../local-apps/view.tsx?raw';
 type Tree = { [key: string]: string | Tree };
-const leaves = (tree: Tree, prefix = ''): Record<string, string> => Object.fromEntries(
-  Object.entries(tree).flatMap(([key, value]) => typeof value === 'string'
-    ? [[prefix + key, value]] : Object.entries(leaves(value, `${prefix}${key}.`))),
-);
+const leaves = (tree: Tree, prefix = ''): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(tree).flatMap(([key, value]) => (typeof value === 'string' ? [[prefix + key, value]] : Object.entries(leaves(value, `${prefix}${key}.`)))),
+  );
 const placeholders = (text: string) => (text.match(/\{\w+\}/g) ?? []).sort();
 
 describe('shared catalog', () => {
   it('has the same nonempty keys and placeholders in both languages', () => {
     const data: { es: Tree; en: Tree } = messages;
-    const es = leaves(data.es); const en = leaves(data.en);
+    const es = leaves(data.es);
+    const en = leaves(data.en);
     expect(Object.keys(es).length).toBeGreaterThan(0);
     expect(Object.keys(en).sort()).toEqual(Object.keys(es).sort());
     for (const key of Object.keys(es)) {
@@ -31,7 +32,15 @@ describe('shared catalog', () => {
 });
 
 it('does not hard-code hub-owned JSX copy or accessible labels in views', () => {
-  const views = Object.entries({ '../App.tsx': app, '../settings/index.tsx': settings, '../first-run/index.tsx': firstRun, '../catalog/index.tsx': catalog, '../catalog/install/action.tsx': installAction, '../news/index.tsx': news, '../local-apps/view.tsx': localApps });
+  const views = Object.entries({
+    '../App.tsx': app,
+    '../settings/index.tsx': settings,
+    '../first-run/index.tsx': firstRun,
+    '../catalog/index.tsx': catalog,
+    '../catalog/install/action.tsx': installAction,
+    '../news/index.tsx': news,
+    '../local-apps/view.tsx': localApps,
+  });
   const exceptions = new Set(['N', 'Nexo', '+']);
   const found: string[] = [];
   for (const [file, text] of views) {
@@ -41,7 +50,12 @@ it('does not hard-code hub-owned JSX copy or accessible labels in views', () => 
         const text = node.text.trim();
         if (/[A-Za-zÁ-ú]/.test(text) && !exceptions.has(text)) found.push(`${file}: ${text}`);
       }
-      if (ts.isJsxAttribute(node) && ['aria-label', 'title', 'label', 'placeholder'].includes(node.name.getText(source)) && node.initializer && ts.isStringLiteral(node.initializer)) {
+      if (
+        ts.isJsxAttribute(node) &&
+        ['aria-label', 'title', 'label', 'placeholder'].includes(node.name.getText(source)) &&
+        node.initializer &&
+        ts.isStringLiteral(node.initializer)
+      ) {
         if (!exceptions.has(node.initializer.text)) found.push(`${file}: ${node.initializer.text}`);
       }
       ts.forEachChild(node, visit);

@@ -18,11 +18,17 @@ const appCss = readFileSync(`${cwd()}/src/style.css`, 'utf8') as string;
 const dsCss = readFileSync(`${cwd()}/node_modules/@egdev/ui/dist/styles.css`, 'utf8') as string;
 const layoutUtilities = new Set(['.flex', '.overflow-x-auto', '.basis-full', '.shrink-0']);
 const dsLayoutRules: string[] = [];
-postcss.parse(dsCss).walkRules(rule => { if (layoutUtilities.has(rule.selector)) dsLayoutRules.push(rule.toString()); });
+postcss.parse(dsCss).walkRules((rule) => {
+  if (layoutUtilities.has(rule.selector)) dsLayoutRules.push(rule.toString());
+});
 
 const items: NewsItem[] = Array.from({ length: 6 }, (_, index) => ({
-  id: `news-${index}`, appId: `app-${index}`, badge: 'Nuevo', title: `Noticia ${index + 1}`,
-  text: `Contenido ${index + 1}`, cta: 'Ver en el catálogo',
+  id: `news-${index}`,
+  appId: `app-${index}`,
+  badge: 'Nuevo',
+  title: `Noticia ${index + 1}`,
+  text: `Contenido ${index + 1}`,
+  cta: 'Ver en el catálogo',
 }));
 let style: HTMLStyleElement;
 beforeEach(() => {
@@ -30,10 +36,19 @@ beforeEach(() => {
   style.textContent = `${dsLayoutRules.join('\n')}\n${newsCss}\n${appCss}`;
   document.head.append(style);
 });
-afterEach(() => { cleanup(); style.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  style.remove();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function open(count: number, onShown = vi.fn()) {
-  render(<main><NewsPopup items={items.slice(0, count)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} onShown={onShown} /></main>);
+  render(
+    <main>
+      <NewsPopup items={items.slice(0, count)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} onShown={onShown} />
+    </main>,
+  );
   return { dialog: screen.getByRole('dialog', { name: 'Novedades' }), onShown };
 }
 
@@ -42,7 +57,7 @@ function slides(dialog: HTMLElement, count: number) {
   expect(region.getAttribute('aria-roledescription')).toBe('carousel');
   const groups = within(region).getAllByRole('group', { hidden: true });
   return Array.from({ length: count }, (_, index) => {
-    const group = groups.find(candidate => candidate.getAttribute('aria-label') === `${index + 1} de ${count}: Noticia ${index + 1}`);
+    const group = groups.find((candidate) => candidate.getAttribute('aria-label') === `${index + 1} de ${count}: Noticia ${index + 1}`);
     expect(group).toBeTruthy();
     return group!;
   });
@@ -55,11 +70,27 @@ function layout(groups: HTMLElement[]) {
   const rect = (left: number) => ({ x: left, y: 0, left, right: left + 300, top: 0, bottom: 100, width: 300, height: 100, toJSON() {} });
   vi.spyOn(track, 'getBoundingClientRect').mockImplementation(() => rect(0));
   groups.forEach((group, index) => vi.spyOn(group, 'getBoundingClientRect').mockImplementation(() => rect(index * 300 - offset)));
-  track.scrollBy = vi.fn((options: ScrollToOptions) => { offset += options.left ?? 0; }) as typeof track.scrollBy;
+  track.scrollBy = vi.fn((options: ScrollToOptions) => {
+    offset += options.left ?? 0;
+  }) as typeof track.scrollBy;
   // The DS Carousel aligns with absolute scrollTo (egdev-design-system#407); model the scroller like a browser.
-  Object.defineProperty(track, 'scrollLeft', { configurable: true, get: () => offset, set: (value: number) => { offset = value; } });
-  track.scrollTo = vi.fn((options: ScrollToOptions) => { offset = options.left ?? offset; }) as typeof track.scrollTo;
-  return { track, offset: () => offset, moveTo: (position: number) => { offset = position; } };
+  Object.defineProperty(track, 'scrollLeft', {
+    configurable: true,
+    get: () => offset,
+    set: (value: number) => {
+      offset = value;
+    },
+  });
+  track.scrollTo = vi.fn((options: ScrollToOptions) => {
+    offset = options.left ?? offset;
+  }) as typeof track.scrollTo;
+  return {
+    track,
+    offset: () => offset,
+    moveTo: (position: number) => {
+      offset = position;
+    },
+  };
 }
 
 function expectPosition(dialog: HTMLElement, groups: HTMLElement[], index: number) {
@@ -99,7 +130,7 @@ it('shows one item as static content with no carousel, navigation, indicators or
   expect(within(dialog).getByRole('button', { name: 'Ver en el catálogo: Noticia 1 · muestra' }).getAttribute('data-app-id')).toBe('app-0');
 });
 
-it.each([2, 3, 4])('reaches all %i items with arrows and progress but no navigation dots', count => {
+it.each([2, 3, 4])('reaches all %i items with arrows and progress but no navigation dots', (count) => {
   const { dialog } = open(count);
   const groups = slides(dialog, count);
   expect(groups).toHaveLength(count);
@@ -142,7 +173,11 @@ it('uses the catalog banner in a fixed cover area for each news item', () => {
 
 it('replaces a failed banner with the catalog app initial and retries for a changed app', () => {
   const item = { ...items[0], appId: 'orbit', appName: ' Órbita', title: 'Cambios de versión' };
-  const view = render(<main><NewsPopup items={[item]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
+  const view = render(
+    <main>
+      <NewsPopup items={[item]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} />
+    </main>,
+  );
   const hero = screen.getByRole('article').querySelector('.news-hero')!;
   const image = hero.querySelector('img');
   expect(image?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/orbit.webp');
@@ -152,13 +187,21 @@ it('replaces a failed banner with the catalog app initial and retries for a chan
   expect(hero.querySelector('.eg-app-icon')?.textContent).toBe('Ó');
   expect(hero.querySelector('.eg-app-icon')?.getAttribute('aria-hidden')).toBe('true');
   const betaItem = { ...item, appId: 'beta', appName: 'Beta' };
-  view.rerender(<main><NewsPopup items={[betaItem]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
+  view.rerender(
+    <main>
+      <NewsPopup items={[betaItem]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} />
+    </main>,
+  );
   expect(screen.getByRole('article').querySelector('.news-hero img')?.getAttribute('src')).toBe('https://egdev6.github.io/nexo-catalog/banners/beta.webp');
 });
 
 it('uses the catalog initial without requesting a banner for an invalid app id', () => {
   const item = { ...items[0], appId: '../escape', appName: ' Pizarra', title: 'Una noticia' };
-  render(<main><NewsPopup items={[item]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main>);
+  render(
+    <main>
+      <NewsPopup items={[item]} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} />
+    </main>,
+  );
   const hero = screen.getByRole('article').querySelector('.news-hero')!;
   expect(hero.querySelector('img')).toBeNull();
   expect(hero.textContent).toBe('P');
@@ -194,7 +237,9 @@ it('moves every item with arrows and keys and stays aligned after scroll feedbac
     fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
     expectPosition(dialog, groups, index);
     expect(offset()).toBe(index * 300);
-    fireEvent.scroll(track); fireEvent(track, new Event('scrollend')); fireEvent(window, new Event('resize'));
+    fireEvent.scroll(track);
+    fireEvent(track, new Event('scrollend'));
+    fireEvent(window, new Event('resize'));
     expectPosition(dialog, groups, index);
     expect(offset()).toBe(index * 300);
   }
@@ -215,14 +260,20 @@ it('moves every item with arrows and keys and stays aligned after scroll feedbac
     fireEvent.keyDown(region, { key: 'ArrowRight' });
     expectPosition(dialog, groups, index);
   }
-  fireEvent.keyDown(region, { key: 'ArrowRight' }); expectPosition(dialog, groups, 2);
-  fireEvent.keyDown(region, { key: 'Home' }); expectPosition(dialog, groups, 0);
-  fireEvent.keyDown(region, { key: 'ArrowLeft' }); expectPosition(dialog, groups, 0);
-  fireEvent.keyDown(region, { key: 'End' }); expectPosition(dialog, groups, 2);
+  fireEvent.keyDown(region, { key: 'ArrowRight' });
+  expectPosition(dialog, groups, 2);
+  fireEvent.keyDown(region, { key: 'Home' });
+  expectPosition(dialog, groups, 0);
+  fireEvent.keyDown(region, { key: 'ArrowLeft' });
+  expectPosition(dialog, groups, 0);
+  fireEvent.keyDown(region, { key: 'End' });
+  expectPosition(dialog, groups, 2);
   groups[2].focus();
-  fireEvent.keyDown(groups[2], { key: 'ArrowLeft' }); expectPosition(dialog, groups, 1);
+  fireEvent.keyDown(groups[2], { key: 'ArrowLeft' });
+  expectPosition(dialog, groups, 1);
   expect(document.activeElement).toBe(groups[1]);
-  fireEvent.keyDown(groups[1], { key: 'ArrowRight' }); expectPosition(dialog, groups, 2);
+  fireEvent.keyDown(groups[1], { key: 'ArrowRight' });
+  expectPosition(dialog, groups, 2);
   expect(document.activeElement).toBe(groups[2]);
   expect(onShown).toHaveBeenLastCalledWith(items[2]);
   expect(within(dialog).getByRole('button', { name: 'Ver en el catálogo: Noticia 3 · muestra' }).getAttribute('data-app-id')).toBe('app-2');
@@ -238,7 +289,7 @@ it('does not snap back when programmatic scrolling emits synchronous feedback', 
   const move = scrollTo.getMockImplementation()!;
   let dispatching = false;
   scrollTo.mockClear();
-  scrollTo.mockImplementation(options => {
+  scrollTo.mockImplementation((options) => {
     move(options);
     if (dispatching) return;
     dispatching = true;
@@ -256,11 +307,15 @@ it('selects the slide reached by direct horizontal scrolling and returns to the 
   const { dialog, onShown } = open(2);
   const groups = slides(dialog, 2);
   const { track, offset, moveTo } = layout(groups);
-  moveTo(300); fireEvent.scroll(track); fireEvent(track, new Event('scrollend'));
+  moveTo(300);
+  fireEvent.scroll(track);
+  fireEvent(track, new Event('scrollend'));
   expectPosition(dialog, groups, 1);
   expect(offset()).toBe(300);
   expect(onShown).toHaveBeenLastCalledWith(items[1]);
-  moveTo(0); fireEvent.scroll(track); fireEvent(track, new Event('scrollend'));
+  moveTo(0);
+  fireEvent.scroll(track);
+  fireEvent(track, new Event('scrollend'));
   expectPosition(dialog, groups, 0);
   expect(offset()).toBe(0);
   expect(onShown).toHaveBeenLastCalledWith(items[0]);
@@ -271,37 +326,63 @@ it('disables scrolling animations for reduced motion', () => {
   const track = slides(dialog, 2)[0].parentElement!;
   // jsdom cannot evaluate media queries; inspect the matching reduced-motion rule.
   const rules = Array.from(style.sheet!.cssRules);
-  const motion = rules.find(rule => rule instanceof CSSMediaRule && rule.media.mediaText === '(prefers-reduced-motion: reduce)') as CSSMediaRule;
+  const motion = rules.find((rule) => rule instanceof CSSMediaRule && rule.media.mediaText === '(prefers-reduced-motion: reduce)') as CSSMediaRule;
   expect(motion).toBeTruthy();
-  const matching = Array.from(motion.cssRules).filter((rule): rule is CSSStyleRule => 'selectorText' in rule && track.matches((rule as CSSStyleRule).selectorText));
-  expect(matching.some(rule => rule.style.getPropertyValue('scroll-behavior') === 'auto' && rule.style.getPropertyPriority('scroll-behavior') === 'important')).toBe(true);
+  const matching = Array.from(motion.cssRules).filter(
+    (rule): rule is CSSStyleRule => 'selectorText' in rule && track.matches((rule as CSSStyleRule).selectorText),
+  );
+  expect(
+    matching.some((rule) => rule.style.getPropertyValue('scroll-behavior') === 'auto' && rule.style.getPropertyPriority('scroll-behavior') === 'important'),
+  ).toBe(true);
 });
 
 it('resets to the newest item when displayed ids change and on reopening', () => {
   const onShown = vi.fn();
   const props = { dontShow: false, onClose: () => {}, onDontShowChange: () => {}, onShown };
-  const view = render(<main><NewsPopup {...props} items={items.slice(0, 2)} open /></main>);
+  const view = render(
+    <main>
+      <NewsPopup {...props} items={items.slice(0, 2)} open />
+    </main>,
+  );
   let dialog = screen.getByRole('dialog');
   expectPosition(dialog, slides(dialog, 2), 0);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
   expectPosition(dialog, slides(dialog, 2), 1);
   // The previously selected id is still second; it must not survive a snapshot change.
   const replacement = [items[2], items[1]];
-  view.rerender(<main><NewsPopup {...props} items={replacement} open /></main>);
+  view.rerender(
+    <main>
+      <NewsPopup {...props} items={replacement} open />
+    </main>,
+  );
   dialog = screen.getByRole('dialog');
   expect(dialog.textContent).toContain('01 / 02');
   expect(within(dialog).getByRole('group', { name: '1 de 2: Noticia 3' }).getAttribute('aria-hidden')).toBeNull();
   expect(onShown.mock.calls.map(([item]) => item.id)).toEqual(['news-0', 'news-1', 'news-2']);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Diapositiva siguiente' }));
-  view.rerender(<main><NewsPopup {...props} items={replacement} open={false} /></main>);
-  view.rerender(<main><NewsPopup {...props} items={[items[3], items[1]]} open /></main>);
+  view.rerender(
+    <main>
+      <NewsPopup {...props} items={replacement} open={false} />
+    </main>,
+  );
+  view.rerender(
+    <main>
+      <NewsPopup {...props} items={[items[3], items[1]]} open />
+    </main>,
+  );
   dialog = screen.getByRole('dialog');
   expect(dialog.textContent).toContain('01 / 02');
   expect(within(dialog).getByRole('group', { name: '1 de 2: Noticia 4' }).getAttribute('aria-hidden')).toBeNull();
 });
 
 it('localizes carousel arrows without navigation dots', () => {
-  render(<LocaleProvider locale="en"><main><NewsPopup items={items.slice(0, 2)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} /></main></LocaleProvider>);
+  render(
+    <LocaleProvider locale="en">
+      <main>
+        <NewsPopup items={items.slice(0, 2)} open dontShow={false} onClose={() => {}} onDontShowChange={() => {}} />
+      </main>
+    </LocaleProvider>,
+  );
   expect(screen.queryByRole('group', { name: 'Select slide' })).toBeNull();
   expect(screen.queryByRole('button', { name: /^Go to / })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Next slide' }));

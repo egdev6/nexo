@@ -24,14 +24,20 @@ const bridge = vi.hoisted(() => ({
 }));
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => bridge.native, invoke: bridge.invoke }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: bridge.getCurrentWindow }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, listener: (event: { payload: unknown }) => void) => {
-  bridge.events.set(name, listener);
-  return () => bridge.events.delete(name);
-}) }));
-vi.mock('./settings/use-settings', () => ({ useSettings: () => ({
-  settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: bridge.opacity, blur: bridge.blur },
-  fileState: 'ready', languageDraft: null, recordVisit: vi.fn(),
-}) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(async (name: string, listener: (event: { payload: unknown }) => void) => {
+    bridge.events.set(name, listener);
+    return () => bridge.events.delete(name);
+  }),
+}));
+vi.mock('./settings/use-settings', () => ({
+  useSettings: () => ({
+    settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, opacity: bridge.opacity, blur: bridge.blur },
+    fileState: 'ready',
+    languageDraft: null,
+    recordVisit: vi.fn(),
+  }),
+}));
 vi.mock('./shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 vi.mock('./local-apps/view', () => ({ LocalAppsView: () => null }));
 vi.mock('./news', () => ({ NewsPopup: () => null }));
@@ -50,10 +56,17 @@ beforeEach(() => {
   });
   bridge.stop.mockReset();
   bridge.hide.mockReset().mockResolvedValue(undefined);
-  bridge.onFocusChanged.mockReset().mockImplementation(async listener => { bridge.listener = listener; return bridge.stop; });
+  bridge.onFocusChanged.mockReset().mockImplementation(async (listener) => {
+    bridge.listener = listener;
+    return bridge.stop;
+  });
   bridge.getCurrentWindow.mockReset().mockReturnValue({ onFocusChanged: bridge.onFocusChanged, hide: bridge.hide });
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function visibility(visible: boolean, sequence: number, cycle: number) {
   act(() => bridge.events.get('flyout-visibility')!({ payload: { visible, sequence, cycle, at: 1 } }));
@@ -78,11 +91,18 @@ function measurePanel() {
   vi.stubGlobal('innerWidth', 480);
   vi.stubGlobal('innerHeight', 800);
   vi.stubGlobal('devicePixelRatio', 1.25);
-  const rectangle = (x: number, y: number, width: number, height: number) => ({ x, y, left: x, top: y, right: x + width, bottom: y + height, width, height, toJSON: () => ({}) }) as DOMRect;
+  const rectangle = (x: number, y: number, width: number, height: number) =>
+    ({ x, y, left: x, top: y, right: x + width, bottom: y + height, width, height, toJSON: () => ({}) }) as DOMRect;
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     return this.matches('.main-tabs > [role="tabpanel"], .area-scroll') ? rectangle(0, 140, 480, 660) : rectangle(0, 0, 480, 800);
   });
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
 }
 
 it('sends the physical content-only clip and live blur and opacity settings at rest', async () => {
@@ -114,18 +134,27 @@ it('resends matching geometry after a native resize even if the measured rectang
 it('remeasures the content clip when the wrapped menu row resizes', async () => {
   measurePanel();
   const observers: { targets: Set<Element>; notify: () => void }[] = [];
-  vi.stubGlobal('ResizeObserver', class {
-    targets = new Set<Element>();
-    constructor(callback: ResizeObserverCallback) {
-      observers.push({ targets: this.targets, notify: () => callback([], this as unknown as ResizeObserver) });
-    }
-    observe(target: Element) { this.targets.add(target); }
-    unobserve(target: Element) { this.targets.delete(target); }
-    disconnect() { this.targets.clear(); }
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      targets = new Set<Element>();
+      constructor(callback: ResizeObserverCallback) {
+        observers.push({ targets: this.targets, notify: () => callback([], this as unknown as ResizeObserver) });
+      }
+      observe(target: Element) {
+        this.targets.add(target);
+      }
+      unobserve(target: Element) {
+        this.targets.delete(target);
+      }
+      disconnect() {
+        this.targets.clear();
+      }
+    },
+  );
   const panel = await openPanel();
   const tablist = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
-  const observer = observers.find(item => item.targets.has(panel));
+  const observer = observers.find((item) => item.targets.has(panel));
   expect(observer?.targets.has(tablist)).toBe(true);
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', expect.objectContaining({ generation: 0 })));
   const calls = bridge.invoke.mock.calls.filter(([command]) => command === 'set_surface_clip').length;
@@ -136,27 +165,37 @@ it('remeasures the content clip when the wrapped menu row resizes', async () => 
 it('keeps the menu band aligned to the public tablist as its height changes', async () => {
   measurePanel();
   let listBottom = 160;
-  const rectangle = (y: number, height: number) => ({ x: 0, y, left: 0, top: y, right: 480, bottom: y + height, width: 480, height, toJSON: () => ({}) }) as DOMRect;
+  const rectangle = (y: number, height: number) =>
+    ({ x: 0, y, left: 0, top: y, right: 480, bottom: y + height, width: 480, height, toJSON: () => ({}) }) as DOMRect;
   vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
     if (this.matches('.main-tabs-frame')) return rectangle(100, 700);
     if (this.matches('[role="tablist"]')) return rectangle(112, listBottom - 112);
     return rectangle(0, 800);
   });
   const observers: { targets: Set<Element>; notify: () => void }[] = [];
-  vi.stubGlobal('ResizeObserver', class {
-    targets = new Set<Element>();
-    constructor(callback: ResizeObserverCallback) {
-      observers.push({ targets: this.targets, notify: () => callback([], this as unknown as ResizeObserver) });
-    }
-    observe(target: Element) { this.targets.add(target); }
-    unobserve(target: Element) { this.targets.delete(target); }
-    disconnect() { this.targets.clear(); }
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      targets = new Set<Element>();
+      constructor(callback: ResizeObserverCallback) {
+        observers.push({ targets: this.targets, notify: () => callback([], this as unknown as ResizeObserver) });
+      }
+      observe(target: Element) {
+        this.targets.add(target);
+      }
+      unobserve(target: Element) {
+        this.targets.delete(target);
+      }
+      disconnect() {
+        this.targets.clear();
+      }
+    },
+  );
   await openPanel();
   const list = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
   const frame = list.closest<HTMLElement>('.main-tabs-frame');
   expect(frame?.style.getPropertyValue('--menu-band-bottom')).toBe('60px');
-  const observer = observers.find(item => frame && item.targets.has(frame) && item.targets.has(list));
+  const observer = observers.find((item) => frame && item.targets.has(frame) && item.targets.has(list));
   expect(observer).toBeDefined();
   listBottom = 180;
   act(() => observer!.notify());
@@ -165,15 +204,20 @@ it('keeps the menu band aligned to the public tablist as its height changes', as
 
 it('keeps the native backdrop full-width when the tab content has side gutters', async () => {
   measurePanel();
-  const rectangle = (x: number, y: number, width: number, height: number) => ({ x, y, left: x, top: y, right: x + width, bottom: y + height, width, height, toJSON: () => ({}) }) as DOMRect;
+  const rectangle = (x: number, y: number, width: number, height: number) =>
+    ({ x, y, left: x, top: y, right: x + width, bottom: y + height, width, height, toJSON: () => ({}) }) as DOMRect;
   vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
     return this.matches('.main-tabs > [role="tabpanel"]') ? rectangle(24, 140, 432, 660) : rectangle(0, 0, 480, 800);
   });
   await openPanel();
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', {
-    clip: { width: 600, height: 1000, x: 0, y: 175, contentWidth: 600, contentHeight: 825 },
-    blur: 12, opacity: 63, generation: 0,
-  }));
+  await waitFor(() =>
+    expect(bridge.invoke).toHaveBeenCalledWith('set_surface_clip', {
+      clip: { width: 600, height: 1000, x: 0, y: 175, contentWidth: 600, contentHeight: 825 },
+      blur: 12,
+      opacity: 63,
+      generation: 0,
+    }),
+  );
 });
 
 it('does not request a visible native backdrop during motion and remeasures on reopening', async () => {
@@ -202,7 +246,7 @@ it('uses the configured translucent appearance at rest even when no focus event 
   expect(panel.style.getPropertyValue('--hub-blur')).toBe('12px');
 });
 
-it.each(['close button', 'Escape'] as const)('keeps the %s exit opaque only while motion is active', async action => {
+it.each(['close button', 'Escape'] as const)('keeps the %s exit opaque only while motion is active', async (action) => {
   const panel = await openPanel();
   const atHide: (string | null)[] = [];
   bridge.invoke.mockImplementation(async (command: string) => {
@@ -263,11 +307,11 @@ it('does not touch the native window in a browser preview', () => {
 });
 
 function declarations(selector: string) {
-  const rule = postcss.parse(css).nodes.find(node => node.type === 'rule' && node.selector === selector);
-  return rule?.type === 'rule' ? Object.fromEntries(rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  const rule = postcss.parse(css).nodes.find((node) => node.type === 'rule' && node.selector === selector);
+  return rule?.type === 'rule' ? Object.fromEntries(rule.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value])) : {};
 }
 
-it.each([0, 63, 100])('keeps the title header opaque at %i percent panel opacity', async opacity => {
+it.each([0, 63, 100])('keeps the title header opaque at %i percent panel opacity', async (opacity) => {
   bridge.opacity = opacity;
   const panel = await openPanel();
   const header = screen.getByRole('heading', { name: 'Nexo' }).closest('header');
@@ -278,7 +322,7 @@ it.each([0, 63, 100])('keeps the title header opaque at %i percent panel opacity
   expect(declarations('.panel-head')['border-bottom']).toBeUndefined();
 });
 
-it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opacity', async opacity => {
+it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opacity', async (opacity) => {
   bridge.opacity = opacity;
   const panel = await openPanel();
   const tablist = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
@@ -292,9 +336,10 @@ it.each([0, 63, 100])('keeps the entire menu row opaque at %i percent panel opac
   expect(band.position).toBe('absolute');
   expect(band.background).toBe('var(--color-surface-0)');
   expect(band.height).toBe('calc(var(--menu-band-bottom, 0px) + var(--space-4))');
-  const media = postcss.parse(css).nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
-  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selector === '.main-tabs-frame') : undefined;
-  const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  const media = postcss.parse(css).nodes.find((node) => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
+  const narrow = media?.type === 'atrule' ? media.nodes?.find((node) => node.type === 'rule' && node.selector === '.main-tabs-frame') : undefined;
+  const narrowProps =
+    narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value])) : {};
   expect(narrowProps['--menu-band-gutter']).toBe('var(--space-4)');
 });
 
@@ -326,9 +371,10 @@ it('leaves selected menu tab paint and focus to the DS while retaining the opaqu
   }
   const sources = [css, readFileSync(`${cwd()}/src/theme/family.css`, 'utf8') as string];
   const tabSelectors: string[] = [];
-  for (const source of sources) postcss.parse(source).walkRules(rule => {
-    tabSelectors.push(...rule.selectors.filter(selector => /\[role\s*=\s*['"]?tab['"]?\s*\]/.test(selector)));
-  });
+  for (const source of sources)
+    postcss.parse(source).walkRules((rule) => {
+      tabSelectors.push(...rule.selectors.filter((selector) => /\[role\s*=\s*['"]?tab['"]?\s*\]/.test(selector)));
+    });
   expect(tabSelectors).toEqual([]);
   expect(declarations('.main-tabs-frame::before').background).toBe('var(--color-surface-0)');
 });
@@ -347,18 +393,20 @@ it('preserves navigation between the two menu tabs', async () => {
 it('keeps every static window ancestor explicitly transparent', () => {
   const stylesheet = postcss.parse(css);
   for (const selector of ['html', 'body', '#root']) {
-    const rules = stylesheet.nodes.filter(node => node.type === 'rule' && node.selectors.includes(selector));
-    const backgrounds = rules.flatMap(rule => rule.type === 'rule' ? rule.nodes.flatMap(node => node.type === 'decl' && node.prop === 'background' ? [node.value] : []) : []);
+    const rules = stylesheet.nodes.filter((node) => node.type === 'rule' && node.selectors.includes(selector));
+    const backgrounds = rules.flatMap((rule) =>
+      rule.type === 'rule' ? rule.nodes.flatMap((node) => (node.type === 'decl' && node.prop === 'background' ? [node.value] : [])) : [],
+    );
     expect(backgrounds.at(-1), selector).toBe('transparent');
   }
 });
 
 it('overrides the translucent backdrop without a transition, retaining the user-controlled normal rule', () => {
   const stylesheet = postcss.parse(css);
-  const opaque = stylesheet.nodes.find(node => node.type === 'rule' && node.selector === '.flyout[data-backdrop="opaque"]');
+  const opaque = stylesheet.nodes.find((node) => node.type === 'rule' && node.selector === '.flyout[data-backdrop="opaque"]');
   expect(opaque?.type).toBe('rule');
   if (!opaque || opaque.type !== 'rule') return;
-  const properties = Object.fromEntries(opaque.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]));
+  const properties = Object.fromEntries(opaque.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value]));
   expect(properties.background).toBe('var(--color-surface-0)');
   expect(properties['backdrop-filter']).toBe('none');
   expect(properties.transition).toBe('none');

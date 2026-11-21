@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
 
 function cargoPackageVersion(cargoToml) {
-  const section = cargoToml.split(/^\[/m).find(part => part.startsWith('package]'));
+  const section = cargoToml.split(/^\[/m).find((part) => part.startsWith('package]'));
   return section?.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
 }
 
@@ -21,7 +21,8 @@ export function checkRelease({ version, packageJson, cargoToml, tauriConf, notes
   if (cargoVersion !== version) problems.push(`apps/hub/src-tauri/Cargo.toml has version ${cargoVersion}, expected ${version}.`);
   if (!notesExist) problems.push(`Missing release notes docs/releases/v${version}.md.`);
   const bundle = JSON.parse(tauriConf).bundle ?? {};
-  if (!Array.isArray(bundle.targets) || bundle.targets.length !== 1 || bundle.targets[0] !== 'nsis') problems.push('tauri.conf.json bundle.targets must be ["nsis"].');
+  if (!Array.isArray(bundle.targets) || bundle.targets.length !== 1 || bundle.targets[0] !== 'nsis')
+    problems.push('tauri.conf.json bundle.targets must be ["nsis"].');
   if (bundle.windows?.nsis?.installMode !== 'currentUser') problems.push('tauri.conf.json bundle.windows.nsis.installMode must be "currentUser".');
   return problems;
 }

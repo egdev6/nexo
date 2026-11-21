@@ -5,19 +5,61 @@ import { FlyoutPanel } from '../App';
 import type { HubApp } from '../model';
 import { defaultSettings } from '../sample';
 
-const bridge = vi.hoisted(() => ({ invoke: vi.fn(), publish: undefined as undefined | ((value: unknown) => void), visibility: undefined as undefined | ((event: { payload: unknown }) => void) }));
+const bridge = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  publish: undefined as undefined | ((value: unknown) => void),
+  visibility: undefined as undefined | ((event: { payload: unknown }) => void),
+}));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => { if (name === 'flyout-visibility') bridge.visibility = callback; return () => {}; }) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => {
+    if (name === 'flyout-visibility') bridge.visibility = callback;
+    return () => {};
+  }),
+}));
 vi.mock('../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(false), hideFlyout: vi.fn() }));
-vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn(async (publish: (value: unknown) => void) => { bridge.publish = publish; return () => {}; }), exitHubOnly: vi.fn() }));
+vi.mock('../shell/registry', () => ({
+  subscribeRegistry: vi.fn(async (publish: (value: unknown) => void) => {
+    bridge.publish = publish;
+    return () => {};
+  }),
+  exitHubOnly: vi.fn(),
+}));
 
-const installed: HubApp = { id: 'example', name: 'Example', description: 'Original', source: 'official', integration: 'local', installed: true, running: false, statusKnown: true, installationState: 'installed', runningState: 'unknown', version: '9.1', canOpen: true };
-const unknown: HubApp = { id: 'missing', name: 'Missing', description: 'Original', source: 'official', integration: 'catalog', installed: false, running: false, statusKnown: false, installationState: 'unknown', installationReason: 'Sin datos de detección en el catálogo' };
+const installed: HubApp = {
+  id: 'example',
+  name: 'Example',
+  description: 'Original',
+  source: 'official',
+  integration: 'local',
+  installed: true,
+  running: false,
+  statusKnown: true,
+  installationState: 'installed',
+  runningState: 'unknown',
+  version: '9.1',
+  canOpen: true,
+};
+const unknown: HubApp = {
+  id: 'missing',
+  name: 'Missing',
+  description: 'Original',
+  source: 'official',
+  integration: 'catalog',
+  installed: false,
+  running: false,
+  statusKnown: false,
+  installationState: 'unknown',
+  installationReason: 'Sin datos de detección en el catálogo',
+};
 
 beforeEach(() => {
-  bridge.invoke.mockReset(); bridge.publish = undefined; bridge.visibility = undefined;
+  bridge.invoke.mockReset();
+  bridge.publish = undefined;
+  bridge.visibility = undefined;
   bridge.invoke.mockImplementation(async (command: string) => {
-    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, language: 'en', firstRunComplete: true, showNewsOnOpen: false, sources: [] } };
+    if (command === 'get_settings')
+      return { state: 'ready', settings: { ...defaultSettings, language: 'en', firstRunComplete: true, showNewsOnOpen: false, sources: [] } };
     if (command === 'plugin:autostart|is_enabled') return false;
     if (command === 'get_flyout_state') return null;
     if (command === 'local_apps_list') return [];
@@ -37,7 +79,8 @@ it('localizes installation, open and unknown reasons without translating app dat
   expect(screen.queryByText('Missing')).toBeNull();
   expect(screen.getByRole('button', { name: 'Refresh apps' })).toBeTruthy();
   const tab = screen.getByRole('tab', { name: 'Catalog' });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
   const card = screen.getByRole('article', { name: 'Missing' });
   expect(within(card).getByText('Cannot check whether it is already installed.')).toBeTruthy();
   expect((within(card).getByRole('button', { name: 'Install Missing' }) as HTMLButtonElement).disabled).toBe(true);
@@ -46,7 +89,22 @@ it('localizes installation, open and unknown reasons without translating app dat
 it('localizes connected controls and preserves the app-provided refusal verbatim', async () => {
   render(<FlyoutPanel apps={[installed]} news={[]} onAppsRefresh={() => {}} />);
   await screen.findByText('Example');
-  act(() => bridge.publish!({ revision: 1, apps: [{ app: { id: 'example', name: 'Example', version: '2.0' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  act(() =>
+    bridge.publish!({
+      revision: 1,
+      apps: [
+        {
+          app: { id: 'example', name: 'Example', version: '2.0' },
+          capabilities: ['show', 'quit'],
+          unified: true,
+          responsive: true,
+          generation: 1,
+          menu_revision: 0,
+          menu: [],
+        },
+      ],
+    }),
+  );
   expect(screen.getByRole('button', { name: 'Open Example' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /Example.*Connected/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Close Example' }));

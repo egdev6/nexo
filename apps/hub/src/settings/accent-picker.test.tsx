@@ -6,17 +6,28 @@ import type { HubSettings, Language } from '../model';
 import { LocaleProvider } from '../i18n/use-locale';
 import { SettingsView } from './index';
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 afterEach(cleanup);
 afterAll(() => vi.unstubAllGlobals());
 
 const initial: HubSettings = {
-  language: 'es', startWithWindows: false, showNewsOnOpen: true, hideLocalApps: false,
-  accent: '#ff0036', compact: false, opacity: 85, blur: 24,
+  language: 'es',
+  startWithWindows: false,
+  showNewsOnOpen: true,
+  hideLocalApps: false,
+  accent: '#ff0036',
+  compact: false,
+  opacity: 85,
+  blur: 24,
 };
 const colors = ['#ff0036', '#ff7a00', '#ffd400', '#22c55e', '#00c2ff', '#3b82f6', '#8b5cf6', '#ff3fb4'];
 
@@ -24,12 +35,22 @@ function setup(locale: Language = 'es', acceptChanges = true) {
   const onChange = vi.fn();
   function Harness() {
     const [settings, setSettings] = useState(initial);
-    return <SettingsView settings={settings} onClose={vi.fn()} onChange={next => {
-      onChange(next);
-      if (acceptChanges) setSettings(next);
-    }} />;
+    return (
+      <SettingsView
+        settings={settings}
+        onClose={vi.fn()}
+        onChange={(next) => {
+          onChange(next);
+          if (acceptChanges) setSettings(next);
+        }}
+      />
+    );
   }
-  render(<LocaleProvider locale={locale}><Harness /></LocaleProvider>);
+  render(
+    <LocaleProvider locale={locale}>
+      <Harness />
+    </LocaleProvider>,
+  );
   return onChange;
 }
 
@@ -94,7 +115,11 @@ it('retains non-preset custom colors, derived tones and the app-owned reset', ()
   expect(picker.value).toBe('#123456');
   expect(within(fieldset).getByRole('status').textContent).toBe('Color de acento: #123456');
   const group = within(fieldset).getByRole('radiogroup', { name: 'Color de acento' });
-  expect(within(group).getAllByRole('radio').every(radio => radio.getAttribute('aria-checked') === 'false')).toBe(true);
+  expect(
+    within(group)
+      .getAllByRole('radio')
+      .every((radio) => radio.getAttribute('aria-checked') === 'false'),
+  ).toBe(true);
   const tones = screen.getByRole('group', { name: 'Tonos derivados' });
   for (const tone of ['#256bb1', '#eef3f9', '#96b8da']) expect(within(tones).getByText(tone)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Restablecer rojo egdev' }));

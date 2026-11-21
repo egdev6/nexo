@@ -11,19 +11,30 @@ import { version as buildVersion } from '../../package.json';
 import { readFileSync } from 'node:fs';
 const settingsCss = readFileSync('src/settings/settings.css', 'utf8') as string;
 
-configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
+configure({ getElementError: (message) => new Error(message?.split('\n')[0] ?? 'Element not found') });
 // Radix measures slider thumbs; jsdom does not implement ResizeObserver.
-beforeAll(() => vi.stubGlobal('ResizeObserver', class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 afterEach(cleanup);
 afterAll(() => vi.unstubAllGlobals());
 
 const initial: HubSettings = {
-  language: 'es', startWithWindows: false, showNewsOnOpen: true, hideLocalApps: false,
-  accent: '#ff0036', compact: false, opacity: 85, blur: 24,
+  language: 'es',
+  startWithWindows: false,
+  showNewsOnOpen: true,
+  hideLocalApps: false,
+  accent: '#ff0036',
+  compact: false,
+  opacity: 85,
+  blur: 24,
 };
 
 function setup(locale: Language = 'es') {
@@ -31,9 +42,22 @@ function setup(locale: Language = 'es') {
   const onClose = vi.fn();
   function Harness() {
     const [settings, setSettings] = useState(initial);
-    return <SettingsView settings={settings} onClose={onClose} onChange={next => { onChange(next); setSettings(next); }} />;
+    return (
+      <SettingsView
+        settings={settings}
+        onClose={onClose}
+        onChange={(next) => {
+          onChange(next);
+          setSettings(next);
+        }}
+      />
+    );
   }
-  render(<LocaleProvider locale={locale}><Harness /></LocaleProvider>);
+  render(
+    <LocaleProvider locale={locale}>
+      <Harness />
+    </LocaleProvider>,
+  );
   return { onChange, onClose };
 }
 
@@ -59,9 +83,13 @@ it.each([
     }
   }
   checkHeading('General');
-  tab(appearance); checkHeading(appearance);
-  tab(localApps); checkHeading(localApps);
-  tab(about); checkHeading(about); checkHeading(author);
+  tab(appearance);
+  checkHeading(appearance);
+  tab(localApps);
+  checkHeading(localApps);
+  tab(about);
+  checkHeading(about);
+  checkHeading(author);
   const links = within(screen.getByRole('region', { name: author })).getAllByRole('link');
   expect(links.length).toBeGreaterThan(0);
   // Author social links use the DS outline IconButton look.
@@ -117,12 +145,13 @@ it('keeps the settings tab row and content within responsive host gutters', () =
   const list = screen.getByRole('tablist', { name: 'Secciones de ajustes' });
   expect(list.closest('.settings__tabs')).toBeTruthy();
   const sheet = postcss.parse(settingsCss);
-  const root = sheet.nodes.find(node => node.type === 'rule' && node.selector === '.settings__tabs');
-  const properties = root?.type === 'rule' ? Object.fromEntries(root.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  const root = sheet.nodes.find((node) => node.type === 'rule' && node.selector === '.settings__tabs');
+  const properties = root?.type === 'rule' ? Object.fromEntries(root.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value])) : {};
   expect(properties.padding).toBe('var(--space-4) var(--space-6) var(--space-5)');
-  const media = sheet.nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
-  const narrow = media?.type === 'atrule' ? media.nodes?.find(node => node.type === 'rule' && node.selectors.includes('.settings__tabs')) : undefined;
-  const narrowProps = narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])) : {};
+  const media = sheet.nodes.find((node) => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: 400px)');
+  const narrow = media?.type === 'atrule' ? media.nodes?.find((node) => node.type === 'rule' && node.selectors.includes('.settings__tabs')) : undefined;
+  const narrowProps =
+    narrow?.type === 'rule' ? Object.fromEntries(narrow.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value])) : {};
   expect(narrowProps['padding-left']).toBe('var(--space-4)');
   expect(narrowProps['padding-right']).toBe('var(--space-4)');
   expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(screen.getByRole('tab', { name: 'General' }).id);
@@ -141,8 +170,14 @@ it('selects each preset with a visible selected state and emits full settings', 
   const { onChange } = setup();
   tab('Apariencia');
   const presets = [
-    ['rojo', '#ff0036'], ['naranja', '#ff7a00'], ['amarillo', '#ffd400'], ['verde', '#22c55e'],
-    ['cian', '#00c2ff'], ['azul', '#3b82f6'], ['morado', '#8b5cf6'], ['rosa', '#ff3fb4'],
+    ['rojo', '#ff0036'],
+    ['naranja', '#ff7a00'],
+    ['amarillo', '#ffd400'],
+    ['verde', '#22c55e'],
+    ['cian', '#00c2ff'],
+    ['azul', '#3b82f6'],
+    ['morado', '#8b5cf6'],
+    ['rosa', '#ff3fb4'],
   ];
   for (const [name, accent] of presets.slice(1)) {
     const swatch = screen.getByRole('radio', { name });
@@ -232,8 +267,11 @@ it('preserves the unknown and busy autostart states and retries', () => {
   const change = vi.fn();
   const retry = vi.fn();
   const onChange = vi.fn();
-  const view = (confirmed: boolean | null, busy: boolean) => <LocaleProvider locale="es"><SettingsView settings={initial} onClose={vi.fn()} onChange={onChange}
-    autostart={{ confirmed, busy, error: 'Error de inicio', change, retry }} /></LocaleProvider>;
+  const view = (confirmed: boolean | null, busy: boolean) => (
+    <LocaleProvider locale="es">
+      <SettingsView settings={initial} onClose={vi.fn()} onChange={onChange} autostart={{ confirmed, busy, error: 'Error de inicio', change, retry }} />
+    </LocaleProvider>
+  );
   const { rerender } = render(view(null, false));
   const toggle = screen.getByRole('switch', { name: 'Iniciar con Windows', description: 'Estado del sistema desconocido' });
   expect(toggle.hasAttribute('disabled')).toBe(true);
@@ -274,13 +312,18 @@ it('changes language without the settings row styling the radio internals', () =
     expect(settingsCss).not.toContain('.settings__row .eg-radio-group span');
     expect(settingsCss).not.toContain('.settings__row label,');
     const rules = Array.from(style.sheet!.cssRules).filter((rule): rule is CSSStyleRule => 'selectorText' in rule);
-    expect(rules.filter(rule => rule.selectorText.startsWith('.settings__row') &&
-      (indicator!.matches(rule.selectorText) || label.matches(rule.selectorText))).map(rule => rule.selectorText)).toEqual([]);
+    expect(
+      rules
+        .filter((rule) => rule.selectorText.startsWith('.settings__row') && (indicator!.matches(rule.selectorText) || label.matches(rule.selectorText)))
+        .map((rule) => rule.selectorText),
+    ).toEqual([]);
     fireEvent.click(within(group).getByRole('radio', { name: 'English' }));
     expect(onChange).toHaveBeenLastCalledWith({ ...initial, language: 'en' });
     fireEvent.click(within(group).getByRole('radio', { name: 'Español' }));
     expect(onChange).toHaveBeenLastCalledWith(initial);
-  } finally { style.remove(); }
+  } finally {
+    style.remove();
+  }
 });
 
 it.each([

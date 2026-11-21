@@ -39,11 +39,13 @@ export async function checkDesignSystemMcp() {
   const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
   const transport = new StdioClientTransport({ ...server, cwd: root, stderr: 'pipe' });
   let stderr = '';
-  transport.stderr?.on('data', chunk => { stderr += chunk.toString(); });
+  transport.stderr?.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
   const client = new Client({ name: 'nexo-design-system-check', version: '1.0.0' });
   try {
     await client.connect(transport);
-    const tools = (await client.listTools()).tools.map(tool => tool.name).sort();
+    const tools = (await client.listTools()).tools.map((tool) => tool.name).sort();
     assert.deepEqual(tools, expectedTools);
     const call = async (name, args) => {
       const result = await client.callTool({ name, arguments: args });
@@ -54,7 +56,7 @@ export async function checkDesignSystemMcp() {
     };
     const list = await call('list_components', {});
     assert.ok(list.total > 0);
-    assert.ok(list.components.some(component => component.name === 'Notice'));
+    assert.ok(list.components.some((component) => component.name === 'Notice'));
     const notice = await call('get_component', { name: 'Notice' });
     assert.equal(notice.component.name, 'Notice');
     const { systemMd } = await call('get_design_system_md', {});

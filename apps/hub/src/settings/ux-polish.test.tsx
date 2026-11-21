@@ -23,7 +23,16 @@ const profiles = [
   ['GitHub', 'https://github.com/egdev6'],
 ] as const;
 
-beforeAll(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeAll(() =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  ),
+);
 beforeEach(() => {
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string) => {
@@ -36,7 +45,11 @@ afterEach(cleanup);
 
 function settings(locale: 'es' | 'en' = 'es') {
   const onClose = vi.fn();
-  render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={onClose} /></LocaleProvider>);
+  render(
+    <LocaleProvider locale={locale}>
+      <SettingsView settings={{ ...defaultSettings, language: locale }} onChange={vi.fn()} onClose={onClose} />
+    </LocaleProvider>,
+  );
   return onClose;
 }
 function select(name: string) {
@@ -57,7 +70,7 @@ it.each([
   ['en', ['General', 'Appearance', 'Local apps', 'About'], 'Add app'],
 ] as const)('shows only local app management in the %s local apps tab', async (locale, labels, add) => {
   settings(locale);
-  expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(labels);
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(labels);
   select(labels[2]);
   expect(await screen.findByText('Editor')).toBeTruthy();
   expect(screen.getByRole('button', { name: add })).toBeTruthy();
@@ -103,7 +116,8 @@ it('exposes each settings region, heading and controls in a banded panel', async
 });
 
 it('stacks appearance options in a token-spaced flex wrapper without changing their order', () => {
-  settings(); select('Apariencia');
+  settings();
+  select('Apariencia');
   const region = screen.getByRole('region', { name: 'Apariencia' });
   const options = within(region).getByRole('radiogroup', { name: 'Color de acento' }).closest('.settings__options');
   expect(options?.tagName).toBe('DIV');
@@ -119,13 +133,19 @@ it('stacks appearance options in a token-spaced flex wrapper without changing th
   for (const control of controls) expect(options?.contains(control)).toBe(true);
   controls.slice(1).forEach((control, index) => expect(controls[index].compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy());
   const css = postcss.parse(readFileSync('src/settings/settings.css', 'utf8') as string);
-  const rule = css.nodes.find(node => node.type === 'rule' && node.selector === '.settings__options');
-  const declarations = Object.fromEntries(rule?.type === 'rule' ? rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]) : []);
+  const rule = css.nodes.find((node) => node.type === 'rule' && node.selector === '.settings__options');
+  const declarations = Object.fromEntries(
+    rule?.type === 'rule' ? rule.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value]) : [],
+  );
   expect(declarations).toMatchObject({ display: 'flex', 'flex-direction': 'column', gap: 'var(--space-2)' });
 });
 
-it.each([['es', 'Acerca de', 'Autor'], ['en', 'About', 'Author']] as const)('opens all author profiles through the native policy (%s)', async (locale, about, author) => {
-  settings(locale); select(about);
+it.each([
+  ['es', 'Acerca de', 'Autor'],
+  ['en', 'About', 'Author'],
+] as const)('opens all author profiles through the native policy (%s)', async (locale, about, author) => {
+  settings(locale);
+  select(about);
   const card = screen.getByRole('region', { name: author });
   expect(within(card).getByRole('heading', { name: author, level: 2 })).toBeTruthy();
   expect(within(card).getByText('Enrique Gómez Navarro (egdev6)')).toBeTruthy();
@@ -148,7 +168,8 @@ it.each([['es', 'Acerca de', 'Autor'], ['en', 'About', 'Author']] as const)('ope
 
 it('reports a failed author link without navigating', async () => {
   bridge.invoke.mockRejectedValue('nexo.external.refused');
-  settings(); select('Acerca de');
+  settings();
+  select('Acerca de');
   const link = within(screen.getByRole('region', { name: 'Autor' })).getByRole('link', { name: /Twitch/i });
   expect(fireEvent.click(link)).toBe(false);
   const alert = await screen.findByRole('alert');
@@ -170,15 +191,21 @@ it('renders both first-run lines inline with hidden separators and language tags
       const line = container.querySelector(selector)!;
       expect(line.textContent).toBe(expected);
       expect(line.querySelector('br')).toBeNull();
-      expect(Array.from(line.querySelectorAll('span[lang]')).map(span => span.getAttribute('lang'))).toEqual(['es', 'en']);
+      expect(Array.from(line.querySelectorAll('span[lang]')).map((span) => span.getAttribute('lang'))).toEqual(['es', 'en']);
       expect(line.querySelector('[aria-hidden="true"]')?.textContent).toBe('-');
       expect(getComputedStyle(line.querySelector('[lang="es"]')!).display).not.toBe('block');
     }
-  } finally { style.remove(); }
+  } finally {
+    style.remove();
+  }
 });
 
 it('centers the scrollable DS news dialog in the flyout', () => {
-  render(<main><NewsPopup items={[]} open dontShow={false} onClose={vi.fn()} onDontShowChange={vi.fn()} /></main>);
+  render(
+    <main>
+      <NewsPopup items={[]} open dontShow={false} onClose={vi.fn()} onDontShowChange={vi.fn()} />
+    </main>,
+  );
   const dialog = screen.getByRole('dialog', { name: 'Novedades' });
   const overlay = dialog.closest('.eg-dialog-backdrop');
   expect(overlay?.parentElement?.tagName).toBe('MAIN');
