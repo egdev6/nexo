@@ -24,7 +24,7 @@
 | T1 | S3, S5, S6 | parent (nexo-catalog: schema v4, v4/catalog.json, validate.yml, README) | done: 4 files valid, 6 invalid cases rejected, darwin-only app accepted; rebased on Antena 0.18.0 (#10) and v4 resynced | nexo-catalog PR #11 |
 | T2a | S3, S4, S5, S7 | worker: Rust (crates/nexo-catalog v4 + projection + schema copy, src-tauri platform key, install feed v4, v4 cache + commands, docs/catalog.md) | done: cargo fmt/clippy/test green; Windows MSVC unverified locally | 4e62aac, de007af |
 | T2b | S3, S4, S5, S7 | worker: TypeScript (format.ts v4 + projection, loader v4 only, platform_key invoke, schemaVersion checks, i18n `install.v3Required`, tests) | done: 612 vitest, tsc, build, ds:doctor green | 8394e02 (docs 2672ce0) |
-| T3 | S2 | parent: release notes, rebuild 0.2.0 (maintainer deletes draft and reruns Release) | pending | |
+| T3 | S2 | parent: release notes, rebuild 0.2.0 (maintainer deletes draft and reruns Release) | notes done; rebuild waits for merge of nexo-catalog #11 and nexo #84 | see PR #84 |
 | T4 | all | verify | pass S1, S3-S7 on Linux (336 cargo, 612 vitest, 161-case Rust/TS differential identical, published v4 projects Antena+Quorb only on windows-x86_64); cfg(windows) paths unproven until native Windows CI | — |
 
 ## Log
@@ -35,4 +35,5 @@
 - L5 (2026-11-21, user): "si" → start T2. Parent fixed contract S7 and wrote the shared v4 corpus; the corpus exposed a schema bug in PR #11 (darwin/linux entries matched patternProperties and skipped platformEntry), fixed in nexo-catalog 9ee8a98.
 - L6 (2026-11-21, evidence): T2a done (Rust; Windows MSVC clippy not runnable on this host: ring needs lib.exe). T2b first attempt blocked: worker ran pnpm in an npm project (package-lock.json, CI `npm ci`); parent restored with `npm ci`. Parent removed a TS-only NSIS check that rejected the whole v4 catalog for one non-NSIS windows-x86_64 entry (Rust and v3 enforce it at install selection); pinned in both languages. Native install stays Windows/NSIS-only (release builds Windows NSIS only), so darwin/linux entries are display-only.
 - L7 (2026-11-21, evidence): T2 committed in 4 slices (~2.1k lines incl. tests and docs, past the ~400-line slice; delivery shape decided at publish: single PR or chained).
+- L8 (2026-11-21, user): "si" → pushed feat/catalog-v4, opened nexo PR #84 (Closes #83); release notes for v0.2.0 updated.
 - L3 (state): 0.2.0 is a draft (built from 3e17ef8, signed, valid signature with key B9313A349CF8A2BD). Releases "latest" is still v0.1.4 because drafts cannot be latest.
