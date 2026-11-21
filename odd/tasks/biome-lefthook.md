@@ -14,9 +14,9 @@ Risk: item 5 (dev dependencies, git hooks and CI gates); item 6 for lint fixes t
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
 | T1 | S1, S3 | parent inline: Biome + Lefthook dev deps (exact), `apps/hub/biome.json`, root `lefthook.yml`, npm scripts, CI step, `scripts/check.sh` step, `.gitattributes`, CONTRIBUTING EN/ES, README scripts | done: lockfile only adds biome/lefthook packages; `lefthook validate` ok; forced pre-push runs biome (fails until T2/T3, expected) and cargo-fmt (pass), exit 1 | see git log |
-| T2 | S1, S2 | parent: rebase on `main` after #84; format-only commit + `.git-blame-ignore-revs` | blocked (waits for #84 merge) | |
-| T3 | S1, S4 | fix every Biome lint error (tests/scripts, then app source) | blocked (after T2) | |
-| T4 | all | verify: `npx biome ci`, `npm test`, `npm run build`, `ds:doctor`, cargo fmt, lefthook pre-push probe (fails on a lint error, passes clean) | blocked (after T3) | |
+| T2 | S1, S2 | parent: rebase on `main` after #84; format-only commit + `.git-blame-ignore-revs` | done: 86 files, tests/tsc/build/ds:doctor green; verifier: byte-identical to `biome format` of parent | 6b6ad4e, be62ac8 |
+| T3 | S1, S4 | worker: fix every Biome lint error (tests/scripts, then app source) | done: 79 → 0 errors (226 warnings); hook deps kept with justified biome-ignore | 4bc6f35, dff61c4 |
+| T4 | all | verify: `npx biome ci`, `npm test`, `npm run build`, `ds:doctor`, cargo fmt, lefthook pre-push probe (fails on a lint error, passes clean) | done: independent verify, all S1-S4 met | — |
 
 ## Log
 
@@ -24,3 +24,4 @@ Risk: item 5 (dev dependencies, git hooks and CI gates); item 6 for lint fixes t
 - L2 (2026-11-21, user): timing "Después de mergear #84 (Recomendado)"; scope "Igual que Quorb, sin aviso en Discord".
 - L3 (2026-11-21, quorb lessons): PR must not be squash-merged or the blame-ignored SHA is lost; CSS formatter off because tests assert literal CSS; no npm lifecycle `prepare` script.
 - L4 (2026-11-21, evidence): `lefthook run` auto-installs hooks (pre-push, prepare-commit-msg) into .git/hooks; parent uninstalled them so pushes of other branches are not blocked before T2/T3. Use `--no-auto-install` for probes. Lefthook skips pre-push jobs without push files unless `--force`.
+- L5 (2026-11-21, user): "mergeada" (#84 and nexo-catalog #11 merged) → rebased, T2-T4 done. A Lefthook pre-push shim reappeared in .git/hooks after the rebase; parent uninstalled it again — install with `npm run hooks:install` after this PR merges.
