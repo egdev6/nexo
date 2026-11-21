@@ -12,7 +12,7 @@ Thanks for helping improve Nexo. Issues and focused pull requests are welcome.
 
 Search existing issues and pull requests first. Open an issue using the appropriate template, describe the problem or proposal, and wait for maintainer review before implementation. The `status:needs-review`, `status:approved` and `status:in-progress` labels indicate the issue's state. Coordinate ownership and scope before starting; do not assume an open issue is available.
 
-The repository is private, so contributors need access. The hub runs on Windows with WebView2. Install Rust stable and Node.js 22.12+ within 22.x, or 24+; Vitest does not support Node.js 23. The design-system agent tools require Node.js 24.x. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for the Windows build tools.
+Fork the repository and open pull requests from your fork. The hub runs on Windows with WebView2. Install Rust stable and Node.js 22.12+ within 22.x, or 24+; Vitest does not support Node.js 23. The design-system agent tools require Node.js 24.x. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for the Windows build tools.
 
 From the repository root, install the frontend dependencies and build it before Rust checks, since the hub embeds the frontend:
 
@@ -53,7 +53,9 @@ Follow [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Use `@egd
 
 The guard runs with `npm run ds:doctor` (`egdev-ds doctor`) from `apps/hub`, in CI and in `scripts/check.sh`. It rejects raw `<button>`, `<input>`, `<a>` and `<label>` and DS-internal selectors outside `src/theme/` unless they have an entry in [`apps/hub/src/design-system-allowlist.ts`](./apps/hub/src/design-system-allowlist.ts). Do not bypass it to introduce new untracked exceptions.
 
-Design-system upgrades are separate reviewed changes, made with the `egdev-ds` CLI from a packed release. To preview one from the repository root:
+**Who updates the design system.** Contributors do not upgrade the design system and do not change `apps/hub/vendor/`, `apps/hub/egdev-ds.json` or the `@egdev/*` entries of `apps/hub/package-lock.json` in their pull requests. If you need a component, variant or fix from the design system, open an issue in [egdev6/egdev-design-system](https://github.com/egdev6/egdev-design-system/issues) describing the need (without proposing the solution) and reference its number in your pull request or code comment. The maintainer upgrades the design system in a dedicated pull request with `egdev-ds upgrade`, never mixed with features, so pull requests do not conflict over the lockfile or the vendored tarballs.
+
+Maintainers, with the design-system repository checked out next to this one, can preview an upgrade from the repository root:
 
 ```sh
 node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub --dry-run
@@ -71,7 +73,7 @@ Gracias por ayudar a mejorar Nexo. Se agradecen las issues y las pull requests c
 
 Buscad primero en las issues y pull requests existentes. Abrid una issue con la plantilla adecuada, describid el problema o la propuesta y esperad la revisión del mantenedor antes de implementar. Las etiquetas `status:needs-review`, `status:approved` y `status:in-progress` indican el estado de la issue. Coordinad la responsabilidad y el alcance antes de empezar; no deis por libre una issue abierta.
 
-El repositorio es privado, por lo que necesitáis acceso. El hub funciona en Windows con WebView2. Instalad Rust estable y Node.js 22.12+ dentro de 22.x, o 24+; Vitest no es compatible con Node.js 23. Las herramientas del design system para agentes requieren Node.js 24.x. Consultad los [requisitos de Tauri](https://v2.tauri.app/start/prerequisites/) para las herramientas de compilación de Windows.
+Haced un fork del repositorio y abrid las pull requests desde vuestro fork. El hub funciona en Windows con WebView2. Instalad Rust estable y Node.js 22.12+ dentro de 22.x, o 24+; Vitest no es compatible con Node.js 23. Las herramientas del design system para agentes requieren Node.js 24.x. Consultad los [requisitos de Tauri](https://v2.tauri.app/start/prerequisites/) para las herramientas de compilación de Windows.
 
 Desde la raíz del repositorio, instalad las dependencias del frontend y compiladlo antes de las comprobaciones de Rust, ya que el hub lo incorpora:
 
@@ -112,7 +114,9 @@ Seguid el [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Usad `
 
 La protección se ejecuta con `npm run ds:doctor` (`egdev-ds doctor`) desde `apps/hub`, en CI y en `scripts/check.sh`. Rechaza `<button>`, `<input>`, `<a>` y `<label>` sin componente y los selectores internos del design system fuera de `src/theme/`, salvo que tengan una entrada en [`apps/hub/src/design-system-allowlist.ts`](./apps/hub/src/design-system-allowlist.ts). No la eludáis para introducir excepciones sin seguimiento.
 
-Las actualizaciones del design system son cambios separados y revisados, hechos con la CLI `egdev-ds` a partir de una release empaquetada. Para previsualizar una desde la raíz del repositorio:
+**Quién actualiza el design system.** Los colaboradores no actualizan el design system ni modifican `apps/hub/vendor/`, `apps/hub/egdev-ds.json` ni las entradas `@egdev/*` de `apps/hub/package-lock.json` en sus pull requests. Si necesitáis un componente, una variante o un arreglo del design system, abrid una issue en [egdev6/egdev-design-system](https://github.com/egdev6/egdev-design-system/issues) describiendo la necesidad (sin proponer la solución) y referenciad su número en vuestra pull request o en el comentario de código. El mantenedor actualiza el design system en una pull request propia con `egdev-ds upgrade`, nunca mezclada con funcionalidades, para que las pull requests no entren en conflicto por el lockfile o los tarballs vendorizados.
+
+Los mantenedores, con el repositorio del design system clonado junto a este, pueden previsualizar una actualización desde la raíz del repositorio:
 
 ```sh
 node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub --dry-run
