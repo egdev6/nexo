@@ -3,7 +3,8 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import full from '../../../../crates/nexo-catalog/fixtures/full.json';
 import App from '../App';
-import { parseCatalog } from '../catalog/format';
+import { parseCatalogV4, projectCatalogV4 } from '../catalog/format';
+import { windowsCatalog } from '../test-helpers/catalog-v4';
 import { projectCatalog } from '../catalog/mapping';
 import { selectOfficialNews } from '../news/selection';
 import { listLocalApps } from './index';
@@ -18,7 +19,8 @@ vi.mock('../news/selection', async importOriginal => {
   return { ...original, selectOfficialNews: vi.fn(original.selectOfficialNews) };
 });
 
-const official = { ...full, schemaVersion: 2 as const };
+const official = windowsCatalog(full.apps);
+const officialProjected = projectCatalogV4(parseCatalogV4(official), 'windows-x86_64');
 const officialText = JSON.stringify(official);
 const secrets = ['PRIVATE_APP_NAME', 'C:\\Secret\\Work.exe', 'C:\\Secret\\private.json', 'icon-private.png', 'PRIVATE_NEWS_TITLE', 'https://private.example/icon.png'];
 const localDocument = { ...official, apps: [{ ...official.apps[0], name: secrets[0], iconUrl: secrets[5], news: [{ ...official.apps[0].news[0], title: secrets[4] }] }] };
@@ -37,7 +39,8 @@ beforeEach(() => {
       localApps: [{ id: 'manual', name: secrets[0], executable: secrets[1], icon: secrets[3] }],
       localBindings: [{ sourceId: 'private', appId: 'example-app', executable: secrets[1] }],
     } };
-    if (command === 'read_catalog_cache' || command === 'read_catalog_v2_cache') return null;
+    if (command === 'platform_key') return 'windows-x86_64';
+    if (command === 'read_catalog_v4_cache') return null;
     if (command === 'write_catalog_cache') { officialCache = args?.input ?? null; return; }
     if (command === 'installed_apps') return [];
     if (command === 'local_apps_list') return [
@@ -52,10 +55,10 @@ beforeEach(() => {
 afterEach(() => { cleanup(); document.documentElement.lang = previousLanguage; vi.unstubAllGlobals(); });
 
 it('leaves the official projection byte-identical when there are no local rows', async () => {
-  const before = JSON.stringify(projectCatalog(parseCatalog(official)));
+  const before = JSON.stringify(projectCatalog(officialProjected));
   bridge.invoke.mockResolvedValueOnce([]);
   expect(await listLocalApps()).toEqual([]);
-  expect(JSON.stringify(projectCatalog(parseCatalog(official)))).toBe(before);
+  expect(JSON.stringify(projectCatalog(officialProjected))).toBe(before);
 });
 
 it('keeps manual records and legacy metadata out of News inputs, requests and official cache writes', async () => {
@@ -67,23 +70,19 @@ it('keeps manual records and legacy metadata out of News inputs, requests and of
   await waitFor(() => expect(selectOfficialNews).toHaveBeenCalled());
 
   for (const [input] of vi.mocked(selectOfficialNews).mock.calls) {
-    expect(input).toEqual(official);
+    expect(input).toEqual(officialProjected);
     expect(input).not.toEqual(localDocument);
   }
-  const projected = projectCatalog(parseCatalog(official));
+  const projected = projectCatalog(officialProjected);
   expect(JSON.stringify(projected)).not.toContain(secrets[0]);
-  // The loader may try the v3 endpoint before falling back to v2; every request must
-  // target an official endpoint with redirects refused, and none may carry local data.
-  const officialEndpoints = [
-    'https://egdev6.github.io/nexo-catalog/v3/catalog.json',
-    'https://egdev6.github.io/nexo-catalog/v2/catalog.json',
-  ];
+  // Only the v4 endpoint is requested, with redirects refused and no local data.
+  const officialEndpoints = ['https://egdev6.github.io/nexo-catalog/v4/catalog.json'];
   expect(fetcher).toHaveBeenCalled();
   for (const [url, options] of fetcher.mock.calls) {
     expect(officialEndpoints).toContain(url);
     expect(options).toMatchObject({ redirect: 'error' });
   }
-  expect(fetcher.mock.calls.map(([url]) => url)).toContain(officialEndpoints[1]);
+  expect(fetcher.mock.calls.map(([url]) => url)).toEqual(officialEndpoints);
   expect(officialCache).toBe(officialText);
   const outbound = JSON.stringify({ requests: fetcher.mock.calls, ipc: bridge.invoke.mock.calls, newsInputs: vi.mocked(selectOfficialNews).mock.calls, cache: officialCache });
   for (const secret of secrets) expect(outbound).not.toContain(JSON.stringify(secret).slice(1, -1));

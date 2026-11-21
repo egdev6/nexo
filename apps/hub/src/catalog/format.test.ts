@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import full from '../../../../crates/nexo-catalog/fixtures/full.json';
 import minimal from '../../../../crates/nexo-catalog/fixtures/minimal.json';
 import parity from '../../../../crates/nexo-catalog/fixtures/parity.json';
-import { parseCatalog } from './format';
+import v4 from '../../../../crates/nexo-catalog/fixtures/v4.json';
+import parityV4 from '../../../../crates/nexo-catalog/fixtures/parity-v4.json';
+import { parseCatalog, parseCatalogV4, projectCatalogV4 } from './format';
 import { projectCatalog } from './mapping';
 
 const copy = () => structuredClone(full);
@@ -63,8 +65,8 @@ describe('catalog format v1', () => {
 });
 
 type ParityCase = { name: string; base: string; valid: boolean; patches?: { op: string; path: string; value?: unknown }[] };
-function parityDocument(test: ParityCase): unknown {
-  const document: Record<string, unknown> = structuredClone(test.base === 'full' ? full : test.base === 'minimal' ? minimal : { schemaVersion: 1, apps: [] });
+function parityDocument(test: ParityCase, base?: unknown): unknown {
+  const document = structuredClone(base ?? (test.base === 'full' ? full : test.base === 'minimal' ? minimal : { schemaVersion: 1, apps: [] })) as Record<string, unknown>;
   for (const patch of test.patches ?? []) {
     const keys = patch.path.split('/').slice(1);
     const parent = keys.slice(0, -1).reduce((value, key) => (value as Record<string, unknown>)[key], document as unknown) as Record<string, unknown>;
@@ -82,6 +84,32 @@ it.each(parity.cases as ParityCase[])('matches shared Rust validation and catalo
   const document = parityDocument(test);
   if (test.valid) expect(parseCatalog(document)).toEqual(document);
   else expect(() => parseCatalog(document)).toThrow();
+});
+
+it.each(parityV4.cases)('v4 shared validation: $name', test => {
+  const document = parityDocument({ ...test, base: 'v4' }, v4);
+  if (test.valid) expect(parseCatalogV4(document)).toEqual(document);
+  else expect(() => parseCatalogV4(document)).toThrow('Invalid catalog');
+});
+
+it.each(Object.entries(parityV4.projections))('v4 shared projection for %s', (platform, expected) => {
+  expect(projectCatalogV4(parseCatalogV4(v4), platform)).toEqual(expected);
+});
+
+it('v4 shared projection hides all apps for an unsupported platform', () => {
+  expect(projectCatalogV4(parseCatalogV4(v4), null)).toEqual({ schemaVersion: 4, apps: [] });
+});
+
+it('v4 applies common and detection validation to every platform', () => {
+  for (const patch of [
+    { op: 'add', path: '/unknown', value: true },
+    { op: 'add', path: '/apps/0/detection', value: {} },
+    { op: 'add', path: '/apps/0/platforms/windows-x86_64/detection/extra', value: true },
+    { op: 'set', path: '/apps/0/platforms/windows-x86_64/detection/executableRelativePath', value: '../escape.exe' },
+    { op: 'duplicate', path: '/apps/0/news' },
+    { op: 'set', path: '/apps/0/news/0/publishedAt', value: '2025-02-29T00:00:00Z' },
+    { op: 'add', path: '/apps/0/platforms/windows-x86_64\n', value: v4.apps[0].platforms['windows-x86_64'] },
+  ]) expect(() => parseCatalogV4(parityDocument({ name: patch.path, base: 'v4', valid: false, patches: [patch] }, v4)), patch.path).toThrow('Invalid catalog');
 });
 
 it('accepts only Tauri-encoded minisign public keys in v3', () => {
@@ -119,4 +147,10 @@ it('uses only observed installation data and maps installed capabilities indepen
   expect(available.apps[0]).toMatchObject({ source: 'official', statusKnown: true, installed: false, integration: 'catalog' });
   const inherited = copy(); inherited.apps[0].id = 'constructor';
   expect(projectCatalog(parseCatalog(inherited)).apps[0].statusKnown).toBe(false);
+});
+
+it('leaves the NSIS installer rule to native selection, like Rust, so one entry cannot reject the whole v4 catalog', () => {
+  const doc = structuredClone(v4) as typeof v4;
+  doc.apps[0].platforms['windows-x86_64'].installerUrl = 'https://github.com/egdev6/example/releases/download/v1.2.3/example.msi';
+  expect(projectCatalogV4(parseCatalogV4(doc), 'windows-x86_64').apps[0].installerUrl).toMatch(/example\.msi$/);
 });

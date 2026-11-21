@@ -197,7 +197,7 @@ it('shows an error without pretending an uncached catalog is empty', () => {
 it.each([
   ['es', 'Instalar Pizarra', 'No se puede comprobar si ya está instalada'],
   ['en', 'Install Pizarra', 'Cannot check whether it is already installed.'],
-] as const)('explains unknown installation in %s and still requires an official v3 catalog', (locale, label, reason) => {
+] as const)('explains unknown installation in %s and still requires an up-to-date official catalog', (locale, label, reason) => {
   native.locale = locale;
   render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: false, installationState: 'unknown' }]} state="ready" />);
   const card = screen.getByRole('article', { name: 'Pizarra' });
@@ -205,15 +205,15 @@ it.each([
   expect(button.disabled).toBe(true);
   const warning = within(card).getByText(reason);
   expect(button.getAttribute('aria-describedby')?.split(/\s+/)).toContain(warning.id);
-  expect(within(card).getByText(locale === 'es' ? 'La instalación requiere un catálogo oficial v3.' : 'Installation requires an official v3 catalog.')).toBeTruthy();
+  expect(within(card).getByText(locale === 'es' ? 'Actualiza el catálogo oficial antes de instalar.' : 'Refresh the official catalog before installing.')).toBeTruthy();
   fireEvent.click(button);
   expect(native.invoke).not.toHaveBeenCalled();
 });
 
-it('does not enable official installation without a validated v3 catalog', () => {
+it('does not enable official installation without a validated v4 catalog', () => {
   render(<CatalogView apps={[{ ...apps[0], source: 'official', statusKnown: true, installationState: 'notInstalled' }]} state="ready" />);
   expect((screen.getByRole('button', { name: 'Instalar Pizarra' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.getByText('La instalación requiere un catálogo oficial v3.')).toBeTruthy();
+  expect(screen.getByText('Actualiza el catálogo oficial antes de instalar.')).toBeTruthy();
 });
 
 it('preserves the disabled official install action alongside discovery links', () => {

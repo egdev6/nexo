@@ -13,6 +13,7 @@ import { defaultSettings } from './sample';
 import fullCatalog from '../../../crates/nexo-catalog/fixtures/full.json';
 import * as catalogLoader from './catalog/loader';
 import { parseCatalog } from './catalog/format';
+import { windowsCatalog } from './test-helpers/catalog-v4';
 
 // Test the shell's public wiring independently of the other area writers.
 vi.mock('./local-apps/view', () => ({ LocalAppsView: () => null }));
@@ -25,8 +26,6 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('./catalog/loader', async importOriginal => ({
   ...(await importOriginal<typeof import('./catalog/loader')>()),
   OFFICIAL_CATALOG_URL: undefined,
-  OFFICIAL_CATALOG_V2_URL: undefined,
-  OFFICIAL_CATALOG_V3_URL: undefined,
 }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('./catalog', () => ({
@@ -110,18 +109,19 @@ it('loads the native catalog without treating samples or unknown installation as
   expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Ver catálogo' }));
   await waitFor(() => expect(screen.getByText('Estado catálogo: error')).toBeTruthy());
-  expect(invoke).toHaveBeenCalledWith('read_catalog_cache');
+  expect(invoke).toHaveBeenCalledWith('read_catalog_v4_cache');
 });
 
 it('shows actual installed and absent observations with a registry version and unknown running state', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   const first = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
   const second = { ...first, id: 'other-app', name: 'Other App' };
-  const catalog = JSON.stringify({ schemaVersion: 2, apps: [first, second] });
+  const catalog = JSON.stringify(windowsCatalog([first, second]));
   vi.mocked(invoke).mockImplementation(((command: string) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_v2_cache') return Promise.resolve(catalog);
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(catalog);
     if (command === 'installed_apps') return Promise.resolve([
       { id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' },
       { id: 'other-app', state: 'notInstalled', version: null, reason: 'Sin coincidencias' },
@@ -146,12 +146,13 @@ it('shows actual installed and absent observations with a registry version and u
 it('projects a native process observation into the official row and refreshes after close', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
-  vi.spyOn(catalogLoader, 'loadVersionedCatalog').mockResolvedValue({ status: 'ready', catalog: parseCatalog({ schemaVersion: 2, apps: [app] }) });
+  vi.spyOn(catalogLoader, 'loadCatalog').mockResolvedValue({ status: 'ready', catalog: { ...parseCatalog({ schemaVersion: 2, apps: [app] }), schemaVersion: 4 } });
   let running = true;
   vi.mocked(invoke).mockImplementation(((command: string) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_v2_cache') return Promise.resolve(JSON.stringify({ schemaVersion: 2, apps: [app] }));
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
     if (command === 'installed_apps') return Promise.resolve([{ id: 'example-app', state: 'installed', runningState: running ? 'running' : 'notRunning', version: '9.1.0', reason: 'Instalación detectada', canOpen: true }]);
     if (command === 'close_official_app') { running = false; return Promise.resolve({ status: 'closed', message: 'Example App se ha cerrado.' }); }
     return Promise.resolve(null);
@@ -173,7 +174,8 @@ it('ignores an older installation scan that resolves after a newer refresh', asy
   vi.mocked(invoke).mockImplementation(((command: string) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_v2_cache') return Promise.resolve(JSON.stringify({ schemaVersion: 2, apps: [app] }));
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
     if (command === 'installed_apps') {
       if (++scans === 1) return new Promise<unknown>(resolve => { finishFirst = resolve; });
       return Promise.resolve([{ id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' }]);
@@ -198,7 +200,8 @@ it('routes a connected plugin close through IPC, reports refusal, and refreshes 
   vi.mocked(invoke).mockImplementation(((command: string) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_v2_cache') return Promise.resolve(JSON.stringify({ schemaVersion: 2, apps: [app] }));
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
     if (command === 'installed_apps') return Promise.resolve([{ id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' }]);
     if (command === 'close_connected_app') return Promise.reject('Cambios sin guardar');
     return Promise.resolve(null);
@@ -246,7 +249,8 @@ it('keeps installation unknown on scan failure instead of claiming absence', asy
   vi.mocked(invoke).mockImplementation(((command: string) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_v2_cache') return Promise.resolve(JSON.stringify({ schemaVersion: 2, apps: [app] }));
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
     if (command === 'installed_apps') return Promise.reject('denied');
     return Promise.resolve(null);
   }) as typeof invoke);
@@ -266,7 +270,8 @@ it('disables plugin show without capability and sends only an ID when supported'
   vi.mocked(invoke).mockImplementation(((command: string) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_v2_cache') return Promise.resolve(JSON.stringify({ schemaVersion: 2, apps: [app] }));
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
     if (command === 'installed_apps') return Promise.resolve([{ id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' }]);
     if (command === 'open_official_app') return Promise.resolve('Solicitud enviada; no hay confirmación de la ventana');
     return Promise.resolve(null);
@@ -293,7 +298,8 @@ it('keeps settings, live IPC and late-arriving catalog news together', async () 
   vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_cache') return cache;
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return cache;
     if (command === 'get_flyout_state') return Promise.resolve({ visible: true, sequence: 1, cycle: 1, at: Date.now() });
     if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
     return Promise.resolve(null);
@@ -305,7 +311,7 @@ it('keeps settings, live IPC and late-arriving catalog news together', async () 
   expect(screen.getByRole('main').style.getPropertyValue('--hub-accent')).toBe('#123456');
   expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
   const now = new Date().toISOString();
-  await act(async () => { resolveCache(JSON.stringify({ schemaVersion: 1, apps: [{ id: 'minimal', name: 'Minimal', tagline: 'Prueba', description: 'Una app', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt: now, featured: false, news: [{ id: 'release', title: 'Novedad de catálogo', text: 'Disponible', publishedAt: now, kind: 'new' }] }] })); });
+  await act(async () => { resolveCache(JSON.stringify(windowsCatalog([{ id: 'minimal', name: 'Minimal', tagline: 'Prueba', description: 'Una app', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt: now, featured: false, news: [{ id: 'release', title: 'Novedad de catálogo', text: 'Disponible', publishedAt: now, kind: 'new' }] }]))); });
   expect(await screen.findByRole('dialog', { name: 'Novedades' })).toBeTruthy();
   expect(screen.getByText('Novedad de catálogo')).toBeTruthy();
   closeNews();
@@ -355,7 +361,7 @@ it('does not exit only the hub while a pending settings save fails', async () =>
   vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'read_catalog_cache') return Promise.resolve(null);
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(null);
     if (command === 'save_settings') {
       if (failSave) return Promise.reject(new Error('disco lleno'));
       saved = { ...saved, ...args?.patch }; return Promise.resolve(saved);
@@ -536,9 +542,10 @@ it('keeps live registry updates and unknown installation state through catalog e
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
   fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
   await waitFor(() => expect(screen.getByText('Estado catálogo: error')).toBeTruthy());
-  expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'read_catalog_cache')).toHaveLength(1);
+  expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'read_catalog_v4_cache')).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Reintentar catálogo' }));
-  await waitFor(() => expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'read_catalog_cache')).toHaveLength(2));
+  await waitFor(() => expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'read_catalog_v4_cache')).toHaveLength(2));
+  expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'platform_key')).toHaveLength(1);
   const apps = screen.getByRole('tab', { name: 'Mis apps' });
   fireEvent.mouseDown(apps, { button: 0 }); fireEvent.click(apps);
   expect(screen.getByText('App conectada')).toBeTruthy();

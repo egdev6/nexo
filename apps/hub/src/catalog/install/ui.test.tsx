@@ -11,7 +11,7 @@ import type { InstallProgress, InstallResult } from './index';
 configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
 const native = vi.hoisted(() => ({ install: vi.fn(), cancel: vi.fn(), listen: vi.fn(), stop: vi.fn(), invoke: vi.fn(), load: vi.fn(), receive: undefined as undefined | ((progress: InstallProgress) => void), locale: 'es' as Language }));
 vi.mock('./index', () => ({ installApp: native.install, cancelInstall: native.cancel, onInstallProgress: native.listen }));
-vi.mock('../loader', async importOriginal => ({ ...(await importOriginal<typeof import('../loader')>()), loadVersionedCatalog: native.load }));
+vi.mock('../loader', async importOriginal => ({ ...(await importOriginal<typeof import('../loader')>()), loadCatalog: native.load }));
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: native.invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('../../settings/use-settings', () => ({ useSettings: () => ({ settings: { ...defaultSettings, language: native.locale, firstRunComplete: true, showNewsOnOpen: false, sources: [] }, fileState: 'ready', languageDraft: null, autostart: {}, recordVisit: vi.fn(), getVisit: () => null }) }));
@@ -21,7 +21,7 @@ vi.mock('../../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(fa
 vi.mock('../../local-apps/view', () => ({ LocalAppsView: () => null }));
 
 const base = { tagline: 'Test', description: 'Test', tags: [], installerUrl: 'https://github.com/egdev6/app/releases/download/v1/setup.exe', latestJsonUrl: 'https://github.com/egdev6/app/releases/download/v1/latest.json', integrationLevel: 'launch' as const, releasedAt: '2025-01-01T00:00:00Z', featured: false, news: [], version: '1.0.0', updaterPublicKey: 'validated-key' };
-const catalog: Catalog = { schemaVersion: 3, apps: [{ ...base, id: 'alfa', name: 'Alfa' }, { ...base, id: 'beta', name: 'Beta' }] };
+const catalog: Catalog = { schemaVersion: 4, apps: [{ ...base, id: 'alfa', name: 'Alfa' }, { ...base, id: 'beta', name: 'Beta' }] };
 const app = (id: string, name: string): HubApp => ({ id, name, description: 'Test', installed: false, running: false, integration: 'catalog', source: 'official', statusKnown: true, installationState: 'notInstalled' });
 const alfa = app('alfa', 'Alfa'); const beta = app('beta', 'Beta');
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
@@ -63,9 +63,12 @@ it('preserves the catalog and key gates for official entries, including unknown 
   expect(card('Alfa').getByText('Actualiza el catálogo conectado antes de instalar.')).toBeTruthy();
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(true);
   rerender(<FlyoutPanel apps={[alfa]} news={[]} catalogState={{ status: 'ready', catalog: { ...catalog, schemaVersion: 2 } }} onAppsRefresh={refresh} />);
-  expect(card('Alfa').getByText('La instalación requiere un catálogo oficial v3.')).toBeTruthy();
+  expect(card('Alfa').getByText('Actualiza el catálogo oficial antes de instalar.')).toBeTruthy();
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   expect(native.install).not.toHaveBeenCalled();
+  native.locale = 'en';
+  rerender(<FlyoutPanel apps={[alfa]} news={[]} catalogState={{ status: 'ready', catalog: { ...catalog, schemaVersion: 2 } }} onAppsRefresh={refresh} />);
+  expect(card('Alfa').getByText('Refresh the official catalog before installing.')).toBeTruthy();
 });
 
 it.each([

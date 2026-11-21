@@ -10,7 +10,7 @@ import type { InstallProgress } from './index';
 
 const native = vi.hoisted(() => ({ update: vi.fn(), install: vi.fn(), cancel: vi.fn(), listen: vi.fn(), invoke: vi.fn(), load: vi.fn(), receive: undefined as undefined | ((progress: InstallProgress) => void), publish: undefined as undefined | ((value: unknown) => void), locale: 'es' as Language }));
 vi.mock('./index', () => ({ updateApp: native.update, installApp: native.install, cancelInstall: native.cancel, onInstallProgress: native.listen }));
-vi.mock('../loader', async original => ({ ...(await original<typeof import('../loader')>()), loadVersionedCatalog: native.load }));
+vi.mock('../loader', async original => ({ ...(await original<typeof import('../loader')>()), loadCatalog: native.load }));
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: native.invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('../../settings/use-settings', () => ({ useSettings: () => ({ settings: { ...defaultSettings, language: native.locale, firstRunComplete: true, showNewsOnOpen: false, sources: [] }, fileState: 'ready', languageDraft: null, autostart: {}, recordVisit: vi.fn(), getVisit: () => null }) }));
@@ -20,14 +20,14 @@ vi.mock('../../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(fa
 vi.mock('../../local-apps/view', () => ({ LocalAppsView: () => null }));
 
 const key = btoa(`untrusted comment: key\n${btoa('Ed' + '\x00'.repeat(40))}\n`);
-const catalog = (version = '2.0.0'): Catalog => parseCatalog({ schemaVersion: 3, apps: [{ id: 'antena', name: 'Antena', tagline: 'Test', description: 'Test', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://github.com/egdev6/antena/releases/download/v2/setup.exe', latestJsonUrl: 'https://github.com/egdev6/antena/releases/download/v2/latest.json', updaterPublicKey: key, integrationLevel: 'full', releasedAt: '2025-01-01T00:00:00Z', featured: false, version, news: [
+const catalog = (version = '2.0.0'): Catalog => ({ ...parseCatalog({ schemaVersion: 3, apps: [{ id: 'antena', name: 'Antena', tagline: 'Test', description: 'Test', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://github.com/egdev6/antena/releases/download/v2/setup.exe', latestJsonUrl: 'https://github.com/egdev6/antena/releases/download/v2/latest.json', updaterPublicKey: key, integrationLevel: 'full', releasedAt: '2025-01-01T00:00:00Z', featured: false, version, news: [
   { id: 'newer', title: 'New notes', text: '<b>Plain text</b>', publishedAt: '2025-01-01T10:00:00+01:00', kind: 'update' },
   { id: 'older', title: 'Old notes', text: 'Old', publishedAt: '2025-01-01T08:30:00Z', kind: 'update' },
-] }] });
-const unkeyedCatalog = (schemaVersion: 1 | 2 | 3 = 3, version = '2.0.0'): Catalog => {
+] }] }), schemaVersion: 4 });
+const unkeyedCatalog = (schemaVersion: 1 | 2 | 3 | 4 = 4, version = '2.0.0'): Catalog => {
   const result = catalog(version);
   delete result.apps[0].updaterPublicKey;
-  return parseCatalog({ ...result, schemaVersion });
+  return { ...result, schemaVersion };
 };
 const installed = (version: string | undefined = '1.0.0'): HubApp => ({ id: 'antena', name: 'Antena', description: 'Test', installed: true, running: false, source: 'official', statusKnown: true, installationState: 'installed', integration: 'complete', version, canOpen: true });
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('shows the strictly newer v3 catalog version and latest news as plain text, reevaluating detection and catalog changes', async () => {
+it('shows the strictly newer v4 catalog version and latest news as plain text, reevaluating detection and catalog changes', async () => {
   const { rerender, refresh } = await show();
   expect(button()?.textContent).toBe('Actualizar a v2.0.0');
   expect(screen.getByText('New notes')).toBeTruthy();
@@ -103,13 +103,13 @@ it('requires a known official installation and labels stale availability without
 
 it('distinguishes a verifiable update from newer unkeyed or legacy entries', () => {
   expect(availableUpdate(installed(), catalog())).toMatchObject({ status: 'available', version: '2.0.0' });
-  for (const version of [1, 2, 3] as const) {
+  for (const version of [1, 2, 3, 4] as const) {
     expect(availableUpdate(installed(), unkeyedCatalog(version))).toMatchObject({ status: 'unverifiable', version: '2.0.0' });
   }
   expect(availableUpdate(installed(), { ...catalog(), schemaVersion: 2 })).toMatchObject({ status: 'unverifiable', version: '2.0.0' });
 });
 
-it.each([1, 2, 3] as const)('explains an unkeyed v%i version without offering an update in both languages', async schemaVersion => {
+it.each([1, 2, 3, 4] as const)('explains an unkeyed v%i version without offering an update in both languages', async schemaVersion => {
   const fixture = unkeyedCatalog(schemaVersion);
   const { rerender, refresh } = await show(installed(), { status: 'ready', catalog: fixture });
   expect(button()).toBeNull();
@@ -138,7 +138,7 @@ it('labels stale unkeyed updates and explains the missing key in both languages'
 
 it('does not show unkeyed updates for equal or older catalog versions', async () => {
   const { rerender, refresh } = await show();
-  for (const schemaVersion of [1, 2, 3] as const) for (const version of ['2.0.0', '2.1.0']) {
+  for (const schemaVersion of [1, 2, 3, 4] as const) for (const version of ['2.0.0', '2.1.0']) {
     const fixture = unkeyedCatalog(schemaVersion);
     expect(availableUpdate(installed(version), fixture)).toBeUndefined();
     rerender(<FlyoutPanel apps={[installed(version)]} news={[]} catalogState={{ status: 'ready', catalog: fixture }} onAppsRefresh={refresh} />);

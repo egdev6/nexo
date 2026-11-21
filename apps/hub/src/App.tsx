@@ -2,13 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { AppIcon, Button, Cluster, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
 import { AppDetails } from './apps/details';
-import { isTauri } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { activateConnectedMenuItem, closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
 import { CatalogView } from './catalog';
 import { useCatalogInstalls, type CatalogInstalls } from './catalog/install/use-installs';
 import { InstallAction } from './catalog/install/action';
 import { availableUpdate } from './catalog/update';
-import { diskCache, diskCacheV2, diskCacheV3, loadVersionedCatalog, OFFICIAL_CATALOG_URL, OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_V3_URL, webFetcher, type CatalogState } from './catalog/loader';
+import { diskCache, loadCatalog, OFFICIAL_CATALOG_URL, webFetcher, type CatalogState } from './catalog/loader';
 import { projectCatalog } from './catalog/mapping';
 import { FirstRun } from './first-run';
 import { formatNumber, intlLocale, t } from './i18n';
@@ -406,6 +406,7 @@ export default function App(props: FlyoutProps) {
   const [catalogState, setCatalogState] = useState<CatalogState>({ status: 'loading' });
   const [installations, setInstallations] = useState<InstallationObservation[] | null>(null);
   const requestId = useRef(0);
+  const platformKey = useRef<Promise<string | null> | null>(null);
   const catalogInFlight = useRef(false);
   const catalogActive = useRef(false);
   const lastCatalogSuccess = useRef<number | null>(null);
@@ -427,7 +428,8 @@ export default function App(props: FlyoutProps) {
     catalogInFlight.current = true;
     const id = ++requestId.current;
     setCatalogState(current => current.catalog ? current : { ...current, status: 'loading' });
-    void loadVersionedCatalog(OFFICIAL_CATALOG_V2_URL, OFFICIAL_CATALOG_URL, diskCacheV2, diskCache, webFetcher, OFFICIAL_CATALOG_V3_URL, diskCacheV3).then(result => {
+    platformKey.current ??= invoke<string | null>('platform_key').catch(() => null);
+    void platformKey.current.then(key => loadCatalog(OFFICIAL_CATALOG_URL, diskCache, webFetcher, key)).then(result => {
       if (!catalogActive.current || id !== requestId.current) return;
       if ((result.status === 'ready' || result.status === 'empty') && result.catalog) lastCatalogSuccess.current = Date.now();
       setCatalogState(current => (result.status === 'error' || result.status === 'offline') && current.catalog ?

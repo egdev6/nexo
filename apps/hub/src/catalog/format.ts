@@ -29,7 +29,20 @@ export interface CatalogApp {
   news: CatalogNews[];
 }
 
-export interface Catalog { schemaVersion: 1 | 2 | 3; apps: CatalogApp[] }
+export interface Catalog { schemaVersion: 1 | 2 | 3 | 4; apps: CatalogApp[] }
+
+export interface CatalogPlatform {
+  installerUrl: string;
+  latestJsonUrl: string;
+  version: string;
+  releasedAt: string;
+  updaterPublicKey?: string;
+  detection?: NonNullable<CatalogApp['detection']>['windows'];
+}
+export interface CatalogV4 {
+  schemaVersion: 4;
+  apps: (Omit<CatalogApp, 'installerUrl' | 'latestJsonUrl' | 'version' | 'releasedAt' | 'updaterPublicKey' | 'detection'> & { platforms: Record<string, CatalogPlatform> })[];
+}
 
 function fail(): never { throw new Error('Invalid catalog'); }
 function record(value: unknown, required: string[], optional: string[] = []): Record<string, unknown> {
@@ -167,4 +180,42 @@ export function parseCatalog(value: unknown): Catalog {
     }
   }
   return value as Catalog;
+}
+
+/** Validate every v4 platform before projecting or caching the wire document. */
+export function parseCatalogV4(value: unknown): CatalogV4 {
+  const root = record(value, ['schemaVersion', 'apps']);
+  if (root.schemaVersion !== 4 || !Array.isArray(root.apps)) return fail();
+  const ids = new Set<string>();
+  for (const entry of root.apps) {
+    const app = record(entry, ['id', 'name', 'tagline', 'description', 'tags', 'integrationLevel', 'featured', 'news', 'platforms'], ['iconUrl', 'artUrl', 'links']);
+    if (ids.has(app.id as string)) fail();
+    ids.add(app.id as string);
+    const { platforms, ...common } = app;
+    if (typeof platforms !== 'object' || platforms === null || Array.isArray(platforms)) return fail();
+    const entries = Object.entries(platforms);
+    if (!entries.length) fail();
+    for (const [key, value] of entries) {
+      const match = /^(windows|darwin|linux)-(x86_64|aarch64|i686|armv7)$/.exec(key);
+      if (!match || match[0] !== key) fail();
+      const platform = record(value, ['installerUrl', 'latestJsonUrl', 'version', 'releasedAt'], ['updaterPublicKey', 'detection']);
+      if (Object.hasOwn(platform, 'detection') && !key.startsWith('windows-')) fail();
+      const { detection, ...fields } = platform;
+      const flat = { ...common, ...fields, ...(Object.hasOwn(platform, 'detection') ? { detection: { windows: detection } } : {}) };
+      // Reuse the existing release-asset, key, timestamp, detection and common-field rules.
+      parseCatalog({ schemaVersion: 3, apps: [flat] });
+    }
+  }
+  return value as CatalogV4;
+}
+
+/** Project only the selected platform into the flat catalog consumed by the hub. */
+export function projectCatalogV4(catalog: CatalogV4, platformKey: string | null): Catalog {
+  const apps: CatalogApp[] = [];
+  if (platformKey !== null) for (const { platforms, ...common } of catalog.apps) {
+    if (!Object.hasOwn(platforms, platformKey)) continue;
+    const { detection, ...fields } = platforms[platformKey];
+    apps.push({ ...common, ...fields, ...(detection === undefined ? {} : { detection: { windows: detection } }) });
+  }
+  return { schemaVersion: 4, apps };
 }
