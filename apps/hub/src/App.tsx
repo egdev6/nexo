@@ -1,9 +1,32 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { AppIcon, Button, Cluster, Collapsible, CollapsibleContent, CollapsibleHeader, CollapsibleTrigger, Icon, IconButton, Notice, PageHeader, StatusDot, Tabs, Text } from '@egdev/ui';
+import {
+  AppIcon,
+  Button,
+  Cluster,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleHeader,
+  CollapsibleTrigger,
+  Icon,
+  IconButton,
+  Notice,
+  PageHeader,
+  StatusDot,
+  Tabs,
+  Text,
+} from '@egdev/ui';
 import { AppDetails } from './apps/details';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import { activateConnectedMenuItem, closeConnectedApp, closeOfficialApp, localizeAppReason, openOfficialApp, scanInstallations, type InstallationObservation } from './apps';
+import {
+  activateConnectedMenuItem,
+  closeConnectedApp,
+  closeOfficialApp,
+  localizeAppReason,
+  openOfficialApp,
+  scanInstallations,
+  type InstallationObservation,
+} from './apps';
 import { CatalogView } from './catalog';
 import { useCatalogInstalls, type CatalogInstalls } from './catalog/install/use-installs';
 import { InstallAction } from './catalog/install/action';
@@ -49,9 +72,16 @@ function MainTabsFrame({ children }: { children: ReactNode }) {
     resize?.observe(frame);
     resize?.observe(list);
     window.addEventListener('resize', measure);
-    return () => { resize?.disconnect(); window.removeEventListener('resize', measure); };
+    return () => {
+      resize?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
-  return <div ref={ref} className="main-tabs-frame">{children}</div>;
+  return (
+    <div ref={ref} className="main-tabs-frame">
+      {children}
+    </div>
+  );
 }
 
 /** Rescans after an app leaves the registry, measured from its departure. */
@@ -60,25 +90,85 @@ const DEPARTURE_RESCAN_DELAYS_MS = [2000, 6000];
 function OpenAction({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: string) => void; busy: boolean; stale: boolean }) {
   const locale = useLocale();
   const enabled = !!onOpen && app.source === 'official' && app.installationState === 'installed' && app.canOpen === true && !busy && !stale;
-  const title = stale ? t(locale, 'appControl.staleTitle') : app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, enabled ? 'appControl.requestOpen' : 'appControl.openUnavailable');
-  return <IconButton variant="ghost" size="md" type="button" icon={<Icon name="external-link" />} label={t(locale, 'appControl.openFor', { name: app.name })} title={title} disabled={!enabled} onClick={() => onOpen?.(app.id)} />;
+  const title = stale
+    ? t(locale, 'appControl.staleTitle')
+    : app.openReason
+      ? localizeAppReason(locale, app.openReason)
+      : t(locale, enabled ? 'appControl.requestOpen' : 'appControl.openUnavailable');
+  return (
+    <IconButton
+      variant="ghost"
+      size="md"
+      type="button"
+      icon={<Icon name="external-link" />}
+      label={t(locale, 'appControl.openFor', { name: app.name })}
+      title={title}
+      disabled={!enabled}
+      onClick={() => onOpen?.(app.id)}
+    />
+  );
 }
 
 function ProcessCloseAction({ app, onClose, busy, stale }: { app: HubApp; onClose?: (id: string) => void; busy: boolean; stale: boolean }) {
   const locale = useLocale();
   const enabled = !!onClose && app.source === 'official' && app.installationState === 'installed' && !busy && !stale;
-  return <IconButton variant="ghost" size="md" type="button" icon={<Icon name="close" />} label={t(locale, 'appControl.closeFor', { name: app.name })} title={t(locale, stale ? 'appControl.staleTitle' : 'appControl.requestClose')} disabled={!enabled} onClick={() => onClose?.(app.id)} />;
+  return (
+    <IconButton
+      variant="ghost"
+      size="md"
+      type="button"
+      icon={<Icon name="close" />}
+      label={t(locale, 'appControl.closeFor', { name: app.name })}
+      title={t(locale, stale ? 'appControl.staleTitle' : 'appControl.requestClose')}
+      disabled={!enabled}
+      onClick={() => onClose?.(app.id)}
+    />
+  );
 }
 
 function Status({ app }: { app: HubApp }) {
   const locale = useLocale();
   if (app.installationState === 'installed') {
-    if (app.runningState === 'running') return <span><StatusDot state="running" /> {t(locale, 'appControl.running')}</span>;
-    if (app.runningState === 'notRunning') return <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'appControl.notRunning')}</span></Text>;
-    return <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'appControl.runningUnknown')}</span></Text>;
+    if (app.runningState === 'running')
+      return (
+        <span>
+          <StatusDot state="running" /> {t(locale, 'appControl.running')}
+        </span>
+      );
+    if (app.runningState === 'notRunning')
+      return (
+        <Text asChild variant="body" foreground="secondary">
+          <span>{t(locale, 'appControl.notRunning')}</span>
+        </Text>
+      );
+    return (
+      <Text asChild variant="body" foreground="secondary">
+        <span>{t(locale, 'appControl.runningUnknown')}</span>
+      </Text>
+    );
   }
-  if (app.integration === 'local') return <Text asChild variant="body" foreground="secondary"><span>{t(locale, app.source === 'official' ? 'app.officialLaunch' : 'app.localUnknown')}</span></Text>;
-  return <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'app.unknown')}{app.update && <> · <Text asChild variant="body" foreground="warning"><span>{t(locale, 'app.updateSample')}</span></Text></>}</span></Text>;
+  if (app.integration === 'local')
+    return (
+      <Text asChild variant="body" foreground="secondary">
+        <span>{t(locale, app.source === 'official' ? 'app.officialLaunch' : 'app.localUnknown')}</span>
+      </Text>
+    );
+  return (
+    <Text asChild variant="body" foreground="secondary">
+      <span>
+        {t(locale, 'app.unknown')}
+        {app.update && (
+          <>
+            {' '}
+            ·{' '}
+            <Text asChild variant="body" foreground="warning">
+              <span>{t(locale, 'app.updateSample')}</span>
+            </Text>
+          </>
+        )}
+      </span>
+    </Text>
+  );
 }
 
 function updateRunning(installs: CatalogInstalls, id: string): boolean {
@@ -86,96 +176,393 @@ function updateRunning(installs: CatalogInstalls, id: string): boolean {
   return entry?.operation === 'update' && entry.status === 'running';
 }
 
-function UpdateControl({ app, catalogState, installs, part = 'action' }: { app: HubApp; catalogState?: CatalogState; installs: CatalogInstalls; part?: 'action' | 'feedback' }) {
+function UpdateControl({
+  app,
+  catalogState,
+  installs,
+  part = 'action',
+}: {
+  app: HubApp;
+  catalogState?: CatalogState;
+  installs: CatalogInstalls;
+  part?: 'action' | 'feedback';
+}) {
   const update = availableUpdate(app, catalogState?.catalog);
   const entry = installs.entries.get(app.id);
   if (update?.status !== 'available' && entry?.operation !== 'update') return null;
   const unverifiable = update?.status === 'unverifiable';
-  const reason = unverifiable ? (catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable') : catalogState?.stale ? 'update.stale' : catalogState?.status !== 'ready' ? 'update.unavailable' : installs.connection !== 'ready' ? 'update.progressUnavailable' : undefined;
-  return <InstallAction app={app} installs={installs} mode="update" version={update?.status === 'available' ? update.version : undefined} reason={reason} unverifiable={unverifiable} compact part={part} />;
+  const reason = unverifiable
+    ? catalogState?.stale
+      ? 'update.unverifiableStale'
+      : 'update.unverifiable'
+    : catalogState?.stale
+      ? 'update.stale'
+      : catalogState?.status !== 'ready'
+        ? 'update.unavailable'
+        : installs.connection !== 'ready'
+          ? 'update.progressUnavailable'
+          : undefined;
+  return (
+    <InstallAction
+      app={app}
+      installs={installs}
+      mode="update"
+      version={update?.status === 'available' ? update.version : undefined}
+      reason={reason}
+      unverifiable={unverifiable}
+      compact
+      part={part}
+    />
+  );
 }
 
 function UpdateNotes({ app, catalogState }: { app: HubApp; catalogState?: CatalogState }) {
   const notes = availableUpdate(app, catalogState?.catalog)?.notes;
-  return notes ? <Text asChild variant="body" foreground="secondary" className="meta update-notes"><div><strong>{notes.title}</strong><p>{notes.text}</p></div></Text> : null;
+  return notes ? (
+    <Text asChild variant="body" foreground="secondary" className="meta update-notes">
+      <div>
+        <strong>{notes.title}</strong>
+        <p>{notes.text}</p>
+      </div>
+    </Text>
+  ) : null;
 }
 
-function ConnectedRow({ app, official, onClose, onOpen, onMenuAction, busy, catalogState, installs, open, onOpenChange }: { app: RegistryApp; official?: HubApp; onClose?: (id: string) => void; onOpen?: (id: string) => void; onMenuAction?: (app: RegistryApp, itemId: string) => void; busy: boolean; catalogState?: CatalogState; installs: CatalogInstalls; open: boolean; onOpenChange: (open: boolean) => void }) {
+function ConnectedRow({
+  app,
+  official,
+  onClose,
+  onOpen,
+  onMenuAction,
+  busy,
+  catalogState,
+  installs,
+  open,
+  onOpenChange,
+}: {
+  app: RegistryApp;
+  official?: HubApp;
+  onClose?: (id: string) => void;
+  onOpen?: (id: string) => void;
+  onMenuAction?: (app: RegistryApp, itemId: string) => void;
+  busy: boolean;
+  catalogState?: CatalogState;
+  installs: CatalogInstalls;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const locale = useLocale();
   const update = official && availableUpdate(official, catalogState?.catalog);
   const canShow = !!onOpen && !!official && app.responsive && app.capabilities.includes('show') && !busy && !updateRunning(installs, app.app.id);
-  return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
-    <CollapsibleHeader actions={<>
-      {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
-      <IconButton type="button" variant="ghost" icon={<Icon name="external-link" />} label={t(locale, 'appControl.openFor', { name: app.app.name })} title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')} disabled={!canShow} onClick={() => onOpen?.(app.app.id)} />
-    </>}><CollapsibleTrigger motion="none">
-      <span className="row-label"><AppIcon size="lg" monogram={app.app.name.trim().charAt(0).toUpperCase()} src={official?.iconUrl} />
-        <span className="app-info"><strong>{app.app.name}</strong>
-          {app.responsive ? <span><StatusDot state="running" /> {t(locale, 'app.connected')}</span> : <Text asChild variant="body" foreground="secondary"><span>{t(locale, 'app.unresponsive')}</span></Text>}
-        </span>
-      </span>
-    </CollapsibleTrigger></CollapsibleHeader>
-    {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} part="feedback" />}
-    <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
-      <AppDetails app={official} version={official?.installationState === 'installed' ? official.version : undefined} newVersion={update?.status === 'available' ? update.version : undefined} showInstalledVersion={official?.installationState !== 'unknown'} />
-      {update?.status === 'unverifiable' && <Text variant="body" foreground="secondary" className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</Text>}
-      {official && <UpdateNotes app={official} catalogState={catalogState} />}
-      <Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedVersion', { version: app.app.version, tray: t(locale, app.unified ? 'app.unified' : 'app.ownIcon') })}</Text>
-      {onClose && (app.responsive && app.capabilities.includes('quit') ?
-        <Button type="button" size="sm" variant="secondary" aria-label={t(locale, 'appControl.closeFor', { name: app.app.name })} disabled={busy} onClick={() => onClose(app.app.id)}>{t(locale, 'common.close')}</Button> :
-        <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.closeUnavailable')}</Text>)}
-      {app.menu.length > 0 && <><Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.reportedMenu')}</Text><Cluster asChild gap={1} alignItems="stretch"><ul className="registry-menu">
-        {app.menu.map((item, index) => <li key={`${item.id}-${index}`}><Button className="registry-menu__action" type="button" size="sm" variant="neutral" labelWrap disabled={!onMenuAction || !app.responsive || !item.enabled || !app.capabilities.includes('menu')} onClick={() => onMenuAction?.(app, item.id)}>{item.label}{!item.enabled && t(locale, 'app.disabled')}{item.checked === true && t(locale, 'app.checked')}{item.checked === false && t(locale, 'app.unchecked')}</Button></li>)}
-      </ul></Cluster></>}
-    </div></CollapsibleContent>
-  </Collapsible>;
+  return (
+    <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
+      <CollapsibleHeader
+        actions={
+          <>
+            {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} />}
+            <IconButton
+              type="button"
+              variant="ghost"
+              icon={<Icon name="external-link" />}
+              label={t(locale, 'appControl.openFor', { name: app.app.name })}
+              title={t(locale, canShow ? 'appControl.requestOpen' : 'appControl.showUnavailable')}
+              disabled={!canShow}
+              onClick={() => onOpen?.(app.app.id)}
+            />
+          </>
+        }
+      >
+        <CollapsibleTrigger motion="none">
+          <span className="row-label">
+            <AppIcon size="lg" monogram={app.app.name.trim().charAt(0).toUpperCase()} src={official?.iconUrl} />
+            <span className="app-info">
+              <strong>{app.app.name}</strong>
+              {app.responsive ? (
+                <span>
+                  <StatusDot state="running" /> {t(locale, 'app.connected')}
+                </span>
+              ) : (
+                <Text asChild variant="body" foreground="secondary">
+                  <span>{t(locale, 'app.unresponsive')}</span>
+                </Text>
+              )}
+            </span>
+          </span>
+        </CollapsibleTrigger>
+      </CollapsibleHeader>
+      {official && <UpdateControl app={official} catalogState={catalogState} installs={installs} part="feedback" />}
+      <CollapsibleContent padding="sm" presence="unmount">
+        <div className="detail-inner">
+          <AppDetails
+            app={official}
+            version={official?.installationState === 'installed' ? official.version : undefined}
+            newVersion={update?.status === 'available' ? update.version : undefined}
+            showInstalledVersion={official?.installationState !== 'unknown'}
+          />
+          {update?.status === 'unverifiable' && (
+            <Text variant="body" foreground="secondary" className="meta">
+              {t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}
+            </Text>
+          )}
+          {official && <UpdateNotes app={official} catalogState={catalogState} />}
+          <Text variant="body" foreground="secondary" className="meta">
+            {t(locale, 'app.reportedVersion', { version: app.app.version, tray: t(locale, app.unified ? 'app.unified' : 'app.ownIcon') })}
+          </Text>
+          {onClose &&
+            (app.responsive && app.capabilities.includes('quit') ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                aria-label={t(locale, 'appControl.closeFor', { name: app.app.name })}
+                disabled={busy}
+                onClick={() => onClose(app.app.id)}
+              >
+                {t(locale, 'common.close')}
+              </Button>
+            ) : (
+              <Text variant="body" foreground="secondary" className="meta">
+                {t(locale, 'appControl.closeUnavailable')}
+              </Text>
+            ))}
+          {app.menu.length > 0 && (
+            <>
+              <Text variant="body" foreground="secondary" className="meta">
+                {t(locale, 'app.reportedMenu')}
+              </Text>
+              <Cluster asChild gap={1} alignItems="stretch">
+                <ul className="registry-menu">
+                  {app.menu.map((item, index) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: Connected apps can supply duplicate menu IDs; keep the existing composite key.
+                    <li key={`${item.id}-${index}`}>
+                      <Button
+                        className="registry-menu__action"
+                        type="button"
+                        size="sm"
+                        variant="neutral"
+                        labelWrap
+                        disabled={!onMenuAction || !app.responsive || !item.enabled || !app.capabilities.includes('menu')}
+                        onClick={() => onMenuAction?.(app, item.id)}
+                      >
+                        {item.label}
+                        {!item.enabled && t(locale, 'app.disabled')}
+                        {item.checked === true && t(locale, 'app.checked')}
+                        {item.checked === false && t(locale, 'app.unchecked')}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </Cluster>
+            </>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
-function AppRow({ app, onOpen, onClose, busy, stale, catalogState, installs, open, onOpenChange }: { app: HubApp; onOpen?: (id: string) => void; onClose?: (id: string) => void; busy: boolean; stale: boolean; catalogState?: CatalogState; installs: CatalogInstalls; open: boolean; onOpenChange: (open: boolean) => void }) {
+function AppRow({
+  app,
+  onOpen,
+  onClose,
+  busy,
+  stale,
+  catalogState,
+  installs,
+  open,
+  onOpenChange,
+}: {
+  app: HubApp;
+  onOpen?: (id: string) => void;
+  onClose?: (id: string) => void;
+  busy: boolean;
+  stale: boolean;
+  catalogState?: CatalogState;
+  installs: CatalogInstalls;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const locale = useLocale();
   const update = availableUpdate(app, catalogState?.catalog);
-  return <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
-    <CollapsibleHeader actions={<>
-      <UpdateControl app={app} catalogState={catalogState} installs={installs} />
-      {app.source === 'official' && app.runningState === 'running' ?
-        <ProcessCloseAction app={app} onClose={onClose} busy={busy || updateRunning(installs, app.id)} stale={stale} /> :
-        <OpenAction app={app} onOpen={onOpen} busy={busy || updateRunning(installs, app.id)} stale={stale} />}
-    </>}>
-      <CollapsibleTrigger motion="none"><span className="row-label"><AppIcon size="lg" monogram={app.name.trim().charAt(0).toUpperCase()} src={app.iconUrl} /><span className="app-info"><strong>{app.name}</strong><Status app={app} /></span></span></CollapsibleTrigger>
-    </CollapsibleHeader>
-    <UpdateControl app={app} catalogState={catalogState} installs={installs} part="feedback" />
-    <CollapsibleContent padding="sm" presence="unmount"><div className="detail-inner">
-      <AppDetails app={app} version={app.version} newVersion={update?.status === 'available' ? update.version : undefined} />
-      {update?.status === 'unverifiable' && <Text variant="body" foreground="secondary" className="meta">{t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}</Text>}
-      <UpdateNotes app={app} catalogState={catalogState} />
-      <Text variant="body" foreground="secondary" className="meta">{app.description}</Text>
-      {onOpen && !app.canOpen && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.openUnavailableDetail', { reason: app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, 'appControl.executableUnchecked') })}</Text>}
-      {onOpen && stale && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'appControl.staleOpenDetail')}</Text>}
-    </div></CollapsibleContent>
-  </Collapsible>;
+  return (
+    <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
+      <CollapsibleHeader
+        actions={
+          <>
+            <UpdateControl app={app} catalogState={catalogState} installs={installs} />
+            {app.source === 'official' && app.runningState === 'running' ? (
+              <ProcessCloseAction app={app} onClose={onClose} busy={busy || updateRunning(installs, app.id)} stale={stale} />
+            ) : (
+              <OpenAction app={app} onOpen={onOpen} busy={busy || updateRunning(installs, app.id)} stale={stale} />
+            )}
+          </>
+        }
+      >
+        <CollapsibleTrigger motion="none">
+          <span className="row-label">
+            <AppIcon size="lg" monogram={app.name.trim().charAt(0).toUpperCase()} src={app.iconUrl} />
+            <span className="app-info">
+              <strong>{app.name}</strong>
+              <Status app={app} />
+            </span>
+          </span>
+        </CollapsibleTrigger>
+      </CollapsibleHeader>
+      <UpdateControl app={app} catalogState={catalogState} installs={installs} part="feedback" />
+      <CollapsibleContent padding="sm" presence="unmount">
+        <div className="detail-inner">
+          <AppDetails app={app} version={app.version} newVersion={update?.status === 'available' ? update.version : undefined} />
+          {update?.status === 'unverifiable' && (
+            <Text variant="body" foreground="secondary" className="meta">
+              {t(locale, catalogState?.stale ? 'update.unverifiableStale' : 'update.unverifiable')}
+            </Text>
+          )}
+          <UpdateNotes app={app} catalogState={catalogState} />
+          <Text variant="body" foreground="secondary" className="meta">
+            {app.description}
+          </Text>
+          {onOpen && !app.canOpen && (
+            <Text variant="body" foreground="secondary" className="meta">
+              {t(locale, 'appControl.openUnavailableDetail', {
+                reason: app.openReason ? localizeAppReason(locale, app.openReason) : t(locale, 'appControl.executableUnchecked'),
+              })}
+            </Text>
+          )}
+          {onOpen && stale && (
+            <Text variant="body" foreground="secondary" className="meta">
+              {t(locale, 'appControl.staleOpenDetail')}
+            </Text>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 function isInstalled(app: HubApp) {
   return app.statusKnown !== false && app.installed && app.installationState !== 'unknown' && app.installationState !== 'notInstalled';
 }
 
-function InstalledPanel({ apps, connected, selectCatalog, installedStateKnown, onRefresh, onClose, onProcessClose, onOpen, onMenuAction, actionBusy, stale, hideLocalApps, localCycle, catalogState, installs }: { apps: HubApp[]; connected: RegistryApp[]; selectCatalog: () => void; installedStateKnown: boolean; onRefresh?: () => void; onClose?: (id: string) => void; onMenuAction?: (app: RegistryApp, itemId: string) => void; onProcessClose?: (id: string) => void; onOpen?: (id: string) => void; actionBusy: boolean; stale: boolean; hideLocalApps: boolean; localCycle?: number; catalogState?: CatalogState; installs: CatalogInstalls }) {
+function InstalledPanel({
+  apps,
+  connected,
+  selectCatalog,
+  installedStateKnown,
+  onRefresh,
+  onClose,
+  onProcessClose,
+  onOpen,
+  onMenuAction,
+  actionBusy,
+  stale,
+  hideLocalApps,
+  localCycle,
+  catalogState,
+  installs,
+}: {
+  apps: HubApp[];
+  connected: RegistryApp[];
+  selectCatalog: () => void;
+  installedStateKnown: boolean;
+  onRefresh?: () => void;
+  onClose?: (id: string) => void;
+  onMenuAction?: (app: RegistryApp, itemId: string) => void;
+  onProcessClose?: (id: string) => void;
+  onOpen?: (id: string) => void;
+  actionBusy: boolean;
+  stale: boolean;
+  hideLocalApps: boolean;
+  localCycle?: number;
+  catalogState?: CatalogState;
+  installs: CatalogInstalls;
+}) {
   const locale = useLocale();
-  const ids = new Set(connected.map(entry => entry.app.id));
+  const ids = new Set(connected.map((entry) => entry.app.id));
   const allInstalled = apps.filter(isInstalled);
-  const installed = allInstalled.filter(app => !ids.has(app.id));
+  const installed = allInstalled.filter((app) => !ids.has(app.id));
   const [openRow, setOpenRow] = useState<string | null>(null);
-  const disclosure = (id: string) => ({ open: openRow === id, onOpenChange: (open: boolean) => setOpenRow(current => open ? id : current === id ? null : current) });
-  return <>
-    {connected.length > 0 && <section aria-label={t(locale, 'app.connectedPlural')}><div className="apps-section-header"><PageHeader level={2} title={t(locale, 'app.connectedPlural')} /></div>
-      {connected.map(app => <ConnectedRow key={app.app.id} app={app} official={apps.find(item => item.source === 'official' && item.id === app.app.id)} onClose={onClose} onOpen={onOpen} onMenuAction={onMenuAction} busy={actionBusy} catalogState={catalogState} installs={installs} {...disclosure(`connected:${app.app.id}`)} />)}
-    </section>}
-    <div className="apps-section-header"><PageHeader level={2} title={t(locale, 'app.installed')} actions={onRefresh && <Button variant="neutral" size="sm" onClick={onRefresh}>{t(locale, 'appControl.refresh')}</Button>} /></div>
-    {installed.length ? installed.map(app => <AppRow key={app.id} app={app} onOpen={onOpen} onClose={onProcessClose} busy={actionBusy} stale={stale} catalogState={catalogState} installs={installs} {...disclosure(`official:${app.id}`)} />) : <div className="empty-state"><p>{allInstalled.length ? t(locale, 'appControl.connectedAbove') : t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p><Button variant="neutral" size="sm" onClick={selectCatalog}>{t(locale, 'app.viewCatalog')}</Button></div>}
-    {apps.filter(app => !isInstalled(app) && !ids.has(app.id) && installs.entries.get(app.id)?.operation === 'update').map(app => <UpdateControl key={app.id} app={app} catalogState={catalogState} installs={installs} part="feedback" />)}
-    {!hideLocalApps && <LocalAppsView names={[...apps.map(app => ({ id: app.id, name: app.name })), ...connected.map(entry => entry.app)]} cycle={localCycle} openId={openRow} onDisclosureChange={(id, open) => disclosure(`local:${id}`).onOpenChange(open)} />}
-    {!(onRefresh && hideLocalApps) && <Text variant="body" foreground="muted" className="foot">{t(locale, onRefresh ? 'appControl.officialCloseFoot' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}</Text>}
-  </>;
+  const disclosure = (id: string) => ({
+    open: openRow === id,
+    onOpenChange: (open: boolean) => setOpenRow((current) => (open ? id : current === id ? null : current)),
+  });
+  return (
+    <>
+      {connected.length > 0 && (
+        <section aria-label={t(locale, 'app.connectedPlural')}>
+          <div className="apps-section-header">
+            <PageHeader level={2} title={t(locale, 'app.connectedPlural')} />
+          </div>
+          {connected.map((app) => (
+            <ConnectedRow
+              key={app.app.id}
+              app={app}
+              official={apps.find((item) => item.source === 'official' && item.id === app.app.id)}
+              onClose={onClose}
+              onOpen={onOpen}
+              onMenuAction={onMenuAction}
+              busy={actionBusy}
+              catalogState={catalogState}
+              installs={installs}
+              {...disclosure(`connected:${app.app.id}`)}
+            />
+          ))}
+        </section>
+      )}
+      <div className="apps-section-header">
+        <PageHeader
+          level={2}
+          title={t(locale, 'app.installed')}
+          actions={
+            onRefresh && (
+              <Button variant="neutral" size="sm" onClick={onRefresh}>
+                {t(locale, 'appControl.refresh')}
+              </Button>
+            )
+          }
+        />
+      </div>
+      {installed.length ? (
+        installed.map((app) => (
+          <AppRow
+            key={app.id}
+            app={app}
+            onOpen={onOpen}
+            onClose={onProcessClose}
+            busy={actionBusy}
+            stale={stale}
+            catalogState={catalogState}
+            installs={installs}
+            {...disclosure(`official:${app.id}`)}
+          />
+        ))
+      ) : (
+        <div className="empty-state">
+          <p>{allInstalled.length ? t(locale, 'appControl.connectedAbove') : t(locale, installedStateKnown ? 'app.empty' : 'app.installationUnknown')}</p>
+          <Button variant="neutral" size="sm" onClick={selectCatalog}>
+            {t(locale, 'app.viewCatalog')}
+          </Button>
+        </div>
+      )}
+      {apps
+        .filter((app) => !isInstalled(app) && !ids.has(app.id) && installs.entries.get(app.id)?.operation === 'update')
+        .map((app) => (
+          <UpdateControl key={app.id} app={app} catalogState={catalogState} installs={installs} part="feedback" />
+        ))}
+      {!hideLocalApps && (
+        <LocalAppsView
+          names={[...apps.map((app) => ({ id: app.id, name: app.name })), ...connected.map((entry) => entry.app)]}
+          cycle={localCycle}
+          openId={openRow}
+          onDisclosureChange={(id, open) => disclosure(`local:${id}`).onOpenChange(open)}
+        />
+      )}
+      {!(onRefresh && hideLocalApps) && (
+        <Text variant="body" foreground="muted" className="foot">
+          {t(locale, onRefresh ? 'appControl.officialCloseFoot' : installedStateKnown ? 'app.sampleFoot' : 'app.managementUnavailable')}
+        </Text>
+      )}
+    </>
+  );
 }
 
 interface FlyoutProps {
@@ -190,7 +577,17 @@ interface FlyoutProps {
   validNewsKeys?: ReadonlySet<string>;
 }
 
-export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState, onCatalogRetry, installedStateKnown = true, onAppsRefresh, onCatalogOpen, onCatalogRefresh, validNewsKeys }: FlyoutProps) {
+export function FlyoutPanel({
+  apps = sampleApps,
+  news = sampleNews,
+  catalogState,
+  onCatalogRetry,
+  installedStateKnown = true,
+  onAppsRefresh,
+  onCatalogOpen,
+  onCatalogRefresh,
+  validNewsKeys,
+}: FlyoutProps) {
   const [active, setActive] = useState<Tab>('apps');
   const store = useSettings();
   const settings = store.settings;
@@ -202,12 +599,17 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const native = isTauri();
   const selfUpdate = useSelfUpdate(native, store.flush);
   const motion = useFlyoutMotion();
-  const { visibility, lastShow, error: visibilityError } = useFlyoutVisibility(() => {
+  const {
+    visibility,
+    lastShow,
+    error: visibilityError,
+  } = useFlyoutVisibility(() => {
     finishNews();
   });
   const refreshAppsRef = useRef(onAppsRefresh);
   refreshAppsRef.current = onAppsRefresh;
   const installs = useCatalogInstalls(native && !!onAppsRefresh, apps, onAppsRefresh);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Each visibility cycle must refresh apps even when the visible flag stays true.
   useEffect(() => {
     if (visibility?.visible) refreshAppsRef.current?.();
   }, [visibility?.cycle, visibility?.visible]);
@@ -235,33 +637,55 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
   const [registry, setRegistry] = useState<RegistrySnapshot>({ revision: 0, apps: [] });
   const [registryFailed, setRegistryFailed] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const [actionMessage, setActionMessage] = useState<{ error: boolean; warning?: boolean; text: string; localize?: boolean; key?: 'appControl.quitAccepted' } | null>(null);
+  const [actionMessage, setActionMessage] = useState<{
+    error: boolean;
+    warning?: boolean;
+    text: string;
+    localize?: boolean;
+    key?: 'appControl.quitAccepted';
+  } | null>(null);
   function openApp(id: string) {
-    setActionBusy(true); setActionMessage(null);
-    void openOfficialApp(id).then(text => setActionMessage({ error: false, text, localize: true }))
-      .catch(error => setActionMessage({ error: true, text: String(error), localize: true }))
-      .finally(() => { setActionBusy(false); onAppsRefresh?.(); });
+    setActionBusy(true);
+    setActionMessage(null);
+    void openOfficialApp(id)
+      .then((text) => setActionMessage({ error: false, text, localize: true }))
+      .catch((error) => setActionMessage({ error: true, text: String(error), localize: true }))
+      .finally(() => {
+        setActionBusy(false);
+        onAppsRefresh?.();
+      });
   }
   function closeApp(id: string) {
-    setActionBusy(true); setActionMessage(null);
-    void closeConnectedApp(id).then(() => setActionMessage({ error: false, text: '', key: 'appControl.quitAccepted' }))
-      .catch(error => setActionMessage({ error: true, text: String(error) }))
-      .finally(() => { setActionBusy(false); onAppsRefresh?.(); });
+    setActionBusy(true);
+    setActionMessage(null);
+    void closeConnectedApp(id)
+      .then(() => setActionMessage({ error: false, text: '', key: 'appControl.quitAccepted' }))
+      .catch((error) => setActionMessage({ error: true, text: String(error) }))
+      .finally(() => {
+        setActionBusy(false);
+        onAppsRefresh?.();
+      });
   }
   function runMenuItem(app: RegistryApp, itemId: string) {
     setActionMessage(null);
-    void activateConnectedMenuItem(app.app.id, app.generation, app.menu_revision, itemId)
-      .catch(error => setActionMessage({ error: true, text: String(error) }));
+    void activateConnectedMenuItem(app.app.id, app.generation, app.menu_revision, itemId).catch((error) =>
+      setActionMessage({ error: true, text: String(error) }),
+    );
   }
   function closeProcessApp(id: string) {
-    setActionBusy(true); setActionMessage(null);
-    void closeOfficialApp(id).then(result => setActionMessage({ error: false, warning: result.status === 'stillRunning', text: result.message }))
-      .catch(error => setActionMessage({ error: true, text: String(error), localize: true }))
-      .finally(() => { setActionBusy(false); onAppsRefresh?.(); });
+    setActionBusy(true);
+    setActionMessage(null);
+    void closeOfficialApp(id)
+      .then((result) => setActionMessage({ error: false, warning: result.status === 'stillRunning', text: result.message }))
+      .catch((error) => setActionMessage({ error: true, text: String(error), localize: true }))
+      .finally(() => {
+        setActionBusy(false);
+        onAppsRefresh?.();
+      });
   }
   const installed = apps.filter(isInstalled);
   const installedCount = installed.length;
-  const sampleInstalled = installed.some(app => app.source !== 'official');
+  const sampleInstalled = installed.some((app) => app.source !== 'official');
 
   useEffect(() => {
     let mounted = true;
@@ -275,25 +699,43 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     const rescans: ReturnType<typeof setTimeout>[] = [];
     let latest = -1;
     let ids = new Set<string>();
-    void subscribeRegistry(next => {
+    void subscribeRegistry((next) => {
       if (!mounted || next.revision < latest) return;
       latest = next.revision;
-      const nextIds = new Set(next.apps.map(entry => entry.app.id));
-      const left = [...ids].some(id => !nextIds.has(id));
+      const nextIds = new Set(next.apps.map((entry) => entry.app.id));
+      const left = [...ids].some((id) => !nextIds.has(id));
       ids = nextIds;
-      setRegistry(current => next.revision >= current.revision ? next : current);
+      setRegistry((current) => (next.revision >= current.revision ? next : current));
       if (left) {
         refreshAppsRef.current?.();
-        for (const delay of DEPARTURE_RESCAN_DELAYS_MS) rescans.push(setTimeout(() => { if (mounted) refreshAppsRef.current?.(); }, delay));
+        for (const delay of DEPARTURE_RESCAN_DELAYS_MS)
+          rescans.push(
+            setTimeout(() => {
+              if (mounted) refreshAppsRef.current?.();
+            }, delay),
+          );
       }
-    }, failed).then(stop => { if (mounted) unlisten = stop; else stop(); }).catch(failed);
-    return () => { mounted = false; unlisten?.(); rescans.forEach(clearTimeout); };
+    }, failed)
+      .then((stop) => {
+        if (mounted) unlisten = stop;
+        else stop();
+      })
+      .catch(failed);
+    return () => {
+      mounted = false;
+      unlisten?.();
+      rescans.forEach(clearTimeout);
+    };
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    void backdropAvailable().then(available => { if (mounted) setHasBackdrop(available); });
-    return () => { mounted = false; };
+    void backdropAvailable().then((available) => {
+      if (mounted) setHasBackdrop(available);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   function finishNews() {
@@ -311,6 +753,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     else void hideFlyout();
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Visit and finish callbacks are recreated each render; rerunning would repeat cycle-based news effects.
   useEffect(() => {
     if (!visibility || !usable || !settings) return;
     if (lastShow && visitedCycle.current !== lastShow.cycle) {
@@ -318,13 +761,19 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
       const shownAt = typeof lastShow.at === 'string' ? lastShow.at : new Date(lastShow.at || Date.now()).toISOString();
       store.recordVisit(shownAt, []);
     }
-    if (!visibility.visible) { finishNews(); return; }
+    if (!visibility.visible) {
+      finishNews();
+      return;
+    }
     const at = typeof visibility.at === 'string' ? visibility.at : new Date(visibility.at || Date.now()).toISOString();
     if (validNewsKeys && catalogState && !catalogState.stale && catalogState.status !== 'loading') {
       store.recordVisit(at, [], validNewsKeys);
     }
     if (!settings.firstRunComplete) return;
-    if (!settings.showNewsOnOpen) { openedCycle.current = visibility.cycle; return; }
+    if (!settings.showNewsOnOpen) {
+      openedCycle.current = visibility.cycle;
+      return;
+    }
     if (openedCycle.current === visibility.cycle) return;
     if (!news.length) return;
     openedCycle.current = visibility.cycle;
@@ -335,6 +784,7 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
     setSnapshot(next);
   }, [visibility, lastShow, usable, settings, news, validNewsKeys, catalogState]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The Escape listener changes with the news snapshot, not each recreated hidePanel callback.
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape' && !event.defaultPrevented && !snapshot) {
@@ -348,54 +798,272 @@ export function FlyoutPanel({ apps = sampleApps, news = sampleNews, catalogState
 
   const panelStyle = {
     ...accentVariables(shown.accent),
-    '--hub-density': shown.compact ? '0.8' : '1', '--hub-opacity': String(shown.opacity / 100), '--hub-blur': `${shown.blur}px`,
+    '--hub-density': shown.compact ? '0.8' : '1',
+    '--hub-opacity': String(shown.opacity / 100),
+    '--hub-blur': `${shown.blur}px`,
   } as CSSProperties;
 
   function updateSettings(next: HubSettings) {
     if (!settings) return;
     const displayed = { ...settings, language: store.languageDraft ?? settings.language };
-    const patch = Object.fromEntries((Object.keys(next) as (keyof HubSettings)[])
-      .filter(key => key !== 'startWithWindows' && next[key] !== displayed[key])
-      .map(key => [key, next[key]]));
+    const patch = Object.fromEntries(
+      (Object.keys(next) as (keyof HubSettings)[]).filter((key) => key !== 'startWithWindows' && next[key] !== displayed[key]).map((key) => [key, next[key]]),
+    );
     store.change(patch);
   }
   const errorLocale = usable && firstRun ? previewLanguage : locale;
   const plural = new Intl.PluralRules(intlLocale(locale)).select(installedCount);
 
-  return <LocaleProvider locale={locale}><main ref={panelRef} className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}${motion.className}`} data-backdrop={motion.sliding ? 'opaque' : undefined} data-news-open={newsOpen ? '' : undefined} data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined} aria-labelledby="panel-title" style={panelStyle} onTransitionEnd={motion.onTransitionEnd}>
-    <header className="panel-head"><div className="heading"><img className="n-mark" src={nexoLogo} alt="" /><h1 id="panel-title">Nexo</h1>
-      <p>· {installedStateKnown ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}` : t(locale, 'app.headerUnknown')}</p>
-      <div className="head-actions">
-        {usable && !firstRun && !showSettings && <IconButton label={t(locale, 'common.settings')} title={t(locale, 'common.settings')} variant="ghost" icon={<Icon name="settings" />} onClick={() => setShowSettings(true)} />}
-        <IconButton label={t(locale, 'app.closePanel')} title={t(locale, 'app.closePanel')} variant="ghost" icon={<Icon name="close" />} onClick={hidePanel} />
-      </div>
-    </div></header>
-    <div className="panel-notices">
-      {!showSettings && (selfUpdate.state.phase === 'available' || selfUpdate.state.phase === 'installing') && <Notice tone="info" summary={t(locale, 'selfUpdate.available', { version: selfUpdate.state.update.version })} actions={<Button variant="neutral" size="sm" type="button" disabled={selfUpdate.state.phase === 'installing'} onClick={selfUpdate.install}>{t(locale, selfUpdate.state.phase === 'installing' ? 'selfUpdate.installing' : 'common.install')}</Button>} />}
-      {!showSettings && selfUpdate.state.phase === 'error' && <Notice tone="danger" summary={t(locale, selfUpdate.state.operation === 'check' ? 'selfUpdate.checkError' : 'selfUpdate.installError')} actions={<Button variant="neutral" size="sm" type="button" onClick={selfUpdate.check}>{t(locale, 'common.retry')}</Button>} />}
-      {visibilityError && <Notice tone="danger" summary={t(locale, 'app.visibilityError', { error: visibilityError })} />}
-      {registryFailed && <Notice tone="danger" summary={t(locale, 'app.registryError')} />}
-      {actionMessage && <Notice size="sm" tone={actionMessage.error ? 'danger' : actionMessage.warning ? 'warning' : 'success'} summary={actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text} />}
-      {registry.notice && <Notice tone="danger" summary={noticeText(locale, registry.notice)} actions={registry.notice.hub_only_allowed && <Button variant="neutral" size="sm" onClick={() => void (async () => {
-        if (await store.flush()) await exitHubOnly();
-      })().catch(error => console.error('No se pudo cerrar solo Nexo.', error))}>{t(locale, 'app.hubOnly')}</Button>} />}
-      {store.nativeError && <Notice tone="danger" summary={`${t(locale, 'native.refreshError', { error: store.nativeError })} `} actions={<Button variant="neutral" size="sm" onClick={store.retryNative}>{t(locale, 'native.refreshRetry')}</Button>} />}
-      {store.error && <Notice tone="danger" lang={errorLocale} summary={`${t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : store.error.detail ?? '' })} `} actions={<Button variant="neutral" size="sm" onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}>{t(errorLocale, 'common.retry')}</Button>} />}
-    </div>
-    {store.fileState === null ? <p role="status" className="settings__foot">{t(locale, 'app.loadingSettings')}</p> : !usable ? <div className="settings__foot">
-      {!store.error && <p role="alert">{t(locale, store.fileState === 'future' ? 'app.futureSettings' : 'app.unreadableSettings')}</p>}
-      {store.fileState !== 'future' && <Button variant="neutral" size="sm" onClick={store.recover}>{t(locale, 'app.recoverSettings')}</Button>}
-      <Button variant="neutral" size="sm" onClick={store.reload}>{t(locale, 'app.retryRead')}</Button>
-    </div> : firstRun ? <div className="area-scroll"><FirstRun onChoose={store.choose} onPreview={language => { setPreviewLanguage(language); store.previewChoice(language); }} /></div> : settings && showSettings ? <div className="area-scroll"><SettingsView settings={{ ...settings, language: store.languageDraft ?? settings.language }} languagePending={store.languageDraft !== null} sources={settings.sources} autostart={store.autostart} selfUpdate={selfUpdate} onChange={updateSettings} onClose={() => setShowSettings(false)} /></div> :
-      <MainTabsFrame><Tabs className="main-tabs" variant="outline" fullWidth fill label={t(locale, 'app.sections')} value={active} onValueChange={value => setActive(value as Tab)} items={[
-        { value: 'apps', label: t(locale, 'app.myApps'), content: <div className="main-tab-content"><InstalledPanel apps={apps} connected={registry.apps} installedStateKnown={installedStateKnown} onRefresh={onAppsRefresh && (() => { onAppsRefresh(); onCatalogRefresh?.(); })} onClose={onAppsRefresh ? closeApp : undefined} onMenuAction={onAppsRefresh ? runMenuItem : undefined} onProcessClose={onAppsRefresh ? closeProcessApp : undefined} onOpen={onAppsRefresh ? openApp : undefined} actionBusy={actionBusy} stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')} hideLocalApps={settings.hideLocalApps} localCycle={visibility?.visible ? visibility.cycle : undefined} catalogState={catalogState} installs={installs} selectCatalog={() => setActive('catalog')} /></div> },
-        { value: 'catalog', label: t(locale, 'common.catalog'), content: <div className="main-tab-content"><CatalogView apps={apps} state={catalogState?.status} stale={catalogState?.stale} reason={catalogState?.reason} installationKnown={installedStateKnown} onRetry={onCatalogRetry} targetAppId={targetAppId} catalog={catalogState?.catalog} installs={installs} /></div> },
-      ]} /></MainTabsFrame>}
-    {settings && <NewsPopup key={snapshot?.cycle} items={snapshot?.items ?? []} seenKeys={snapshot?.seenKeys} open={newsOpen} onClose={finishNews} dontShow={!settings.showNewsOnOpen}
-      stale={snapshot?.stale} onShown={item => viewed.current.add(item.id)}
-      onCatalog={appId => { finishNews(); setShowSettings(false); setTargetAppId(appId); setActive('catalog'); }}
-      onDontShowChange={dontShow => store.change({ showNewsOnOpen: !dontShow })} />}
-  </main></LocaleProvider>;
+  return (
+    <LocaleProvider locale={locale}>
+      <main
+        ref={panelRef}
+        className={`flyout${hasBackdrop ? ' has-native-backdrop' : ''}${motion.className}`}
+        data-backdrop={motion.sliding ? 'opaque' : undefined}
+        data-news-open={newsOpen ? '' : undefined}
+        data-custom-accent={normalizeHex(shown.accent) !== DEFAULT_ACCENT ? '' : undefined}
+        aria-labelledby="panel-title"
+        style={panelStyle}
+        onTransitionEnd={motion.onTransitionEnd}
+      >
+        <header className="panel-head">
+          <div className="heading">
+            <img className="n-mark" src={nexoLogo} alt="" />
+            <h1 id="panel-title">Nexo</h1>
+            <p>
+              ·{' '}
+              {installedStateKnown
+                ? `${t(locale, plural === 'one' ? 'app.headerOne' : 'app.headerOther', { count: formatNumber(locale, installedCount) })}${sampleInstalled ? ` (${t(locale, 'common.sample')})` : ''}`
+                : t(locale, 'app.headerUnknown')}
+            </p>
+            <div className="head-actions">
+              {usable && !firstRun && !showSettings && (
+                <IconButton
+                  label={t(locale, 'common.settings')}
+                  title={t(locale, 'common.settings')}
+                  variant="ghost"
+                  icon={<Icon name="settings" />}
+                  onClick={() => setShowSettings(true)}
+                />
+              )}
+              <IconButton
+                label={t(locale, 'app.closePanel')}
+                title={t(locale, 'app.closePanel')}
+                variant="ghost"
+                icon={<Icon name="close" />}
+                onClick={hidePanel}
+              />
+            </div>
+          </div>
+        </header>
+        <div className="panel-notices">
+          {!showSettings && (selfUpdate.state.phase === 'available' || selfUpdate.state.phase === 'installing') && (
+            <Notice
+              tone="info"
+              summary={t(locale, 'selfUpdate.available', { version: selfUpdate.state.update.version })}
+              actions={
+                <Button variant="neutral" size="sm" type="button" disabled={selfUpdate.state.phase === 'installing'} onClick={selfUpdate.install}>
+                  {t(locale, selfUpdate.state.phase === 'installing' ? 'selfUpdate.installing' : 'common.install')}
+                </Button>
+              }
+            />
+          )}
+          {!showSettings && selfUpdate.state.phase === 'error' && (
+            <Notice
+              tone="danger"
+              summary={t(locale, selfUpdate.state.operation === 'check' ? 'selfUpdate.checkError' : 'selfUpdate.installError')}
+              actions={
+                <Button variant="neutral" size="sm" type="button" onClick={selfUpdate.check}>
+                  {t(locale, 'common.retry')}
+                </Button>
+              }
+            />
+          )}
+          {visibilityError && <Notice tone="danger" summary={t(locale, 'app.visibilityError', { error: visibilityError })} />}
+          {registryFailed && <Notice tone="danger" summary={t(locale, 'app.registryError')} />}
+          {actionMessage && (
+            <Notice
+              size="sm"
+              tone={actionMessage.error ? 'danger' : actionMessage.warning ? 'warning' : 'success'}
+              summary={
+                actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text
+              }
+            />
+          )}
+          {registry.notice && (
+            <Notice
+              tone="danger"
+              summary={noticeText(locale, registry.notice)}
+              actions={
+                registry.notice.hub_only_allowed && (
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    onClick={() =>
+                      void (async () => {
+                        if (await store.flush()) await exitHubOnly();
+                      })().catch((error) => console.error('No se pudo cerrar solo Nexo.', error))
+                    }
+                  >
+                    {t(locale, 'app.hubOnly')}
+                  </Button>
+                )
+              }
+            />
+          )}
+          {store.nativeError && (
+            <Notice
+              tone="danger"
+              summary={`${t(locale, 'native.refreshError', { error: store.nativeError })} `}
+              actions={
+                <Button variant="neutral" size="sm" onClick={store.retryNative}>
+                  {t(locale, 'native.refreshRetry')}
+                </Button>
+              }
+            />
+          )}
+          {store.error && (
+            <Notice
+              tone="danger"
+              lang={errorLocale}
+              summary={`${t(errorLocale, store.error.key, { error: store.error.detailKey ? t(errorLocale, store.error.detailKey) : (store.error.detail ?? '') })} `}
+              actions={
+                <Button
+                  variant="neutral"
+                  size="sm"
+                  onClick={!usable ? store.reload : firstRun && store.error.key === 'settings.saveError' ? () => store.choose(previewLanguage) : store.retry}
+                >
+                  {t(errorLocale, 'common.retry')}
+                </Button>
+              }
+            />
+          )}
+        </div>
+        {store.fileState === null ? (
+          <p role="status" className="settings__foot">
+            {t(locale, 'app.loadingSettings')}
+          </p>
+        ) : !usable ? (
+          <div className="settings__foot">
+            {!store.error && <p role="alert">{t(locale, store.fileState === 'future' ? 'app.futureSettings' : 'app.unreadableSettings')}</p>}
+            {store.fileState !== 'future' && (
+              <Button variant="neutral" size="sm" onClick={store.recover}>
+                {t(locale, 'app.recoverSettings')}
+              </Button>
+            )}
+            <Button variant="neutral" size="sm" onClick={store.reload}>
+              {t(locale, 'app.retryRead')}
+            </Button>
+          </div>
+        ) : firstRun ? (
+          <div className="area-scroll">
+            <FirstRun
+              onChoose={store.choose}
+              onPreview={(language) => {
+                setPreviewLanguage(language);
+                store.previewChoice(language);
+              }}
+            />
+          </div>
+        ) : settings && showSettings ? (
+          <div className="area-scroll">
+            <SettingsView
+              settings={{ ...settings, language: store.languageDraft ?? settings.language }}
+              languagePending={store.languageDraft !== null}
+              sources={settings.sources}
+              autostart={store.autostart}
+              selfUpdate={selfUpdate}
+              onChange={updateSettings}
+              onClose={() => setShowSettings(false)}
+            />
+          </div>
+        ) : (
+          <MainTabsFrame>
+            <Tabs
+              className="main-tabs"
+              variant="outline"
+              fullWidth
+              fill
+              label={t(locale, 'app.sections')}
+              value={active}
+              onValueChange={(value) => setActive(value as Tab)}
+              items={[
+                {
+                  value: 'apps',
+                  label: t(locale, 'app.myApps'),
+                  content: (
+                    <div className="main-tab-content">
+                      <InstalledPanel
+                        apps={apps}
+                        connected={registry.apps}
+                        installedStateKnown={installedStateKnown}
+                        onRefresh={
+                          onAppsRefresh &&
+                          (() => {
+                            onAppsRefresh();
+                            onCatalogRefresh?.();
+                          })
+                        }
+                        onClose={onAppsRefresh ? closeApp : undefined}
+                        onMenuAction={onAppsRefresh ? runMenuItem : undefined}
+                        onProcessClose={onAppsRefresh ? closeProcessApp : undefined}
+                        onOpen={onAppsRefresh ? openApp : undefined}
+                        actionBusy={actionBusy}
+                        stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')}
+                        hideLocalApps={settings.hideLocalApps}
+                        localCycle={visibility?.visible ? visibility.cycle : undefined}
+                        catalogState={catalogState}
+                        installs={installs}
+                        selectCatalog={() => setActive('catalog')}
+                      />
+                    </div>
+                  ),
+                },
+                {
+                  value: 'catalog',
+                  label: t(locale, 'common.catalog'),
+                  content: (
+                    <div className="main-tab-content">
+                      <CatalogView
+                        apps={apps}
+                        state={catalogState?.status}
+                        stale={catalogState?.stale}
+                        reason={catalogState?.reason}
+                        installationKnown={installedStateKnown}
+                        onRetry={onCatalogRetry}
+                        targetAppId={targetAppId}
+                        catalog={catalogState?.catalog}
+                        installs={installs}
+                      />
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </MainTabsFrame>
+        )}
+        {settings && (
+          <NewsPopup
+            key={snapshot?.cycle}
+            items={snapshot?.items ?? []}
+            seenKeys={snapshot?.seenKeys}
+            open={newsOpen}
+            onClose={finishNews}
+            dontShow={!settings.showNewsOnOpen}
+            stale={snapshot?.stale}
+            onShown={(item) => viewed.current.add(item.id)}
+            onCatalog={(appId) => {
+              finishNews();
+              setShowSettings(false);
+              setTargetAppId(appId);
+              setActive('catalog');
+            }}
+            onDontShowChange={(dontShow) => store.change({ showNewsOnOpen: !dontShow })}
+          />
+        )}
+      </main>
+    </LocaleProvider>
+  );
 }
 
 const CATALOG_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -416,56 +1084,104 @@ export default function App(props: FlyoutProps) {
     if (!liveCatalog || !catalogState.catalog || catalogState.reason === 'cache') return;
     const id = ++scanId.current;
     setInstallations(null);
-    void scanInstallations().then(result => {
-      if (id === scanId.current) setInstallations(result);
-    }).catch(() => {
-      if (id === scanId.current) setInstallations(null);
-    });
+    void scanInstallations()
+      .then((result) => {
+        if (id === scanId.current) setInstallations(result);
+      })
+      .catch(() => {
+        if (id === scanId.current) setInstallations(null);
+      });
   }
 
   function retry() {
     if (catalogInFlight.current) return;
     catalogInFlight.current = true;
     const id = ++requestId.current;
-    setCatalogState(current => current.catalog ? current : { ...current, status: 'loading' });
+    setCatalogState((current) => (current.catalog ? current : { ...current, status: 'loading' }));
     platformKey.current ??= invoke<string | null>('platform_key').catch(() => null);
-    void platformKey.current.then(key => loadCatalog(OFFICIAL_CATALOG_URL, diskCache, webFetcher, key)).then(result => {
-      if (!catalogActive.current || id !== requestId.current) return;
-      if ((result.status === 'ready' || result.status === 'empty') && result.catalog) lastCatalogSuccess.current = Date.now();
-      setCatalogState(current => (result.status === 'error' || result.status === 'offline') && current.catalog ?
-        { ...result, catalog: current.catalog, stale: true } : result);
-    }, () => {
-      if (catalogActive.current && id === requestId.current) setCatalogState(current => ({ status: 'offline', catalog: current.catalog, stale: !!current.catalog }));
-    }).finally(() => { catalogInFlight.current = false; });
+    void platformKey.current
+      .then((key) => loadCatalog(OFFICIAL_CATALOG_URL, diskCache, webFetcher, key))
+      .then(
+        (result) => {
+          if (!catalogActive.current || id !== requestId.current) return;
+          if ((result.status === 'ready' || result.status === 'empty') && result.catalog) lastCatalogSuccess.current = Date.now();
+          setCatalogState((current) =>
+            (result.status === 'error' || result.status === 'offline') && current.catalog ? { ...result, catalog: current.catalog, stale: true } : result,
+          );
+        },
+        () => {
+          if (catalogActive.current && id === requestId.current)
+            setCatalogState((current) => ({ status: 'offline', catalog: current.catalog, stale: !!current.catalog }));
+        },
+      )
+      .finally(() => {
+        catalogInFlight.current = false;
+      });
   }
   function refreshCatalogOnOpen() {
     if (lastCatalogSuccess.current === null || Date.now() - lastCatalogSuccess.current > CATALOG_REFRESH_INTERVAL_MS) retry();
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Retry is recreated each render; catalog loading and cleanup are tied to liveCatalog only.
   useEffect(() => {
     catalogActive.current = liveCatalog;
     if (liveCatalog) retry();
-    return () => { catalogActive.current = false; };
+    return () => {
+      catalogActive.current = false;
+    };
   }, [liveCatalog]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The catalog and cache reason govern scans; refreshApps is recreated on every render.
   useEffect(() => {
     setInstallations(null);
     if (liveCatalog && catalogState.catalog) refreshApps();
-    function onFocus() { refreshApps(); }
+    function onFocus() {
+      refreshApps();
+    }
     window.addEventListener('focus', onFocus);
-    return () => { scanId.current++; window.removeEventListener('focus', onFocus); };
+    return () => {
+      scanId.current++;
+      window.removeEventListener('focus', onFocus);
+    };
   }, [liveCatalog, catalogState.catalog, catalogState.reason]);
 
   if (!liveCatalog) return <FlyoutPanel {...props} news={props.news ?? (native ? [] : sampleNews)} />;
-  const byId = new Map((installations ?? []).map(item => [item.id, item]));
-  const known = Object.fromEntries((installations ?? []).filter(item => item.state !== 'unknown').map(item => [item.id, {
-    installed: item.state === 'installed', running: item.runningState === 'running' || item.runningState === 'connected', version: item.version ?? undefined,
-  }]));
+  const byId = new Map((installations ?? []).map((item) => [item.id, item]));
+  const known = Object.fromEntries(
+    (installations ?? [])
+      .filter((item) => item.state !== 'unknown')
+      .map((item) => [
+        item.id,
+        {
+          installed: item.state === 'installed',
+          running: item.runningState === 'running' || item.runningState === 'connected',
+          version: item.version ?? undefined,
+        },
+      ]),
+  );
   const catalog = catalogState.catalog;
   const projected = catalog ? projectCatalog(catalog, known) : { apps: [] };
   const selection = catalog ? selectOfficialNews(catalog) : { items: [], validKeys: undefined };
-  const apps = projected.apps.map(app => ({ ...app, installationState: byId.get(app.id)?.state ?? 'unknown' as const,
-    installationReason: byId.get(app.id)?.reason, runningState: byId.get(app.id)?.runningState ?? 'unknown' as const,
-    canOpen: byId.get(app.id)?.canOpen === true, openReason: byId.get(app.id)?.openReason ?? undefined }));
-  const installedStateKnown = installations !== null && apps.every(app => app.installationState !== 'unknown');
-  return <FlyoutPanel {...props} apps={apps} news={selection.items} validNewsKeys={selection.validKeys} catalogState={catalogState} onCatalogRetry={retry} onAppsRefresh={refreshApps} onCatalogOpen={refreshCatalogOnOpen} onCatalogRefresh={retry} installedStateKnown={installedStateKnown} />;
+  const apps = projected.apps.map((app) => ({
+    ...app,
+    installationState: byId.get(app.id)?.state ?? ('unknown' as const),
+    installationReason: byId.get(app.id)?.reason,
+    runningState: byId.get(app.id)?.runningState ?? ('unknown' as const),
+    canOpen: byId.get(app.id)?.canOpen === true,
+    openReason: byId.get(app.id)?.openReason ?? undefined,
+  }));
+  const installedStateKnown = installations !== null && apps.every((app) => app.installationState !== 'unknown');
+  return (
+    <FlyoutPanel
+      {...props}
+      apps={apps}
+      news={selection.items}
+      validNewsKeys={selection.validKeys}
+      catalogState={catalogState}
+      onCatalogRetry={retry}
+      onAppsRefresh={refreshApps}
+      onCatalogOpen={refreshCatalogOnOpen}
+      onCatalogRefresh={retry}
+      installedStateKnown={installedStateKnown}
+    />
+  );
 }

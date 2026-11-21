@@ -22,31 +22,55 @@ let failedSources: Set<string>;
 let images: HTMLImageElement[];
 
 beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
-  failedSources = new Set(); images = mockImageLoading(failedSources);
-  apps = []; failures = {}; cancelled = null;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  failedSources = new Set();
+  images = mockImageLoading(failedSources);
+  apps = [];
+  failures = {};
+  cancelled = null;
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { token?: string; name?: string; iconToken?: string }) => {
     if (failures[command]) throw failures[command];
-    if (cancelled === command) { cancelled = null; return null; }
-    if (command === 'local_apps_list') return apps.map(app => ({ id: `manual:${app.id}`, source: 'local', name: app.name, state: 'ready', origin: { kind: 'manual', id: app.id } }));
+    if (cancelled === command) {
+      cancelled = null;
+      return null;
+    }
+    if (command === 'local_apps_list')
+      return apps.map((app) => ({ id: `manual:${app.id}`, source: 'local', name: app.name, state: 'ready', origin: { kind: 'manual', id: app.id } }));
     if (command === 'local_app_pick_executable') return executable;
     if (command === 'local_app_pick_icon_file') return icon;
     if (command === 'local_app_cancel_selection') return;
     if (command === 'local_app_create') {
       const app = { id: 'manual-1', name: args!.name!, executable: executable.path, icon: args?.iconToken ? 'icon-1.png' : null };
-      apps.push(app); return { app, duplicate: true };
+      apps.push(app);
+      return { app, duplicate: true };
     }
     if (command === 'local_app_icon') return null;
     throw new Error(`Unexpected command ${command}`);
   });
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
 
 async function openSettings(locale: 'es' | 'en' = 'es', accent = defaultSettings.accent) {
-  render(<LocaleProvider locale={locale}><SettingsView settings={{ ...defaultSettings, language: locale, accent }} onChange={vi.fn()} onClose={vi.fn()} /></LocaleProvider>);
+  render(
+    <LocaleProvider locale={locale}>
+      <SettingsView settings={{ ...defaultSettings, language: locale, accent }} onChange={vi.fn()} onClose={vi.fn()} />
+    </LocaleProvider>,
+  );
   const tab = screen.getByRole('tab', { name: locale === 'es' ? 'Apps locales' : 'Local apps' });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
   const trigger = screen.getByRole('button', { name: locale === 'es' ? 'Añadir app' : 'Add app' });
   await waitFor(() => expect((trigger as HTMLButtonElement).disabled).toBe(false));
   trigger.focus();
@@ -89,7 +113,14 @@ it.each([
 });
 
 it.each([
-  ['es', 'Ejecutable', 'Examinar…', 'Solo archivos .exe en un disco local. Examinar abre el selector de archivos del sistema.', 'No se encuentra el archivo seleccionado.', 'Añadir'],
+  [
+    'es',
+    'Ejecutable',
+    'Examinar…',
+    'Solo archivos .exe en un disco local. Examinar abre el selector de archivos del sistema.',
+    'No se encuentra el archivo seleccionado.',
+    'Añadir',
+  ],
   ['en', 'Executable', 'Browse…', 'Only .exe files on a local disk. Browse opens the system file picker.', 'The selected file could not be found.', 'Add'],
 ] as const)('aligns the executable and browse controls and preserves descriptions in %s', async (locale, label, browseName, hint, error, addName) => {
   const style = document.createElement('style');
@@ -114,7 +145,9 @@ it.each([
     expect((within(dialog).getByRole('button', { name: addName }) as HTMLButtonElement).disabled).toBe(true);
     expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_create', expect.anything());
     expect(apps).toEqual([]);
-  } finally { style.remove(); }
+  } finally {
+    style.remove();
+  }
 });
 
 it('carries the complete lightened DS accent into the body-portalled add dialog and still closes', async () => {
@@ -152,10 +185,15 @@ it('themes the body-portalled removal confirmation and keeps cancellation non-de
 
 it('updates and resets the DS theme while either body-portalled dialog is open', async () => {
   apps = [{ id: 'manual-1', name: 'Paint' }];
-  const view = (accent: string) => <LocaleProvider locale="es"><SettingsView settings={{ ...defaultSettings, accent }} onChange={vi.fn()} onClose={vi.fn()} /></LocaleProvider>;
+  const view = (accent: string) => (
+    <LocaleProvider locale="es">
+      <SettingsView settings={{ ...defaultSettings, accent }} onChange={vi.fn()} onClose={vi.fn()} />
+    </LocaleProvider>
+  );
   const { rerender } = render(view('#ff0036'));
   const tab = screen.getByRole('tab', { name: 'Apps locales' });
-  fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab);
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
   const trigger = screen.getByRole('button', { name: 'Añadir app' });
   await waitFor(() => expect((trigger as HTMLButtonElement).disabled).toBe(false));
   const expectTheme = (dialog: HTMLElement, accent: string, custom: boolean) => {
@@ -167,15 +205,19 @@ it('updates and resets the DS theme while either body-portalled dialog is open',
   fireEvent.click(trigger);
   let dialog = await screen.findByRole('dialog', { name: 'Añadir app local' });
   expectTheme(dialog, '#ff0036', false);
-  rerender(view('#123456')); expectTheme(dialog, '#123456', true);
-  rerender(view('invalid')); expectTheme(dialog, '#ff0036', false);
+  rerender(view('#123456'));
+  expectTheme(dialog, '#123456', true);
+  rerender(view('invalid'));
+  expectTheme(dialog, '#ff0036', false);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   fireEvent.click(screen.getByRole('button', { name: 'Eliminar Paint' }));
   dialog = await screen.findByRole('alertdialog', { name: 'Confirmar eliminación de Paint' });
   expectTheme(dialog, '#ff0036', false);
-  rerender(view('#123456')); expectTheme(dialog, '#123456', true);
-  rerender(view('#ff0036')); expectTheme(dialog, '#ff0036', false);
+  rerender(view('#123456'));
+  expectTheme(dialog, '#123456', true);
+  rerender(view('#ff0036'));
+  expectTheme(dialog, '#ff0036', false);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   expect(apps).toEqual([{ id: 'manual-1', name: 'Paint' }]);
@@ -187,14 +229,20 @@ it('opens before the native picker, with a read-only path and add disabled until
   const path = within(dialog).getByRole('textbox', { name: 'Ejecutable' }) as HTMLInputElement;
   const name = within(dialog).getByRole('textbox', { name: 'Nombre' }) as HTMLInputElement;
   const add = within(dialog).getByRole('button', { name: 'Añadir' }) as HTMLButtonElement;
-  expect(path.readOnly).toBe(true); expect(path.value).toBe(''); expect(name.value).toBe(''); expect(add.disabled).toBe(true);
+  expect(path.readOnly).toBe(true);
+  expect(path.value).toBe('');
+  expect(name.value).toBe('');
+  expect(add.disabled).toBe(true);
   expect(within(dialog).getByRole('button', { name: 'Elegir icono…' })).toBeTruthy();
   expect(within(dialog).getByRole('button', { name: 'Quitar' })).toBeTruthy();
   expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_pick_executable');
-  fireEvent.change(name, { target: { value: 'My app' } }); expect(add.disabled).toBe(true);
+  fireEvent.change(name, { target: { value: 'My app' } });
+  expect(add.disabled).toBe(true);
   await selectExecutable(dialog);
-  expect(name.value).toBe('Paint'); expect(add.disabled).toBe(false);
-  fireEvent.change(name, { target: { value: '   ' } }); expect(add.disabled).toBe(true);
+  expect(name.value).toBe('Paint');
+  expect(add.disabled).toBe(false);
+  fireEvent.change(name, { target: { value: '   ' } });
+  expect(add.disabled).toBe(true);
   expect(apps).toEqual([]);
 });
 
@@ -209,7 +257,8 @@ it.each([
   expect(await within(dialog).findByText(message)).toBeTruthy();
   expect(within(dialog).getByRole('textbox', { name: 'Ejecutable' }).getAttribute('aria-invalid')).toBe('true');
   expect((within(dialog).getByRole('button', { name: 'Añadir' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(apps).toEqual([]); expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_create', expect.anything());
+  expect(apps).toEqual([]);
+  expect(bridge.invoke).not.toHaveBeenCalledWith('local_app_create', expect.anything());
 });
 
 it.each([
@@ -217,7 +266,8 @@ it.each([
   ['nexo.local.notExecutable', 'Selecciona un archivo ejecutable válido.'],
   ['nexo.local.refused', 'No se puede usar esta ruta o los datos han cambiado; vuelve a intentar.'],
 ])('shows create-time executable revalidation %s on the executable field', async (code, message) => {
-  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  const { dialog } = await openDialog();
+  await selectExecutable(dialog);
   failures.local_app_create = code;
   fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir' }));
   expect(await within(dialog).findByText(message)).toBeTruthy();
@@ -227,7 +277,8 @@ it.each([
 });
 
 it('prefills and edits the name, previews and removes a selected icon, and creates with tokens rather than paths', async () => {
-  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  const { dialog } = await openDialog();
+  await selectExecutable(dialog);
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Nombre' }), { target: { value: 'My Paint' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
   const preview = within(dialog).getByRole('img', { name: /vista previa/i });
@@ -237,7 +288,13 @@ it('prefills and edits the name, previews and removes a selected icon, and creat
   fireEvent.click(within(dialog).getByRole('button', { name: 'Quitar' }));
   expect(within(dialog).getByRole('img', { name: /vista previa/i }).textContent).toContain('M');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
-  await waitFor(() => expect(within(dialog).getByRole('img', { name: /vista previa/i }).querySelector('img')).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      within(dialog)
+        .getByRole('img', { name: /vista previa/i })
+        .querySelector('img'),
+    ).toBeTruthy(),
+  );
   fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir' }));
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_create', { token: executable.token, name: 'My Paint', iconToken: icon.token }));
   expect(await screen.findByText('My Paint')).toBeTruthy();
@@ -247,11 +304,12 @@ it('prefills and edits the name, previews and removes a selected icon, and creat
 
 it('shows the uppercase initial when the selected preview image fails', async () => {
   failedSources.add(icon.preview);
-  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  const { dialog } = await openDialog();
+  await selectExecutable(dialog);
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Nombre' }), { target: { value: ' editor' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
   const preview = within(dialog).getByRole('img', { name: /vista previa/i });
-  await waitFor(() => expect(images.some(image => image.getAttribute('src') === icon.preview)).toBe(true));
+  await waitFor(() => expect(images.some((image) => image.getAttribute('src') === icon.preview)).toBe(true));
   expect(preview.classList.contains('eg-app-icon')).toBe(true);
   expect(preview.textContent).toBe('E');
   expect(preview.querySelector('img')).toBeNull();
@@ -259,7 +317,8 @@ it('shows the uppercase initial when the selected preview image fails', async ()
 });
 
 it('keeps the selected icon and app unchanged on native picker cancellation or invalid icon', async () => {
-  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  const { dialog } = await openDialog();
+  await selectExecutable(dialog);
   cancelled = 'local_app_pick_icon_file';
   fireEvent.click(within(dialog).getByRole('button', { name: 'Elegir icono…' }));
   await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('local_app_pick_icon_file'));
@@ -274,7 +333,8 @@ it('keeps the selected icon and app unchanged on native picker cancellation or i
 });
 
 it('shows save failures as compact alerts without creating an app', async () => {
-  const { dialog } = await openDialog(); await selectExecutable(dialog);
+  const { dialog } = await openDialog();
+  await selectExecutable(dialog);
   failures.local_app_create = 'nexo.local.invalidName';
   fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir' }));
   const alert = await within(dialog).findByRole('alert');
@@ -295,8 +355,9 @@ it('shows failed selection cleanup as a compact alert', async () => {
   expect(apps).toEqual([]);
 });
 
-it.each(['cancel', 'escape', 'close'] as const)('closes with %s, revokes the selection, restores focus and changes nothing', async method => {
-  const { dialog, trigger } = await openDialog(); await selectExecutable(dialog);
+it.each(['cancel', 'escape', 'close'] as const)('closes with %s, revokes the selection, restores focus and changes nothing', async (method) => {
+  const { dialog, trigger } = await openDialog();
+  await selectExecutable(dialog);
   fireEvent.change(within(dialog).getByRole('textbox', { name: 'Nombre' }), { target: { value: 'Unsaved' } });
   if (method === 'cancel') fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
   if (method === 'close') fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar diálogo' }));

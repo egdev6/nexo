@@ -23,25 +23,80 @@ export function useExternalLinks() {
   return { open, failed };
 }
 
-export function AppSocialLinks({ app, className, onClick, variant = 'ghost' }: { app?: HubApp; className?: string; onClick: MouseEventHandler<HTMLElement>; variant?: 'ghost' | 'outline' }) {
+export function AppSocialLinks({
+  app,
+  className,
+  onClick,
+  variant = 'ghost',
+}: {
+  app?: HubApp;
+  className?: string;
+  onClick: MouseEventHandler<HTMLElement>;
+  variant?: 'ghost' | 'outline';
+}) {
   const locale = useLocale();
   const items: SocialLinkItem[] = [];
-  if (app?.links?.github) items.push({ id: 'github', href: app.links.github, label: t(locale, 'app.github'), icon: <Icon name="github" color="var(--color-fg-brand-default)" /> });
-  if (app?.links?.youtube) items.push({ id: 'youtube', href: app.links.youtube, label: t(locale, 'app.youtube'), icon: <Icon name="youtube" color="var(--color-fg-brand-default)" /> });
-  return items.length > 0 ? <SocialLinks className={className} items={items} label={t(locale, 'app.socialLinks')} caption={null} inline gap={2} variant={variant} size="md" onClick={onClick} /> : null;
+  if (app?.links?.github)
+    items.push({ id: 'github', href: app.links.github, label: t(locale, 'app.github'), icon: <Icon name="github" color="var(--color-fg-brand-default)" /> });
+  if (app?.links?.youtube)
+    items.push({
+      id: 'youtube',
+      href: app.links.youtube,
+      label: t(locale, 'app.youtube'),
+      icon: <Icon name="youtube" color="var(--color-fg-brand-default)" />,
+    });
+  return items.length > 0 ? (
+    <SocialLinks
+      className={className}
+      items={items}
+      label={t(locale, 'app.socialLinks')}
+      caption={null}
+      inline
+      gap={2}
+      variant={variant}
+      size="md"
+      onClick={onClick}
+    />
+  ) : null;
 }
 
-export function AppDetails({ app, version, newVersion, showInstalledVersion = true }: { app?: HubApp; version?: string; newVersion?: string; showInstalledVersion?: boolean }) {
+export function AppDetails({
+  app,
+  version,
+  newVersion,
+  showInstalledVersion = true,
+}: {
+  app?: HubApp;
+  version?: string;
+  newVersion?: string;
+  showInstalledVersion?: boolean;
+}) {
   const locale = useLocale();
   const { open, failed } = useExternalLinks();
   const versionLink = (value: string) => {
     const href = releaseUrl(app?.links?.github, value);
-    return href ? <Link href={href} onClick={open}>{value}</Link> : <span>{value}</span>;
+    return href ? (
+      <Link href={href} onClick={open}>
+        {value}
+      </Link>
+    ) : (
+      <span>{value}</span>
+    );
   };
-  return <>
-    {showInstalledVersion && <Text variant="body" foreground="secondary" className="meta">{t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}</Text>}
-    {newVersion && <Text variant="body" foreground="secondary" className="meta update-version"><Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}</Text>}
-    <AppSocialLinks app={app} className="detail-social" variant="outline" onClick={open} />
-    {failed && <Notice tone="danger" size="sm" summary={t(locale, 'app.externalError')} />}
-  </>;
+  return (
+    <>
+      {showInstalledVersion && (
+        <Text variant="body" foreground="secondary" className="meta">
+          {t(locale, 'app.installedVersionLabel')} {version ? versionLink(version) : t(locale, 'appControl.versionUnavailable')}
+        </Text>
+      )}
+      {newVersion && (
+        <Text variant="body" foreground="secondary" className="meta update-version">
+          <Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}
+        </Text>
+      )}
+      <AppSocialLinks app={app} className="detail-social" variant="outline" onClick={open} />
+      {failed && <Notice tone="danger" size="sm" summary={t(locale, 'app.externalError')} />}
+    </>
+  );
 }

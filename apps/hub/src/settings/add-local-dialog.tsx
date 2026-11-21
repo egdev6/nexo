@@ -2,7 +2,15 @@ import { AppIcon, Button, Dialog, DialogContent, DialogTrigger, Field, FieldMess
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { useLocale } from '../i18n/use-locale';
-import { cancelLocalSelection, createLocalApp, pickLocalExecutable, pickLocalIconFile, type ExecutablePick, type IconPick, type LocalAppSelection } from '../local-apps';
+import {
+  cancelLocalSelection,
+  createLocalApp,
+  pickLocalExecutable,
+  pickLocalIconFile,
+  type ExecutablePick,
+  type IconPick,
+  type LocalAppSelection,
+} from '../local-apps';
 import { applyAccentVariables, DEFAULT_ACCENT, normalizeHex } from './palette';
 
 type Props = { accent: string; disabled: boolean; errorKey: (error: unknown) => MessageKey; onAdded: (result: LocalAppSelection) => Promise<void> };
@@ -27,45 +35,85 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
 
   // The body portal can mount after its parent effect. Attach when the dialog
   // itself mounts, before paint, and restore any existing values on unmount.
-  const themeRef = useCallback((node: HTMLSpanElement | null) => {
-    const dialog = node?.closest<HTMLElement>('.local-app-dialog');
-    if (!dialog) return;
-    return applyAccentVariables(dialog, accent);
-  }, [accent]);
+  const themeRef = useCallback(
+    (node: HTMLSpanElement | null) => {
+      const dialog = node?.closest<HTMLElement>('.local-app-dialog');
+      if (!dialog) return;
+      return applyAccentVariables(dialog, accent);
+    },
+    [accent],
+  );
 
-  useEffect(() => () => {
-    if (active.current) { active.current = false; void cancelLocalSelection().catch(() => {}); }
-  }, []);
+  useEffect(
+    () => () => {
+      if (active.current) {
+        active.current = false;
+        void cancelLocalSelection().catch(() => {});
+      }
+    },
+    [],
+  );
 
   function close() {
     if (!active.current) return;
     active.current = false;
     setOpen(false);
-    setExecutable(null); setName(''); setIcon(null);
-    setExeError(null); setIconError(null); setSaveError(null);
-    revokingRef.current = true; setRevoking(true);
-    void cancelLocalSelection().then(() => { setCleanupError(false); }, () => { setCleanupError(true); }).finally(() => {
-      revokingRef.current = false; setRevoking(false);
-    });
+    setExecutable(null);
+    setName('');
+    setIcon(null);
+    setExeError(null);
+    setIconError(null);
+    setSaveError(null);
+    revokingRef.current = true;
+    setRevoking(true);
+    void cancelLocalSelection()
+      .then(
+        () => {
+          setCleanupError(false);
+        },
+        () => {
+          setCleanupError(true);
+        },
+      )
+      .finally(() => {
+        revokingRef.current = false;
+        setRevoking(false);
+      });
   }
   function changeOpen(next: boolean) {
-    if (!next) { if (!busyRef.current) close(); return; }
+    if (!next) {
+      if (!busyRef.current) close();
+      return;
+    }
     if (revokingRef.current || cleanupError) return;
-    active.current = true; setOpen(true);
+    active.current = true;
+    setOpen(true);
   }
   async function run(action: () => Promise<void>) {
     if (busyRef.current) return;
-    busyRef.current = true; setBusy(true);
-    try { await action(); } finally { busyRef.current = false; setBusy(false); }
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await action();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
   async function chooseExecutable() {
     await run(async () => {
       try {
         const selected = await pickLocalExecutable();
         if (!active.current || !selected) return;
-        setExecutable(selected); setName(selected.suggestedName); setExeError(null); setSaveError(null);
+        setExecutable(selected);
+        setName(selected.suggestedName);
+        setExeError(null);
+        setSaveError(null);
       } catch (error) {
-        if (active.current) { setExecutable(null); setExeError(errorKey(error)); }
+        if (active.current) {
+          setExecutable(null);
+          setExeError(errorKey(error));
+        }
       }
     });
   }
@@ -74,8 +122,11 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
       try {
         const selected = await pickLocalIconFile();
         if (!active.current || !selected) return;
-        setIcon(selected); setIconError(null);
-      } catch (error) { if (active.current) setIconError(errorKey(error)); }
+        setIcon(selected);
+        setIconError(null);
+      } catch (error) {
+        if (active.current) setIconError(errorKey(error));
+      }
     });
   }
   async function create() {
@@ -83,7 +134,8 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
     await run(async () => {
       try {
         const result = await createLocalApp(executable.token, name, icon?.token);
-        busyRef.current = false; close();
+        busyRef.current = false;
+        close();
         await onAdded(result);
       } catch (error) {
         if (active.current) {
@@ -91,7 +143,8 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
           if (key === 'localApps.errorMissing' || key === 'localApps.errorNotExecutable' || key === 'localApps.errorRefused') setExeError(key);
           else setSaveError(key);
           // A create attempt may have consumed the native tokens; require re-selection.
-          setExecutable(null); setIcon(null);
+          setExecutable(null);
+          setIcon(null);
         }
       }
     });
@@ -99,40 +152,88 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
   const preview = icon && /^data:image\/(?:png|x-icon);base64,[A-Za-z0-9+/]+={0,2}$/.test(icon.preview) ? icon.preview : undefined;
   const initial = name.trim().charAt(0).toUpperCase() || '?';
 
-  return <>
-    <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger asChild><Button variant="neutral" size="sm" type="button" disabled={disabled}>{t(locale, 'settingsLocal.addApp')}</Button></DialogTrigger>
-      <DialogContent className="local-app-dialog" bodyPadding="default" headerLayout="stacked" data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined} title={t(locale, 'settingsLocal.dialogTitle')} description={t(locale, 'settingsLocal.dialogIntro')} dismissLabel={t(locale, 'settingsLocal.closeDialog')}
-        actions={<><Button variant="neutral" labelWrap type="button" disabled={busy} onClick={close}>{t(locale, 'settingsLocal.cancel')}</Button>
-          <Button variant="primary" labelWrap type="button" disabled={busy || !executable || !name.trim()} onClick={() => void create()}>{t(locale, 'settingsLocal.add')}</Button></>}>
-        <span ref={themeRef} hidden />
-        <Stack gap={5}>
-          <div className="local-app-field local-app-executable">
-            <Label htmlFor={executableId}>{t(locale, 'settingsLocal.executable')}</Label>
-            <div className="local-app-row local-app-executable-row">
-              <Input className="local-app-executable-input" id={executableId} value={executable?.path ?? ''} readOnly aria-required="true"
-                aria-describedby={executableMessageId} aria-invalid={exeError ? true : undefined} style={{ alignSelf: 'stretch' }} />
-              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseExecutable()}>{t(locale, 'settingsLocal.browse')}</Button>
+  return (
+    <>
+      <Dialog open={open} onOpenChange={changeOpen}>
+        <DialogTrigger asChild>
+          <Button variant="neutral" size="sm" type="button" disabled={disabled}>
+            {t(locale, 'settingsLocal.addApp')}
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          className="local-app-dialog"
+          bodyPadding="default"
+          headerLayout="stacked"
+          data-custom-accent={normalizeHex(accent) !== DEFAULT_ACCENT ? '' : undefined}
+          title={t(locale, 'settingsLocal.dialogTitle')}
+          description={t(locale, 'settingsLocal.dialogIntro')}
+          dismissLabel={t(locale, 'settingsLocal.closeDialog')}
+          actions={
+            <>
+              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={close}>
+                {t(locale, 'settingsLocal.cancel')}
+              </Button>
+              <Button variant="primary" labelWrap type="button" disabled={busy || !executable || !name.trim()} onClick={() => void create()}>
+                {t(locale, 'settingsLocal.add')}
+              </Button>
+            </>
+          }
+        >
+          <span ref={themeRef} hidden />
+          <Stack gap={5}>
+            <div className="local-app-field local-app-executable">
+              <Label htmlFor={executableId}>{t(locale, 'settingsLocal.executable')}</Label>
+              <div className="local-app-row local-app-executable-row">
+                <Input
+                  className="local-app-executable-input"
+                  id={executableId}
+                  value={executable?.path ?? ''}
+                  readOnly
+                  aria-required="true"
+                  aria-describedby={executableMessageId}
+                  aria-invalid={exeError ? true : undefined}
+                  style={{ alignSelf: 'stretch' }}
+                />
+                <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseExecutable()}>
+                  {t(locale, 'settingsLocal.browse')}
+                </Button>
+              </div>
+              <FieldMessage id={executableMessageId} tone={exeError ? 'error' : 'description'}>
+                {t(locale, exeError ?? 'settingsLocal.executableHint')}
+              </FieldMessage>
             </div>
-            <FieldMessage id={executableMessageId} tone={exeError ? 'error' : 'description'}>{t(locale, exeError ?? 'settingsLocal.executableHint')}</FieldMessage>
-          </div>
-          <Field className="local-app-field" label={t(locale, 'settingsLocal.name')} hint={t(locale, 'settingsLocal.nameHint')}>
-            <Input required value={name} disabled={busy} onChange={event => setName(event.currentTarget.value)} />
-          </Field>
-          <div className="local-app-field" role="group" aria-label={t(locale, 'settingsLocal.iconLabel')}>
-            <span className="local-app-label">{t(locale, 'settingsLocal.iconLabel')}</span>
-            <div className="local-app-row">
-              <AppIcon size="lg" label={t(locale, 'settingsLocal.iconPreview')} monogram={initial} src={preview} />
-              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseIcon()}>{t(locale, 'settingsLocal.chooseIcon')}</Button>
-              <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => { setIcon(null); setIconError(null); }}>{t(locale, 'settingsLocal.clearIcon')}</Button>
+            <Field className="local-app-field" label={t(locale, 'settingsLocal.name')} hint={t(locale, 'settingsLocal.nameHint')}>
+              <Input required value={name} disabled={busy} onChange={(event) => setName(event.currentTarget.value)} />
+            </Field>
+            {/* biome-ignore lint/a11y/useSemanticElements: A fieldset would add browser border and spacing to this styled icon group. */}
+            <div className="local-app-field" role="group" aria-label={t(locale, 'settingsLocal.iconLabel')}>
+              <span className="local-app-label">{t(locale, 'settingsLocal.iconLabel')}</span>
+              <div className="local-app-row">
+                <AppIcon size="lg" label={t(locale, 'settingsLocal.iconPreview')} monogram={initial} src={preview} />
+                <Button variant="neutral" labelWrap type="button" disabled={busy} onClick={() => void chooseIcon()}>
+                  {t(locale, 'settingsLocal.chooseIcon')}
+                </Button>
+                <Button
+                  variant="neutral"
+                  labelWrap
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setIcon(null);
+                    setIconError(null);
+                  }}
+                >
+                  {t(locale, 'settingsLocal.clearIcon')}
+                </Button>
+              </div>
+              <p className="local-app-help">{t(locale, 'settingsLocal.iconHint')}</p>
+              {iconError && <Notice tone="danger" size="sm" summary={t(locale, iconError)} />}
             </div>
-            <p className="local-app-help">{t(locale, 'settingsLocal.iconHint')}</p>
-            {iconError && <Notice tone="danger" size="sm" summary={t(locale, iconError)} />}
-          </div>
-          {saveError && <Notice tone="danger" size="sm" summary={t(locale, saveError)} />}
-        </Stack>
-      </DialogContent>
-    </Dialog>
-    {cleanupError && !revoking && <Notice tone="danger" size="sm" summary={t(locale, 'localApps.errorRefused')} />}
-  </>;
+            {saveError && <Notice tone="danger" size="sm" summary={t(locale, saveError)} />}
+          </Stack>
+        </DialogContent>
+      </Dialog>
+      {cleanupError && !revoking && <Notice tone="danger" size="sm" summary={t(locale, 'localApps.errorRefused')} />}
+    </>
+  );
 }

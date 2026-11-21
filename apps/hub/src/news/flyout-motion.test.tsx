@@ -14,17 +14,25 @@ const bridge = vi.hoisted(() => ({
   events: new Map<string, (event: { payload: unknown }) => void>(),
 }));
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: bridge.invoke }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, listener: (event: { payload: unknown }) => void) => {
-  bridge.events.set(name, listener);
-  return () => bridge.events.delete(name);
-}) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(async (name: string, listener: (event: { payload: unknown }) => void) => {
+    bridge.events.set(name, listener);
+    return () => bridge.events.delete(name);
+  }),
+}));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ onFocusChanged: async () => () => {} }) }));
-vi.mock('../settings/use-settings', async importOriginal => {
+vi.mock('../settings/use-settings', async (importOriginal) => {
   const { defaultSettings } = await import('../sample');
-  return { ...(await importOriginal<typeof import('../settings/use-settings')>()), useSettings: () => ({
-    settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: true, opacity: 63, blur: 12 },
-    fileState: 'ready', languageDraft: null, recordVisit: vi.fn(), getVisit: () => null,
-  }) };
+  return {
+    ...(await importOriginal<typeof import('../settings/use-settings')>()),
+    useSettings: () => ({
+      settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: true, opacity: 63, blur: 12 },
+      fileState: 'ready',
+      languageDraft: null,
+      recordVisit: vi.fn(),
+      getVisit: () => null,
+    }),
+  };
 });
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 vi.mock('../local-apps/view', () => ({ LocalAppsView: () => null }));
@@ -44,9 +52,9 @@ function emit(name: string, payload: unknown) {
 }
 function declarations(path: string, selector: string) {
   const css = readFileSync(`${cwd()}/src/${path}`, 'utf8') as string;
-  const rule = postcss.parse(css).nodes.find(node => node.type === 'rule' && node.selector === selector);
+  const rule = postcss.parse(css).nodes.find((node) => node.type === 'rule' && node.selector === selector);
   if (!rule || rule.type !== 'rule') throw new Error(`Missing ${selector}`);
-  return Object.fromEntries(rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]));
+  return Object.fromEntries(rule.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value]));
 }
 
 it('keeps the real news modal and its scrim inside the sliding panel for entry and exit', async () => {
@@ -86,11 +94,13 @@ it('blurs only Nexo-owned background siblings and respects reduced transparency'
   const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
   expect(panel.hasAttribute('data-news-open')).toBe(true);
   const css = postcss.parse(readFileSync(`${cwd()}/src/style.css`, 'utf8') as string);
-  const rule = css.nodes.find(node => node.type === 'rule' && node.nodes.some(decl => decl.type === 'decl' && decl.prop === 'filter' && decl.value.startsWith('blur(')));
+  const rule = css.nodes.find(
+    (node) => node.type === 'rule' && node.nodes.some((decl) => decl.type === 'decl' && decl.prop === 'filter' && decl.value.startsWith('blur(')),
+  );
   expect(rule?.type).toBe('rule');
   if (!rule || rule.type !== 'rule') throw new Error('Missing background blur rule');
   expect(rule.selector).not.toContain('.eg-');
-  const filter = rule.nodes.find(decl => decl.type === 'decl' && decl.prop === 'filter');
+  const filter = rule.nodes.find((decl) => decl.type === 'decl' && decl.prop === 'filter');
   expect(filter?.type === 'decl' && filter.value).toMatch(/^blur\(.*var\(--space-/);
   for (const name of ['panel-head', 'panel-notices', 'main-tabs-frame']) {
     expect(panel.querySelector(`.${name}`)?.matches(rule.selector), name).toBe(true);
@@ -104,9 +114,17 @@ it('blurs only Nexo-owned background siblings and respects reduced transparency'
   }
   expect(dialog.closest('.eg-dialog-backdrop')?.matches(rule.selector)).toBe(false);
   expect(dialog.matches(rule.selector)).toBe(false);
-  expect(rule.nodes.some(decl => decl.type === 'decl' && decl.prop === 'transition')).toBe(false);
-  const reduced = css.nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(prefers-reduced-transparency: reduce)');
-  expect(reduced?.type === 'atrule' && reduced.nodes?.some(node => node.type === 'rule' && node.selector === rule.selector && node.nodes.some(decl => decl.type === 'decl' && decl.prop === 'filter' && decl.value === 'none'))).toBe(true);
+  expect(rule.nodes.some((decl) => decl.type === 'decl' && decl.prop === 'transition')).toBe(false);
+  const reduced = css.nodes.find((node) => node.type === 'atrule' && node.name === 'media' && node.params === '(prefers-reduced-transparency: reduce)');
+  expect(
+    reduced?.type === 'atrule' &&
+      reduced.nodes?.some(
+        (node) =>
+          node.type === 'rule' &&
+          node.selector === rule.selector &&
+          node.nodes.some((decl) => decl.type === 'decl' && decl.prop === 'filter' && decl.value === 'none'),
+      ),
+  ).toBe(true);
 });
 
 it('clips the modal and scrim to the positioned, painted sliding panel', () => {

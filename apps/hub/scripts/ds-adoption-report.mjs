@@ -8,24 +8,51 @@ const sourceDirectory = path.join(root, 'apps/hub/src');
 const rawInteractive = new Set(['button', 'input', 'a', 'label', 'select', 'textarea']);
 // Count interactive composites once per JSX invocation, not once per generated control.
 const interactiveDsComponents = [
-  'AlertDialogAction', 'AlertDialogCancel', 'AlertDialogTrigger', 'Button', 'Carousel',
-  'Checkbox', 'Chip', 'ChipGroup', 'CollapsibleTrigger', 'ColorSwatchGroup', 'CommandPalette', 'DialogClose',
-  'DialogTrigger', 'Dropzone', 'IconButton', 'Input', 'Label', 'Link', 'Menu', 'MenuTrigger',
-  'PopoverClose', 'PopoverTrigger', 'RadioGroup', 'SearchTrigger', 'Select', 'SelectTile',
-  'Slider', 'SocialLinks', 'Switch', 'Tabs', 'Textarea', 'Toggle',
+  'AlertDialogAction',
+  'AlertDialogCancel',
+  'AlertDialogTrigger',
+  'Button',
+  'Carousel',
+  'Checkbox',
+  'Chip',
+  'ChipGroup',
+  'CollapsibleTrigger',
+  'ColorSwatchGroup',
+  'CommandPalette',
+  'DialogClose',
+  'DialogTrigger',
+  'Dropzone',
+  'IconButton',
+  'Input',
+  'Label',
+  'Link',
+  'Menu',
+  'MenuTrigger',
+  'PopoverClose',
+  'PopoverTrigger',
+  'RadioGroup',
+  'SearchTrigger',
+  'Select',
+  'SelectTile',
+  'Slider',
+  'SocialLinks',
+  'Switch',
+  'Tabs',
+  'Textarea',
+  'Toggle',
 ];
 const interactiveDs = new Set(interactiveDsComponents);
 const usage = 'Usage: node ds-adoption-report.mjs [--json] [--help]\n';
-const byName = (a, b) => a < b ? -1 : a > b ? 1 : 0;
-const percent = (numerator, denominator) => denominator ? 100 * numerator / denominator : null;
+const byName = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+const percent = (numerator, denominator) => (denominator ? (100 * numerator) / denominator : null);
 
 function importsIn(source) {
   const imports = new Map();
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
     const moduleName = statement.moduleSpecifier.text;
-    const origin = moduleName === '@egdev/ui' || moduleName.startsWith('@egdev/ui/') ? 'ds'
-      : moduleName.startsWith('./') || moduleName.startsWith('../') ? 'custom' : null;
+    const origin =
+      moduleName === '@egdev/ui' || moduleName.startsWith('@egdev/ui/') ? 'ds' : moduleName.startsWith('./') || moduleName.startsWith('../') ? 'custom' : null;
     const clause = statement.importClause;
     if (!origin || !clause || clause.isTypeOnly) continue;
     if (clause.name) {
@@ -65,7 +92,7 @@ function typescriptComments(source, addComment) {
 }
 
 function cssComments(text, addComment) {
-  for (let i = 0; i < text.length;) {
+  for (let i = 0; i < text.length; ) {
     if (text[i] === '"' || text[i] === "'") {
       const quote = text[i++];
       while (i < text.length) {
@@ -84,13 +111,15 @@ function cssComments(text, addComment) {
 }
 
 function issueReferences(comment) {
-  const body = comment.replace(/^\/\/?\*?/, '').replace(/\*\/$/, '')
-    .replace(/^[ \t]*\*[ \t]?/gm, '').trim();
+  const body = comment
+    .replace(/^\/\/?\*?/, '')
+    .replace(/\*\/$/, '')
+    .replace(/^[ \t]*\*[ \t]?/gm, '')
+    .trim();
   // A bare reference has no repository identity. Require workaround context, or a
   // comment containing only #N, to avoid counting ordinary Nexo issue comments.
   const qualified = /\begdev-design-system#\d+\b/i.test(body);
-  const bareWorkaround = /\b(?:TODO|workaround|design[ -]system|DS)\b/i.test(body)
-    || /^#\d+[\s.!?]*$/.test(body);
+  const bareWorkaround = /\b(?:TODO|workaround|design[ -]system|DS)\b/i.test(body) || /^#\d+[\s.!?]*$/.test(body);
   if (!qualified && !bareWorkaround) return [];
   return [...new Set(body.match(/(?<![\w-])#\d+\b|(?<=egdev-design-system)#\d+\b/gi) ?? [])];
 }
@@ -103,14 +132,13 @@ export function analyzeSources(files) {
   const workarounds = [];
   for (const { file, content } of files) {
     if (!/\.(?:ts|tsx|css)$/.test(file)) continue;
-    const source = file.endsWith('.css') ? null : ts.createSourceFile(
-      file, content, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-    );
+    const source = file.endsWith('.css')
+      ? null
+      : ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
     const addComment = (comment, position) => {
       const issues = issueReferences(comment);
       if (!issues.length) return;
-      const line = source ? source.getLineAndCharacterOfPosition(position).line + 1
-        : content.slice(0, position).split(/\r\n|\r|\n/).length;
+      const line = source ? source.getLineAndCharacterOfPosition(position).line + 1 : content.slice(0, position).split(/\r\n|\r|\n/).length;
       workarounds.push({ file, line, issues });
     };
     if (source) typescriptComments(source, addComment);
@@ -135,9 +163,7 @@ export function analyzeSources(files) {
           if (binding?.origin === 'ds') {
             totals.ds++;
             const component = ts.isPropertyAccessExpression(tag) ? tag.name.text : binding.name;
-            const mode = component === 'Chip' && node.attributes.properties.find(
-              attribute => ts.isJsxAttribute(attribute) && attribute.name.text === 'mode',
-            );
+            const mode = component === 'Chip' && node.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.text === 'mode');
             const initializer = mode?.initializer;
             const modeValue = initializer && ts.isJsxExpression(initializer) ? initializer.expression : initializer;
             const staticChip = modeValue && ts.isStringLiteral(modeValue) && modeValue.text === 'static';
@@ -157,8 +183,9 @@ export function analyzeSources(files) {
   }
   const frequencies = new Map();
   for (const { element } of occurrences) frequencies.set(element, (frequencies.get(element) ?? 0) + 1);
-  occurrences.sort((a, b) => frequencies.get(b.element) - frequencies.get(a.element)
-    || byName(a.element, b.element) || byName(a.file, b.file) || a.line - b.line);
+  occurrences.sort(
+    (a, b) => frequencies.get(b.element) - frequencies.get(a.element) || byName(a.element, b.element) || byName(a.file, b.file) || a.line - b.line,
+  );
   workarounds.sort((a, b) => byName(a.file, b.file) || a.line - b.line);
   return {
     definitions: {
@@ -180,7 +207,7 @@ export function analyzeSources(files) {
 }
 
 export function formatTextReport(report) {
-  const value = number => number === null ? 'n/a' : `${number.toFixed(2)}%`;
+  const value = (number) => (number === null ? 'n/a' : `${number.toFixed(2)}%`);
   const { totals, definitions } = report;
   const lines = [
     'Design-system adoption (JSX source instances, not rendered controls)',
@@ -197,11 +224,14 @@ export function formatTextReport(report) {
     `  All JSX elements: ${totals.jsx}`,
     definitions.interactiveCounting,
     `Interactive DS names: ${definitions.interactiveDsComponents.join(', ')}`,
-    '', 'Custom components by instance count (usage file):',
+    '',
+    'Custom components by instance count (usage file):',
     ...report.customComponents.map(({ component, count, file }) => `  ${component.padEnd(24)} ${String(count).padStart(3)}  ${file}`),
-    '', 'Raw interactive occurrences (ranked by element frequency):',
+    '',
+    'Raw interactive occurrences (ranked by element frequency):',
     ...report.rawInteractiveOccurrences.map(({ element, file, line }) => `  ${element.padEnd(10)} ${file}:${line}`),
-    '', `Workaround comments: ${report.workaroundCount}`,
+    '',
+    `Workaround comments: ${report.workaroundCount}`,
     definitions.workaroundComments,
     ...report.workarounds.map(({ issues, file, line }) => `  ${issues.join(', ')}  ${file}:${line}`),
   ];
@@ -213,7 +243,7 @@ async function sourceFiles(directory) {
   const files = [];
   for (const entry of entries) {
     const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...await sourceFiles(fullPath));
+    if (entry.isDirectory()) files.push(...(await sourceFiles(fullPath)));
     else if (entry.isFile() && /\.(?:ts|tsx|css)$/.test(entry.name)) {
       files.push({ file: path.relative(root, fullPath).split(path.sep).join('/'), content: await readFile(fullPath, 'utf8') });
     }
@@ -222,7 +252,7 @@ async function sourceFiles(directory) {
 }
 
 async function main(args) {
-  const unknown = args.find(arg => arg !== '--json' && arg !== '--help');
+  const unknown = args.find((arg) => arg !== '--json' && arg !== '--help');
   if (unknown) {
     process.stderr.write(`Unknown argument: ${unknown}\n${usage}`);
     process.exitCode = 1;
@@ -237,7 +267,7 @@ async function main(args) {
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  main(process.argv.slice(2)).catch(error => {
+  main(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`Design-system adoption report failed: ${error.message}\n`);
     process.exitCode = 1;
   });

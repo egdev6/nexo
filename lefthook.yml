@@ -1,0 +1,12 @@
+# Git hooks managed by Lefthook (https://lefthook.dev).
+# Install once per clone with `npm run hooks:install` from apps/hub. There is no `prepare` script on purpose:
+# npm lifecycle scripts stay off, so installing dependencies never rewrites your Git hooks.
+# CI runs the same checks, so skipping the hook with `--no-verify` only delays the failure.
+pre-push:
+  parallel: true
+  jobs:
+    - name: biome
+      root: apps/hub/
+      run: npx biome ci
+    - name: cargo-fmt
+      run: cargo fmt --all -- --check

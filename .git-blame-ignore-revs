@@ -1,0 +1,5 @@
+# Formatting-only commits skipped by `git blame`.
+# Enable once with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(hub): format TypeScript and scripts with Biome
+6b6ad4edc12e7685cc78c1cf0c96b930bc0b4742

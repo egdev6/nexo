@@ -10,16 +10,27 @@ type Rgb = [number, number, number];
 export function parseHex(hex: string): Rgb | null {
   const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
   if (!match) return null;
-  const h = match[1].length === 3 ? [...match[1]].map(c => c + c).join('') : match[1];
-  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)) as Rgb;
+  const h = match[1].length === 3 ? [...match[1]].map((c) => c + c).join('') : match[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as Rgb;
 }
 
 export function toHex([r, g, b]: Rgb): string {
-  return '#' + [r, g, b].map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
+  return (
+    '#' +
+    [r, g, b]
+      .map((v) =>
+        Math.round(Math.min(255, Math.max(0, v)))
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')
+  );
 }
 
 function rgbToHsl([r, g, b]: Rgb): [number, number, number] {
-  r /= 255; g /= 255; b /= 255;
+  r /= 255;
+  g /= 255;
+  b /= 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const l = (max + min) / 2;
@@ -38,7 +49,7 @@ function hslToRgb(h: number, s: number, l: number): Rgb {
 }
 
 function tint(color: Rgb, t: number): Rgb {
-  return color.map(v => v + (255 - v) * t) as Rgb;
+  return color.map((v) => v + (255 - v) * t) as Rgb;
 }
 
 export function derivePalette(hex: string): [string, string, string] {
@@ -64,9 +75,12 @@ export function accentVariables(hex: string): CSSProperties {
 export function applyAccentVariables(element: HTMLElement, accent: string): () => void {
   const variables = Object.entries(accentVariables(accent));
   const previous = variables.map(([name]) => [name, element.style.getPropertyValue(name), element.style.getPropertyPriority(name)] as const);
-  variables.forEach(([name, value]) => element.style.setProperty(name, String(value)));
-  return () => previous.forEach(([name, value, priority]) => {
-    if (value) element.style.setProperty(name, value, priority);
-    else element.style.removeProperty(name);
+  variables.forEach(([name, value]) => {
+    element.style.setProperty(name, String(value));
   });
+  return () =>
+    previous.forEach(([name, value, priority]) => {
+      if (value) element.style.setProperty(name, value, priority);
+      else element.style.removeProperty(name);
+    });
 }

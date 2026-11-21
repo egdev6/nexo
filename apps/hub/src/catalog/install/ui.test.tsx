@@ -8,26 +8,86 @@ import type { HubApp, Language } from '../../model';
 import type { Catalog } from '../format';
 import type { InstallProgress, InstallResult } from './index';
 
-configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
-const native = vi.hoisted(() => ({ install: vi.fn(), cancel: vi.fn(), listen: vi.fn(), stop: vi.fn(), invoke: vi.fn(), load: vi.fn(), receive: undefined as undefined | ((progress: InstallProgress) => void), locale: 'es' as Language }));
+configure({ getElementError: (message) => new Error(message?.split('\n')[0] ?? 'Element not found') });
+const native = vi.hoisted(() => ({
+  install: vi.fn(),
+  cancel: vi.fn(),
+  listen: vi.fn(),
+  stop: vi.fn(),
+  invoke: vi.fn(),
+  load: vi.fn(),
+  receive: undefined as undefined | ((progress: InstallProgress) => void),
+  locale: 'es' as Language,
+}));
 vi.mock('./index', () => ({ installApp: native.install, cancelInstall: native.cancel, onInstallProgress: native.listen }));
-vi.mock('../loader', async importOriginal => ({ ...(await importOriginal<typeof import('../loader')>()), loadCatalog: native.load }));
+vi.mock('../loader', async (importOriginal) => ({ ...(await importOriginal<typeof import('../loader')>()), loadCatalog: native.load }));
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: native.invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
-vi.mock('../../settings/use-settings', () => ({ useSettings: () => ({ settings: { ...defaultSettings, language: native.locale, firstRunComplete: true, showNewsOnOpen: false, sources: [] }, fileState: 'ready', languageDraft: null, autostart: {}, recordVisit: vi.fn(), getVisit: () => null }) }));
+vi.mock('../../settings/use-settings', () => ({
+  useSettings: () => ({
+    settings: { ...defaultSettings, language: native.locale, firstRunComplete: true, showNewsOnOpen: false, sources: [] },
+    fileState: 'ready',
+    languageDraft: null,
+    autostart: {},
+    recordVisit: vi.fn(),
+    getVisit: () => null,
+  }),
+}));
 vi.mock('../../news/use-flyout', () => ({ useFlyoutVisibility: () => ({ visibility: null, lastShow: null, error: null }) }));
 vi.mock('../../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 vi.mock('../../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(false), hideFlyout: vi.fn() }));
 vi.mock('../../local-apps/view', () => ({ LocalAppsView: () => null }));
 
-const base = { tagline: 'Test', description: 'Test', tags: [], installerUrl: 'https://github.com/egdev6/app/releases/download/v1/setup.exe', latestJsonUrl: 'https://github.com/egdev6/app/releases/download/v1/latest.json', integrationLevel: 'launch' as const, releasedAt: '2025-01-01T00:00:00Z', featured: false, news: [], version: '1.0.0', updaterPublicKey: 'validated-key' };
-const catalog: Catalog = { schemaVersion: 4, apps: [{ ...base, id: 'alfa', name: 'Alfa' }, { ...base, id: 'beta', name: 'Beta' }] };
-const app = (id: string, name: string): HubApp => ({ id, name, description: 'Test', installed: false, running: false, integration: 'catalog', source: 'official', statusKnown: true, installationState: 'notInstalled' });
-const alfa = app('alfa', 'Alfa'); const beta = app('beta', 'Beta');
-const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
+const base = {
+  tagline: 'Test',
+  description: 'Test',
+  tags: [],
+  installerUrl: 'https://github.com/egdev6/app/releases/download/v1/setup.exe',
+  latestJsonUrl: 'https://github.com/egdev6/app/releases/download/v1/latest.json',
+  integrationLevel: 'launch' as const,
+  releasedAt: '2025-01-01T00:00:00Z',
+  featured: false,
+  news: [],
+  version: '1.0.0',
+  updaterPublicKey: 'validated-key',
+};
+const catalog: Catalog = {
+  schemaVersion: 4,
+  apps: [
+    { ...base, id: 'alfa', name: 'Alfa' },
+    { ...base, id: 'beta', name: 'Beta' },
+  ],
+};
+const app = (id: string, name: string): HubApp => ({
+  id,
+  name,
+  description: 'Test',
+  installed: false,
+  running: false,
+  integration: 'catalog',
+  source: 'official',
+  statusKnown: true,
+  installationState: 'notInstalled',
+});
+const alfa = app('alfa', 'Alfa');
+const beta = app('beta', 'Beta');
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
 const card = (name: string) => within(screen.getByRole('article', { name }));
-const select = (name: string) => { const tab = screen.getByRole('tab', { name }); fireEvent.mouseDown(tab, { button: 0 }); fireEvent.click(tab); };
-const show = async (apps = [alfa, beta], state: { status: 'ready' | 'offline' | 'error'; catalog?: Catalog; stale?: boolean } = { status: 'ready', catalog }) => {
+const select = (name: string) => {
+  const tab = screen.getByRole('tab', { name });
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
+};
+const show = async (
+  apps = [alfa, beta],
+  state: { status: 'ready' | 'offline' | 'error'; catalog?: Catalog; stale?: boolean } = { status: 'ready', catalog },
+) => {
   const refresh = vi.fn();
   const view = render(<FlyoutPanel apps={apps} news={[]} catalogState={state} onAppsRefresh={refresh} />);
   select(native.locale === 'en' ? 'Catalog' : 'Catálogo');
@@ -36,26 +96,50 @@ const show = async (apps = [alfa, beta], state: { status: 'ready' | 'offline' | 
 };
 
 beforeEach(() => {
-  native.locale = 'es'; native.receive = undefined;
-  native.install.mockReset(); native.cancel.mockReset(); native.listen.mockReset(); native.stop.mockReset(); native.invoke.mockReset(); native.load.mockReset();
-  native.invoke.mockResolvedValue(null); native.load.mockResolvedValue({ status: 'ready', catalog });
-  native.listen.mockImplementation(async (receive: (progress: InstallProgress) => void) => { native.receive = receive; return native.stop; });
+  native.locale = 'es';
+  native.receive = undefined;
+  native.install.mockReset();
+  native.cancel.mockReset();
+  native.listen.mockReset();
+  native.stop.mockReset();
+  native.invoke.mockReset();
+  native.load.mockReset();
+  native.invoke.mockResolvedValue(null);
+  native.load.mockResolvedValue({ status: 'ready', catalog });
+  native.listen.mockImplementation(async (receive: (progress: InstallProgress) => void) => {
+    native.receive = receive;
+    return native.stop;
+  });
   native.cancel.mockResolvedValue('cancelled');
 });
 afterEach(cleanup);
 
 it('preserves the catalog and key gates for official entries, including unknown installations', async () => {
-  const noKey = { ...catalog, apps: catalog.apps.map(item => item.id === 'beta' ? { ...item, updaterPublicKey: undefined } : item) };
+  const noKey = { ...catalog, apps: catalog.apps.map((item) => (item.id === 'beta' ? { ...item, updaterPublicKey: undefined } : item)) };
   const { rerender, refresh } = await show([alfa, beta], { status: 'ready', catalog: noKey });
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false);
   expect((card('Beta').getByRole('button', { name: 'Instalar Beta' }) as HTMLButtonElement).disabled).toBe(true);
   expect(card('Beta').getByText('Falta la clave de verificación de esta app.')).toBeTruthy();
   fireEvent.click(card('Beta').getByRole('button', { name: 'Instalar Beta' }));
   expect(native.install).not.toHaveBeenCalled();
-  rerender(<FlyoutPanel apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog }}
+      onAppsRefresh={refresh}
+    />,
+  );
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false);
   expect(card('Alfa').getByText('No se puede comprobar si ya está instalada')).toBeTruthy();
-  rerender(<FlyoutPanel apps={[{ ...beta, statusKnown: false, installationState: 'unknown' }]} news={[]} catalogState={{ status: 'ready', catalog: noKey }} onAppsRefresh={refresh} />);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...beta, statusKnown: false, installationState: 'unknown' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog: noKey }}
+      onAppsRefresh={refresh}
+    />,
+  );
   expect((card('Beta').getByRole('button', { name: 'Instalar Beta' }) as HTMLButtonElement).disabled).toBe(true);
   expect(card('Beta').getByText('Falta la clave de verificación de esta app.')).toBeTruthy();
   expect(card('Beta').getByText('No se puede comprobar si ya está instalada')).toBeTruthy();
@@ -76,7 +160,8 @@ it.each([
   ['en', 'Install Alfa', 'Cannot check whether it is already installed.'],
 ] as const)('enables an unknown installation with an accessible warning in %s', async (locale, label, warning) => {
   native.locale = locale;
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   await show([{ ...alfa, statusKnown: false, installationState: 'unknown' }]);
   const button = card('Alfa').getByRole('button', { name: label }) as HTMLButtonElement;
   const note = card('Alfa').getByText(warning);
@@ -89,7 +174,8 @@ it.each([
 
 it('keeps unverified success and its warning visible until a later installed observation', async () => {
   const unknown: HubApp = { ...alfa, statusKnown: false, installationState: 'unknown' };
-  const run = deferred<{ status: string }>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<{ status: string }>();
+  native.install.mockReturnValueOnce(run.promise);
   const { rerender, refresh } = await show([unknown]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   await act(async () => run.resolve({ status: 'installedUnverified' }));
@@ -101,25 +187,41 @@ it('keeps unverified success and its warning visible until a later installed obs
   rerender(<FlyoutPanel apps={[{ ...unknown }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
   expect(card('Alfa').getByRole('status').textContent).toBe('Installed; Nexo cannot verify it');
   expect(card('Alfa').getByText('Cannot check whether it is already installed.')).toBeTruthy();
-  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog }}
+      onAppsRefresh={refresh}
+    />,
+  );
   expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
 });
 
 it('offers installation for an unknown app targeted from News', () => {
   const start = vi.fn();
-  render(<CatalogView apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]} targetAppId="alfa" catalog={catalog} installs={{ entries: new Map(), connection: 'ready', start, startUpdate: vi.fn(), cancel: vi.fn(), retryConnection: vi.fn() }} />);
+  render(
+    <CatalogView
+      apps={[{ ...alfa, statusKnown: false, installationState: 'unknown' }]}
+      targetAppId="alfa"
+      catalog={catalog}
+      installs={{ entries: new Map(), connection: 'ready', start, startUpdate: vi.fn(), cancel: vi.fn(), retryConnection: vi.fn() }}
+    />,
+  );
   expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   expect(start).toHaveBeenCalledExactlyOnceWith('alfa');
 });
 
 it('tracks phases, determinate and indeterminate downloads, cancellation races and independent cards across tabs', async () => {
-  const first = deferred<InstallResult>(); const second = deferred<InstallResult>();
+  const first = deferred<InstallResult>();
+  const second = deferred<InstallResult>();
   native.install.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
   native.cancel.mockResolvedValueOnce('tooLate');
   await show();
   const install = card('Alfa').getByRole('button', { name: 'Instalar Alfa' });
-  fireEvent.click(install); fireEvent.click(install);
+  fireEvent.click(install);
+  fireEvent.click(install);
   expect(native.install).toHaveBeenCalledTimes(1);
   expect(native.install).toHaveBeenCalledWith('alfa');
   expect(card('Alfa').getByText('Consultando catálogo…')).toBeTruthy();
@@ -139,20 +241,32 @@ it('tracks phases, determinate and indeterminate downloads, cancellation races a
   fireEvent.click(card('Beta').getByRole('button', { name: 'Instalar Beta' }));
   expect(native.install).toHaveBeenCalledTimes(2);
   act(() => native.receive!({ id: 'alfa', phase: 'installing' }));
-  select('Mis apps'); select('Catálogo');
+  select('Mis apps');
+  select('Catálogo');
   expect(card('Alfa').getByText('Instalando…')).toBeTruthy();
   act(() => native.receive!({ id: 'alfa', phase: 'detecting' }));
   expect(card('Alfa').getByText('Comprobando instalación…')).toBeTruthy();
   expect(card('Alfa').queryByRole('button', { name: 'Cancelar Alfa' })).toBeNull();
-  await act(async () => { first.resolve({ status: 'cancelled' }); second.resolve({ status: 'cancelled' }); });
+  await act(async () => {
+    first.resolve({ status: 'cancelled' });
+    second.resolve({ status: 'cancelled' });
+  });
 });
 
 it('keeps tracking an installer after a refresh observes the app while it is still running', async () => {
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   const { rerender, refresh } = await show([alfa]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   act(() => native.receive!({ id: 'alfa', phase: 'installing' }));
-  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog }}
+      onAppsRefresh={refresh}
+    />,
+  );
   expect(card('Alfa').getByText('Instalando…')).toBeTruthy();
   expect(card('Alfa').queryByRole('button', { name: 'Cancelar Alfa' })).toBeNull();
   act(() => native.receive!({ id: 'alfa', phase: 'verifying' }));
@@ -162,7 +276,8 @@ it('keeps tracking an installer after a refresh observes the app while it is sti
 });
 
 it('silently returns to idle after native cancellation and can retry', async () => {
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   const { refresh } = await show([alfa]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Cancelar Alfa' }));
@@ -174,18 +289,27 @@ it('silently returns to idle after native cancellation and can retry', async () 
 });
 
 it('removes a confirmed installation and refreshes My apps using the new observation, not the catalog version', async () => {
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   const { rerender, refresh } = await show([alfa]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   await act(async () => run.resolve({ status: 'installed', version: '7.0.0' }));
   expect(refresh).toHaveBeenCalledOnce();
   expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
   // The owner supplies the refreshed registry observation.
-  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local', version: '7.0.0' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog }}
+      onAppsRefresh={refresh}
+    />,
+  );
   select('Mis apps');
   fireEvent.click(screen.getByRole('button', { name: /Alfa.*Estado de ejecución desconocido/ }));
   expect(screen.getByText('7.0.0')).toBeTruthy();
-  select('Catálogo'); expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
+  select('Catálogo');
+  expect(screen.queryByRole('article', { name: 'Alfa' })).toBeNull();
 });
 
 it.each([
@@ -219,13 +343,29 @@ it.each([
   ['networkFailed', 'Falló la descarga. Comprueba la conexión y reintenta.', 'The download failed. Check the connection and retry.'],
   ['connectTimedOut', 'Se agotó el tiempo de conexión. Comprueba la conexión y reintenta.', 'The connection timed out. Check the connection and retry.'],
   ['downloadTimedOut', 'Se agotó el tiempo de descarga. Comprueba la conexión y reintenta.', 'The download timed out. Check the connection and retry.'],
-  ['tooLarge', 'El archivo de instalación supera el tamaño permitido. Actualiza el catálogo.', 'The installation file exceeds the allowed size. Refresh the catalog.'],
+  [
+    'tooLarge',
+    'El archivo de instalación supera el tamaño permitido. Actualiza el catálogo.',
+    'The installation file exceeds the allowed size. Refresh the catalog.',
+  ],
   ['lengthMismatch', 'La descarga está incompleta o tiene un tamaño inesperado. Reintenta.', 'The download is incomplete or has an unexpected size. Retry.'],
-  ['storageFailed', 'No se pudieron guardar o leer los archivos temporales. Comprueba el espacio y los permisos.', 'Could not save or read temporary files. Check disk space and permissions.'],
+  [
+    'storageFailed',
+    'No se pudieron guardar o leer los archivos temporales. Comprueba el espacio y los permisos.',
+    'Could not save or read temporary files. Check disk space and permissions.',
+  ],
   ['keyMissing', 'Falta la clave de verificación. Actualiza el catálogo.', 'The verification key is missing. Refresh the catalog.'],
   ['keyInvalid', 'La clave de verificación no es válida. Actualiza el catálogo.', 'The verification key is invalid. Refresh the catalog.'],
-  ['signatureMalformed', 'La firma del instalador no tiene un formato válido. Actualiza el catálogo.', 'The installer signature has an invalid format. Refresh the catalog.'],
-  ['signatureUnsupported', 'La firma del instalador usa un formato no admitido. Actualiza el catálogo.', 'The installer signature uses an unsupported format. Refresh the catalog.'],
+  [
+    'signatureMalformed',
+    'La firma del instalador no tiene un formato válido. Actualiza el catálogo.',
+    'The installer signature has an invalid format. Refresh the catalog.',
+  ],
+  [
+    'signatureUnsupported',
+    'La firma del instalador usa un formato no admitido. Actualiza el catálogo.',
+    'The installer signature uses an unsupported format. Refresh the catalog.',
+  ],
   ['signatureInvalid', 'No se pudo verificar la firma del instalador. No se ha ejecutado.', 'The installer signature could not be verified. It was not run.'],
   ['assetNotAllowed', 'Este instalador no es compatible. Actualiza el catálogo.', 'This installer is not supported. Refresh the catalog.'],
 ] as const)('shows the specific %s error in both languages', async (status, es, en) => {
@@ -241,8 +381,9 @@ it.each([
   expect(native.install).toHaveBeenCalledTimes(1);
 });
 
-it.each(['before', 'after'] as const)('reports late cleanup failure arriving %s the timeout response, preserving the original error', async order => {
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+it.each(['before', 'after'] as const)('reports late cleanup failure arriving %s the timeout response, preserving the original error', async (order) => {
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   const { rerender, refresh } = await show([alfa]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   act(() => native.receive!({ id: 'alfa', phase: 'installing' }));
@@ -250,19 +391,38 @@ it.each(['before', 'after'] as const)('reports late cleanup failure arriving %s 
   if (order === 'before') act(() => native.receive!(warning));
   await act(async () => run.resolve({ status: 'timeout' }));
   if (order === 'after') act(() => native.receive!(warning));
-  expect(card('Alfa').getAllByRole('alert').map(alert => alert.textContent)).toEqual([
+  expect(
+    card('Alfa')
+      .getAllByRole('alert')
+      .map((alert) => alert.textContent),
+  ).toEqual([
     'El instalador tardó demasiado y puede seguir ejecutándose. Comprueba su estado antes de reintentar.',
     'No se pudieron limpiar los archivos temporales de instalación.',
   ]);
-  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog }}
+      onAppsRefresh={refresh}
+    />,
+  );
   expect(card('Alfa').getAllByRole('alert')).toHaveLength(2);
   expect((card('Alfa').getByRole('button', { name: 'Reintentar Alfa' }) as HTMLButtonElement).disabled).toBe(true);
   native.locale = 'en';
-  rerender(<FlyoutPanel apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]} news={[]} catalogState={{ status: 'ready', catalog }} onAppsRefresh={refresh} />);
-  expect(card('Alfa').getAllByRole('alert').map(alert => alert.textContent)).toEqual([
-    'The installer timed out and may still be running. Check its status before retrying.',
-    'Could not clean up temporary installation files.',
-  ]);
+  rerender(
+    <FlyoutPanel
+      apps={[{ ...alfa, installed: true, installationState: 'installed', integration: 'local' }]}
+      news={[]}
+      catalogState={{ status: 'ready', catalog }}
+      onAppsRefresh={refresh}
+    />,
+  );
+  expect(
+    card('Alfa')
+      .getAllByRole('alert')
+      .map((alert) => alert.textContent),
+  ).toEqual(['The installer timed out and may still be running. Check its status before retrying.', 'Could not clean up temporary installation files.']);
 });
 
 it('keeps a targeted installed card visible for News but does not offer installation', () => {
@@ -297,10 +457,13 @@ it('retries an error through the same native ID and clears the previous alert', 
 
 it('uses the real App refresh path after native installation', async () => {
   let scans = 0;
-  native.invoke.mockImplementation(async (command: string) => command === 'installed_apps'
-    ? [{ id: 'alfa', state: ++scans === 1 ? 'notInstalled' : 'installed', version: scans === 1 ? null : '7.0.0', reason: '' }]
-    : null);
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  native.invoke.mockImplementation(async (command: string) =>
+    command === 'installed_apps'
+      ? [{ id: 'alfa', state: ++scans === 1 ? 'notInstalled' : 'installed', version: scans === 1 ? null : '7.0.0', reason: '' }]
+      : null,
+  );
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   render(<App news={[]} />);
   select('Catálogo');
   await waitFor(() => expect((card('Alfa').getByRole('button', { name: 'Instalar Alfa' }) as HTMLButtonElement).disabled).toBe(false));
@@ -314,7 +477,8 @@ it('uses the real App refresh path after native installation', async () => {
 });
 
 it('keeps tracking when cancellation fails and never claims it was cancelled', async () => {
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   native.cancel.mockRejectedValueOnce(new Error('private diagnostic'));
   await show([alfa]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
@@ -328,7 +492,8 @@ it('keeps tracking when cancellation fails and never claims it was cancelled', a
 });
 
 it('rerenders progress and errors in the selected locale without losing the operation', async () => {
-  const run = deferred<InstallResult>(); native.install.mockReturnValueOnce(run.promise);
+  const run = deferred<InstallResult>();
+  native.install.mockReturnValueOnce(run.promise);
   const { rerender, refresh } = await show([alfa]);
   fireEvent.click(card('Alfa').getByRole('button', { name: 'Instalar Alfa' }));
   act(() => native.receive!({ id: 'alfa', phase: 'downloading', received: 25, total: 100 }));

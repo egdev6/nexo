@@ -38,7 +38,10 @@ beforeEach(() => {
     return null;
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 type View = 'apps' | 'settings';
 function mount(view: View) {
@@ -68,7 +71,7 @@ it('requests native icon data using only the opaque app ID', async () => {
   expect(await localAppIcon('manual-1')).toBeNull();
 });
 
-it.each(['apps', 'settings'] as const)('%s renders PNG and ICO local icons as decorative images', async view => {
+it.each(['apps', 'settings'] as const)('%s renders PNG and ICO local icons as decorative images', async (view) => {
   mount(view);
   const editor = await loaded(view);
   expect(avatar('Editor', view).getAttribute('aria-hidden')).toBe('true');
@@ -83,7 +86,7 @@ it.each(['apps', 'settings'] as const)('%s renders PNG and ICO local icons as de
   expect(editorAgain.querySelector('img')?.getAttribute('alt')).toBe('');
 });
 
-it.each(['apps', 'settings'] as const)('%s falls back to the letter when native data is null', async view => {
+it.each(['apps', 'settings'] as const)('%s falls back to the letter when native data is null', async (view) => {
   iconResponse = null;
   mount(view);
   const editor = await loaded(view);
@@ -91,7 +94,7 @@ it.each(['apps', 'settings'] as const)('%s falls back to the letter when native 
   expect(avatar('Editor', view).textContent).toBe('E');
 });
 
-it.each(['apps', 'settings'] as const)('%s rejects remote URLs and other data MIME types without inserting an image', async view => {
+it.each(['apps', 'settings'] as const)('%s rejects remote URLs and other data MIME types without inserting an image', async (view) => {
   for (const unsafe of ['https://example.test/icon.png', 'file:///C:/icon.png', 'data:image/svg+xml;base64,PHN2Zy8+', 'data:image/png-not-real;base64,AAAA']) {
     iconResponse = unsafe;
     mount(view);
@@ -103,7 +106,7 @@ it.each(['apps', 'settings'] as const)('%s rejects remote URLs and other data MI
   }
 });
 
-it.each(['apps', 'settings'] as const)('%s falls back to the letter if native icon loading fails', async view => {
+it.each(['apps', 'settings'] as const)('%s falls back to the letter if native icon loading fails', async (view) => {
   const invoke = bridge.invoke.getMockImplementation()!;
   bridge.invoke.mockImplementation(async (command: string) => {
     if (command === 'local_app_icon') throw new Error('unavailable');
@@ -115,12 +118,12 @@ it.each(['apps', 'settings'] as const)('%s falls back to the letter if native ic
   expect(avatar('Editor', view).textContent).toBe('E');
 });
 
-it.each(['apps', 'settings'] as const)('%s falls back to the uppercase letter when the image fails to load', async view => {
+it.each(['apps', 'settings'] as const)('%s falls back to the uppercase letter when the image fails to load', async (view) => {
   failedSources.add(png);
   row.name = 'editor';
   mount(view);
   await screen.findByText('editor');
-  await waitFor(() => expect(images.some(image => image.getAttribute('src') === png)).toBe(true));
+  await waitFor(() => expect(images.some((image) => image.getAttribute('src') === png)).toBe(true));
   expect(avatar('editor', view).textContent).toBe('E');
   expect(entry('editor', view).querySelector('img')).toBeNull();
 });
@@ -132,7 +135,10 @@ it('refetches after a successful icon picker even when the list path is unchange
   fireEvent.click(screen.getByRole('button', { name: 'Change icon of Editor' }));
   await waitFor(() => expect(editor.querySelector('img')?.getAttribute('src')).toBe(ico));
   expect(bridge.invoke).toHaveBeenCalledWith('local_app_pick_icon', { id: 'manual-1' });
-  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'local_app_icon')).toEqual([['local_app_icon', { id: 'manual-1' }], ['local_app_icon', { id: 'manual-1' }]]);
+  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'local_app_icon')).toEqual([
+    ['local_app_icon', { id: 'manual-1' }],
+    ['local_app_icon', { id: 'manual-1' }],
+  ]);
   settings.unmount();
   mount('apps');
   const appsEditor = await loaded('apps');
@@ -156,7 +162,10 @@ it('ignores an older icon response that completes after a replacement', async ()
   let reads = 0;
   const invoke = bridge.invoke.getMockImplementation()!;
   bridge.invoke.mockImplementation(async (command: string) => {
-    if (command === 'local_app_icon' && ++reads === 1) return new Promise<string>(resolve => { resolveOld = resolve; });
+    if (command === 'local_app_icon' && ++reads === 1)
+      return new Promise<string>((resolve) => {
+        resolveOld = resolve;
+      });
     return invoke(command);
   });
   mount('settings');

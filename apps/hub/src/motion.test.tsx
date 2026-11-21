@@ -13,17 +13,22 @@ const bridge = vi.hoisted(() => ({
   reduced: false,
 }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => {
-  bridge.listeners.set(name, callback);
-  return () => bridge.listeners.delete(name);
-}) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(async (name: string, callback: (event: { payload: unknown }) => void) => {
+    bridge.listeners.set(name, callback);
+    return () => bridge.listeners.delete(name);
+  }),
+}));
 vi.mock('./shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
 vi.mock('./local-apps/view', () => ({ LocalAppsView: () => null }));
 vi.mock('./news', () => ({ NewsPopup: () => null }));
 
 beforeEach(() => {
   bridge.reduced = false;
-  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: bridge.reduced, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: bridge.reduced, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+  );
   bridge.listeners.clear();
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string) => {
@@ -34,7 +39,10 @@ beforeEach(() => {
     return null;
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 async function start() {
   render(<App apps={[]} news={[]} />);
@@ -105,7 +113,8 @@ it('acknowledges immediately without a transform when reduced motion is requeste
   motion('exiting', 2);
   expect(panel.classList.contains('flyout--exiting')).toBe(false);
   expect(acknowledgements()).toEqual([
-    ['flyout_motion_finished', { generation: 1 }], ['flyout_motion_finished', { generation: 2 }],
+    ['flyout_motion_finished', { generation: 1 }],
+    ['flyout_motion_finished', { generation: 2 }],
   ]);
 });
 

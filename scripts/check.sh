@@ -104,6 +104,7 @@ fi
 (
   cd apps/hub || exit 1
   export npm_config_update_notifier=false
+  step biome npx biome ci
   step tsc npx tsc --noEmit
   step ds-doctor npm run -s ds:doctor
   # --configLoader runner avoids writing node_modules/.vite-temp, so parallel runs do not collide.

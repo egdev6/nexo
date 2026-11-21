@@ -21,7 +21,11 @@ export interface RegistryApp {
 export type NoticeDetail =
   | { kind: 'connectionClosed' }
   | { kind: 'trayFailure' }
-  | { kind: 'quit'; all: boolean; failures: { app: string; outcome: { kind: 'refused'; reason?: string | null } | { kind: 'timeout' | 'unavailable' | 'disconnected' } }[] };
+  | {
+      kind: 'quit';
+      all: boolean;
+      failures: { app: string; outcome: { kind: 'refused'; reason?: string | null } | { kind: 'timeout' | 'unavailable' | 'disconnected' } }[];
+    };
 
 export interface RegistrySnapshot {
   revision: number;
@@ -36,15 +40,29 @@ export async function exitHubOnly(): Promise<void> {
 // Subscribe before fetching: the caller discards snapshots older than the latest event.
 export async function subscribeRegistry(
   onSnapshot: (snapshot: RegistrySnapshot) => void,
-  onError: (error: unknown) => void = error => console.error('No se pudo leer el registro de Nexo.', error),
+  onError: (error: unknown) => void = (error) => console.error('No se pudo leer el registro de Nexo.', error),
 ): Promise<() => void> {
   if (!isTauri()) return () => {};
   let active = true;
-  const unlisten = await listen<RegistrySnapshot>('nexo-registry', event => { if (active) onSnapshot(event.payload); });
-  const stop = () => { if (active) { active = false; unlisten(); } };
+  const unlisten = await listen<RegistrySnapshot>('nexo-registry', (event) => {
+    if (active) onSnapshot(event.payload);
+  });
+  const stop = () => {
+    if (active) {
+      active = false;
+      unlisten();
+    }
+  };
   // The initial fetch must not delay cleanup if the webview unmounts while it is pending.
   void invoke<RegistrySnapshot>('registry_snapshot')
-    .then(snapshot => { if (active) onSnapshot(snapshot); })
-    .catch(error => { if (active) { stop(); onError(error); } });
+    .then((snapshot) => {
+      if (active) onSnapshot(snapshot);
+    })
+    .catch((error) => {
+      if (active) {
+        stop();
+        onError(error);
+      }
+    });
   return stop;
 }

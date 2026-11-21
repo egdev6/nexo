@@ -6,13 +6,16 @@ import { t, type MessageKey } from '../i18n';
 import { defaultSettings } from '../sample';
 
 // Browser previews remain illustrative; only the Rust-owned file is durable.
-const preview: StoredSettings = { ...defaultSettings, firstRunComplete: false,
-  sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }] };
+const preview: StoredSettings = {
+  ...defaultSettings,
+  firstRunComplete: false,
+  sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }],
+};
 type FileState = 'missing' | 'ready' | 'corrupt' | 'unreadable' | 'future';
 type Patch = Partial<StoredSettings>;
 type Snapshot = { settings: StoredSettings; state: FileState };
 type Failure = { key: MessageKey; detail?: string; detailKey?: MessageKey };
-const text = (error: unknown) => error instanceof Error ? error.message : String(error);
+const text = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const configErrors: Readonly<Record<string, MessageKey>> = {
   'nexo.config.save.future': 'settings.saveBlockedFuture',
   'nexo.config.save.corrupt': 'settings.saveBlockedCorrupt',
@@ -27,7 +30,7 @@ const configFailure = (key: MessageKey, error: unknown): Failure => {
 
 export function useSettings() {
   const native = isTauri();
-  const [settings, setSettings] = useState<StoredSettings | null>(() => native ? null : preview);
+  const [settings, setSettings] = useState<StoredSettings | null>(() => (native ? null : preview));
   const current = useRef(settings);
   const confirmed = useRef(settings);
   const [fileState, setFileState] = useState<FileState | null>(native ? null : 'missing');
@@ -36,8 +39,11 @@ export function useSettings() {
   const [nativeError, setNativeError] = useState<string | null>(null);
   const refreshSequence = useRef(0);
   const onboardingPreview = useRef<Language>('es');
-  const [startup, setStartup] = useState<{ confirmed: boolean | null; busy: boolean; error: Failure | null }>(
-    { confirmed: native ? null : false, busy: native, error: null });
+  const [startup, setStartup] = useState<{ confirmed: boolean | null; busy: boolean; error: Failure | null }>({
+    confirmed: native ? null : false,
+    busy: native,
+    error: null,
+  });
   const startupRef = useRef(startup);
   const desiredStartup = useRef<boolean | null>(null);
   const pending = useRef<Patch>({});
@@ -47,8 +53,14 @@ export function useSettings() {
   const running = useRef<Promise<boolean> | null>(null);
   const mounted = useRef(true);
 
-  function updateStartup(value: typeof startup) { startupRef.current = value; if (mounted.current) setStartup(value); }
-  function updateCurrent(value: StoredSettings) { current.current = value; if (mounted.current) setSettings(value); }
+  function updateStartup(value: typeof startup) {
+    startupRef.current = value;
+    if (mounted.current) setStartup(value);
+  }
+  function updateCurrent(value: StoredSettings) {
+    current.current = value;
+    if (mounted.current) setSettings(value);
+  }
 
   async function refreshNative() {
     if (!native) return;
@@ -64,7 +76,10 @@ export function useSettings() {
   // A single patch queue protects unrelated and more recent edits from stale snapshots.
   function flush(): Promise<boolean> {
     if (!native) return Promise.resolve(true);
-    if (timer.current) { clearTimeout(timer.current); timer.current = undefined; }
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = undefined;
+    }
     if (running.current) return running.current;
     const work = async () => {
       let savedLanguage = false;
@@ -79,7 +94,10 @@ export function useSettings() {
           const { language, firstRunComplete, ...other } = patch;
           pending.current = { language, firstRunComplete };
           patch = other;
-          if (!Object.keys(patch).length) { refreshIfChanged(); return false; }
+          if (!Object.keys(patch).length) {
+            refreshIfChanged();
+            return false;
+          }
         }
         try {
           const saved = await invoke<StoredSettings>('save_settings', { patch });
@@ -97,8 +115,12 @@ export function useSettings() {
           }
         } catch (failure) {
           pending.current = { ...patch, ...pending.current };
-          if (current.current && confirmed.current) updateCurrent({ ...current.current, language: confirmed.current.language, firstRunComplete: confirmed.current.firstRunComplete });
-          if (mounted.current) { setLanguageDraft(null); setError(configFailure('settings.saveError', failure)); }
+          if (current.current && confirmed.current)
+            updateCurrent({ ...current.current, language: confirmed.current.language, firstRunComplete: confirmed.current.firstRunComplete });
+          if (mounted.current) {
+            setLanguageDraft(null);
+            setError(configFailure('settings.saveError', failure));
+          }
           refreshIfChanged();
           return false;
         }
@@ -106,14 +128,19 @@ export function useSettings() {
       refreshIfChanged();
       return true;
     };
-    const task = work().finally(() => { running.current = null; });
+    const task = work().finally(() => {
+      running.current = null;
+    });
     running.current = task;
     return task;
   }
 
   function change(patch: Patch, immediate = false, optimistic = true) {
     if (!current.current) return;
-    if (!native) { updateCurrent({ ...current.current, ...patch }); return; }
+    if (!native) {
+      updateCurrent({ ...current.current, ...patch });
+      return;
+    }
     if (optimistic) {
       if (patch.language !== undefined) setLanguageDraft(patch.language);
       const { language: _language, firstRunComplete: _firstRun, ...other } = patch;
@@ -122,16 +149,25 @@ export function useSettings() {
     pending.current = { ...pending.current, ...patch };
     if (timer.current) clearTimeout(timer.current);
     if (immediate) void flush();
-    else timer.current = setTimeout(() => { void flush(); }, 200);
+    else
+      timer.current = setTimeout(() => {
+        void flush();
+      }, 200);
   }
 
   function recordVisit(at: string, keys: string[], validKeys?: ReadonlySet<string>) {
     if (!current.current) return;
     const previous = desiredVisit.current;
-    const retained = (previous?.seenKeys ?? []).filter(key => !validKeys || validKeys.has(key));
+    const retained = (previous?.seenKeys ?? []).filter((key) => !validKeys || validKeys.has(key));
     const seenKeys = Array.from(new Set([...retained, ...keys]));
     const lastVisitAt = previous && Date.parse(previous.lastVisitAt) > Date.parse(at) ? previous.lastVisitAt : at;
-    if (previous && previous.lastVisitAt === lastVisitAt && previous.seenKeys.length === seenKeys.length && previous.seenKeys.every((key, index) => key === seenKeys[index])) return;
+    if (
+      previous &&
+      previous.lastVisitAt === lastVisitAt &&
+      previous.seenKeys.length === seenKeys.length &&
+      previous.seenKeys.every((key, index) => key === seenKeys[index])
+    )
+      return;
     const visit = { lastVisitAt, seenKeys };
     desiredVisit.current = visit;
     change({ newsVisit: visit }, true, false);
@@ -147,7 +183,10 @@ export function useSettings() {
       setFileState(snapshot.state);
       setError(null);
     } catch (failure) {
-      if (mounted.current) { setFileState('unreadable'); setError({ key: 'settings.readError', detail: text(failure) }); }
+      if (mounted.current) {
+        setFileState('unreadable');
+        setError({ key: 'settings.readError', detail: text(failure) });
+      }
     }
   }
 
@@ -156,8 +195,12 @@ export function useSettings() {
       const saved = await invoke<StoredSettings>('recover_settings');
       confirmed.current = saved;
       desiredVisit.current = saved.newsVisit ?? null;
-      updateCurrent(saved); setFileState('ready'); setError(null);
-    } catch (failure) { setError(configFailure('settings.recoverError', failure)); }
+      updateCurrent(saved);
+      setFileState('ready');
+      setError(null);
+    } catch (failure) {
+      setError(configFailure('settings.recoverError', failure));
+    }
   }
 
   async function readStartup() {
@@ -167,11 +210,17 @@ export function useSettings() {
       const value = await invoke<boolean>('plugin:autostart|is_enabled');
       updateStartup({ confirmed: value, busy: false, error: null });
       if (current.current && current.current.startWithWindows !== value) change({ startWithWindows: value });
-    } catch (failure) { updateStartup({ confirmed: null, busy: false, error: { key: 'settings.startupReadError', detail: text(failure) } }); }
+    } catch (failure) {
+      updateStartup({ confirmed: null, busy: false, error: { key: 'settings.startupReadError', detail: text(failure) } });
+    }
   }
 
   async function changeStartup(desired: boolean) {
-    if (!native) { updateStartup({ confirmed: desired, busy: false, error: null }); change({ startWithWindows: desired }); return; }
+    if (!native) {
+      updateStartup({ confirmed: desired, busy: false, error: null });
+      change({ startWithWindows: desired });
+      return;
+    }
     if (startupRef.current.busy || startupRef.current.confirmed === null) return;
     desiredStartup.current = desired;
     updateStartup({ ...startupRef.current, busy: true, error: null });
@@ -196,21 +245,40 @@ export function useSettings() {
     else void changeStartup(desiredStartup.current);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: This mount-only queue and subscription use refs for mutable state; recreated callbacks must not resubscribe.
   useEffect(() => {
     mounted.current = true;
-    if (!native) return () => { mounted.current = false; };
+    if (!native)
+      return () => {
+        mounted.current = false;
+      };
     void load();
     let dispose: (() => void) | undefined;
     let cancelled = false;
-    void listen<'all' | 'hub-only'>('quit-requested', async event => {
+    void listen<'all' | 'hub-only'>('quit-requested', async (event) => {
       if (await flush()) await invoke(event?.payload === 'hub-only' ? 'hub_only_exit' : 'quit_after_settings');
-    }).then(unlisten => { if (cancelled) unlisten(); else dispose = unlisten; })
-      .catch(failure => { if (mounted.current) setError({ key: 'settings.quitError', detail: text(failure) }); });
-    const onBlur = () => { void flush(); };
+    })
+      .then((unlisten) => {
+        if (cancelled) unlisten();
+        else dispose = unlisten;
+      })
+      .catch((failure) => {
+        if (mounted.current) setError({ key: 'settings.quitError', detail: text(failure) });
+      });
+    const onBlur = () => {
+      void flush();
+    };
     window.addEventListener('blur', onBlur);
-    return () => { cancelled = true; mounted.current = false; dispose?.(); window.removeEventListener('blur', onBlur); if (timer.current) clearTimeout(timer.current); };
+    return () => {
+      cancelled = true;
+      mounted.current = false;
+      dispose?.();
+      window.removeEventListener('blur', onBlur);
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, []); // The queue is deliberately stable and uses refs for all mutable state.
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Startup is read when fileState changes; adding the recreated readStartup would repeat the read.
   useEffect(() => {
     if (native && (fileState === 'ready' || fileState === 'missing')) {
       startupRef.current = { confirmed: null, busy: false, error: null };
@@ -218,21 +286,54 @@ export function useSettings() {
     }
   }, [fileState]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The focus listener follows fileState; adding the recreated readStartup would resubscribe every render.
   useEffect(() => {
     if (!native || (fileState !== 'ready' && fileState !== 'missing')) return;
-    const onFocus = () => { void readStartup(); };
+    const onFocus = () => {
+      void readStartup();
+    };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [fileState]);
 
   const startupError = startup.error ? t(settings?.language ?? 'es', startup.error.key, { error: startup.error.detail ?? '' }) : null;
-  const autostart: AutostartViewState = { ...startup, error: startupError, change: value => { void changeStartup(value); }, retry: retryStartup };
+  const autostart: AutostartViewState = {
+    ...startup,
+    error: startupError,
+    change: (value) => {
+      void changeStartup(value);
+    },
+    retry: retryStartup,
+  };
   return {
-    settings, fileState, error, autostart, change, languageDraft, nativeError, recordVisit,
+    settings,
+    fileState,
+    error,
+    autostart,
+    change,
+    languageDraft,
+    nativeError,
+    recordVisit,
     getVisit: () => desiredVisit.current,
-    previewChoice: (language: Language) => { onboardingPreview.current = language; },
-    choose: (language: Language) => { onboardingPreview.current = language; change({ language, firstRunComplete: true }, true, false); },
-    retryNative: () => { void refreshNative(); },
-    retry: () => { void flush(); }, recover: () => { void recover(); }, reload: () => { void load(); }, flush,
+    previewChoice: (language: Language) => {
+      onboardingPreview.current = language;
+    },
+    choose: (language: Language) => {
+      onboardingPreview.current = language;
+      change({ language, firstRunComplete: true }, true, false);
+    },
+    retryNative: () => {
+      void refreshNative();
+    },
+    retry: () => {
+      void flush();
+    },
+    recover: () => {
+      void recover();
+    },
+    reload: () => {
+      void load();
+    },
+    flush,
   };
 }

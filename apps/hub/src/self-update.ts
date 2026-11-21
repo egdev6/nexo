@@ -33,7 +33,9 @@ export function useSelfUpdate(native: boolean, beforeInstall: () => Promise<bool
     } catch (error) {
       console.error('No se pudo buscar actualizaciones de Nexo.', error);
       if (mounted.current) setState(background ? { phase: 'idle' } : { phase: 'error', operation: 'check' });
-    } finally { busy.current = false; }
+    } finally {
+      busy.current = false;
+    }
   }
 
   async function install() {
@@ -49,19 +51,37 @@ export function useSelfUpdate(native: boolean, beforeInstall: () => Promise<bool
     } catch (error) {
       console.error('No se pudo instalar la actualización de Nexo.', error);
       if (mounted.current) setState({ phase: 'error', operation: 'install' });
-    } finally { busy.current = false; }
+    } finally {
+      busy.current = false;
+    }
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Initial update checks follow native availability, not the recreated check function.
   useEffect(() => {
     mounted.current = true;
     if (native && !started.current) {
       started.current = true;
-      void invoke<string>('app_version').then(value => { if (mounted.current && value) setVersion(value); })
-        .catch(error => console.error('No se pudo leer la versión de Nexo.', error));
+      void invoke<string>('app_version')
+        .then((value) => {
+          if (mounted.current && value) setVersion(value);
+        })
+        .catch((error) => console.error('No se pudo leer la versión de Nexo.', error));
       void check(true);
     }
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, [native]);
 
-  return { version, state, enabled: native, check: () => { void check(false); }, install: () => { void install(); } };
+  return {
+    version,
+    state,
+    enabled: native,
+    check: () => {
+      void check(false);
+    },
+    install: () => {
+      void install();
+    },
+  };
 }

@@ -1,2 +1,14 @@
 # Keep bundled license texts byte-identical to upstream on every OS.
 apps/hub/src-tauri/licenses/*.txt text eol=lf
+
+# Biome checks LF line endings; keep the files it checks LF on Windows checkouts
+# too, so `biome ci` gives the same result with any core.autocrlf setting.
+/apps/hub/**/*.ts text eol=lf
+/apps/hub/**/*.tsx text eol=lf
+/apps/hub/**/*.js text eol=lf
+/apps/hub/**/*.mjs text eol=lf
+/apps/hub/**/*.cjs text eol=lf
+/apps/hub/**/*.css text eol=lf
+/apps/hub/biome.json text eol=lf
+/apps/hub/src/**/*.json text eol=lf
+/apps/hub/scripts/**/*.json text eol=lf

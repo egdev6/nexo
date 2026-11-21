@@ -27,7 +27,9 @@ function useLocalAppIcon(row: LocalAppRow, revision: number) {
       setResult(entry);
     }
     void localAppIcon(id).then(finish, () => finish(null));
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [id, path, revision]);
 
   return result && result.id === id && result.path === path && result.revision === revision ? result : null;

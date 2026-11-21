@@ -6,37 +6,86 @@ import type { HubApp } from '../model';
 import { defaultSettings } from '../sample';
 import { projectCatalog } from '../catalog/mapping';
 
-configure({ getElementError: message => new Error(message?.split('\n')[0] ?? 'Element not found') });
+configure({ getElementError: (message) => new Error(message?.split('\n')[0] ?? 'Element not found') });
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), publish: undefined as undefined | ((snapshot: unknown) => void) }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: bridge.invoke, isTauri: () => true }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('../window', () => ({ backdropAvailable: vi.fn().mockResolvedValue(false), hideFlyout: vi.fn() }));
-vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn(async (publish: (snapshot: unknown) => void) => {
-  bridge.publish = publish;
-  publish({ revision: 1, apps: [{ app: { id: 'external', name: 'Externa', version: '1.0.0' }, capabilities: ['menu'], menu: [{ id: 'pause', label: 'Pausar original', enabled: false, checked: true }], unified: true, responsive: true, generation: 1, menu_revision: 1 }] });
-  return () => {};
-}), exitHubOnly: vi.fn() }));
+vi.mock('../shell/registry', () => ({
+  subscribeRegistry: vi.fn(async (publish: (snapshot: unknown) => void) => {
+    bridge.publish = publish;
+    publish({
+      revision: 1,
+      apps: [
+        {
+          app: { id: 'external', name: 'Externa', version: '1.0.0' },
+          capabilities: ['menu'],
+          menu: [{ id: 'pause', label: 'Pausar original', enabled: false, checked: true }],
+          unified: true,
+          responsive: true,
+          generation: 1,
+          menu_revision: 1,
+        },
+      ],
+    });
+    return () => {};
+  }),
+  exitHubOnly: vi.fn(),
+}));
 
-const external: HubApp = { id: 'outside', name: 'Exterior', description: 'Descripción original', tagline: 'Texto original', tags: ['Etiqueta original'], source: 'official', integration: 'catalog', installed: false, running: false, statusKnown: false };
+const external: HubApp = {
+  id: 'outside',
+  name: 'Exterior',
+  description: 'Descripción original',
+  tagline: 'Texto original',
+  tags: ['Etiqueta original'],
+  source: 'official',
+  integration: 'catalog',
+  installed: false,
+  running: false,
+  statusKnown: false,
+};
 let saved: typeof defaultSettings & { firstRunComplete: boolean; sources: { id: string; kind: string; label: string }[] };
 let failSave: boolean;
 
 beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
-  saved = { ...defaultSettings, firstRunComplete: false, showNewsOnOpen: false, sources: [{ id: 'official', kind: 'official', label: 'Catálogo oficial egdev' }, { id: 'local', kind: 'local', label: 'Mi fuente' }] };
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  saved = {
+    ...defaultSettings,
+    firstRunComplete: false,
+    showNewsOnOpen: false,
+    sources: [
+      { id: 'official', kind: 'official', label: 'Catálogo oficial egdev' },
+      { id: 'local', kind: 'local', label: 'Mi fuente' },
+    ],
+  };
   failSave = false;
   bridge.publish = undefined;
   document.documentElement.lang = 'es';
   bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return { settings: { ...saved }, state: 'ready' };
-    if (command === 'save_settings') { if (failSave) throw new Error('disk full'); saved = { ...saved, ...args?.patch }; return { ...saved }; }
+    if (command === 'save_settings') {
+      if (failSave) throw new Error('disk full');
+      saved = { ...saved, ...args?.patch };
+      return { ...saved };
+    }
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
     if (command === 'local_apps_list') return [];
     return undefined;
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 it.each([
   ['nexo.config.save.future', 'Settings from a newer version are read-only.'],
@@ -60,7 +109,7 @@ it.each([
   await waitFor(() => expect(saved.showNewsOnOpen).toBe(true));
 });
 
-it.each(['constructor', 'toString', '__proto__'])('keeps the external diagnostic %s verbatim', async diagnostic => {
+it.each(['constructor', 'toString', '__proto__'])('keeps the external diagnostic %s verbatim', async (diagnostic) => {
   saved = { ...saved, language: 'en', firstRunComplete: true };
   const normal = bridge.invoke.getMockImplementation()!;
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
@@ -84,7 +133,9 @@ it('localizes a rejected native save in Spanish as well', async () => {
   render(<App apps={[]} news={[]} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
   fireEvent.click(screen.getByRole('switch', { name: 'Mostrar novedades al abrir' }));
-  expect((await screen.findByRole('alert')).textContent).toBe('No se pudieron guardar los ajustes: Los ajustes pertenecen a una versión más reciente y son de solo lectura. Reintentar');
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    'No se pudieron guardar los ajustes: Los ajustes pertenecen a una versión más reciente y son de solo lectura. Reintentar',
+  );
   expect(saved.showNewsOnOpen).toBe(false);
 });
 
@@ -114,7 +165,8 @@ it('hydrates a saved English preference before showing English chrome, without t
   fireEvent.click(screen.getByRole('button', { name: /Externa.*Connected/ }));
   expect(screen.getByText(/Pausar original/).textContent).toContain('Pausar original');
   const catalog = screen.getByRole('tab', { name: 'Catalog' });
-  fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
+  fireEvent.mouseDown(catalog, { button: 0 });
+  fireEvent.click(catalog);
   const card = screen.getByRole('article', { name: 'Exterior' });
   expect(within(card).getByText('Texto original')).toBeTruthy();
   expect(within(card).queryByText('Etiqueta original')).toBeNull();
@@ -130,7 +182,8 @@ it('only exposes the list after saving the English first-run choice and restores
   expect(await screen.findByRole('tab', { name: 'My apps' })).toBeTruthy();
   expect(saved).toMatchObject({ language: 'en', firstRunComplete: true, sources: [{ id: 'official' }, { id: 'local' }] });
   expect(bridge.invoke).toHaveBeenCalledWith('save_settings', { patch: { language: 'en', firstRunComplete: true } });
-  unmount(); render(<App apps={[]} news={[]} />);
+  unmount();
+  render(<App apps={[]} news={[]} />);
   expect(await screen.findByRole('tab', { name: 'My apps' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
 });
@@ -174,7 +227,10 @@ it('does not flush a failed onboarding choice after the preview changes and the 
   fireEvent.click(screen.getByRole('radio', { name: 'Español' }));
   const savesBefore = bridge.invoke.mock.calls.filter(([name]) => name === 'save_settings').length;
   failSave = false;
-  await act(async () => { fireEvent.blur(window); await Promise.resolve(); });
+  await act(async () => {
+    fireEvent.blur(window);
+    await Promise.resolve();
+  });
   expect(bridge.invoke.mock.calls.filter(([name]) => name === 'save_settings')).toHaveLength(savesBefore);
   expect(saved).toMatchObject({ language: 'es', firstRunComplete: false, sources: [{ id: 'official' }, { id: 'local' }] });
   expect(screen.queryByRole('tab', { name: 'My apps' })).toBeNull();
@@ -189,7 +245,11 @@ it('applies a confirmed language to the native tray, reports refresh failure sep
   let failTray = true;
   const normal = bridge.invoke.getMockImplementation()!;
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
-    if (command === 'apply_saved_language') { expect(saved.language).toBe('en'); if (failTray) throw new Error('tray failed'); return; }
+    if (command === 'apply_saved_language') {
+      expect(saved.language).toBe('en');
+      if (failTray) throw new Error('tray failed');
+      return;
+    }
     return normal(command, args);
   });
   render(<App apps={[]} news={[]} />);
@@ -224,21 +284,54 @@ it('re-renders an already-visible native quit notice while keeping app refusal t
   saved = { ...saved, firstRunComplete: true };
   render(<App apps={[]} news={[]} />);
   await waitFor(() => expect(bridge.publish).toBeTypeOf('function'));
-  act(() => bridge.publish!({ revision: 2, apps: [], notice: {
-    message: 'Nexo sigue abierto. Antena: cambios sin guardar; Beta: No respondió en 10 segundos', hub_only_allowed: true,
-    detail: { kind: 'quit', all: true, failures: [{ app: 'Antena', outcome: { kind: 'refused', reason: 'cambios sin guardar' } }, { app: 'Beta', outcome: { kind: 'timeout' } }] },
-  } }));
+  act(() =>
+    bridge.publish!({
+      revision: 2,
+      apps: [],
+      notice: {
+        message: 'Nexo sigue abierto. Antena: cambios sin guardar; Beta: No respondió en 10 segundos',
+        hub_only_allowed: true,
+        detail: {
+          kind: 'quit',
+          all: true,
+          failures: [
+            { app: 'Antena', outcome: { kind: 'refused', reason: 'cambios sin guardar' } },
+            { app: 'Beta', outcome: { kind: 'timeout' } },
+          ],
+        },
+      },
+    }),
+  );
   expect((await screen.findByRole('alert')).textContent).toContain('Antena: cambios sin guardar');
   expect(screen.getByRole('button', { name: 'Salir solo de Nexo' })).toBeTruthy();
   fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
   fireEvent.click(screen.getByRole('radio', { name: 'English' }));
-  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Nexo remains open. Antena: cambios sin guardar; Beta: No response within 10 seconds'));
+  await waitFor(() =>
+    expect(screen.getByRole('alert').textContent).toContain('Nexo remains open. Antena: cambios sin guardar; Beta: No response within 10 seconds'),
+  );
   expect(screen.getByRole('button', { name: 'Exit Nexo only' })).toBeTruthy();
 });
 
 it('localizes catalog-generated news chrome but keeps source content unchanged', async () => {
   saved = { ...saved, language: 'en', firstRunComplete: true, showNewsOnOpen: true };
-  const catalog = { schemaVersion: 1 as const, apps: [{ id: 'outside', name: 'Exterior', tagline: 'Texto original', description: 'Descripción original', tags: [], installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch' as const, releasedAt: '2025-01-01T00:00:00Z', featured: false, news: [{ id: 'news', kind: 'new' as const, title: 'Título original', text: 'Noticia original', publishedAt: '2025-01-01T00:00:00Z' }] }] };
+  const catalog = {
+    schemaVersion: 1 as const,
+    apps: [
+      {
+        id: 'outside',
+        name: 'Exterior',
+        tagline: 'Texto original',
+        description: 'Descripción original',
+        tags: [],
+        installerUrl: 'https://example.com/app.exe',
+        latestJsonUrl: 'https://example.com/latest.json',
+        integrationLevel: 'launch' as const,
+        releasedAt: '2025-01-01T00:00:00Z',
+        featured: false,
+        news: [{ id: 'news', kind: 'new' as const, title: 'Título original', text: 'Noticia original', publishedAt: '2025-01-01T00:00:00Z' }],
+      },
+    ],
+  };
   const projection = projectCatalog(catalog);
   const normal = bridge.invoke.getMockImplementation()!;
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
@@ -258,9 +351,14 @@ it('serializes rapid opposing language choices and an unrelated change without f
   const normal = bridge.invoke.getMockImplementation()!;
   let release!: () => void;
   let firstSave = true;
-  const gate = new Promise<void>(resolve => { release = resolve; });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
-    if (command === 'save_settings' && firstSave) { firstSave = false; await gate; }
+    if (command === 'save_settings' && firstSave) {
+      firstSave = false;
+      await gate;
+    }
     return normal(command, args);
   });
   render(<App apps={[]} news={[]} />);
@@ -282,9 +380,15 @@ it('ignores an older native refresh failure after a newer language is saved and 
   const normal = bridge.invoke.getMockImplementation()!;
   let rejectOld!: (error: Error) => void;
   let calls = 0;
-  const old = new Promise<void>((_, reject) => { rejectOld = reject; });
+  const old = new Promise<void>((_, reject) => {
+    rejectOld = reject;
+  });
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Partial<typeof saved> }) => {
-    if (command === 'apply_saved_language') { calls++; if (calls === 1) await old; return; }
+    if (command === 'apply_saved_language') {
+      calls++;
+      if (calls === 1) await old;
+      return;
+    }
     return normal(command, args);
   });
   render(<App apps={[]} news={[]} />);
@@ -294,7 +398,10 @@ it('ignores an older native refresh failure after a newer language is saved and 
   fireEvent.click(screen.getByRole('radio', { name: 'Español' }));
   await waitFor(() => expect(calls).toBe(2));
   expect(saved.language).toBe('es');
-  await act(async () => { rejectOld(new Error('older refresh failed')); await Promise.resolve(); });
+  await act(async () => {
+    rejectOld(new Error('older refresh failed'));
+    await Promise.resolve();
+  });
   expect(screen.queryByRole('alert')).toBeNull();
   expect(document.documentElement.lang).toBe('es');
 });

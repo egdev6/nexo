@@ -18,10 +18,18 @@ it('subscribes before fetching so an event cannot be lost during the initial sna
   const stop = vi.fn();
   let onEvent: ((event: { payload: { revision: number; apps: [] } }) => void) | undefined;
   let reply: ((value: { revision: number; apps: [] }) => void) | undefined;
-  mocks.listen.mockImplementation(async (_name, callback) => { onEvent = callback; return stop; });
-  mocks.invoke.mockImplementation(() => new Promise(resolve => { reply = resolve; }));
+  mocks.listen.mockImplementation(async (_name, callback) => {
+    onEvent = callback;
+    return stop;
+  });
+  mocks.invoke.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        reply = resolve;
+      }),
+  );
   const revisions: number[] = [];
-  const pending = subscribeRegistry(snapshot => revisions.push(snapshot.revision));
+  const pending = subscribeRegistry((snapshot) => revisions.push(snapshot.revision));
   await vi.waitFor(() => expect(reply).toBeTypeOf('function'));
   onEvent!({ payload: { revision: 2, apps: [] } });
   reply!({ revision: 1, apps: [] });
@@ -37,7 +45,9 @@ it('returns cleanup even when the initial snapshot never resolves', async () => 
   mocks.listen.mockResolvedValue(stop);
   mocks.invoke.mockReturnValue(new Promise(() => {}));
   let cleanup: (() => void) | undefined;
-  void subscribeRegistry(() => {}).then(value => { cleanup = value; });
+  void subscribeRegistry(() => {}).then((value) => {
+    cleanup = value;
+  });
   await vi.waitFor(() => expect(cleanup).toBeTypeOf('function'));
   cleanup!();
   expect(stop).toHaveBeenCalledOnce();

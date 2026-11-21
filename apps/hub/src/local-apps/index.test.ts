@@ -1,13 +1,36 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { cancelLocalSelection, createLocalApp, listLocalApps, openLocalApp, pickLocalExecutable, pickLocalIconFile, pickLocalAppIcon, removeLocalApp, repairLocalApp, updateLocalApp, type LocalAppErrorCode, type LocalAppRow } from './index';
+import {
+  cancelLocalSelection,
+  createLocalApp,
+  listLocalApps,
+  openLocalApp,
+  pickLocalExecutable,
+  pickLocalIconFile,
+  pickLocalAppIcon,
+  removeLocalApp,
+  repairLocalApp,
+  updateLocalApp,
+  type LocalAppErrorCode,
+  type LocalAppRow,
+} from './index';
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke }));
-beforeEach(() => { invoke.mockReset(); });
+beforeEach(() => {
+  invoke.mockReset();
+});
 
 it('lists local rows without sending paths and rejects a malformed native response', async () => {
   const rows = [
-    { id: 'local:manual:31', source: 'local', name: 'App', state: 'ready', origin: { kind: 'manual', id: '1' }, iconPath: 'C:\\Nexo\\icon-1.png', duplicateOf: 'official-app' },
+    {
+      id: 'local:manual:31',
+      source: 'local',
+      name: 'App',
+      state: 'ready',
+      origin: { kind: 'manual', id: '1' },
+      iconPath: 'C:\\Nexo\\icon-1.png',
+      duplicateOf: 'official-app',
+    },
     { id: 'local:manual:32', source: 'local', name: 'Missing', state: 'missingExecutable', origin: { kind: 'manual', id: '2' } },
   ] satisfies LocalAppRow[];
   invoke.mockResolvedValueOnce(rows).mockResolvedValueOnce({});
@@ -26,7 +49,13 @@ it('selects and creates using native tokens, never a renderer path', async () =>
   expect(await pickLocalIconFile()).toEqual(icon);
   expect(await createLocalApp(exe.token, 'App', icon.token)).toEqual(result);
   await cancelLocalSelection();
-  expect(invoke.mock.calls).toEqual([['local_app_pick_executable'], ['local_app_pick_executable'], ['local_app_pick_icon_file'], ['local_app_create', { token: 'exe', name: 'App', iconToken: 'icon' }], ['local_app_cancel_selection']]);
+  expect(invoke.mock.calls).toEqual([
+    ['local_app_pick_executable'],
+    ['local_app_pick_executable'],
+    ['local_app_pick_icon_file'],
+    ['local_app_create', { token: 'exe', name: 'App', iconToken: 'icon' }],
+    ['local_app_cancel_selection'],
+  ]);
 });
 
 it('renames only an opaque key and name', async () => {
@@ -54,7 +83,11 @@ it('selects an icon through the native picker by opaque key, preserving cancel a
   expect(await pickLocalAppIcon('manual')).toEqual(selection);
   expect(await pickLocalAppIcon('manual')).toBeNull();
   await expect(pickLocalAppIcon('manual')).rejects.toBe('nexo.local.invalidIcon');
-  expect(invoke.mock.calls).toEqual([['local_app_pick_icon', { id: 'manual' }], ['local_app_pick_icon', { id: 'manual' }], ['local_app_pick_icon', { id: 'manual' }]]);
+  expect(invoke.mock.calls).toEqual([
+    ['local_app_pick_icon', { id: 'manual' }],
+    ['local_app_pick_icon', { id: 'manual' }],
+    ['local_app_pick_icon', { id: 'manual' }],
+  ]);
 });
 
 it('opens by opaque key without a path or arguments and propagates native error codes', async () => {

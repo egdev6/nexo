@@ -23,32 +23,69 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 // These tests exercise the unconfigured-endpoint and cache paths without network access;
 // fetching from configured endpoints is covered by catalog/loader.test.ts with an injected fetcher.
-vi.mock('./catalog/loader', async importOriginal => ({
+vi.mock('./catalog/loader', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalog/loader')>()),
   OFFICIAL_CATALOG_URL: undefined,
 }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock('./catalog', () => ({
-  CatalogView: ({ apps, state, onRetry }: CatalogViewProps) => <div>Catálogo de prueba: {apps.map(app => app.name).join(', ')}{state && <span>Estado catálogo: {state}</span>}{onRetry && <button onClick={onRetry}>Reintentar catálogo</button>}</div>,
+  CatalogView: ({ apps, state, onRetry }: CatalogViewProps) => (
+    <div>
+      Catálogo de prueba: {apps.map((app) => app.name).join(', ')}
+      {state && <span>Estado catálogo: {state}</span>}
+      {onRetry && (
+        <button type="button" onClick={onRetry}>
+          Reintentar catálogo
+        </button>
+      )}
+    </div>
+  ),
 }));
 vi.mock('./first-run', () => ({
-  FirstRun: ({ onChoose }: FirstRunProps) => <section aria-label="Idioma"><button onClick={() => onChoose('es')}>Español</button><button onClick={() => onChoose('en')}>English</button></section>,
+  FirstRun: ({ onChoose }: FirstRunProps) => (
+    <section aria-label="Idioma">
+      <button type="button" onClick={() => onChoose('es')}>
+        Español
+      </button>
+      <button type="button" onClick={() => onChoose('en')}>
+        English
+      </button>
+    </section>
+  ),
 }));
 vi.mock('./news', () => ({
-  NewsPopup: ({ items, open, onClose, dontShow, onDontShowChange }: NewsPopupProps) => open ? <div role="dialog" aria-label="Novedades">
-    <p>{items.map(item => item.title).join(' / ')}</p>
-    <label><input type="checkbox" checked={dontShow} onChange={event => onDontShowChange(event.target.checked)} />No mostrar al abrir</label>
-    <button onClick={onClose}>Cerrar novedades</button>
-  </div> : null,
+  NewsPopup: ({ items, open, onClose, dontShow, onDontShowChange }: NewsPopupProps) =>
+    open ? (
+      <div role="dialog" aria-label="Novedades">
+        <p>{items.map((item) => item.title).join(' / ')}</p>
+        <label>
+          <input type="checkbox" checked={dontShow} onChange={(event) => onDontShowChange(event.target.checked)} />
+          No mostrar al abrir
+        </label>
+        <button type="button" onClick={onClose}>
+          Cerrar novedades
+        </button>
+      </div>
+    ) : null,
 }));
 vi.mock('./settings', () => ({
-  SettingsView: ({ settings, onChange, onClose }: SettingsViewProps) => <section aria-label="Ajustes">
-    <p>Idioma: {settings.language}</p>
-    <button onClick={() => onChange({ ...settings, accent: '#3b82f6', compact: true, opacity: 63, blur: 12 })}>Cambiar apariencia</button>
-    <button onClick={() => onChange({ ...settings, accent: defaultSettings.accent })}>Restablecer apariencia</button>
-    <button onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>Alternar novedades</button>
-    <button onClick={onClose}>Volver</button>
-  </section>,
+  SettingsView: ({ settings, onChange, onClose }: SettingsViewProps) => (
+    <section aria-label="Ajustes">
+      <p>Idioma: {settings.language}</p>
+      <button type="button" onClick={() => onChange({ ...settings, accent: '#3b82f6', compact: true, opacity: 63, blur: 12 })}>
+        Cambiar apariencia
+      </button>
+      <button type="button" onClick={() => onChange({ ...settings, accent: defaultSettings.accent })}>
+        Restablecer apariencia
+      </button>
+      <button type="button" onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>
+        Alternar novedades
+      </button>
+      <button type="button" onClick={onClose}>
+        Volver
+      </button>
+    </section>
+  ),
 }));
 vi.mock('./shell/registry', () => ({
   subscribeRegistry: vi.fn().mockResolvedValue(() => {}),
@@ -59,15 +96,21 @@ vi.mock('./window', () => ({
   hideFlyout: vi.fn().mockResolvedValue(undefined),
 }));
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(isTauri).mockReturnValue(false);
-  let saved = { ...defaultSettings, firstRunComplete: false,
-    sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }] };
+  let saved = { ...defaultSettings, firstRunComplete: false, sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }] };
   vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'missing', settings: saved });
-    if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
+    if (command === 'save_settings') {
+      saved = { ...saved, ...args?.patch };
+      return Promise.resolve(saved);
+    }
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     return Promise.resolve(null);
   }) as typeof invoke);
@@ -85,7 +128,9 @@ function closeNews() {
 }
 function expandRow(name: string) {
   const card = screen.getByText(name).closest('.app-card') as HTMLElement;
-  const trigger = within(card).getAllByRole('button').find(button => button.hasAttribute('aria-expanded'))!;
+  const trigger = within(card)
+    .getAllByRole('button')
+    .find((button) => button.hasAttribute('aria-expanded'))!;
   if (trigger.getAttribute('aria-expanded') === 'false') fireEvent.click(trigger);
   return trigger;
 }
@@ -114,18 +159,23 @@ it('loads the native catalog without treating samples or unknown installation as
 
 it('shows actual installed and absent observations with a registry version and unknown running state', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
-  const first = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
+  const first = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
   const second = { ...first, id: 'other-app', name: 'Other App' };
   const catalog = JSON.stringify(windowsCatalog([first, second]));
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return Promise.resolve(catalog);
-    if (command === 'installed_apps') return Promise.resolve([
-      { id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' },
-      { id: 'other-app', state: 'notInstalled', version: null, reason: 'Sin coincidencias' },
-    ]);
+    if (command === 'installed_apps')
+      return Promise.resolve([
+        { id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' },
+        { id: 'other-app', state: 'notInstalled', version: null, reason: 'Sin coincidencias' },
+      ]);
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
@@ -145,16 +195,36 @@ it('shows actual installed and absent observations with a registry version and u
 
 it('projects a native process observation into the official row and refreshes after close', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
-  const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
-  vi.spyOn(catalogLoader, 'loadCatalog').mockResolvedValue({ status: 'ready', catalog: { ...parseCatalog({ schemaVersion: 2, apps: [app] }), schemaVersion: 4 } });
+  const app = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
+  vi.spyOn(catalogLoader, 'loadCatalog').mockResolvedValue({
+    status: 'ready',
+    catalog: { ...parseCatalog({ schemaVersion: 2, apps: [app] }), schemaVersion: 4 },
+  });
   let running = true;
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
-    if (command === 'installed_apps') return Promise.resolve([{ id: 'example-app', state: 'installed', runningState: running ? 'running' : 'notRunning', version: '9.1.0', reason: 'Instalación detectada', canOpen: true }]);
-    if (command === 'close_official_app') { running = false; return Promise.resolve({ status: 'closed', message: 'Example App se ha cerrado.' }); }
+    if (command === 'installed_apps')
+      return Promise.resolve([
+        {
+          id: 'example-app',
+          state: 'installed',
+          runningState: running ? 'running' : 'notRunning',
+          version: '9.1.0',
+          reason: 'Instalación detectada',
+          canOpen: true,
+        },
+      ]);
+    if (command === 'close_official_app') {
+      running = false;
+      return Promise.resolve({ status: 'closed', message: 'Example App se ha cerrado.' });
+    }
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
@@ -168,16 +238,23 @@ it('projects a native process observation into the official row and refreshes af
 
 it('ignores an older installation scan that resolves after a newer refresh', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
-  const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
+  const app = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
   let finishFirst!: (result: unknown) => void;
   let scans = 0;
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
     if (command === 'installed_apps') {
-      if (++scans === 1) return new Promise<unknown>(resolve => { finishFirst = resolve; });
+      if (++scans === 1)
+        return new Promise<unknown>((resolve) => {
+          finishFirst = resolve;
+        });
       return Promise.resolve([{ id: 'example-app', state: 'installed', version: '9.1.0', reason: 'Instalación detectada' }]);
     }
     return Promise.resolve(null);
@@ -195,10 +272,17 @@ it('ignores an older installation scan that resolves after a newer refresh', asy
 it('routes a connected plugin close through IPC, reports refusal, and refreshes without claiming exit', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   let publish!: (snapshot: RegistrySnapshot) => void;
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
-  const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
+  const app = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
@@ -208,7 +292,22 @@ it('routes a connected plugin close through IPC, reports refusal, and refreshes 
   }) as typeof invoke);
   render(<App />);
   await screen.findByText('Example App');
-  act(() => publish({ revision: 1, apps: [{ app: { id: 'example-app', name: 'Example App', version: '2.0.0' }, capabilities: ['show', 'quit'], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  act(() =>
+    publish({
+      revision: 1,
+      apps: [
+        {
+          app: { id: 'example-app', name: 'Example App', version: '2.0.0' },
+          capabilities: ['show', 'quit'],
+          unified: true,
+          responsive: true,
+          generation: 1,
+          menu_revision: 0,
+          menu: [],
+        },
+      ],
+    }),
+  );
   expandRow('Example App');
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
   const alert = await screen.findByRole('alert');
@@ -225,12 +324,25 @@ it('opens only a resolved official installed app by ID, reports the request, and
   vi.mocked(isTauri).mockReturnValue(true);
   const refresh = vi.fn();
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'open_official_app') return Promise.resolve('Inicio solicitado; no hay confirmación de ejecución');
     return Promise.resolve(null);
   }) as typeof invoke);
-  const app = { id: 'example-app', name: 'Example App', installed: true, running: false, integration: 'local' as const, source: 'official' as const, statusKnown: true, installationState: 'installed' as const, runningState: 'unknown' as const, canOpen: true, description: 'Example' };
+  const app = {
+    id: 'example-app',
+    name: 'Example App',
+    installed: true,
+    running: false,
+    integration: 'local' as const,
+    source: 'official' as const,
+    statusKnown: true,
+    installationState: 'installed' as const,
+    runningState: 'unknown' as const,
+    canOpen: true,
+    description: 'Example',
+  };
   render(<App apps={[app]} news={[]} catalogState={{ status: 'ready' }} onAppsRefresh={refresh} />);
   const open = await screen.findByRole('button', { name: 'Abrir Example App' });
   expect((open as HTMLButtonElement).disabled).toBe(false);
@@ -245,9 +357,13 @@ it('opens only a resolved official installed app by ID, reports the request, and
 
 it('keeps installation unknown on scan failure instead of claiming absence', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
-  const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
+  const app = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
@@ -265,10 +381,17 @@ it('keeps installation unknown on scan failure instead of claiming absence', asy
 it('disables plugin show without capability and sends only an ID when supported', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   let publish!: (snapshot: RegistrySnapshot) => void;
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
-  const app = { ...fullCatalog.apps[0], detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } } };
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
+  const app = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
   vi.mocked(invoke).mockImplementation(((command: string) => {
-    if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
@@ -278,7 +401,15 @@ it('disables plugin show without capability and sends only an ID when supported'
   }) as typeof invoke);
   render(<App />);
   await screen.findByText('Example App');
-  const entry = { app: { id: 'example-app', name: 'Example App', version: '2.0.0' }, capabilities: [] as string[], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] };
+  const entry = {
+    app: { id: 'example-app', name: 'Example App', version: '2.0.0' },
+    capabilities: [] as string[],
+    unified: true,
+    responsive: true,
+    generation: 1,
+    menu_revision: 0,
+    menu: [],
+  };
   act(() => publish({ revision: 1, apps: [entry] }));
   expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(true);
   act(() => publish({ revision: 2, apps: [{ ...entry, capabilities: ['show'] }] }));
@@ -290,34 +421,84 @@ it('disables plugin show without capability and sends only an ID when supported'
 it('keeps settings, live IPC and late-arriving catalog news together', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
   let resolveCache!: (text: string) => void;
-  const cache = new Promise<string>(resolve => { resolveCache = resolve; });
-  let saved = { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: true, accent: '#123456',
-    sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }] };
+  const cache = new Promise<string>((resolve) => {
+    resolveCache = resolve;
+  });
+  let saved = {
+    ...defaultSettings,
+    firstRunComplete: true,
+    showNewsOnOpen: true,
+    accent: '#123456',
+    sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }],
+  };
   vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'platform_key') return Promise.resolve('windows-x86_64');
     if (command === 'read_catalog_v4_cache') return cache;
     if (command === 'get_flyout_state') return Promise.resolve({ visible: true, sequence: 1, cycle: 1, at: Date.now() });
-    if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
+    if (command === 'save_settings') {
+      saved = { ...saved, ...args?.patch };
+      return Promise.resolve(saved);
+    }
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App />);
   await waitFor(() => expect(publish).toBeTypeOf('function'));
-  act(() => publish!({ revision: 1, apps: [{ app: { id: 'external', name: 'App conectada', version: '1.0.0' }, capabilities: [], unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [] }] }));
+  act(() =>
+    publish!({
+      revision: 1,
+      apps: [
+        {
+          app: { id: 'external', name: 'App conectada', version: '1.0.0' },
+          capabilities: [],
+          unified: true,
+          responsive: true,
+          generation: 1,
+          menu_revision: 0,
+          menu: [],
+        },
+      ],
+    }),
+  );
   expect(await screen.findByText('App conectada')).toBeTruthy();
   expect(screen.getByRole('main').style.getPropertyValue('--hub-accent')).toBe('#123456');
   expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
   const now = new Date().toISOString();
-  await act(async () => { resolveCache(JSON.stringify(windowsCatalog([{ id: 'minimal', name: 'Minimal', tagline: 'Prueba', description: 'Una app', tags: [], iconUrl: 'https://example.com/icon.png', installerUrl: 'https://example.com/app.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt: now, featured: false, news: [{ id: 'release', title: 'Novedad de catálogo', text: 'Disponible', publishedAt: now, kind: 'new' }] }]))); });
+  await act(async () => {
+    resolveCache(
+      JSON.stringify(
+        windowsCatalog([
+          {
+            id: 'minimal',
+            name: 'Minimal',
+            tagline: 'Prueba',
+            description: 'Una app',
+            tags: [],
+            iconUrl: 'https://example.com/icon.png',
+            installerUrl: 'https://example.com/app.exe',
+            latestJsonUrl: 'https://example.com/latest.json',
+            integrationLevel: 'launch',
+            releasedAt: now,
+            featured: false,
+            news: [{ id: 'release', title: 'Novedad de catálogo', text: 'Disponible', publishedAt: now, kind: 'new' }],
+          },
+        ]),
+      ),
+    );
+  });
   expect(await screen.findByRole('dialog', { name: 'Novedades' })).toBeTruthy();
   expect(screen.getByText('Novedad de catálogo')).toBeTruthy();
   closeNews();
   expect(screen.getByText('App conectada')).toBeTruthy();
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
-  fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
+  fireEvent.mouseDown(catalog, { button: 0 });
+  fireEvent.click(catalog);
   expect(screen.getByText(/Catálogo de prueba: Minimal/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }));
   fireEvent.click(screen.getByRole('button', { name: 'Cambiar apariencia' }));
@@ -329,7 +510,8 @@ it('sends appearance changes from Ajustes to the native content backdrop immedia
   vi.mocked(isTauri).mockReturnValue(true);
   vi.mocked(backdropAvailable).mockResolvedValue(true);
   vi.stubGlobal('devicePixelRatio', 1.25);
-  const rectangle = (y: number, height: number) => ({ x: 0, y, left: 0, top: y, right: 480, bottom: y + height, width: 480, height, toJSON: () => ({}) }) as DOMRect;
+  const rectangle = (y: number, height: number) =>
+    ({ x: 0, y, left: 0, top: y, right: 480, bottom: y + height, width: 480, height, toJSON: () => ({}) }) as DOMRect;
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     return this.matches('.main-tabs > [role="tabpanel"]') ? rectangle(140, 660) : this.matches('.area-scroll') ? rectangle(80, 720) : rectangle(0, 800);
   });
@@ -338,33 +520,48 @@ it('sends appearance changes from Ajustes to the native content backdrop immedia
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'get_flyout_motion') return Promise.resolve({ phase: 'open', generation: 5, sequence: 5 });
     if (command === 'get_flyout_state') return Promise.resolve({ visible: true, sequence: 1, cycle: 1, at: Date.now() });
-    if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
+    if (command === 'save_settings') {
+      saved = { ...saved, ...args?.patch };
+      return Promise.resolve(saved);
+    }
     return Promise.resolve(null);
   }) as typeof invoke);
   render(<App apps={[]} news={[]} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Ajustes' }));
   fireEvent.click(screen.getByRole('button', { name: 'Cambiar apariencia' }));
-  await waitFor(() => expect(invoke).toHaveBeenCalledWith('set_surface_clip', {
-    clip: { width: 600, height: 1000, x: 0, y: 100, contentWidth: 600, contentHeight: 900 },
-    blur: 12, opacity: 63, generation: 5,
-  }));
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledWith('set_surface_clip', {
+      clip: { width: 600, height: 1000, x: 0, y: 100, contentWidth: 600, contentHeight: 900 },
+      blur: 12,
+      opacity: 63,
+      generation: 5,
+    }),
+  );
   expect(screen.getByRole('main').style.getPropertyValue('--hub-opacity')).toBe('0.63');
 });
 
 it('does not exit only the hub while a pending settings save fails', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
   let failSave = true;
-  let saved = { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false,
-    sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }] };
+  let saved = {
+    ...defaultSettings,
+    firstRunComplete: true,
+    showNewsOnOpen: false,
+    sources: [{ id: 'official', label: 'Catálogo oficial egdev', kind: 'official' }],
+  };
   vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
     if (command === 'read_catalog_v4_cache') return Promise.resolve(null);
     if (command === 'save_settings') {
       if (failSave) return Promise.reject(new Error('disco lleno'));
-      saved = { ...saved, ...args?.patch }; return Promise.resolve(saved);
+      saved = { ...saved, ...args?.patch };
+      return Promise.resolve(saved);
     }
     return Promise.resolve(null);
   }) as typeof invoke);
@@ -395,9 +592,11 @@ it('starts with language choice and then shows the installed list, retaining the
 });
 
 it('uses only two tabs, associates panels and passes apps to CatalogView', () => {
-  render(<App />); enter(); closeNews();
+  render(<App />);
+  enter();
+  closeNews();
   const tabs = screen.getAllByRole('tab');
-  expect(tabs.map(tab => tab.textContent)).toEqual(['Mis apps', 'Catálogo']);
+  expect(tabs.map((tab) => tab.textContent)).toEqual(['Mis apps', 'Catálogo']);
   expect(screen.queryByRole('tab', { name: 'Novedades' })).toBeNull();
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
   fireEvent.mouseDown(catalog, { button: 0 });
@@ -409,10 +608,13 @@ it('uses only two tabs, associates panels and passes apps to CatalogView', () =>
 });
 
 it('preserves keyboard selection and wraparound for the two tabs', async () => {
-  render(<App />); enter(); closeNews();
+  render(<App />);
+  enter();
+  closeNews();
   const apps = screen.getByRole('tab', { name: 'Mis apps' });
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
-  apps.focus(); fireEvent.keyDown(apps, { key: 'ArrowLeft' });
+  apps.focus();
+  fireEvent.keyDown(apps, { key: 'ArrowLeft' });
   await waitFor(() => expect(document.activeElement).toBe(catalog));
   expect(catalog.getAttribute('aria-selected')).toBe('true');
   fireEvent.keyDown(catalog, { key: 'Home' });
@@ -420,7 +622,8 @@ it('preserves keyboard selection and wraparound for the two tabs', async () => {
 });
 
 it('reveals a focused main tab when the full-width row overflows', async () => {
-  render(<App news={[]} />); enter();
+  render(<App news={[]} />);
+  enter();
   const list = screen.getByRole('tablist', { name: 'Secciones de Nexo' });
   const apps = screen.getByRole('tab', { name: 'Mis apps' });
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
@@ -437,7 +640,9 @@ it('reveals a focused main tab when the full-width row overflows', async () => {
 });
 
 it('opens settings with the gear and returns to the selected tab', () => {
-  render(<App />); enter(); closeNews();
+  render(<App />);
+  enter();
+  closeNews();
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
   fireEvent.mouseDown(catalog, { button: 0 });
   fireEvent.click(catalog);
@@ -448,7 +653,8 @@ it('opens settings with the gear and returns to the selected tab', () => {
 });
 
 it('shows sample news in the panel on opening and honours the opt-out on reopening', () => {
-  render(<App />); enter();
+  render(<App />);
+  enter();
   const main = screen.getByRole('main');
   expect(within(main).getByRole('dialog', { name: 'Novedades' })).toBeTruthy();
   expect(screen.getByText(/Pizarra.*Cadencia/)).toBeTruthy();
@@ -464,14 +670,17 @@ it('shows sample news in the panel on opening and honours the opt-out on reopeni
 });
 
 it('does not open news when the list is empty', () => {
-  render(<App news={[]} />); enter();
+  render(<App news={[]} />);
+  enter();
   expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
   fireEvent.focus(window);
   expect(screen.queryByRole('dialog', { name: 'Novedades' })).toBeNull();
 });
 
 it('applies live appearance settings to the panel root', () => {
-  render(<App />); enter(); closeNews();
+  render(<App />);
+  enter();
+  closeNews();
   const main = screen.getByRole('main');
   expect(main.style.getPropertyValue('--hub-accent')).toBe('#ff0036');
   expect(main.style.getPropertyValue('--hub-density')).toBe('1');
@@ -491,7 +700,10 @@ it('persists the selected DS accent and its reset across reopening', async () =>
   vi.mocked(invoke).mockImplementation(((command: string, args?: { patch?: Partial<typeof saved> }) => {
     if (command === 'get_settings') return Promise.resolve({ state: 'ready', settings: saved });
     if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
-    if (command === 'save_settings') { saved = { ...saved, ...args?.patch }; return Promise.resolve(saved); }
+    if (command === 'save_settings') {
+      saved = { ...saved, ...args?.patch };
+      return Promise.resolve(saved);
+    }
     return Promise.resolve(null);
   }) as typeof invoke);
   const expectTheme = (accent: string) => {
@@ -519,7 +731,24 @@ it('persists the selected DS accent and its reset across reopening', async () =>
 });
 
 it('labels an installed official launch-only app as official and disables illustrative actions', () => {
-  render(<App apps={[{ id: 'example', name: 'Example', installed: true, running: false, integration: 'local', source: 'official', statusKnown: true, description: 'Example' }]} news={[]} />); enter();
+  render(
+    <App
+      apps={[
+        {
+          id: 'example',
+          name: 'Example',
+          installed: true,
+          running: false,
+          integration: 'local',
+          source: 'official',
+          statusKnown: true,
+          description: 'Example',
+        },
+      ]}
+      news={[]}
+    />,
+  );
+  enter();
   expect(screen.getByText(/Catálogo egdev.*Solo apertura/)).toBeTruthy();
   expect(screen.queryByText(/App local.*Solo apertura/)).toBeNull();
   expect((screen.getByRole('button', { name: 'Abrir Example' }) as HTMLButtonElement).disabled).toBe(true);
@@ -528,26 +757,43 @@ it('labels an installed official launch-only app as official and disables illust
 it('keeps live registry updates and unknown installation state through catalog error and retry', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
   render(<App />);
   fireEvent.click(await screen.findByRole('button', { name: 'Español' }));
   await screen.findByText('Estado de instalación no disponible todavía.');
   await waitFor(() => expect(publish).toBeTypeOf('function'));
-  act(() => publish!({ revision: 1, apps: [{
-    app: { id: 'external', name: 'App conectada', version: '1.0.0' }, capabilities: [],
-    unified: true, responsive: true, generation: 1, menu_revision: 0, menu: [],
-  }] }));
+  act(() =>
+    publish!({
+      revision: 1,
+      apps: [
+        {
+          app: { id: 'external', name: 'App conectada', version: '1.0.0' },
+          capabilities: [],
+          unified: true,
+          responsive: true,
+          generation: 1,
+          menu_revision: 0,
+          menu: [],
+        },
+      ],
+    }),
+  );
   expect(screen.getByText('App conectada')).toBeTruthy();
   expect(screen.getByText('Estado de instalación no disponible todavía.')).toBeTruthy();
   const catalog = screen.getByRole('tab', { name: 'Catálogo' });
-  fireEvent.mouseDown(catalog, { button: 0 }); fireEvent.click(catalog);
+  fireEvent.mouseDown(catalog, { button: 0 });
+  fireEvent.click(catalog);
   await waitFor(() => expect(screen.getByText('Estado catálogo: error')).toBeTruthy());
   expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'read_catalog_v4_cache')).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Reintentar catálogo' }));
   await waitFor(() => expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'read_catalog_v4_cache')).toHaveLength(2));
   expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'platform_key')).toHaveLength(1);
   const apps = screen.getByRole('tab', { name: 'Mis apps' });
-  fireEvent.mouseDown(apps, { button: 0 }); fireEvent.click(apps);
+  fireEvent.mouseDown(apps, { button: 0 });
+  fireEvent.click(apps);
   expect(screen.getByText('App conectada')).toBeTruthy();
   expect(screen.queryByText('No hay aplicaciones instaladas.')).toBeNull();
 });
@@ -555,17 +801,38 @@ it('keeps live registry updates and unknown installation state through catalog e
 it('renders live connections and menus without duplicating sample identities', async () => {
   let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
   const unsubscribe = vi.fn();
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return unsubscribe; });
-  const { unmount } = render(<App news={[]} />); enter();
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return unsubscribe;
+  });
+  const { unmount } = render(<App news={[]} />);
+  enter();
   await waitFor(() => expect(publish).toBeTypeOf('function'));
-  act(() => publish!({ revision: 2, apps: [{
-    app: { id: 'antena', name: 'Antena', version: '2.0.0' },
-    capabilities: ['show', 'menu'], unified: false, responsive: true, generation: 1, menu_revision: 1,
-    menu: [{ id: 'pause', label: 'Pausar', enabled: false, checked: true }],
-  }, {
-    app: { id: 'external', name: 'Nueva app', version: '1.0.0' },
-    capabilities: [], unified: true, responsive: false, generation: 2, menu_revision: 0, menu: [],
-  }] }));
+  act(() =>
+    publish!({
+      revision: 2,
+      apps: [
+        {
+          app: { id: 'antena', name: 'Antena', version: '2.0.0' },
+          capabilities: ['show', 'menu'],
+          unified: false,
+          responsive: true,
+          generation: 1,
+          menu_revision: 1,
+          menu: [{ id: 'pause', label: 'Pausar', enabled: false, checked: true }],
+        },
+        {
+          app: { id: 'external', name: 'Nueva app', version: '1.0.0' },
+          capabilities: [],
+          unified: true,
+          responsive: false,
+          generation: 2,
+          menu_revision: 0,
+          menu: [],
+        },
+      ],
+    }),
+  );
   expect(screen.getAllByText('Antena')).toHaveLength(1);
   expect(screen.getByText('Nueva app')).toBeTruthy();
   expect(screen.getByText('Conectada')).toBeTruthy();
@@ -582,17 +849,27 @@ it('renders live connections and menus without duplicating sample identities', a
 it('unsubscribes even if the asynchronous subscription resolves after unmount', async () => {
   let resolveSubscription: ((stop: () => void) => void) | undefined;
   const stop = vi.fn();
-  vi.mocked(subscribeRegistry).mockReturnValueOnce(new Promise(resolve => { resolveSubscription = resolve; }));
+  vi.mocked(subscribeRegistry).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveSubscription = resolve;
+    }),
+  );
   const { unmount } = render(<App news={[]} />);
   unmount();
-  await act(async () => { resolveSubscription!(stop); });
+  await act(async () => {
+    resolveSubscription!(stop);
+  });
   expect(stop).toHaveBeenCalledOnce();
 });
 
 it('explains a blocked hub exit and requires an explicit hub-only choice', async () => {
   let publish: ((snapshot: RegistrySnapshot) => void) | undefined;
-  vi.mocked(subscribeRegistry).mockImplementation(async callback => { publish = callback; return () => {}; });
-  render(<App news={[]} />); enter();
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
+  render(<App news={[]} />);
+  enter();
   await waitFor(() => expect(publish).toBeTypeOf('function'));
   act(() => publish!({ revision: 3, apps: [], notice: { message: 'Antena: cambios sin guardar', hub_only_allowed: true } }));
   const alert = screen.getByRole('alert');
@@ -605,7 +882,9 @@ it('explains a blocked hub exit and requires an explicit hub-only choice', async
 });
 
 it('preserves expandable sample rows and unknown statuses without inventing an update', () => {
-  render(<App />); enter(); closeNews();
+  render(<App />);
+  enter();
+  closeNews();
   expect(screen.getAllByText(/Estado desconocido/).length).toBeGreaterThan(0);
   expect(screen.getByText(/App local.*Estado desconocido/)).toBeTruthy();
   const row = screen.getByRole('button', { name: /Antena.*Estado desconocido/ });
@@ -621,14 +900,16 @@ it('preserves expandable sample rows and unknown statuses without inventing an u
 });
 
 it('preserves the empty installed state and catalog navigation', () => {
-  render(<App apps={[]} news={[]} />); enter();
+  render(<App apps={[]} news={[]} />);
+  enter();
   expect(screen.getByText('No hay aplicaciones instaladas.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Ver catálogo' }));
   expect(screen.getByRole('tab', { name: 'Catálogo' }).getAttribute('aria-selected')).toBe('true');
 });
 
 it('hides on close and Escape, except while the news dialog owns Escape', () => {
-  render(<App />); enter();
+  render(<App />);
+  enter();
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(hideFlyout).not.toHaveBeenCalled();
   closeNews();
