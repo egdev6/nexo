@@ -39,7 +39,7 @@ jobs:
         run: npx biome ci
       - name: Design system doctor
         working-directory: apps/hub
-        run: npm run ds:doctor
+        run: npm run ds:doctor -- --fail-on-pending
       - name: Typecheck and build frontend
         working-directory: apps/hub
         run: npm run build
