@@ -1,0 +1,398 @@
+{
+  "description": "Shared Rust/TypeScript v4 corpus. Each case patches v4.json (ops: set, add, remove, duplicate as in parity.json). projections: expected flat catalog (schemaVersion 4) for v4.json resolved for each platform key; apps without an entry are dropped and windows detection is wrapped as {windows: ...}.",
+  "cases": [
+    {
+      "name": "v4 full",
+      "valid": true
+    },
+    {
+      "name": "v4 linux only app",
+      "valid": true,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/1/platforms",
+          "value": {
+            "linux-x86_64": {
+              "installerUrl": "https://github.com/egdev6/winonly/releases/download/v0.4.0/winonly_0.4.0_x64-setup.exe",
+              "latestJsonUrl": "https://github.com/egdev6/winonly/releases/download/v0.4.0/latest.json",
+              "version": "0.4.0",
+              "releasedAt": "2025-03-04T05:06:07Z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "v4 entry without key",
+      "valid": true,
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/apps/0/platforms/darwin-aarch64/updaterPublicKey"
+        }
+      ]
+    },
+    {
+      "name": "v4 missing platforms",
+      "valid": false,
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/apps/0/platforms"
+        }
+      ]
+    },
+    {
+      "name": "v4 empty platforms",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms",
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "v4 unknown platform key",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/platforms/macos-aarch64",
+          "value": {
+            "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_aarch64.dmg",
+            "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+            "version": "1.2.2",
+            "releasedAt": "2025-01-01T00:00:00Z",
+            "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK"
+          }
+        }
+      ]
+    },
+    {
+      "name": "v4 unknown arch",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/platforms/linux-riscv64",
+          "value": {
+            "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_aarch64.dmg",
+            "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+            "version": "1.2.2",
+            "releasedAt": "2025-01-01T00:00:00Z",
+            "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK"
+          }
+        }
+      ]
+    },
+    {
+      "name": "v4 detection on darwin",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/platforms/darwin-aarch64/detection",
+          "value": {
+            "displayName": "Example App",
+            "publisher": "Example",
+            "executableRelativePath": "example.exe"
+          }
+        }
+      ]
+    },
+    {
+      "name": "v4 detection on linux",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/platforms/linux-x86_64",
+          "value": {
+            "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_aarch64.dmg",
+            "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+            "version": "1.2.2",
+            "releasedAt": "2025-01-01T00:00:00Z",
+            "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK",
+            "detection": {
+              "displayName": "Example App",
+              "publisher": "Example",
+              "executableRelativePath": "example.exe"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "v4 nested windows detection",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/windows-x86_64/detection",
+          "value": {
+            "windows": {
+              "displayName": "Example App",
+              "publisher": "Example",
+              "executableRelativePath": "example.exe"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "v4 missing version",
+      "valid": false,
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/apps/0/platforms/darwin-aarch64/version"
+        }
+      ]
+    },
+    {
+      "name": "v4 missing releasedAt",
+      "valid": false,
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/apps/0/platforms/darwin-aarch64/releasedAt"
+        }
+      ]
+    },
+    {
+      "name": "v4 invalid semver",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/darwin-aarch64/version",
+          "value": "1.2"
+        }
+      ]
+    },
+    {
+      "name": "v4 invalid date",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/darwin-aarch64/releasedAt",
+          "value": "2025-02-29T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "v4 installer not a release asset",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/darwin-aarch64/installerUrl",
+          "value": "https://example.com/example.dmg"
+        }
+      ]
+    },
+    {
+      "name": "v4 latest not a release asset",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/windows-x86_64/latestJsonUrl",
+          "value": "https://github.com/egdev6/example/latest.json"
+        }
+      ]
+    },
+    {
+      "name": "v4 deceptive owner",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/windows-x86_64/installerUrl",
+          "value": "https://github.com/egdev6x/example/releases/download/v1/setup.exe"
+        }
+      ]
+    },
+    {
+      "name": "v4 invalid updater key",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/platforms/windows-x86_64/updaterPublicKey",
+          "value": "dGVzdA=="
+        }
+      ]
+    },
+    {
+      "name": "v4 unknown entry field",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/platforms/windows-x86_64/sha256",
+          "value": "x"
+        }
+      ]
+    },
+    {
+      "name": "v4 flat installer at app level",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/installerUrl",
+          "value": "https://github.com/egdev6/example/releases/download/v1.2.3/example_1.2.3_x64-setup.exe"
+        }
+      ]
+    },
+    {
+      "name": "v4 flat version at app level",
+      "valid": false,
+      "patches": [
+        {
+          "op": "add",
+          "path": "/apps/0/version",
+          "value": "1.2.3"
+        }
+      ]
+    },
+    {
+      "name": "v4 app without icon or art",
+      "valid": false,
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/apps/1/iconUrl"
+        }
+      ]
+    },
+    {
+      "name": "v4 duplicate app",
+      "valid": false,
+      "patches": [
+        {
+          "op": "duplicate",
+          "path": "/apps"
+        }
+      ]
+    },
+    {
+      "name": "v4 bad app id",
+      "valid": false,
+      "patches": [
+        {
+          "op": "set",
+          "path": "/apps/0/id",
+          "value": "Bad_id"
+        }
+      ]
+    }
+  ],
+  "projections": {
+    "windows-x86_64": {
+      "schemaVersion": 4,
+      "apps": [
+        {
+          "id": "example-app",
+          "name": "Example App",
+          "tagline": "An example for testing",
+          "description": "A fictional catalog entry.",
+          "tags": [
+            "Example",
+            "Desktop"
+          ],
+          "iconUrl": "https://example.com/icon.png",
+          "artUrl": "https://example.com/art.png",
+          "integrationLevel": "full",
+          "featured": true,
+          "links": {
+            "github": "https://github.com/example/example",
+            "youtube": "https://youtube.com/@example"
+          },
+          "news": [
+            {
+              "id": "release",
+              "title": "Example release",
+              "text": "A fictional release announcement.",
+              "publishedAt": "2025-01-02T03:04:05Z",
+              "kind": "new"
+            }
+          ],
+          "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_1.2.3_x64-setup.exe",
+          "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+          "version": "1.2.3",
+          "releasedAt": "2025-01-02T03:04:05Z",
+          "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK",
+          "detection": {
+            "windows": {
+              "displayName": "Example App",
+              "publisher": "Example",
+              "executableRelativePath": "example.exe"
+            }
+          }
+        },
+        {
+          "id": "windows-only",
+          "name": "Windows Only",
+          "tagline": "Only on Windows",
+          "description": "A Windows-only entry.",
+          "tags": [],
+          "iconUrl": "https://example.com/w.png",
+          "integrationLevel": "update",
+          "featured": false,
+          "news": [],
+          "installerUrl": "https://github.com/egdev6/winonly/releases/download/v0.4.0/winonly_0.4.0_x64-setup.exe",
+          "latestJsonUrl": "https://github.com/egdev6/winonly/releases/download/v0.4.0/latest.json",
+          "version": "0.4.0",
+          "releasedAt": "2025-03-04T05:06:07Z"
+        }
+      ]
+    },
+    "darwin-aarch64": {
+      "schemaVersion": 4,
+      "apps": [
+        {
+          "id": "example-app",
+          "name": "Example App",
+          "tagline": "An example for testing",
+          "description": "A fictional catalog entry.",
+          "tags": [
+            "Example",
+            "Desktop"
+          ],
+          "iconUrl": "https://example.com/icon.png",
+          "artUrl": "https://example.com/art.png",
+          "integrationLevel": "full",
+          "featured": true,
+          "links": {
+            "github": "https://github.com/example/example",
+            "youtube": "https://youtube.com/@example"
+          },
+          "news": [
+            {
+              "id": "release",
+              "title": "Example release",
+              "text": "A fictional release announcement.",
+              "publishedAt": "2025-01-02T03:04:05Z",
+              "kind": "new"
+            }
+          ],
+          "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_aarch64.dmg",
+          "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+          "version": "1.2.2",
+          "releasedAt": "2025-01-01T00:00:00Z",
+          "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "schemaVersion": 4,
+      "apps": []
+    }
+  }
+}
