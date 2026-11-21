@@ -1,5 +1,7 @@
 # Formatting-only commits skipped by `git blame`.
 # Enable once with: git config blame.ignoreRevsFile .git-blame-ignore-revs
 
-# style(hub): format TypeScript and scripts with Biome
-6b6ad4edc12e7685cc78c1cf0c96b930bc0b4742
+# build(lint): add Biome and a Lefthook pre-push hook for the hub (#85)
+# Squash of the Biome formatting of apps/hub; it also carries the Biome tooling and
+# the lint fixes, so `git blame` skips those few lines too.
+7186542420acfea343f9605f923542054876ca72
