@@ -69,7 +69,7 @@ it('shows the catalog logo for an installed app without duplicating its accessib
 
 it('uses the uppercase first letter when a logo fails or is missing and recovers on a source change', async () => {
   const images: HTMLImageElement[] = [];
-  vi.stubGlobal('Image', function Image() {
+  vi.stubGlobal('Image', function mockImage() {
     const image = document.createElement('img');
     images.push(image);
     return image;

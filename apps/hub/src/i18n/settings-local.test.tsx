@@ -64,6 +64,7 @@ beforeEach(() => {
     }
     if (command === 'local_app_update') {
       const name = args?.name?.trim() ?? '';
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: The native validation mock deliberately rejects control characters in app names.
       if (!name || /[\x00-\x1f]/.test(name)) throw 'nexo.local.invalidName';
       const app = { ...apps.find((item) => item.id === args?.id)!, name };
       apps = apps.map((item) => (item.id === app.id ? app : item));

@@ -37,25 +37,26 @@ const initial: HubSettings = {
   blur: 24,
 };
 
+function Harness({ onChange, onClose }: { onChange: (next: HubSettings) => void; onClose: () => void }) {
+  const [settings, setSettings] = useState(initial);
+  return (
+    <SettingsView
+      settings={settings}
+      onClose={onClose}
+      onChange={(next) => {
+        onChange(next);
+        setSettings(next);
+      }}
+    />
+  );
+}
+
 function setup(locale: Language = 'es') {
   const onChange = vi.fn();
   const onClose = vi.fn();
-  function Harness() {
-    const [settings, setSettings] = useState(initial);
-    return (
-      <SettingsView
-        settings={settings}
-        onClose={onClose}
-        onChange={(next) => {
-          onChange(next);
-          setSettings(next);
-        }}
-      />
-    );
-  }
   render(
     <LocaleProvider locale={locale}>
-      <Harness />
+      <Harness onChange={onChange} onClose={onClose} />
     </LocaleProvider>,
   );
   return { onChange, onClose };

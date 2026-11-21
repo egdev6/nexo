@@ -89,6 +89,7 @@ it('keeps the slider track contrast on the DS boundary role and lets the DS pain
 });
 
 it('lets DS links use the primary default and custom accent roles without an anchor override', () => {
+  // biome-ignore lint/correctness/noChildrenProp: Link's required children prop must be supplied in createElement's typed props in this .ts file.
   render(createElement('main', { className: 'flyout' }, createElement(Link, { href: '/catalog', children: 'Catalog' })));
   const link = screen.getByRole('link', { name: 'Catalog' });
   expect(link.getAttribute('href')).toBe('/catalog');

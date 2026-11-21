@@ -131,7 +131,9 @@ it('stacks appearance options in a token-spaced flex wrapper without changing th
     within(region).getByRole('switch', { name: 'Interfaz compacta' }),
   ];
   for (const control of controls) expect(options?.contains(control)).toBe(true);
-  controls.slice(1).forEach((control, index) => expect(controls[index].compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy());
+  controls.slice(1).forEach((control, index) => {
+    expect(controls[index].compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   const css = postcss.parse(readFileSync('src/settings/settings.css', 'utf8') as string);
   const rule = css.nodes.find((node) => node.type === 'rule' && node.selector === '.settings__options');
   const declarations = Object.fromEntries(

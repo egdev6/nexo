@@ -8,7 +8,7 @@ import type { CSSProperties } from 'react';
 import { createAccentTheme } from '@egdev/tokens/accent';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { NewsItem } from '../model';
+import type { Language, NewsItem } from '../model';
 import { LocaleProvider } from '../i18n/use-locale';
 import { NewsPopup } from './index';
 
@@ -19,33 +19,71 @@ const items: NewsItem[] = [
   { id: 'cadencia-news', appId: 'cadencia', badge: 'Destacada', title: 'Cadencia', text: 'Tu ritmo aquí.', cta: 'Descubrir' },
 ];
 
-function setup() {
-  const onClose = vi.fn();
-  const onDontShowChange = vi.fn();
-  function Fixture() {
-    const [open, setOpen] = useState(false);
-    const [dontShow, setDontShow] = useState(false);
-    return (
-      <main style={{ position: 'relative' }}>
-        <button onClick={() => setOpen(true)}>Abrir novedades</button>
-        <section inert>Contenido ya inerte</section>
+function Fixture({ onClose, onDontShowChange }: { onClose: () => void; onDontShowChange: (value: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const [dontShow, setDontShow] = useState(false);
+  return (
+    <main style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen(true)}>
+        Abrir novedades
+      </button>
+      <section inert>Contenido ya inerte</section>
+      <NewsPopup
+        items={items}
+        open={open}
+        dontShow={dontShow}
+        onClose={() => {
+          onClose();
+          setOpen(false);
+        }}
+        onDontShowChange={(value) => {
+          onDontShowChange(value);
+          setDontShow(value);
+        }}
+      />
+    </main>
+  );
+}
+
+function InitialOpen() {
+  const [open, setOpen] = useState(false);
+  return (
+    <main>
+      <button type="button">Cabecera</button>
+      {!open && (
+        <button type="button" onClick={() => setOpen(true)}>
+          Elegir idioma
+        </button>
+      )}
+      <NewsPopup items={items} open={open} onClose={() => setOpen(false)} dontShow={false} onDontShowChange={() => {}} />
+    </main>
+  );
+}
+
+function PreferenceFixture({ locale, onChange, onClose }: { locale: Language; onChange: (value: boolean) => void; onClose: () => void }) {
+  const [dontShow, setDontShow] = useState(false);
+  return (
+    <LocaleProvider locale={locale}>
+      <main>
         <NewsPopup
           items={items}
-          open={open}
+          open
           dontShow={dontShow}
-          onClose={() => {
-            onClose();
-            setOpen(false);
-          }}
+          onClose={onClose}
           onDontShowChange={(value) => {
-            onDontShowChange(value);
+            onChange(value);
             setDontShow(value);
           }}
         />
       </main>
-    );
-  }
-  render(<Fixture />);
+    </LocaleProvider>
+  );
+}
+
+function setup() {
+  const onClose = vi.fn();
+  const onDontShowChange = vi.fn();
+  render(<Fixture onClose={onClose} onDontShowChange={onDontShowChange} />);
   return { onClose, onDontShowChange };
 }
 
@@ -199,16 +237,6 @@ it('uses manual carousel navigation and associates the external illustrative CTA
 });
 
 it('returns focus to a stable panel control if the initial trigger was unmounted', async () => {
-  function InitialOpen() {
-    const [open, setOpen] = useState(false);
-    return (
-      <main>
-        <button>Cabecera</button>
-        {!open && <button onClick={() => setOpen(true)}>Elegir idioma</button>}
-        <NewsPopup items={items} open={open} onClose={() => setOpen(false)} dontShow={false} onDontShowChange={() => {}} />
-      </main>
-    );
-  }
   render(<InitialOpen />);
   const trigger = screen.getByRole('button', { name: 'Elegir idioma' });
   trigger.focus();
@@ -223,26 +251,7 @@ it.each([
 ] as const)('uses a leading choice for the news preference in %s', (locale, name, title) => {
   const onChange = vi.fn();
   const onClose = vi.fn();
-  function Fixture() {
-    const [dontShow, setDontShow] = useState(false);
-    return (
-      <LocaleProvider locale={locale}>
-        <main>
-          <NewsPopup
-            items={items}
-            open
-            dontShow={dontShow}
-            onClose={onClose}
-            onDontShowChange={(value) => {
-              onChange(value);
-              setDontShow(value);
-            }}
-          />
-        </main>
-      </LocaleProvider>
-    );
-  }
-  render(<Fixture />);
+  render(<PreferenceFixture locale={locale} onChange={onChange} onClose={onClose} />);
   const checkbox = screen.getByRole('checkbox', { name });
   const label = screen.getByText(name).closest('label');
   expect(label?.htmlFor).toBe(checkbox.id);

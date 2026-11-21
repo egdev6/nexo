@@ -31,24 +31,25 @@ const initial: HubSettings = {
 };
 const colors = ['#ff0036', '#ff7a00', '#ffd400', '#22c55e', '#00c2ff', '#3b82f6', '#8b5cf6', '#ff3fb4'];
 
+function Harness({ onChange, acceptChanges }: { onChange: (next: HubSettings) => void; acceptChanges: boolean }) {
+  const [settings, setSettings] = useState(initial);
+  return (
+    <SettingsView
+      settings={settings}
+      onClose={vi.fn()}
+      onChange={(next) => {
+        onChange(next);
+        if (acceptChanges) setSettings(next);
+      }}
+    />
+  );
+}
+
 function setup(locale: Language = 'es', acceptChanges = true) {
   const onChange = vi.fn();
-  function Harness() {
-    const [settings, setSettings] = useState(initial);
-    return (
-      <SettingsView
-        settings={settings}
-        onClose={vi.fn()}
-        onChange={(next) => {
-          onChange(next);
-          if (acceptChanges) setSettings(next);
-        }}
-      />
-    );
-  }
   render(
     <LocaleProvider locale={locale}>
-      <Harness />
+      <Harness onChange={onChange} acceptChanges={acceptChanges} />
     </LocaleProvider>,
   );
   return onChange;

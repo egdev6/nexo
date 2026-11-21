@@ -69,7 +69,9 @@ function layout(groups: HTMLElement[]) {
   const track = groups[0].parentElement!;
   const rect = (left: number) => ({ x: left, y: 0, left, right: left + 300, top: 0, bottom: 100, width: 300, height: 100, toJSON() {} });
   vi.spyOn(track, 'getBoundingClientRect').mockImplementation(() => rect(0));
-  groups.forEach((group, index) => vi.spyOn(group, 'getBoundingClientRect').mockImplementation(() => rect(index * 300 - offset)));
+  groups.forEach((group, index) => {
+    vi.spyOn(group, 'getBoundingClientRect').mockImplementation(() => rect(index * 300 - offset));
+  });
   track.scrollBy = vi.fn((options: ScrollToOptions) => {
     offset += options.left ?? 0;
   }) as typeof track.scrollBy;

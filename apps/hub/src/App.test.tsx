@@ -33,15 +33,23 @@ vi.mock('./catalog', () => ({
     <div>
       Catálogo de prueba: {apps.map((app) => app.name).join(', ')}
       {state && <span>Estado catálogo: {state}</span>}
-      {onRetry && <button onClick={onRetry}>Reintentar catálogo</button>}
+      {onRetry && (
+        <button type="button" onClick={onRetry}>
+          Reintentar catálogo
+        </button>
+      )}
     </div>
   ),
 }));
 vi.mock('./first-run', () => ({
   FirstRun: ({ onChoose }: FirstRunProps) => (
     <section aria-label="Idioma">
-      <button onClick={() => onChoose('es')}>Español</button>
-      <button onClick={() => onChoose('en')}>English</button>
+      <button type="button" onClick={() => onChoose('es')}>
+        Español
+      </button>
+      <button type="button" onClick={() => onChoose('en')}>
+        English
+      </button>
     </section>
   ),
 }));
@@ -54,7 +62,9 @@ vi.mock('./news', () => ({
           <input type="checkbox" checked={dontShow} onChange={(event) => onDontShowChange(event.target.checked)} />
           No mostrar al abrir
         </label>
-        <button onClick={onClose}>Cerrar novedades</button>
+        <button type="button" onClick={onClose}>
+          Cerrar novedades
+        </button>
       </div>
     ) : null,
 }));
@@ -62,10 +72,18 @@ vi.mock('./settings', () => ({
   SettingsView: ({ settings, onChange, onClose }: SettingsViewProps) => (
     <section aria-label="Ajustes">
       <p>Idioma: {settings.language}</p>
-      <button onClick={() => onChange({ ...settings, accent: '#3b82f6', compact: true, opacity: 63, blur: 12 })}>Cambiar apariencia</button>
-      <button onClick={() => onChange({ ...settings, accent: defaultSettings.accent })}>Restablecer apariencia</button>
-      <button onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>Alternar novedades</button>
-      <button onClick={onClose}>Volver</button>
+      <button type="button" onClick={() => onChange({ ...settings, accent: '#3b82f6', compact: true, opacity: 63, blur: 12 })}>
+        Cambiar apariencia
+      </button>
+      <button type="button" onClick={() => onChange({ ...settings, accent: defaultSettings.accent })}>
+        Restablecer apariencia
+      </button>
+      <button type="button" onClick={() => onChange({ ...settings, showNewsOnOpen: !settings.showNewsOnOpen })}>
+        Alternar novedades
+      </button>
+      <button type="button" onClick={onClose}>
+        Volver
+      </button>
     </section>
   ),
 }));
