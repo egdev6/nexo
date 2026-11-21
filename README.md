@@ -58,11 +58,9 @@ The panel stays open while you work elsewhere. It uses the Windows tray for quic
 
 On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [Releases](https://github.com/egdev6/nexo/releases) and run it. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. From 0.2.0 on, Nexo checks for new versions at startup and from **Settings › About**, and installs them after you confirm; earlier versions must be updated by installing the new one over them.
 
-The repository is private, so access to the release requires permission.
-
 ### Develop
 
-Install Rust stable and Node.js 22.12 or newer within the 22.x line, or Node.js 24 or newer. Vite requires Node.js 22.12+, and Vitest does not support Node.js 23. The design-system agent tools require Node.js 24.x. Running the hub requires Windows and WebView2. Clone access requires permission while the repository is private.
+Install Rust stable and Node.js 22.12 or newer within the 22.x line, or Node.js 24 or newer. Vite requires Node.js 22.12+, and Vitest does not support Node.js 23. The design-system agent tools require Node.js 24.x. Running the hub requires Windows and WebView2.
 
 ```sh
 git clone https://github.com/egdev6/nexo.git

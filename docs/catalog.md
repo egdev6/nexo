@@ -109,7 +109,7 @@ as text; nothing is installed without confirmation.
 ## Publication and adding an app
 
 1. Publish from the dedicated public repository `egdev6/nexo-catalog`; its `Validate catalog`
-   workflow checks the published files. Do not make the private Nexo repository public.
+   workflow checks the published files.
 2. Review each inclusion and verify anonymously that the repository, installer, icon/art, updater
    endpoint and discovery destinations are intentionally public; verify platform and install mode.
 3. Add an entry to the public allowlist, run schema **and** domain validation, and publish only
