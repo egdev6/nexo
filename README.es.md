@@ -86,6 +86,10 @@ Desde `apps/hub`:
 | `npm test` | Ejecutar los tests del frontend. |
 | `npm run ds:doctor` | Comprobar la instalación del design system y ejecutar su protección (elementos sin componente, selectores internos, lista de excepciones). |
 | `npm run build` | Comprobar TypeScript y compilar el frontend. |
+| `npm run check` | Lint y comprobación de formato con Biome (CI ejecuta `npx biome ci`). |
+| `npm run check:fix` | Aplicar los arreglos seguros y el formato de Biome. |
+| `npm run lint` / `npm run format` | Solo lint de Biome / solo escribir el formato. |
+| `npm run hooks:install` | Instalar el hook `pre-push` de Lefthook (una vez por clon). |
 | `npm run app:dev` | Ejecutar la aplicación de escritorio en desarrollo. |
 
 Desde la raíz del repositorio, tras compilar el frontend:

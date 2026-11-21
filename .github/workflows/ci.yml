@@ -34,6 +34,9 @@ jobs:
       - name: Install locked frontend dependencies
         working-directory: apps/hub
         run: npm ci
+      - name: Biome lint and format
+        working-directory: apps/hub
+        run: npx biome ci
       - name: Design system doctor
         working-directory: apps/hub
         run: npm run ds:doctor

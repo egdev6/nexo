@@ -26,6 +26,14 @@ npm run app:dev
 
 See the [README](./README.md#scripts) for the individual frontend and Rust commands.
 
+### Lint and formatting (Biome + Lefthook)
+
+TypeScript and JavaScript in `apps/hub` (`src/`, `scripts/`, `vite.config.ts` and `vitest.canvas.config.ts`) are linted and formatted by [Biome](https://biomejs.dev) (`apps/hub/biome.json`). CSS is linted but not formatted, because tests assert literal CSS text. CI runs `npx biome ci` in `ci.yml`: any lint error or unformatted file fails the check; warnings do not.
+
+After `npm ci`, run `npm run hooks:install` from `apps/hub` once per clone to install the [Lefthook](https://lefthook.dev) `pre-push` hook (`lefthook.yml` at the repository root). It is not automatic because npm lifecycle scripts stay off. The hook runs `npx biome ci` and `cargo fmt --all -- --check` before every push. If it fails, run `npm run check:fix` (and `cargo fmt --all` for Rust), commit, and push again. Skipping it with `--no-verify` only moves the failure to CI.
+
+The repository-wide Biome formatting landed as a formatting-only commit listed in `.git-blame-ignore-revs`; run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once so `git blame` skips it. If you had a branch open before that commit, rebase it on `main` and run `npm run check:fix` to resolve formatting conflicts.
+
 ### Branches and pull requests
 
 1. Create a branch for the agreed issue and keep the change focused.
@@ -86,6 +94,14 @@ npm run app:dev
 ```
 
 Consultad el [README](./README.es.md#scripts) para los comandos individuales del frontend y Rust.
+
+### Lint y formato (Biome + Lefthook)
+
+El TypeScript y JavaScript de `apps/hub` (`src/`, `scripts/`, `vite.config.ts` y `vitest.canvas.config.ts`) se analizan y formatean con [Biome](https://biomejs.dev) (`apps/hub/biome.json`). El CSS se analiza pero no se formatea, porque hay tests que comprueban su texto literal. CI ejecuta `npx biome ci` en `ci.yml`: cualquier error de lint o archivo sin formatear hace fallar el check; los warnings no.
+
+Después de `npm ci`, ejecutad una vez por clon `npm run hooks:install` desde `apps/hub` para instalar el hook `pre-push` de [Lefthook](https://lefthook.dev) (`lefthook.yml` en la raíz del repositorio). No es automático porque los scripts de ciclo de vida de npm están desactivados. El hook ejecuta `npx biome ci` y `cargo fmt --all -- --check` antes de cada push. Si falla, ejecutad `npm run check:fix` (y `cargo fmt --all` para Rust), haced commit y volved a hacer push. Saltarlo con `--no-verify` solo traslada el fallo a CI.
+
+El formato de Biome de todo el repositorio entró como un commit solo de formato listado en `.git-blame-ignore-revs`; ejecutad una vez `git config blame.ignoreRevsFile .git-blame-ignore-revs` para que `git blame` lo omita. Si teníais una rama abierta antes de ese commit, rebasadla sobre `main` y ejecutad `npm run check:fix` para resolver los conflictos de formato.
 
 ### Ramas y pull requests
 

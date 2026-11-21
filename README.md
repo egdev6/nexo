@@ -86,6 +86,10 @@ From `apps/hub`:
 | `npm test` | Run frontend tests. |
 | `npm run ds:doctor` | Check the design-system install and run its guard (raw elements, internal selectors, allowlist). |
 | `npm run build` | Check TypeScript and build the frontend. |
+| `npm run check` | Biome lint and format check (CI runs `npx biome ci`). |
+| `npm run check:fix` | Apply Biome safe fixes and formatting. |
+| `npm run lint` / `npm run format` | Biome lint only / write formatting only. |
+| `npm run hooks:install` | Install the Lefthook `pre-push` hook (once per clone). |
 | `npm run app:dev` | Run the desktop app in development. |
 
 From the repository root, after building the frontend:
