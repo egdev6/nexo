@@ -75,7 +75,9 @@ export function accentVariables(hex: string): CSSProperties {
 export function applyAccentVariables(element: HTMLElement, accent: string): () => void {
   const variables = Object.entries(accentVariables(accent));
   const previous = variables.map(([name]) => [name, element.style.getPropertyValue(name), element.style.getPropertyPriority(name)] as const);
-  variables.forEach(([name, value]) => element.style.setProperty(name, String(value)));
+  variables.forEach(([name, value]) => {
+    element.style.setProperty(name, String(value));
+  });
   return () =>
     previous.forEach(([name, value, priority]) => {
       if (value) element.style.setProperty(name, value, priority);

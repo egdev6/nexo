@@ -69,6 +69,7 @@ function id(value: unknown): void {
   if (!isCatalogId(value)) fail();
 }
 export function isHttpsUrl(value: unknown): value is string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: Untrusted URLs must reject control characters before URL parsing.
   if (typeof value !== 'string' || !value.startsWith('https://') || /[\s\u0000-\u001f\u007f-\u009f]/u.test(value) || /%(?![0-9a-f]{2})/i.test(value))
     return false;
   const authority = value.slice(8).split(/[/?#]/, 1)[0];
@@ -84,14 +85,14 @@ function https(value: unknown): void {
   if (!isHttpsUrl(value)) fail();
 }
 function releaseAsset(value: unknown): void {
-  if (!isHttpsUrl(value)) return fail();
+  if (!isHttpsUrl(value)) fail();
   const parsed = new URL(value);
   const slash = value.indexOf('/', 8);
   const rawPath = slash < 0 ? '' : value.slice(slash);
-  if (parsed.hostname !== 'github.com' || parsed.port || parsed.search || parsed.hash || rawPath !== parsed.pathname) return fail();
+  if (parsed.hostname !== 'github.com' || parsed.port || parsed.search || parsed.hash || rawPath !== parsed.pathname) fail();
   for (const match of rawPath.matchAll(/%([0-9a-f]{2})/gi)) {
     const byte = Number.parseInt(match[1], 16);
-    if (byte < 32 || byte === 127 || [0x2f, 0x5c, 0x2e, 0x25].includes(byte)) return fail();
+    if (byte < 32 || byte === 127 || [0x2f, 0x5c, 0x2e, 0x25].includes(byte)) fail();
   }
   const parts = rawPath.slice(1).split('/');
   if (
@@ -104,16 +105,16 @@ function releaseAsset(value: unknown): void {
     fail();
 }
 function updaterKey(value: unknown): void {
-  if (typeof value !== 'string') return fail();
+  if (typeof value !== 'string') fail();
   try {
     const decoded = atob(value);
-    if (btoa(decoded) !== value) return fail();
+    if (btoa(decoded) !== value) fail();
     const text = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(decoded, (byte) => byte.charCodeAt(0)));
     const lines = text.replace(/\r\n/g, '\n').split('\n');
     if (lines.at(-1) === '') lines.pop();
-    if (lines.length !== 2 || !lines[0].startsWith('untrusted comment: ')) return fail();
+    if (lines.length !== 2 || !lines[0].startsWith('untrusted comment: ')) fail();
     const key = atob(lines[1]);
-    if (btoa(key) !== lines[1] || key.length !== 42 || !key.startsWith('Ed')) return fail();
+    if (btoa(key) !== lines[1] || key.length !== 42 || !key.startsWith('Ed')) fail();
   } catch {
     fail();
   }
@@ -159,9 +160,9 @@ export function compareSemver(left: unknown, right: unknown): number | undefined
   return 0;
 }
 function timestamp(value: unknown): void {
-  if (typeof value !== 'string') return fail();
+  if (typeof value !== 'string') fail();
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
-  if (!match || match[0] !== value) return fail();
+  if (!match || match[0] !== value) fail();
   const [, y, mo, d, h, mi, s, , , oh, om] = match;
   const year = Number(y),
     month = Number(mo),
@@ -190,6 +191,7 @@ function executableRelativePath(value: unknown): void {
   if (
     typeof value !== 'string' ||
     !/\.exe$/i.test(value) ||
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Executable paths must reject control characters as invalid Windows path input.
     /[<>:"|?*\u0000-\u001f\u007f-\u009f]/u.test(value) ||
     value.split(/[\\/]/).some((part) => !part || part === '.' || part === '..' || /[ .]$/.test(part))
   )

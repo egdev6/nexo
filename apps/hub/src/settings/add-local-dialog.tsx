@@ -205,6 +205,7 @@ export function AddLocalDialog({ accent, disabled, errorKey, onAdded }: Props) {
             <Field className="local-app-field" label={t(locale, 'settingsLocal.name')} hint={t(locale, 'settingsLocal.nameHint')}>
               <Input required value={name} disabled={busy} onChange={(event) => setName(event.currentTarget.value)} />
             </Field>
+            {/* biome-ignore lint/a11y/useSemanticElements: A fieldset would add browser border and spacing to this styled icon group. */}
             <div className="local-app-field" role="group" aria-label={t(locale, 'settingsLocal.iconLabel')}>
               <span className="local-app-label">{t(locale, 'settingsLocal.iconLabel')}</span>
               <div className="local-app-row">

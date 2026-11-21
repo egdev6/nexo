@@ -73,6 +73,7 @@ export function useFlyoutMotion() {
   }
 
   const sliding = native && (motion.phase === 'waiting' || motion.phase === 'hidden' || motion.phase === 'entering' || motion.phase === 'exiting');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Phase and generation trigger reduced-motion acknowledgements; acknowledge is recreated each render.
   useLayoutEffect(() => {
     if (sliding) document.body.setAttribute('data-flyout-sliding', '');
     else document.body.removeAttribute('data-flyout-sliding');

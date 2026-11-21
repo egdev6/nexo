@@ -85,7 +85,9 @@ export function useContentBackdrop(panel: RefObject<HTMLElement | null>, availab
       resize?.observe(element);
       element
         .querySelectorAll<HTMLElement>('.area-scroll, .panel-head, .main-tabs [role="tablist"], .main-tabs [role="tabpanel"]:not([hidden])')
-        .forEach((node) => resize?.observe(node));
+        .forEach((node) => {
+          resize?.observe(node);
+        });
     };
     const mutation = new MutationObserver(() => {
       observe();

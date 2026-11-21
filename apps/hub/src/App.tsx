@@ -333,6 +333,7 @@ function ConnectedRow({
               <Cluster asChild gap={1} alignItems="stretch">
                 <ul className="registry-menu">
                   {app.menu.map((item, index) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: Connected apps can supply duplicate menu IDs; keep the existing composite key.
                     <li key={`${item.id}-${index}`}>
                       <Button
                         className="registry-menu__action"
@@ -608,6 +609,7 @@ export function FlyoutPanel({
   const refreshAppsRef = useRef(onAppsRefresh);
   refreshAppsRef.current = onAppsRefresh;
   const installs = useCatalogInstalls(native && !!onAppsRefresh, apps, onAppsRefresh);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Each visibility cycle must refresh apps even when the visible flag stays true.
   useEffect(() => {
     if (visibility?.visible) refreshAppsRef.current?.();
   }, [visibility?.cycle, visibility?.visible]);
@@ -751,6 +753,7 @@ export function FlyoutPanel({
     else void hideFlyout();
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Visit and finish callbacks are recreated each render; rerunning would repeat cycle-based news effects.
   useEffect(() => {
     if (!visibility || !usable || !settings) return;
     if (lastShow && visitedCycle.current !== lastShow.cycle) {
@@ -781,6 +784,7 @@ export function FlyoutPanel({
     setSnapshot(next);
   }, [visibility, lastShow, usable, settings, news, validNewsKeys, catalogState]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The Escape listener changes with the news snapshot, not each recreated hidePanel callback.
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape' && !event.defaultPrevented && !snapshot) {
@@ -1117,6 +1121,7 @@ export default function App(props: FlyoutProps) {
   function refreshCatalogOnOpen() {
     if (lastCatalogSuccess.current === null || Date.now() - lastCatalogSuccess.current > CATALOG_REFRESH_INTERVAL_MS) retry();
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Retry is recreated each render; catalog loading and cleanup are tied to liveCatalog only.
   useEffect(() => {
     catalogActive.current = liveCatalog;
     if (liveCatalog) retry();
@@ -1125,6 +1130,7 @@ export default function App(props: FlyoutProps) {
     };
   }, [liveCatalog]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The catalog and cache reason govern scans; refreshApps is recreated on every render.
   useEffect(() => {
     setInstallations(null);
     if (liveCatalog && catalogState.catalog) refreshApps();

@@ -245,6 +245,7 @@ export function useSettings() {
     else void changeStartup(desiredStartup.current);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: This mount-only queue and subscription use refs for mutable state; recreated callbacks must not resubscribe.
   useEffect(() => {
     mounted.current = true;
     if (!native)
@@ -277,6 +278,7 @@ export function useSettings() {
     };
   }, []); // The queue is deliberately stable and uses refs for all mutable state.
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Startup is read when fileState changes; adding the recreated readStartup would repeat the read.
   useEffect(() => {
     if (native && (fileState === 'ready' || fileState === 'missing')) {
       startupRef.current = { confirmed: null, busy: false, error: null };
@@ -284,6 +286,7 @@ export function useSettings() {
     }
   }, [fileState]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The focus listener follows fileState; adding the recreated readStartup would resubscribe every render.
   useEffect(() => {
     if (!native || (fileState !== 'ready' && fileState !== 'missing')) return;
     const onFocus = () => {

@@ -91,6 +91,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
                   onValueChange={(value) => update('language', value as Language)}
                 />
               </div>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: The nested switch handles keyboard input; the wrapper forwards hint clicks. */}
               <div className="settings__choice" onClick={activateSwitchFromHint}>
                 <Field
                   layout="choice-trailing"
@@ -116,11 +117,13 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
                   }
                 />
               )}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: The nested switch handles keyboard input; the wrapper forwards hint clicks. */}
               <div className="settings__choice" onClick={activateSwitchFromHint}>
                 <Field layout="choice-trailing" label={tr('settings.news')} hint={tr('settings.newsHint')}>
                   <Switch id={`${id}-news`} checked={settings.showNewsOnOpen} onCheckedChange={(value) => update('showNewsOnOpen', value)} />
                 </Field>
               </div>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: The nested switch handles keyboard input; the wrapper forwards hint clicks. */}
               <div className="settings__choice" onClick={activateSwitchFromHint}>
                 <Field layout="choice-trailing" label={tr('settings.hideLocalApps')} hint={tr('settings.hideLocalAppsHint')}>
                   <Switch id={`${id}-hide-local`} checked={settings.hideLocalApps} onCheckedChange={(value) => update('hideLocalApps', value)} />
@@ -152,8 +155,10 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
                 onValueChange={(color) => update('accent', color)}
                 customLabel={tr('settings.chooseAccent')}
               />
+              {/* biome-ignore lint/a11y/useSemanticElements: A fieldset would add browser border and spacing to the styled tone group. */}
               <div className="settings__tones" role="group" aria-label={tr('settings.tones')}>
                 {tones.map((tone, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: These are three fixed palette slots, and different slots may produce the same color.
                   <span key={index}>
                     <i aria-hidden="true" style={{ backgroundColor: tone }} />
                     <code>{tone}</code>
@@ -192,6 +197,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
                 </div>
               </div>
               <p className="settings__hint">{tr('settings.blurHint')}</p>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: The nested switch handles keyboard input; the wrapper forwards hint clicks. */}
               <div className="settings__choice" onClick={activateSwitchFromHint}>
                 <Field layout="choice-trailing" label={tr('settings.compact')} hint={tr('settings.compactHint')}>
                   <Switch id={`${id}-compact`} checked={settings.compact} onCheckedChange={(value) => update('compact', value)} />

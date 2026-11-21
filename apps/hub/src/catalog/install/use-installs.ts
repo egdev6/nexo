@@ -53,6 +53,7 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
       mounted.current = false;
     };
   }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Retry attempts intentionally resubscribe; the recreated put function only uses stable refs and the setter.
   useEffect(() => {
     if (!enabled) return;
     let disposed = false;
@@ -95,6 +96,7 @@ export function useCatalogInstalls(enabled: boolean, apps: HubApp[], onRefresh?:
   }, [enabled, attempt]);
 
   // Keep a confirmed result hidden while refresh is pending, then defer to the next observation.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The recreated remove function only uses stable refs and the setter; reconciliation follows apps.
   useEffect(() => {
     for (const [id, entry] of entriesRef.current) {
       if (entry.status !== 'installed' && entry.status !== 'installedUnverified') continue;

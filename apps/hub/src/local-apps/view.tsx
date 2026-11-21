@@ -66,6 +66,7 @@ export function LocalAppsView({
       });
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Each visibility cycle refreshes local apps; the recreated refresh uses stable refs and setters.
   useEffect(() => {
     if (!native) return;
     refresh();

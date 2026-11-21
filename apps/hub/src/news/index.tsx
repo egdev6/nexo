@@ -80,6 +80,7 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
     };
   }, [container]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Mark a slide shown only when its ID changes, not when its item object is recreated.
   useLayoutEffect(() => {
     if (current) {
       onShownRef.current?.(current);
@@ -148,11 +149,13 @@ function OpenNews({ items, onClose, dontShow, onDontShowChange, onShown, onCatal
               ) : displayed.length === 1 ? (
                 slideContent(displayed[0])
               ) : (
+                // biome-ignore lint/a11y/useSemanticElements: The explicit region preserves existing carousel styles.
                 <div
                   role="region"
                   aria-roledescription="carousel"
                   aria-label={t(locale, 'news.latest')}
                   aria-describedby={instructionsId}
+                  // biome-ignore lint/a11y/noNoninteractiveTabindex: The dialog focuses this region for keyboard carousel navigation.
                   tabIndex={0}
                   data-entry-focus={entryFocus || undefined}
                   onBlur={() => setEntryFocus(false)}

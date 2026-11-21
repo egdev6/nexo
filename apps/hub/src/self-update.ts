@@ -56,6 +56,7 @@ export function useSelfUpdate(native: boolean, beforeInstall: () => Promise<bool
     }
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Initial update checks follow native availability, not the recreated check function.
   useEffect(() => {
     mounted.current = true;
     if (native && !started.current) {
