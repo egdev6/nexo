@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system 96635dd; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system 6f6e0c5; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -20,9 +20,9 @@ See Typography roles for source-derived font families and sizes; display heading
 Schema: 1.0.0 (schemaVersion)
 | Package | Version | Source |
 | --- | --- | --- |
-| @egdev/effects | 0.2.6 | packages[] · packages/effects/package.json |
+| @egdev/effects | 0.2.7 | packages[] · packages/effects/package.json |
 | @egdev/tokens | 0.6.1 | packages[] · packages/tokens/package.json |
-| @egdev/ui | 0.6.0 | packages[] · packages/ui/package.json |
+| @egdev/ui | 0.7.0 | packages[] · packages/ui/package.json |
 Re-run: `pnpm exec egdev-system-md --write`
 
 ## Typography roles
@@ -959,6 +959,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · None (composes Dropzo
   - messages: Partial<AttachmentFieldMessages>; Localizable built-in text and formatters; omitted entries use the English defaults. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
   - onFilesRejected: ((rejections: AttachmentRejection[]) => void); Called once per intake that rejects at least one file, after `onValueChange`. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
   - onValueChange: ((files: File[]) => void) \| ((files: File[]) => void); Called with the next full list after a user add or remove; in controlled mode it is a request. Called with the next full list after a user add or remove. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
+  - resetKey: string \| number; Reset token for transient feedback. Its value at mount does nothing; each later change (compared with `Object.is`) silently clears the rejection messages and empties the hidden status region, without remounting, moving focus or changing the list. Bump it after a save, even without a form. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
   - value: File[]; Controlled attachments; requires `onValueChange`. The list changes only when the parent passes a new value. Omit to leave the list uncontrolled. (components[] · packages/ui/src/molecules/attachment-field/types.ts)
 ### ButtonGroup
 catalog[] · docs/catalog.json · @egdev/ui · molecule · —
@@ -4592,6 +4593,7 @@ Not exported:
 - trailing-actions: actions; approved; AlertDialogContent, CollapsibleHeader, DialogContent, ModuleCard, Notice, PageHeader, PreviewFrame, Toast, WebSection (propNaming[] · skills/_shared/prop-naming.json)
 - trailing-arrow: arrow; approved; Link (propNaming[] · skills/_shared/prop-naming.json)
 - trailing-text-accent: accent; approved; ChapterBreak, Closing, Heading, Hero, LabStage, PullQuote, SectionHeader, Text (propNaming[] · skills/_shared/prop-naming.json)
+- transient-feedback-reset-key: resetKey; approved; AttachmentField (propNaming[] · skills/_shared/prop-naming.json)
 - transient-highlight: highlighted; approved; Stat, Timeline (propNaming[] · skills/_shared/prop-naming.json)
 - unavailable-measurement-message: unavailableText; approved; Countdown, Gauge, GaugeGroupRing, Stat (propNaming[] · skills/_shared/prop-naming.json)
 - value-context: delta; approved; Stat (propNaming[] · skills/_shared/prop-naming.json)
