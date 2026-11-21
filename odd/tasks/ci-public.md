@@ -14,7 +14,7 @@
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
 | T1 | S2, S3, S4 (workflows) | worker | done locally (actionlint, zizmor 1.32.0 offline, YAML parse, 27 PR-title cases); GitHub run pending | (this commit) |
-| T2 | S4 (branch protection on main requiring the CI checks) | parent, after T1 merges (GitHub setting; may need the repo public) | pending | |
+| T2 | S4 (branch protection on main requiring the CI checks) | parent, after T1 merges | done 2026-11-20: requires Frontend (Ubuntu), Rust lint (Ubuntu), Rust tests and lint (Windows), PR title; strict false, admins not enforced, no force push/deletion | GitHub setting |
 
 ## Log
 
