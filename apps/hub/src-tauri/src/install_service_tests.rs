@@ -24,20 +24,23 @@ use std::{
 };
 use tokio::sync::Semaphore;
 
-fn document() -> Value {
+pub(super) fn document() -> Value {
     let mut value: Value = serde_json::from_str(include_str!(
         "../../../../crates/nexo-catalog/fixtures/minimal.json"
     ))
     .unwrap();
-    value["schemaVersion"] = json!(3);
-    value["apps"][0]["installerUrl"] =
-        json!("https://github.com/egdev6/example/releases/download/v1/example_x64-setup.exe");
-    value["apps"][0]["latestJsonUrl"] =
-        json!("https://github.com/egdev6/example/releases/download/v1/latest.json");
-    value["apps"][0]["updaterPublicKey"] =
-        json!(STANDARD.encode(include_str!("../tests/fixtures/tauri-test.pub")));
-    value["apps"][0]["version"] = json!("1.0.0");
-    value["apps"][0]["detection"] = json!({"windows": {"displayName": "Minimal", "publisher": "Example", "executableRelativePath": "Minimal.exe"}});
+    value["schemaVersion"] = json!(4);
+    let app = value["apps"][0].as_object_mut().unwrap();
+    for field in ["installerUrl", "latestJsonUrl", "releasedAt"] {
+        app.remove(field).unwrap();
+    }
+    app.insert("platforms".into(), json!({"windows-x86_64": {
+        "installerUrl": "https://github.com/egdev6/example/releases/download/v1/example_x64-setup.exe",
+        "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1/latest.json",
+        "updaterPublicKey": STANDARD.encode(include_str!("../tests/fixtures/tauri-test.pub")),
+        "version": "1.0.0", "releasedAt": "2025-01-01T00:00:00Z",
+        "detection": {"displayName": "Minimal", "publisher": "Example", "executableRelativePath": "Minimal.exe"}
+    }}));
     value
 }
 
@@ -150,7 +153,9 @@ impl CatalogFeed for Feed {
             .unwrap()
             .pop_front()
             .unwrap_or_else(|| Ok(document()))?;
-        NativeFeed::new(DocumentNetwork(doc)).fetch().await
+        NativeFeed::for_platform(DocumentNetwork(doc), Some("windows-x86_64"))
+            .fetch()
+            .await
     }
 }
 struct FakeNetwork(Arc<State>);
@@ -693,7 +698,10 @@ async fn initial_installed_detection_still_blocks_before_approval() {
 
 fn without_detection_hint(state: &State) {
     let mut doc = document();
-    doc["apps"][0].as_object_mut().unwrap().remove("detection");
+    doc["apps"][0]["platforms"]["windows-x86_64"]
+        .as_object_mut()
+        .unwrap()
+        .remove("detection");
     *state.documents.lock().unwrap() = [Ok(doc.clone()), Ok(doc)].into();
 }
 
@@ -833,7 +841,7 @@ async fn unknown_prespawn_requires_warning_approval_and_revalidates_before_launc
 
     let state = State::new(1, 1);
     let mut changed = document();
-    changed["apps"][0]["version"] = json!("2.0.0");
+    changed["apps"][0]["platforms"]["windows-x86_64"]["version"] = json!("2.0.0");
     *state.documents.lock().unwrap() = [Ok(document()), Ok(document()), Ok(changed)].into();
     state.observe(vec![Detection::NotInstalled, Detection::Unknown]);
     assert_eq!(
@@ -1007,15 +1015,16 @@ async fn denied_or_dismissed_native_approval_never_downloads() {
 #[tokio::test]
 async fn changed_release_key_detection_or_removed_entry_aborts_and_cleans() {
     let mut changed_url = document();
-    changed_url["apps"][0]["installerUrl"] =
+    changed_url["apps"][0]["platforms"]["windows-x86_64"]["installerUrl"] =
         json!("https://github.com/egdev6/example/releases/download/v2/example_x64-setup.exe");
     let mut changed_version = document();
-    changed_version["apps"][0]["version"] = json!("2.0.0");
+    changed_version["apps"][0]["platforms"]["windows-x86_64"]["version"] = json!("2.0.0");
     let mut changed_key = document();
-    changed_key["apps"][0]["updaterPublicKey"] =
+    changed_key["apps"][0]["platforms"]["windows-x86_64"]["updaterPublicKey"] =
         json!(STANDARD.encode(include_str!("../tests/fixtures/minisign-test.pub")));
     let mut changed_detection = document();
-    changed_detection["apps"][0]["detection"]["windows"]["publisher"] = json!("Other");
+    changed_detection["apps"][0]["platforms"]["windows-x86_64"]["detection"]["publisher"] =
+        json!("Other");
     let mut removed = document();
     removed["apps"] = json!([]);
     for changed in [

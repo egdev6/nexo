@@ -50,21 +50,20 @@ fn official_parser_still_accepts_full_integration_and_projects_news() {
 }
 
 #[test]
-fn vp_official_catalogs_validate_v3_keys_and_reject_them_in_v2() {
-    use base64::{Engine, engine::general_purpose::STANDARD};
-    let mut raw = [0_u8; 42];
-    raw[..2].copy_from_slice(b"Ed");
-    let key = STANDARD.encode(format!("untrusted comment: k\n{}\n", STANDARD.encode(raw)));
-    let doc = |version: u8, key: Option<&str>| {
-        let mut app = serde_json::json!({"id": "antena", "name": "Antena", "tagline": "t", "description": "d",
-            "tags": [], "iconUrl": "https://example.com/i.png", "installerUrl": INITIAL,
-            "latestJsonUrl": "https://github.com/egdev6/antena/releases/download/v1/latest.json",
-            "integrationLevel": "launch", "releasedAt": "2026-01-01T00:00:00Z", "featured": false, "news": []});
-        if let Some(key) = key {
-            app["updaterPublicKey"] = key.into();
-        }
-        serde_json::json!({"schemaVersion": version, "apps": [app]}).to_string()
-    };
-    assert!(nexo_catalog::parse_catalog(&doc(3, Some(&key))).is_ok());
-    assert!(nexo_catalog::parse_catalog(&doc(2, Some(&key))).is_err());
+fn vp_official_v4_catalogs_validate_platform_keys_and_reject_old_versions() {
+    let mut value: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../crates/nexo-catalog/fixtures/v4.json"
+    ))
+    .unwrap();
+    assert!(nexo_catalog::parse_catalog_v4(&value.to_string()).is_ok());
+    value["apps"][0]["platforms"]["windows-x86_64"]["updaterPublicKey"] = "bad".into();
+    assert!(nexo_catalog::parse_catalog_v4(&value.to_string()).is_err());
+    for version in [1, 2, 3] {
+        assert!(
+            nexo_catalog::parse_catalog_v4(
+                &serde_json::json!({"schemaVersion": version, "apps": []}).to_string()
+            )
+            .is_err()
+        );
+    }
 }
