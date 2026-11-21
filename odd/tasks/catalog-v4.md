@@ -25,7 +25,7 @@
 | T2a | S3, S4, S5, S7 | worker: Rust (crates/nexo-catalog v4 + projection + schema copy, src-tauri platform key, install feed v4, v4 cache + commands, docs/catalog.md) | done: cargo fmt/clippy/test green; Windows MSVC unverified locally | 4e62aac, de007af |
 | T2b | S3, S4, S5, S7 | worker: TypeScript (format.ts v4 + projection, loader v4 only, platform_key invoke, schemaVersion checks, i18n `install.v3Required`, tests) | done: 612 vitest, tsc, build, ds:doctor green | 8394e02 (docs 2672ce0) |
 | T3 | S2 | parent: release notes, rebuild 0.2.0 (maintainer deletes draft and reruns Release) | pending | |
-| T4 | all | verify | pending | |
+| T4 | all | verify | pass S1, S3-S7 on Linux (336 cargo, 612 vitest, 161-case Rust/TS differential identical, published v4 projects Antena+Quorb only on windows-x86_64); cfg(windows) paths unproven until native Windows CI | — |
 
 ## Log
 
