@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
 import { defaultSettings } from './sample';
+import v4 from '../../../crates/nexo-catalog/fixtures/v4.json';
 
 const bridge = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -25,11 +26,11 @@ let cycle: number;
 let stored: string | null;
 const fiveMinutes = 5 * 60 * 1000;
 function catalog(version: string) {
-  return JSON.stringify({ schemaVersion: 3, apps: [{
+  return JSON.stringify({ schemaVersion: 4, apps: [{
     id: 'example-app', name: 'Example App', tagline: 'Example', description: 'Example application', tags: [],
-    iconUrl: 'https://example.com/icon.png', installerUrl: 'https://github.com/egdev6/example-app/releases/download/v1.0.0/setup.exe',
-    latestJsonUrl: 'https://github.com/egdev6/example-app/releases/download/v1.0.0/latest.json',
-    integrationLevel: 'launch', releasedAt: '2025-01-02T03:04:05Z', featured: false, version, news: [],
+    iconUrl: 'https://example.com/icon.png', integrationLevel: 'launch', featured: false, news: [],
+    platforms: { 'windows-x86_64': { installerUrl: 'https://github.com/egdev6/example-app/releases/download/v1.0.0/example-app_x64-setup.exe',
+      latestJsonUrl: 'https://github.com/egdev6/example-app/releases/download/v1.0.0/latest.json', releasedAt: '2025-01-02T03:04:05Z', version } },
   }] });
 }
 function response(url: string, version: string) {
@@ -70,8 +71,8 @@ beforeEach(() => {
     if (command === 'get_settings') return { state: 'ready', settings };
     if (command === 'save_settings') { settings = { ...settings, ...args?.patch }; return settings; }
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0, at: now };
-    if (command === 'read_catalog_v3_cache') return stored;
-    if (command === 'read_catalog_v2_cache' || command === 'read_catalog_cache') return null;
+    if (command === 'platform_key') return 'windows-x86_64';
+    if (command === 'read_catalog_v4_cache') return stored;
     if (command === 'write_catalog_cache') { stored = args?.input ?? null; return null; }
     if (command === 'installed_apps') return [{ id: 'example-app', state: 'notInstalled', reason: 'No está instalada', version: null }];
     if (command === 'plugin:autostart|is_enabled') return false;
@@ -79,6 +80,43 @@ beforeEach(() => {
   });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it('hides a Windows-only app and its news on Darwin throughout the live UI', async () => {
+  const doc = structuredClone(v4);
+  const timestamp = new Date(now).toISOString();
+  doc.apps[0].news[0] = { id: 'darwin-news', title: 'Darwin news', text: 'Available', publishedAt: timestamp, kind: 'new' };
+  doc.apps[0].platforms['darwin-aarch64']!.releasedAt = timestamp;
+  doc.apps[1].platforms['windows-x86_64'].releasedAt = timestamp;
+  (doc.apps[1].news as { id: string; title: string; text: string; publishedAt: string; kind: string }[]).push({ id: 'windows-news', title: 'Windows news', text: 'Windows only', publishedAt: timestamp, kind: 'new' });
+  const text = JSON.stringify(doc);
+  bridge.fetch.mockImplementation(async (url: string) => ({ ok: true, redirected: false, url, text: async () => text }));
+  const original = bridge.invoke.getMockImplementation()!;
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => {
+    if (command === 'platform_key') return 'darwin-aarch64';
+    if (command === 'get_settings') return { state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: true } };
+    if (command === 'installed_apps') return [{ id: 'windows-only', state: 'installed', version: '0.1.0' }, { id: 'example-app', state: 'notInstalled', version: null }];
+    return original(command, args);
+  });
+  render(<App />);
+  await screen.findByText('Instaladas');
+  await waitFor(() => expect(stored).toBe(text));
+  await waitFor(() => expect(bridge.events.has('flyout-visibility')).toBe(true));
+  expect(screen.queryByText('Windows Only')).toBeNull();
+  expect(screen.queryByRole('button', { name: /Actualizar a v/ })).toBeNull();
+  visibility(true);
+  const dialog = await screen.findByRole('dialog', { name: 'Novedades' });
+  expect(within(dialog).getByText('Darwin news')).toBeTruthy();
+  expect(within(dialog).queryByText('Windows news')).toBeNull();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar novedades' }));
+  selectTab('Catálogo');
+  expect(await screen.findByRole('article', { name: 'Example App' })).toBeTruthy();
+  expect(screen.queryByRole('article', { name: 'Windows Only' })).toBeNull();
+  selectTab('Mis apps');
+  fireEvent.click(screen.getByRole('button', { name: 'Actualizar apps' }));
+  await waitFor(() => expect(bridge.fetch).toHaveBeenCalledTimes(2));
+  expect(bridge.invoke.mock.calls.filter(([command]) => command === 'platform_key')).toHaveLength(1);
+  expect(bridge.fetch.mock.calls.every(([url]) => url === 'https://egdev6.github.io/nexo-catalog/v4/catalog.json')).toBe(true);
+});
 
 it('fetches once on first open, throttles through five minutes, then refreshes in the background', async () => {
   await start();
@@ -143,7 +181,7 @@ it('retains the visible catalog if a failed refresh cannot read any cache', asyn
   bridge.fetch.mockRejectedValue(new Error('offline'));
   visibility(false); now += fiveMinutes + 1; visibility(true);
   await screen.findByText(/Sin conexión con el catálogo/);
-  expect(bridge.fetch).toHaveBeenCalledTimes(4);
+  expect(bridge.fetch).toHaveBeenCalledTimes(2);
   expect(version()).toContain('1.0.0');
   expect(stored).toBeNull();
   expect(screen.queryByText('Cargando catálogo…')).toBeNull();

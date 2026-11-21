@@ -1,4 +1,4 @@
-//! Native v3 catalog source for installation authorization.
+//! Native v4 catalog source for installation authorization.
 //!
 //! This is not an authorization by itself. A transaction must obtain a new catalog at
 //! the action boundary and another immediately before spawning, then revalidate its
@@ -8,7 +8,7 @@ use crate::install_download::{Body, Network, ResponseKind};
 use nexo_catalog::{Catalog, CatalogApp};
 use std::time::Duration;
 
-pub const OFFICIAL_V3_FEED: &str = "https://egdev6.github.io/nexo-catalog/v3/catalog.json";
+pub const OFFICIAL_V4_FEED: &str = "https://egdev6.github.io/nexo-catalog/v4/catalog.json";
 pub const FEED_LIMIT: u64 = 2 * 1024 * 1024;
 pub const FEED_TIMEOUT: Duration = Duration::from_secs(8);
 
@@ -57,7 +57,7 @@ impl FreshCatalog {
         &self.catalog
     }
 
-    /// Select by official ID only. Validated v3 entries without keys remain display-only.
+    /// Select by official ID only. Validated v4 entries without keys remain display-only.
     pub fn select(&self, id: &str) -> Result<Selection, SelectionError> {
         let app = self
             .catalog
@@ -104,11 +104,23 @@ pub trait CatalogFeed: Sync {
 
 pub struct NativeFeed<N> {
     network: N,
+    platform: Option<String>,
 }
 
 impl<N> NativeFeed<N> {
     pub fn new(network: N) -> Self {
-        Self { network }
+        Self {
+            network,
+            platform: crate::platform::platform_key(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_platform(network: N, platform: Option<&str>) -> Self {
+        Self {
+            network,
+            platform: platform.map(str::to_owned),
+        }
     }
 }
 
@@ -117,10 +129,10 @@ impl<N: Network> CatalogFeed for NativeFeed<N> {
         let fetch = async {
             let response = self
                 .network
-                .get(OFFICIAL_V3_FEED)
+                .get(OFFICIAL_V4_FEED)
                 .await
                 .map_err(|_| FeedError::Network)?;
-            if response.effective_url != OFFICIAL_V3_FEED {
+            if response.effective_url != OFFICIAL_V4_FEED {
                 return Err(FeedError::InvalidResponse);
             }
             let ResponseKind::Ok { length, mut body } = response.kind else {
@@ -149,11 +161,10 @@ impl<N: Network> CatalogFeed for NativeFeed<N> {
                 return Err(FeedError::LengthMismatch);
             }
             let text = std::str::from_utf8(&bytes).map_err(|_| FeedError::InvalidCatalog)?;
+            let document =
+                nexo_catalog::parse_catalog_v4(text).map_err(|_| FeedError::InvalidCatalog)?;
             let catalog =
-                nexo_catalog::parse_catalog(text).map_err(|_| FeedError::InvalidCatalog)?;
-            if catalog.schema_version != 3 {
-                return Err(FeedError::InvalidCatalog);
-            }
+                nexo_catalog::project_catalog_v4(&document, self.platform.as_deref().unwrap_or(""));
             Ok(FreshCatalog { catalog })
         };
         tokio::time::timeout(FEED_TIMEOUT, fetch)

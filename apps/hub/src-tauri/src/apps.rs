@@ -66,15 +66,14 @@ pub(crate) fn activate_connected_menu_item(
 
 #[cfg(windows)]
 fn official_catalog(app: tauri::AppHandle) -> Result<Catalog, String> {
-    let text = match crate::catalog_cache::read_catalog_v3_cache(app.clone())? {
-        Some(text) => text,
-        None => match crate::catalog_cache::read_catalog_v2_cache(app.clone())? {
-            Some(text) => text,
-            None => crate::catalog_cache::read_catalog_cache(app)?
-                .ok_or_else(|| "nexo.appNoCatalog".to_string())?,
-        },
-    };
-    nexo_catalog::parse_catalog(&text).map_err(|error| error.to_string())
+    let text = crate::catalog_cache::read_catalog_v4_cache(app)?
+        .ok_or_else(|| "nexo.appNoCatalog".to_string())?;
+    let document = nexo_catalog::parse_catalog_v4(&text).map_err(|error| error.to_string())?;
+    let platform = crate::platform::platform_key();
+    Ok(nexo_catalog::project_catalog_v4(
+        &document,
+        platform.as_deref().unwrap_or(""),
+    ))
 }
 
 #[cfg(windows)]
@@ -1065,6 +1064,42 @@ mod tests {
                 "example-app"
             ),
             Err("spawn failed".into())
+        );
+        assert!(launcher.launched.borrow().is_empty());
+    }
+
+    #[test]
+    fn apps_without_a_platform_entry_cannot_be_matched_opened_or_detected() {
+        let document = nexo_catalog::parse_catalog_v4(include_str!(
+            "../../../../crates/nexo-catalog/fixtures/v4.json"
+        ))
+        .unwrap();
+        let darwin = nexo_catalog::project_catalog_v4(&document, "darwin-aarch64");
+        let windows = nexo_catalog::project_catalog_v4(&document, "windows-x86_64");
+        let hidden = windows
+            .apps
+            .iter()
+            .find(|app| app.id == "windows-only")
+            .unwrap();
+        let registry = fake(Ok(vec![entry("physical-a")]));
+        let launcher = FakeLauncher::default();
+        assert!(
+            observe(&darwin, &registry)
+                .iter()
+                .all(|item| item.id != hidden.id)
+        );
+        assert!(
+            official_duplicates(&darwin, &registry, &launcher)
+                .iter()
+                .all(|item| item.id != hidden.id)
+        );
+        assert_eq!(
+            open_official(&darwin, &registry, &launcher, &hidden.id),
+            Err("nexo.appNotOfficial".into())
+        );
+        assert_eq!(
+            install_detection(&darwin, hidden, &registry),
+            crate::install_service::Detection::Unknown
         );
         assert!(launcher.launched.borrow().is_empty());
     }

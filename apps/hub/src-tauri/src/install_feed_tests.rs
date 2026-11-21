@@ -10,7 +10,7 @@ const OTHER_URL: &str =
 const KEY: &str = include_str!("../tests/fixtures/tauri-test.pub");
 const OTHER_KEY: &str = include_str!("../tests/fixtures/minisign-test.pub");
 
-fn catalog_value() -> Value {
+fn legacy_catalog_value() -> Value {
     let mut value: Value = serde_json::from_str(include_str!(
         "../../../../crates/nexo-catalog/fixtures/minimal.json"
     ))
@@ -27,10 +27,37 @@ fn catalog_value() -> Value {
     value
 }
 
-fn fresh(value: &Value) -> FreshCatalog {
-    FreshCatalog {
-        catalog: nexo_catalog::parse_catalog(&value.to_string()).unwrap(),
+fn catalog_value() -> Value {
+    let mut value = legacy_catalog_value();
+    value["schemaVersion"] = json!(4);
+    let app = value["apps"][0].as_object_mut().unwrap();
+    let mut entry = serde_json::Map::new();
+    for field in [
+        "installerUrl",
+        "latestJsonUrl",
+        "version",
+        "releasedAt",
+        "updaterPublicKey",
+    ] {
+        entry.insert(field.into(), app.remove(field).unwrap());
     }
+    entry.insert(
+        "detection".into(),
+        app.remove("detection").unwrap()["windows"].clone(),
+    );
+    app.insert("platforms".into(), json!({"windows-x86_64": entry}));
+    value
+}
+
+fn fresh(value: &Value) -> FreshCatalog {
+    let document = nexo_catalog::parse_catalog_v4(&value.to_string()).unwrap();
+    FreshCatalog {
+        catalog: nexo_catalog::project_catalog_v4(&document, "windows-x86_64"),
+    }
+}
+
+fn test_feed(network: FakeNetwork) -> NativeFeed<FakeNetwork> {
+    NativeFeed::for_platform(network, Some("windows-x86_64"))
 }
 
 enum Reply {
@@ -127,9 +154,9 @@ impl Network for FakeNetwork {
 }
 
 #[tokio::test]
-async fn fetches_and_validates_only_the_fixed_native_v3_source() {
+async fn fetches_and_validates_only_the_fixed_native_v4_source() {
     let text = catalog_value().to_string();
-    let feed = NativeFeed::new(FakeNetwork::new(vec![body(text.as_bytes())]));
+    let feed = test_feed(FakeNetwork::new(vec![body(text.as_bytes())]));
     let catalog = feed.fetch().await.unwrap();
     let selected = catalog.select("minimal").unwrap();
     assert_eq!(selected.app().installer_url, URL);
@@ -137,13 +164,13 @@ async fn fetches_and_validates_only_the_fixed_native_v3_source() {
         selected.app().updater_public_key.as_deref(),
         Some(STANDARD.encode(KEY).as_str())
     );
-    assert_eq!(feed.network.requests(), [OFFICIAL_V3_FEED]);
+    assert_eq!(feed.network.requests(), [OFFICIAL_V4_FEED]);
 }
 
 #[tokio::test]
 async fn each_fetch_is_fresh_and_failure_never_falls_back_to_previous_data() {
     let text = catalog_value().to_string();
-    let feed = NativeFeed::new(FakeNetwork::new(vec![
+    let feed = test_feed(FakeNetwork::new(vec![
         body(text.as_bytes()),
         Reply::Network,
     ]));
@@ -160,16 +187,16 @@ async fn each_fetch_is_fresh_and_failure_never_falls_back_to_previous_data() {
     assert_eq!(feed.fetch().await.unwrap_err(), FeedError::Network);
     assert_eq!(
         feed.network.requests(),
-        [OFFICIAL_V3_FEED, OFFICIAL_V3_FEED]
+        [OFFICIAL_V4_FEED, OFFICIAL_V4_FEED]
     );
 }
 
 #[tokio::test]
 async fn rejects_redirects_changed_effective_urls_and_failed_responses() {
     for reply in [Reply::Redirect, Reply::WrongUrl, Reply::Failed] {
-        let feed = NativeFeed::new(FakeNetwork::new(vec![reply]));
+        let feed = test_feed(FakeNetwork::new(vec![reply]));
         assert_eq!(feed.fetch().await.unwrap_err(), FeedError::InvalidResponse);
-        assert_eq!(feed.network.requests(), [OFFICIAL_V3_FEED]);
+        assert_eq!(feed.network.requests(), [OFFICIAL_V4_FEED]);
     }
 }
 
@@ -177,30 +204,73 @@ async fn rejects_redirects_changed_effective_urls_and_failed_responses() {
 async fn rejects_old_malformed_or_policy_invalid_catalogs() {
     let valid = catalog_value();
     let mut documents = vec![b"{".to_vec(), vec![0xff]];
-    for version in [1, 2] {
-        let mut old = valid.clone();
-        old["schemaVersion"] = json!(version);
-        old["apps"][0]
-            .as_object_mut()
-            .unwrap()
-            .remove("updaterPublicKey");
-        if version == 1 {
-            old["apps"][0].as_object_mut().unwrap().remove("detection");
-        }
-        documents.push(old.to_string().into_bytes());
+    for version in [1, 2, 3] {
+        documents.push(
+            json!({"schemaVersion": version, "apps": []})
+                .to_string()
+                .into_bytes(),
+        );
     }
     let mut invalid_url = valid.clone();
-    invalid_url["apps"][0]["installerUrl"] =
+    invalid_url["apps"][0]["platforms"]["windows-x86_64"]["installerUrl"] =
         json!("https://github.com.evil/egdev6/example/releases/download/v1/a.exe");
     documents.push(invalid_url.to_string().into_bytes());
     let mut invalid_key = valid;
-    invalid_key["apps"][0]["updaterPublicKey"] = json!("not-a-key");
+    invalid_key["apps"][0]["platforms"]["windows-x86_64"]["updaterPublicKey"] = json!("not-a-key");
     documents.push(invalid_key.to_string().into_bytes());
     for document in documents {
-        let feed = NativeFeed::new(FakeNetwork::new(vec![body(&document)]));
+        let feed = test_feed(FakeNetwork::new(vec![body(&document)]));
         assert_eq!(feed.fetch().await.unwrap_err(), FeedError::InvalidCatalog);
-        assert_eq!(feed.network.requests(), [OFFICIAL_V3_FEED]);
+        assert_eq!(feed.network.requests(), [OFFICIAL_V4_FEED]);
     }
+}
+
+#[tokio::test]
+async fn native_feed_rejects_a_valid_v3_document() {
+    let text = legacy_catalog_value().to_string();
+    let feed = test_feed(FakeNetwork::new(vec![body(text.as_bytes())]));
+    assert_eq!(feed.fetch().await.unwrap_err(), FeedError::InvalidCatalog);
+    assert_eq!(feed.network.requests(), [OFFICIAL_V4_FEED]);
+}
+
+#[tokio::test]
+async fn fetch_projects_the_requested_platform_and_hides_every_app_when_unknown() {
+    let text = include_str!("../../../../crates/nexo-catalog/fixtures/v4.json");
+    for (platform, expected_ids) in [
+        (Some("windows-x86_64"), vec!["example-app", "windows-only"]),
+        (Some("darwin-aarch64"), vec!["example-app"]),
+        (Some("linux-x86_64"), vec![]),
+        (None, vec![]),
+    ] {
+        let feed =
+            NativeFeed::for_platform(FakeNetwork::new(vec![body(text.as_bytes())]), platform);
+        let catalog = feed.fetch().await.unwrap();
+        assert_eq!(
+            catalog
+                .catalog()
+                .apps
+                .iter()
+                .map(|app| app.id.as_str())
+                .collect::<Vec<_>>(),
+            expected_ids
+        );
+        if platform != Some("windows-x86_64") {
+            assert_eq!(
+                catalog.select("windows-only"),
+                Err(SelectionError::NotOfficial)
+            );
+        }
+    }
+    let feed = NativeFeed::new(FakeNetwork::new(vec![body(text.as_bytes())]));
+    let actual = feed.fetch().await.unwrap();
+    let document = nexo_catalog::parse_catalog_v4(text).unwrap();
+    assert_eq!(
+        actual.catalog(),
+        &nexo_catalog::project_catalog_v4(
+            &document,
+            crate::platform::platform_key().as_deref().unwrap_or("")
+        )
+    );
 }
 
 #[tokio::test]
@@ -235,18 +305,18 @@ async fn bounds_feed_bytes_and_rejects_length_mismatches_without_fallback() {
             FeedError::LengthMismatch,
         ),
     ] {
-        let feed = NativeFeed::new(FakeNetwork::new(vec![reply]));
+        let feed = test_feed(FakeNetwork::new(vec![reply]));
         assert_eq!(feed.fetch().await.unwrap_err(), expected);
-        assert_eq!(feed.network.requests(), [OFFICIAL_V3_FEED]);
+        assert_eq!(feed.network.requests(), [OFFICIAL_V4_FEED]);
     }
 }
 
 #[tokio::test(start_paused = true)]
 async fn bounds_both_connection_and_stream_time() {
     for reply in [Reply::PendingConnection, Reply::PendingBody] {
-        let feed = NativeFeed::new(FakeNetwork::new(vec![reply]));
+        let feed = test_feed(FakeNetwork::new(vec![reply]));
         assert_eq!(feed.fetch().await.unwrap_err(), FeedError::Timeout);
-        assert_eq!(feed.network.requests(), [OFFICIAL_V3_FEED]);
+        assert_eq!(feed.network.requests(), [OFFICIAL_V4_FEED]);
     }
 }
 
@@ -256,7 +326,7 @@ fn selecting_requires_an_official_id_and_a_public_key() {
     let catalog = fresh(&value);
     assert_eq!(catalog.select("unknown"), Err(SelectionError::NotOfficial));
     assert_eq!(catalog.select("minimal").unwrap().app().id, "minimal");
-    value["apps"][0]
+    value["apps"][0]["platforms"]["windows-x86_64"]
         .as_object_mut()
         .unwrap()
         .remove("updaterPublicKey");
@@ -276,7 +346,7 @@ fn keyed_selection_refuses_assets_without_the_x64_nsis_suffix() {
         "example_x64-setup.exe.txt",
     ] {
         let mut value = catalog_value();
-        value["apps"][0]["installerUrl"] = json!(format!(
+        value["apps"][0]["platforms"]["windows-x86_64"]["installerUrl"] = json!(format!(
             "https://github.com/egdev6/example/releases/download/v1/{asset}"
         ));
         assert_eq!(
@@ -297,7 +367,7 @@ fn revalidation_rejects_removal_or_change_of_release_key_and_detection_identity(
     removed["apps"] = json!([]);
     cases.push(removed);
     let mut missing_key = original.clone();
-    missing_key["apps"][0]
+    missing_key["apps"][0]["platforms"]["windows-x86_64"]
         .as_object_mut()
         .unwrap()
         .remove("updaterPublicKey");
@@ -309,11 +379,15 @@ fn revalidation_rejects_removal_or_change_of_release_key_and_detection_identity(
         ("version", json!("2.0.0")),
         (
             "detection",
-            json!({"windows": {"displayName": "Other", "publisher": "Example", "executableRelativePath": "Minimal.exe"}}),
+            json!({"displayName": "Other", "publisher": "Example", "executableRelativePath": "Minimal.exe"}),
         ),
     ] {
         let mut changed = original.clone();
-        changed["apps"][0][field] = new_value;
+        if field == "id" {
+            changed["apps"][0][field] = new_value;
+        } else {
+            changed["apps"][0]["platforms"]["windows-x86_64"][field] = new_value;
+        }
         cases.push(changed);
     }
     for changed in cases {

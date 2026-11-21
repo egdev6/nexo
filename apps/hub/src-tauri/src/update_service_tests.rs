@@ -7,9 +7,9 @@ use crate::install_service::{
     InstallResult, InstallService, InstallWorkspace, Installer, Monitor, Operation,
     ProgressReporter, ProgressSink, UpdateCloser, UpdateDetection,
 };
+use crate::install_service_tests::document;
 use crate::install_workspace::PrepareError;
 use crate::update_close::{CloseOutcome, ProbeError};
-use base64::{Engine, engine::general_purpose::STANDARD};
 use nexo_catalog::CatalogApp;
 use serde_json::{Value, json};
 use std::{
@@ -22,22 +22,6 @@ use std::{
 };
 use tokio::sync::Semaphore;
 
-fn document() -> Value {
-    let mut value: Value = serde_json::from_str(include_str!(
-        "../../../../crates/nexo-catalog/fixtures/minimal.json"
-    ))
-    .unwrap();
-    value["schemaVersion"] = json!(3);
-    value["apps"][0]["installerUrl"] =
-        json!("https://github.com/egdev6/example/releases/download/v1/example_x64-setup.exe");
-    value["apps"][0]["latestJsonUrl"] =
-        json!("https://github.com/egdev6/example/releases/download/v1/latest.json");
-    value["apps"][0]["updaterPublicKey"] =
-        json!(STANDARD.encode(include_str!("../tests/fixtures/tauri-test.pub")));
-    value["apps"][0]["version"] = json!("1.0.0");
-    value["apps"][0]["detection"] = json!({"windows":{"displayName":"Minimal","publisher":"Example","executableRelativePath":"Minimal.exe"}});
-    value
-}
 fn installed(version: &str) -> UpdateDetection {
     UpdateDetection::Installed {
         version: Some(version.into()),
@@ -137,7 +121,9 @@ impl CatalogFeed for Feed {
             .unwrap()
             .pop_front()
             .unwrap_or_else(|| Ok(document()))?;
-        NativeFeed::new(DocumentNetwork(document)).fetch().await
+        NativeFeed::for_platform(DocumentNetwork(document), Some("windows-x86_64"))
+            .fetch()
+            .await
     }
 }
 struct NoNetwork;
@@ -395,7 +381,7 @@ async fn update_still_refuses_unknown_installation_before_approval() {
 async fn absent_key_bad_feed_and_denied_approval_never_download_or_launch() {
     let state = State::new();
     let mut missing = document();
-    missing["apps"][0]
+    missing["apps"][0]["platforms"]["windows-x86_64"]
         .as_object_mut()
         .unwrap()
         .remove("updaterPublicKey");
@@ -427,7 +413,7 @@ async fn absent_key_bad_feed_and_denied_approval_never_download_or_launch() {
 #[tokio::test]
 async fn changed_release_or_observation_aborts_after_download_and_cleans() {
     let mut changed = document();
-    changed["apps"][0]["version"] = json!("1.1.0");
+    changed["apps"][0]["platforms"]["windows-x86_64"]["version"] = json!("1.1.0");
     let state = State::new();
     *state.documents.lock().unwrap() = [Ok(document()), Ok(changed)].into();
     assert_eq!(update(&state).await, json!({"status":"releaseChanged"}));
@@ -480,7 +466,7 @@ async fn failed_close_or_final_process_probe_never_spawns_and_cleans() {
 #[tokio::test]
 async fn metadata_and_identity_are_rechecked_after_close_before_spawn() {
     let mut changed = document();
-    changed["apps"][0]["version"] = json!("1.1.0");
+    changed["apps"][0]["platforms"]["windows-x86_64"]["version"] = json!("1.1.0");
     let state = State::new();
     *state.documents.lock().unwrap() = [Ok(document()), Ok(document()), Ok(changed)].into();
     assert_eq!(update(&state).await, json!({"status":"releaseChanged"}));

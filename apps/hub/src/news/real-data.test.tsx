@@ -2,7 +2,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import App, { FlyoutPanel } from '../App';
-import { parseCatalog } from '../catalog/format';
+import { parseCatalogV4, projectCatalogV4 } from '../catalog/format';
+import { windowsCatalog } from '../test-helpers/catalog-v4';
 import { selectOfficialNews } from './selection';
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>() }));
@@ -15,8 +16,6 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, cal
 vi.mock('../catalog/loader', async importOriginal => ({
   ...(await importOriginal<typeof import('../catalog/loader')>()),
   OFFICIAL_CATALOG_URL: undefined,
-  OFFICIAL_CATALOG_V2_URL: undefined,
-  OFFICIAL_CATALOG_V3_URL: undefined,
 }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ hide: vi.fn() }) }));
 vi.mock('../shell/registry', () => ({ subscribeRegistry: vi.fn().mockResolvedValue(() => {}), exitHubOnly: vi.fn() }));
@@ -30,11 +29,10 @@ function app(id: string, releasedAt: string, featured = false, news: Entry[] = [
   return { id, name: id, tagline: `Tag ${id}`, description: `Descripción ${id}`, tags: [], iconUrl: 'https://example.com/icon.png',
     installerUrl: 'https://example.com/setup.exe', latestJsonUrl: 'https://example.com/latest.json', integrationLevel: 'launch', releasedAt, featured, news };
 }
-function catalog(apps: ReturnType<typeof app>[]) { return JSON.stringify({ schemaVersion: 1, apps }); }
+function catalog(apps: ReturnType<typeof app>[]) { return JSON.stringify(windowsCatalog(apps)); }
 const official = { id: 'official', label: 'Catálogo oficial egdev', kind: 'official' };
 let stored: Record<string, unknown>;
 let cache: string | null;
-let cacheV3: string | null;
 let failSave: boolean;
 let sequence: number;
 let cycle: number;
@@ -44,15 +42,15 @@ beforeEach(() => {
   vi.setSystemTime(new Date(today));
   stored = { language: 'es', startWithWindows: false, showNewsOnOpen: true, accent: '#ff0036', compact: false, opacity: 85, blur: 24,
     firstRunComplete: true, sources: [official, { id: 'local', label: 'Local', kind: 'local' }] };
-  cache = null; cacheV3 = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
+  cache = null; failSave = false; sequence = 0; cycle = 0; bridge.listeners.clear(); bridge.invoke.mockReset();
   bridge.invoke.mockImplementation(async (command: string, args?: { patch?: Record<string, unknown> }) => {
     if (command === 'get_settings') return { state: 'ready', settings: structuredClone(stored) };
     if (command === 'save_settings') {
       if (failSave) throw new Error('disco lleno');
       stored = { ...stored, ...args?.patch }; return structuredClone(stored);
     }
-    if (command === 'read_catalog_cache') return cache;
-    if (command === 'read_catalog_v3_cache') return cacheV3;
+    if (command === 'platform_key') return 'windows-x86_64';
+    if (command === 'read_catalog_v4_cache') return cache;
     if (command === 'get_flyout_state') return { visible: false, sequence: 0, cycle: 0 };
     if (command === 'plugin:autostart|is_enabled' || command === 'backdrop_available') return false;
     if (command === 'local_apps_list') return [];
@@ -63,7 +61,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 async function start() {
   render(<App />);
   await screen.findByText('Instaladas');
-  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('read_catalog_cache'));
+  await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith('read_catalog_v4_cache'));
 }
 function visibility(visible: boolean) {
   sequence++; if (visible) cycle++;
@@ -73,7 +71,7 @@ async function open() { visibility(true); return screen.findByRole('dialog', { n
 function titles(dialog: HTMLElement) { return Array.from(dialog.querySelectorAll('.news-slide h3'), node => node.textContent); }
 function close() { fireEvent.click(screen.getByRole('button', { name: 'Cerrar novedades' })); }
 
-it('opens the real-shaped v3 updates newest first and navigates both detected and unknown apps', async () => {
+it('opens the real-shaped v4 updates newest first and navigates both detected and unknown apps', async () => {
   const timestamp = '2026-11-16T12:00:00Z';
   vi.setSystemTime(new Date(timestamp));
   const catalogApp = (id: string, name: string, version: string, date: string, featured: boolean) => ({
@@ -84,10 +82,10 @@ it('opens the real-shaped v3 updates newest first and navigates both detected an
     integrationLevel: 'update', releasedAt: date, featured, version,
     news: [{ id: `v${version.replaceAll('.', '-')}`, title: `${name} ${version}`, text: `A new ${name} release is available.`, publishedAt: date, kind: 'update' }],
   });
-  cacheV3 = JSON.stringify({ schemaVersion: 3, apps: [
+  cache = JSON.stringify(windowsCatalog([
     { ...catalogApp('antena', 'Antena', '0.15.0', '2026-11-14T08:48:36Z', true), detection: { windows: { displayName: 'antena', publisher: 'EGDEV', executableRelativePath: 'antena.exe' } } },
     catalogApp('quorb', 'Quorb', '0.8.0', '2026-10-28T14:55:56Z', false),
-  ] });
+  ]));
   const invoke = bridge.invoke.getMockImplementation()!;
   bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'installed_apps' ? [
     { id: 'antena', state: 'installed', version: '0.15.0', reason: 'Instalación detectada', canOpen: true },
@@ -221,7 +219,7 @@ it.each(['scrim', 'Escape', 'close', 'catalog'] as const)('clears background blu
 it('freezes the selected catalog news until the next show when the selection changes', async () => {
   const first = entry('first', '2026-05-31T11:00:00Z');
   const second = app('two', '2026-05-30T00:00:00Z', false, [entry('second', '2026-05-30T00:00:00Z', 'update')]);
-  const select = (apps: ReturnType<typeof app>[]) => selectOfficialNews(parseCatalog(JSON.parse(catalog(apps))), Date.parse(today)).items;
+  const select = (apps: ReturnType<typeof app>[]) => selectOfficialNews(projectCatalogV4(parseCatalogV4(JSON.parse(catalog(apps))), 'windows-x86_64'), Date.parse(today)).items;
   const initial = select([app('one', '2026-05-30T00:00:00Z', false, [first]), second]);
   const changed = select([
     app('one', '2026-05-30T00:00:00Z', false, [first, entry('replacement', '2026-05-31T11:30:00Z', 'update')]),
@@ -318,7 +316,7 @@ it('opens late cached data only while visible and does not reopen after dismissa
   let resolve!: (value: string) => void;
   const deferred = new Promise<string>(done => { resolve = done; });
   const normal = bridge.invoke.getMockImplementation()!;
-  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'read_catalog_cache' ? deferred : normal(command, args));
+  bridge.invoke.mockImplementation(async (command: string, args?: unknown) => command === 'read_catalog_v4_cache' ? deferred : normal(command, args));
   await start(); visibility(true); expect(screen.queryByRole('dialog')).toBeNull();
   await act(async () => { resolve(catalog([app('late', today)])); });
   await screen.findByRole('dialog', { name: 'Novedades' }); close();

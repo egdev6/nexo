@@ -29,6 +29,7 @@ mod ipc;
 mod local_apps;
 #[cfg(any(windows, test))]
 mod open_external;
+mod platform;
 mod position;
 #[cfg(any(windows, test))]
 mod registry_presentation;
@@ -738,9 +739,8 @@ pub fn run() {
             get_flyout_motion,
             get_flyout_state,
             hide_flyout,
-            catalog_cache::read_catalog_cache,
-            catalog_cache::read_catalog_v2_cache,
-            catalog_cache::read_catalog_v3_cache,
+            platform::platform_key,
+            catalog_cache::read_catalog_v4_cache,
             catalog_cache::write_catalog_cache,
             config::get_settings,
             config::save_settings,
@@ -781,9 +781,8 @@ pub fn run() {
         get_flyout_motion,
         get_flyout_state,
         hide_flyout,
-        catalog_cache::read_catalog_cache,
-        catalog_cache::read_catalog_v2_cache,
-        catalog_cache::read_catalog_v3_cache,
+        platform::platform_key,
+        catalog_cache::read_catalog_v4_cache,
         catalog_cache::write_catalog_cache,
         config::get_settings,
         config::save_settings,

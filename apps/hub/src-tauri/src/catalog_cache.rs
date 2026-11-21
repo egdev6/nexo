@@ -4,24 +4,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+const CACHE_NAME: &str = "catalog-v4.json";
 
-fn cache_name(version: u64) -> Result<&'static str, String> {
-    match version {
-        1 => Ok("catalog.json"),
-        2 => Ok("catalog-v2.json"),
-        3 => Ok("catalog-v3.json"),
-        _ => Err("Unsupported catalog cache version".into()),
-    }
-}
-
-fn read_version(directory: &Path, version: u64) -> Result<Option<String>, String> {
-    match std::fs::read_to_string(directory.join(cache_name(version)?)) {
-        Ok(text)
-            if nexo_catalog::parse_catalog(&text)
-                .is_ok_and(|catalog| catalog.schema_version == version) =>
-        {
-            Ok(Some(text))
-        }
+fn read_cache(directory: &Path) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(directory.join(CACHE_NAME)) {
+        Ok(text) if nexo_catalog::parse_catalog_v4(&text).is_ok() => Ok(Some(text)),
         Ok(_) => Ok(None),
         Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::InvalidData) => {
             Ok(None)
@@ -30,15 +17,8 @@ fn read_version(directory: &Path, version: u64) -> Result<Option<String>, String
     }
 }
 
-fn read_cache(directory: &Path) -> Result<Option<String>, String> {
-    read_version(directory, 1)
-}
-
 fn write_cache(directory: &Path, input: &str) -> Result<(), String> {
-    let version = nexo_catalog::parse_catalog(input)
-        .map_err(|error| error.to_string())?
-        .schema_version;
-    let target = cache_name(version)?;
+    nexo_catalog::parse_catalog_v4(input).map_err(|error| error.to_string())?;
     std::fs::create_dir_all(directory).map_err(|error| error.to_string())?;
     let name = format!(
         ".catalog-{}-{}.tmp",
@@ -56,7 +36,7 @@ fn write_cache(directory: &Path, input: &str) -> Result<(), String> {
         file.write_all(input.as_bytes())?;
         file.sync_all()?;
         drop(file);
-        std::fs::rename(&temporary, directory.join(target))
+        std::fs::rename(&temporary, directory.join(CACHE_NAME))
     })();
     if result.is_err() && created {
         let _ = std::fs::remove_file(&temporary);
@@ -65,30 +45,12 @@ fn write_cache(directory: &Path, input: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub(crate) fn read_catalog_cache(app: AppHandle) -> Result<Option<String>, String> {
+pub(crate) fn read_catalog_v4_cache(app: AppHandle) -> Result<Option<String>, String> {
     let directory = app
         .path()
         .app_data_dir()
         .map_err(|error| error.to_string())?;
     read_cache(&directory)
-}
-
-#[tauri::command]
-pub(crate) fn read_catalog_v2_cache(app: AppHandle) -> Result<Option<String>, String> {
-    let directory = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-    read_version(&directory, 2)
-}
-
-#[tauri::command]
-pub(crate) fn read_catalog_v3_cache(app: AppHandle) -> Result<Option<String>, String> {
-    let directory = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-    read_version(&directory, 3)
 }
 
 #[tauri::command]
@@ -106,8 +68,8 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    const VALID: &str = include_str!("../../../../crates/nexo-catalog/fixtures/full.json");
-    const EMPTY: &str = "{\"schemaVersion\":1,\"apps\":[]}";
+    const VALID: &str = include_str!("../../../../crates/nexo-catalog/fixtures/v4.json");
+    const EMPTY: &str = "{\"schemaVersion\":4,\"apps\":[]}";
 
     struct Scratch(std::path::PathBuf);
     impl Scratch {
@@ -138,45 +100,34 @@ mod tests {
     }
 
     #[test]
-    fn rejected_document_never_replaces_valid_cache() {
+    fn v4_cache_rejects_v3_and_invalid_documents_without_replacing_valid_data() {
         let dir = Scratch::new();
         write_cache(&dir.0, VALID).unwrap();
-        for invalid in ["{", "{\"schemaVersion\":4,\"apps\":[]}"] {
+        assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
+        for invalid in [
+            "{",
+            "{\"schemaVersion\":1,\"apps\":[]}",
+            "{\"schemaVersion\":2,\"apps\":[]}",
+            "{\"schemaVersion\":3,\"apps\":[]}",
+            "{\"schemaVersion\":4,\"apps\":[{}]}",
+        ] {
             assert!(write_cache(&dir.0, invalid).is_err());
             assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
+            assert_eq!(
+                std::fs::read_to_string(dir.0.join(CACHE_NAME)).unwrap(),
+                VALID
+            );
         }
     }
 
     #[test]
-    fn v2_write_does_not_replace_the_v1_cache() {
+    fn old_cache_files_are_ignored_and_corrupt_v4_recovers() {
         let dir = Scratch::new();
-        write_cache(&dir.0, VALID).unwrap();
-        let v2 = "{\"schemaVersion\":2,\"apps\":[]}";
-        write_cache(&dir.0, v2).unwrap();
-        assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
-        assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
-        assert!(write_cache(&dir.0, "{\"schemaVersion\":4,\"apps\":[]}").is_err());
-        assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
-    }
-
-    #[test]
-    fn v3_cache_is_separate_and_invalid_writes_preserve_all_versions() {
-        let dir = Scratch::new();
-        let v2 = "{\"schemaVersion\":2,\"apps\":[]}";
-        let v3 = "{\"schemaVersion\":3,\"apps\":[]}";
-        write_cache(&dir.0, VALID).unwrap();
-        write_cache(&dir.0, v2).unwrap();
-        write_cache(&dir.0, v3).unwrap();
-        assert!(write_cache(&dir.0, "{\"schemaVersion\":3,\"apps\":[{}]}").is_err());
-        assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(VALID));
-        assert_eq!(read_version(&dir.0, 2).unwrap().as_deref(), Some(v2));
-        assert_eq!(read_version(&dir.0, 3).unwrap().as_deref(), Some(v3));
-    }
-
-    #[test]
-    fn corrupt_cache_is_ignored_and_a_later_valid_write_recovers() {
-        let dir = Scratch::new();
-        std::fs::write(dir.0.join("catalog.json"), "{broken").unwrap();
+        for name in ["catalog.json", "catalog-v2.json", "catalog-v3.json"] {
+            std::fs::write(dir.0.join(name), "{\"schemaVersion\":3,\"apps\":[]}").unwrap();
+        }
+        assert_eq!(read_cache(&dir.0).unwrap(), None);
+        std::fs::write(dir.0.join(CACHE_NAME), "{broken").unwrap();
         assert_eq!(read_cache(&dir.0).unwrap(), None);
         write_cache(&dir.0, EMPTY).unwrap();
         assert_eq!(read_cache(&dir.0).unwrap().as_deref(), Some(EMPTY));

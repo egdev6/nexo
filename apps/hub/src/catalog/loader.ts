@@ -1,10 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isHttpsUrl, parseCatalog, type Catalog } from './format';
+import { isHttpsUrl, parseCatalogV4, projectCatalogV4, type Catalog } from './format';
 
-// T4: the maintainer sets the stable, reviewed public HTTPS URL after publication.
-export const OFFICIAL_CATALOG_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/catalog.json';
-export const OFFICIAL_CATALOG_V2_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/v2/catalog.json';
-export const OFFICIAL_CATALOG_V3_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/v3/catalog.json';
+export const OFFICIAL_CATALOG_URL: string | undefined = 'https://egdev6.github.io/nexo-catalog/v4/catalog.json';
 export const CATALOG_TIMEOUT_MS = 8000;
 
 export interface CatalogCache { read(): Promise<string | null>; write(text: string): Promise<void> }
@@ -18,15 +15,7 @@ export interface CatalogState {
 }
 
 export const diskCache: CatalogCache = {
-  read: () => invoke<string | null>('read_catalog_cache'),
-  write: text => invoke<void>('write_catalog_cache', { input: text }),
-};
-export const diskCacheV2: CatalogCache = {
-  read: () => invoke<string | null>('read_catalog_v2_cache'),
-  write: text => invoke<void>('write_catalog_cache', { input: text }),
-};
-export const diskCacheV3: CatalogCache = {
-  read: () => invoke<string | null>('read_catalog_v3_cache'),
+  read: () => invoke<string | null>('read_catalog_v4_cache'),
   write: text => invoke<void>('write_catalog_cache', { input: text }),
 };
 export const webFetcher: CatalogFetcher = (url, options) => fetch(url, options);
@@ -36,7 +25,6 @@ function endpointIsHttps(endpoint: string): boolean { return isHttpsUrl(endpoint
 
 type CacheTransaction = { generation: number; writes: Promise<void> };
 const cacheTransactions = new WeakMap<CatalogCache, CacheTransaction>();
-const versionedTransactions = new WeakMap<CatalogCache, number>();
 function beginCacheTransaction(cache: CatalogCache): [CacheTransaction, number] {
   let transaction = cacheTransactions.get(cache);
   if (!transaction) {
@@ -54,14 +42,13 @@ async function writeCurrent(cache: CatalogCache, transaction: CacheTransaction, 
 }
 
 /** Startup/retry transaction. A failed response never replaces the last valid cache. */
-export async function loadCatalog(endpoint: string | undefined, cache: CatalogCache, fetcher: CatalogFetcher, timeoutMs = CATALOG_TIMEOUT_MS, version: 1 | 2 | 3 = 1): Promise<CatalogState> {
+export async function loadCatalog(endpoint: string | undefined, cache: CatalogCache, fetcher: CatalogFetcher, platformKey: string | null, timeoutMs = CATALOG_TIMEOUT_MS): Promise<CatalogState> {
   const [transaction, generation] = beginCacheTransaction(cache);
   let previous: Catalog | undefined;
   try {
     const text = await cache.read();
     if (text !== null) {
-      const parsed = parseCatalog(JSON.parse(text));
-      if (parsed.schemaVersion === version) previous = parsed;
+      previous = projectCatalogV4(parseCatalogV4(JSON.parse(text)), platformKey);
     }
   } catch { /* Missing, corrupt or unavailable caches are not authoritative. */ }
   if (!endpoint || !endpointIsHttps(endpoint)) return { status: 'error', catalog: previous, stale: !!previous, reason: 'unconfigured' };
@@ -74,8 +61,7 @@ export async function loadCatalog(endpoint: string | undefined, cache: CatalogCa
       if (!response.ok || response.redirected || !endpointIsHttps(response.url) || new URL(response.url).origin !== new URL(endpoint).origin) throw new InvalidResponse();
       const text = await response.text();
       let catalog: Catalog;
-      try { catalog = parseCatalog(JSON.parse(text)); } catch { throw new InvalidResponse(); }
-      if (catalog.schemaVersion !== version) throw new InvalidResponse();
+      try { catalog = projectCatalogV4(parseCatalogV4(JSON.parse(text)), platformKey); } catch { throw new InvalidResponse(); }
       return { text, catalog };
     })();
     const timeout = new Promise<never>((_, reject) => {
@@ -87,22 +73,4 @@ export async function loadCatalog(endpoint: string | undefined, cache: CatalogCa
   } catch (error) {
     return { status: error instanceof InvalidResponse ? 'error' : 'offline', catalog: previous, stale: !!previous, reason: error instanceof InvalidResponse ? 'response' : undefined };
   } finally { if (timer !== undefined) clearTimeout(timer); }
-}
-
-/** Prefer separately configured v3 and v2 feeds/caches; retain v1 for fallback. */
-export async function loadVersionedCatalog(
-  v2Endpoint: string | undefined, v1Endpoint: string | undefined,
-  v2Cache: CatalogCache, v1Cache: CatalogCache, fetcher: CatalogFetcher,
-  v3Endpoint?: string, v3Cache?: CatalogCache,
-): Promise<CatalogState> {
-  const generation = (versionedTransactions.get(v1Cache) ?? 0) + 1;
-  versionedTransactions.set(v1Cache, generation);
-  if (v3Cache) {
-    const v3 = await loadCatalog(v3Endpoint, v3Cache, fetcher, CATALOG_TIMEOUT_MS, 3);
-    if (v3.catalog || versionedTransactions.get(v1Cache) !== generation) return v3;
-  }
-  const v2 = await loadCatalog(v2Endpoint, v2Cache, fetcher, CATALOG_TIMEOUT_MS, 2);
-  if (v2.catalog || versionedTransactions.get(v1Cache) !== generation) return v2;
-  const v1 = await loadCatalog(v1Endpoint, v1Cache, fetcher);
-  return v1.catalog || v1Endpoint || !v2Endpoint ? v1 : v2;
 }

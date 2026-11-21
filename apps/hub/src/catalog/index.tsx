@@ -49,7 +49,7 @@ function CatalogCard({ app, focused = false, reason, installs }: { app: HubApp; 
 function disabledReason(app: HubApp, state: Props['state'], stale: boolean, catalog?: Catalog, installs?: CatalogInstalls): MessageKey | undefined {
   if (app.installed || app.installationState === 'installed') return 'install.alreadyInstalled';
   if (stale || state !== 'ready') return 'install.offline';
-  if (catalog?.schemaVersion !== 3) return 'install.v3Required';
+  if (catalog?.schemaVersion !== 4) return 'install.catalogUpdateRequired';
   if (!catalog.apps.find(item => item.id === app.id)?.updaterPublicKey) return 'install.noKey';
   if (!installs || installs.connection !== 'ready') return 'install.progressUnavailable';
   return undefined;

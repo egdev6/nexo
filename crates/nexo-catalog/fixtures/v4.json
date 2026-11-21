@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 4,
+  "apps": [
+    {
+      "id": "example-app",
+      "name": "Example App",
+      "tagline": "An example for testing",
+      "description": "A fictional catalog entry.",
+      "tags": [
+        "Example",
+        "Desktop"
+      ],
+      "iconUrl": "https://example.com/icon.png",
+      "artUrl": "https://example.com/art.png",
+      "integrationLevel": "full",
+      "featured": true,
+      "links": {
+        "github": "https://github.com/example/example",
+        "youtube": "https://youtube.com/@example"
+      },
+      "news": [
+        {
+          "id": "release",
+          "title": "Example release",
+          "text": "A fictional release announcement.",
+          "publishedAt": "2025-01-02T03:04:05Z",
+          "kind": "new"
+        }
+      ],
+      "platforms": {
+        "windows-x86_64": {
+          "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_1.2.3_x64-setup.exe",
+          "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+          "version": "1.2.3",
+          "releasedAt": "2025-01-02T03:04:05Z",
+          "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK",
+          "detection": {
+            "displayName": "Example App",
+            "publisher": "Example",
+            "executableRelativePath": "example.exe"
+          }
+        },
+        "darwin-aarch64": {
+          "installerUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/example_aarch64.dmg",
+          "latestJsonUrl": "https://github.com/egdev6/example/releases/download/v1.2.3/latest.json",
+          "version": "1.2.2",
+          "releasedAt": "2025-01-01T00:00:00Z",
+          "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2RkFBNEZCQjUwNTQxMDAKUldRQVFRVzErNlQ2UnJmZTl1MVpMWk9sUE82Skx0ZFRDZHFoNDRjTWlwU0NNYkJ2UzhwT1Z4YWQK"
+        }
+      }
+    },
+    {
+      "id": "windows-only",
+      "name": "Windows Only",
+      "tagline": "Only on Windows",
+      "description": "A Windows-only entry.",
+      "tags": [],
+      "iconUrl": "https://example.com/w.png",
+      "integrationLevel": "update",
+      "featured": false,
+      "news": [],
+      "platforms": {
+        "windows-x86_64": {
+          "installerUrl": "https://github.com/egdev6/winonly/releases/download/v0.4.0/winonly_0.4.0_x64-setup.exe",
+          "latestJsonUrl": "https://github.com/egdev6/winonly/releases/download/v0.4.0/latest.json",
+          "version": "0.4.0",
+          "releasedAt": "2025-03-04T05:06:07Z"
+        }
+      }
+    }
+  ]
+}
