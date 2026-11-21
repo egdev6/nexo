@@ -19,8 +19,8 @@
     "ds:doctor": "egdev-ds doctor ."
   },
   "dependencies": {
-    "@egdev/tokens": "file:vendor/egdev-tokens-0.6.1-96635dd.tgz",
-    "@egdev/ui": "file:vendor/egdev-ui-0.6.0-96635dd.tgz",
+    "@egdev/tokens": "file:vendor/egdev-tokens-0.6.1-6f6e0c5.tgz",
+    "@egdev/ui": "file:vendor/egdev-ui-0.7.0-6f6e0c5.tgz",
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
     "@tauri-apps/api": "^2.8.0",
@@ -29,9 +29,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",
-    "@egdev/cli": "file:vendor/egdev-cli-0.1.1-96635dd.tgz",
-    "@egdev/mcp": "file:vendor/egdev-mcp-0.4.6-96635dd.tgz",
-    "@egdev/system": "file:vendor/egdev-system-0.7.0-96635dd.tgz",
+    "@egdev/cli": "file:vendor/egdev-cli-0.2.0-6f6e0c5.tgz",
+    "@egdev/mcp": "file:vendor/egdev-mcp-0.4.7-6f6e0c5.tgz",
+    "@egdev/system": "file:vendor/egdev-system-0.8.0-6f6e0c5.tgz",
     "@tauri-apps/cli": "^2.8.0",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.1.0",

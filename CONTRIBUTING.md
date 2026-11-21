@@ -61,7 +61,7 @@ Follow [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Use `@egd
 
 The guard runs with `npm run ds:doctor` (`egdev-ds doctor`) from `apps/hub`, in CI and in `scripts/check.sh`. It rejects raw `<button>`, `<input>`, `<a>` and `<label>` and DS-internal selectors outside `src/theme/` unless they have an entry in [`apps/hub/src/design-system-allowlist.ts`](./apps/hub/src/design-system-allowlist.ts). Do not bypass it to introduce new untracked exceptions.
 
-**Who updates the design system.** Contributors do not upgrade the design system and do not change `apps/hub/vendor/`, `apps/hub/egdev-ds.json` or the `@egdev/*` entries of `apps/hub/package-lock.json` in their pull requests. If you need a component, variant or fix from the design system, open an issue in [egdev6/egdev-design-system](https://github.com/egdev6/egdev-design-system/issues) describing the need (without proposing the solution) and reference its number in your pull request or code comment. The maintainer upgrades the design system in a dedicated pull request with `egdev-ds upgrade`, never mixed with features, so pull requests do not conflict over the lockfile or the vendored tarballs.
+**Who updates the design system.** Contributors do not upgrade the design system and do not change `apps/hub/vendor/`, `apps/hub/egdev-ds.json` or the `@egdev/*` entries of `apps/hub/package-lock.json` in their pull requests. If you need a component, variant or fix from the design system, open an issue in [egdev6/egdev-design-system](https://github.com/egdev6/egdev-design-system/issues) using the [Consumer request](https://github.com/egdev6/egdev-design-system/issues/new?template=consumer_request.yml) form, describing the need (without proposing the solution), and reference its number in your pull request or code comment. CI fails on pending `nexo#TBD-*` placeholders; replace them with the real issue number before merging. The maintainer upgrades the design system in a dedicated pull request with `egdev-ds upgrade`, never mixed with features, so pull requests do not conflict over the lockfile or the vendored tarballs.
 
 Maintainers, with the design-system repository checked out next to this one, can preview an upgrade from the repository root:
 
@@ -70,6 +70,15 @@ node ../egdev-design-system/packages/cli/bin/egdev-ds.mjs upgrade apps/hub --dry
 ```
 
 The CLI verifies the tarballs against the release, updates the manifest and lockfile and rolls everything back on failure. After an upgrade, run `npm run ds:doctor`, restart the dev server with `--force` and regenerate `design/system.md`. Follow the ADR for pinned versions, regeneration and the complete upgrade procedure.
+
+<!-- egdev-ds:consumer-requests -->
+#### Design system changes
+
+Do not edit vendored tarballs, `egdev-ds.json` or `@egdev/*` lockfile entries.
+Request design system changes with a "Consumer request" issue in `egdev6/egdev-design-system`.
+Optional local mitigations use the guard allowlist tied to the DS issue; the maintainer upgrades the DS in a separate PR.
+See https://github.com/egdev6/egdev-design-system/blob/main/docs/distribution/consumer-requests.md.
+<!-- /egdev-ds:consumer-requests -->
 
 ---
 
@@ -130,7 +139,7 @@ Seguid el [ADR 0001](./docs/decisions/0001-adopt-egdev-design-system.md). Usad `
 
 La protección se ejecuta con `npm run ds:doctor` (`egdev-ds doctor`) desde `apps/hub`, en CI y en `scripts/check.sh`. Rechaza `<button>`, `<input>`, `<a>` y `<label>` sin componente y los selectores internos del design system fuera de `src/theme/`, salvo que tengan una entrada en [`apps/hub/src/design-system-allowlist.ts`](./apps/hub/src/design-system-allowlist.ts). No la eludáis para introducir excepciones sin seguimiento.
 
-**Quién actualiza el design system.** Los colaboradores no actualizan el design system ni modifican `apps/hub/vendor/`, `apps/hub/egdev-ds.json` ni las entradas `@egdev/*` de `apps/hub/package-lock.json` en sus pull requests. Si necesitáis un componente, una variante o un arreglo del design system, abrid una issue en [egdev6/egdev-design-system](https://github.com/egdev6/egdev-design-system/issues) describiendo la necesidad (sin proponer la solución) y referenciad su número en vuestra pull request o en el comentario de código. El mantenedor actualiza el design system en una pull request propia con `egdev-ds upgrade`, nunca mezclada con funcionalidades, para que las pull requests no entren en conflicto por el lockfile o los tarballs vendorizados.
+**Quién actualiza el design system.** Los colaboradores no actualizan el design system ni modifican `apps/hub/vendor/`, `apps/hub/egdev-ds.json` ni las entradas `@egdev/*` de `apps/hub/package-lock.json` en sus pull requests. Si necesitáis un componente, una variante o un arreglo del design system, abrid una issue en [egdev6/egdev-design-system](https://github.com/egdev6/egdev-design-system/issues) con el formulario [Consumer request](https://github.com/egdev6/egdev-design-system/issues/new?template=consumer_request.yml), describid la necesidad (sin proponer la solución) y referenciad su número en vuestra pull request o en el comentario de código. CI falla si quedan marcadores pendientes `nexo#TBD-*`; sustituidlos por el número real de la issue antes de fusionar. El mantenedor actualiza el design system en una pull request propia con `egdev-ds upgrade`, nunca mezclada con funcionalidades, para que las pull requests no entren en conflicto por el lockfile o los tarballs vendorizados.
 
 Los mantenedores, con el repositorio del design system clonado junto a este, pueden previsualizar una actualización desde la raíz del repositorio:
 
