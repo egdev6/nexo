@@ -1,11 +1,13 @@
-//! Versions 1, 2 and 3 of the public, maintainer-curated catalog.
-//! Parse untrusted input with [`parse_catalog`] rather than deserializing it directly.
+//! Public, maintainer-curated catalog formats.
+//!
+//! Validate v4 wire documents with [`parse_catalog_v4`], then project them with
+//! [`project_catalog_v4`]. [`parse_catalog`] retains the flat v1–v3 formats.
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::DateTime;
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;
 use url::Url;
 
@@ -66,6 +68,91 @@ pub struct CatalogApp {
     )]
     pub detection: Option<Detection>,
     pub news: Vec<NewsEntry>,
+}
+
+/// The v4 wire document, before selecting a platform.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CatalogV4 {
+    pub schema_version: u64,
+    pub apps: Vec<CatalogAppV4>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CatalogAppV4 {
+    pub id: String,
+    pub name: String,
+    pub tagline: String,
+    pub description: String,
+    pub tags: Vec<String>,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub icon_url: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub art_url: Option<String>,
+    pub integration_level: IntegrationLevel,
+    pub featured: bool,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub links: Option<DiscoveryLinks>,
+    pub news: Vec<NewsEntry>,
+    pub platforms: BTreeMap<String, PlatformEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PlatformEntry {
+    pub installer_url: String,
+    pub latest_json_url: String,
+    pub version: String,
+    pub released_at: String,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub updater_public_key: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub detection: Option<WindowsDetection>,
+}
+
+impl CatalogAppV4 {
+    fn project(&self, entry: &PlatformEntry) -> CatalogApp {
+        CatalogApp {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            tagline: self.tagline.clone(),
+            description: self.description.clone(),
+            tags: self.tags.clone(),
+            icon_url: self.icon_url.clone(),
+            art_url: self.art_url.clone(),
+            installer_url: entry.installer_url.clone(),
+            latest_json_url: entry.latest_json_url.clone(),
+            updater_public_key: entry.updater_public_key.clone(),
+            integration_level: self.integration_level,
+            released_at: entry.released_at.clone(),
+            featured: self.featured,
+            version: Some(entry.version.clone()),
+            links: self.links.clone(),
+            detection: entry.detection.clone().map(|windows| Detection { windows }),
+            news: self.news.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -389,68 +476,131 @@ pub fn parse_catalog(input: &str) -> Result<Catalog, CatalogError> {
     }
     let mut app_ids = HashSet::new();
     for app in &catalog.apps {
-        if catalog.schema_version == 3 {
-            check_release_asset_url(&app.installer_url)?;
-            check_release_asset_url(&app.latest_json_url)?;
-            if let Some(key) = &app.updater_public_key {
-                check_updater_key(key)?;
-            }
+        validate_app(app, catalog.schema_version, Some(&mut app_ids))?;
+    }
+    Ok(catalog)
+}
+
+fn validate_app<'a>(
+    app: &'a CatalogApp,
+    schema_version: u64,
+    app_ids: Option<&mut HashSet<&'a String>>,
+) -> Result<(), CatalogError> {
+    if schema_version >= 3 {
+        check_release_asset_url(&app.installer_url)?;
+        check_release_asset_url(&app.latest_json_url)?;
+        if let Some(key) = &app.updater_public_key {
+            check_updater_key(key)?;
         }
-        if let Some(detection) = &app.detection {
-            check_text(&detection.windows.display_name)?;
-            check_text(&detection.windows.publisher)?;
-            check_executable_path(&detection.windows.executable_relative_path)?;
+    }
+    if let Some(detection) = &app.detection {
+        check_text(&detection.windows.display_name)?;
+        check_text(&detection.windows.publisher)?;
+        check_executable_path(&detection.windows.executable_relative_path)?;
+    }
+    if !valid_id(&app.id) {
+        return Err(CatalogError::BadId);
+    }
+    if let Some(ids) = app_ids
+        && !ids.insert(&app.id)
+    {
+        return Err(CatalogError::DuplicateId);
+    }
+    for text in [&app.name, &app.tagline, &app.description]
+        .into_iter()
+        .chain(app.tags.iter())
+    {
+        check_text(text)?;
+    }
+    if app.icon_url.is_none() && app.art_url.is_none() {
+        return Err(CatalogError::MissingArtwork);
+    }
+    for url in [
+        app.icon_url.as_deref(),
+        app.art_url.as_deref(),
+        Some(&app.installer_url),
+        Some(&app.latest_json_url),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        check_url(url)?;
+    }
+    if let Some(links) = &app.links {
+        for url in [links.github.as_deref(), links.youtube.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            check_url(url)?;
         }
-        if !valid_id(&app.id) {
+    }
+    if let Some(version) = &app.version {
+        Version::parse(version).map_err(|_| CatalogError::BadVersion)?;
+    }
+    check_date(&app.released_at)?;
+    let mut news_ids = HashSet::new();
+    for item in &app.news {
+        if !valid_id(&item.id) {
             return Err(CatalogError::BadId);
+        }
+        if !news_ids.insert(&item.id) {
+            return Err(CatalogError::DuplicateNewsId);
+        }
+        check_text(&item.title)?;
+        check_text(&item.text)?;
+        check_date(&item.published_at)?;
+    }
+    Ok(())
+}
+
+/// Decode and validate every platform entry of a v4 wire document.
+pub fn parse_catalog_v4(input: &str) -> Result<CatalogV4, CatalogError> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(input).map_err(|_| CatalogError::Document)?;
+    if let Some(version) = value.get_mut("schemaVersion")
+        && version.is_number()
+    {
+        if version.as_f64() != Some(4.0) {
+            return Err(CatalogError::SchemaVersion);
+        }
+        *version = serde_json::Value::from(4);
+    }
+    let catalog: CatalogV4 = serde_json::from_value(value).map_err(|_| CatalogError::Document)?;
+    if catalog.schema_version != 4 {
+        return Err(CatalogError::SchemaVersion);
+    }
+    let mut app_ids = HashSet::new();
+    for app in &catalog.apps {
+        if app.platforms.is_empty() {
+            return Err(CatalogError::Document);
         }
         if !app_ids.insert(&app.id) {
             return Err(CatalogError::DuplicateId);
         }
-        for text in [&app.name, &app.tagline, &app.description]
-            .into_iter()
-            .chain(app.tags.iter())
-        {
-            check_text(text)?;
-        }
-        if app.icon_url.is_none() && app.art_url.is_none() {
-            return Err(CatalogError::MissingArtwork);
-        }
-        for url in [
-            app.icon_url.as_deref(),
-            app.art_url.as_deref(),
-            Some(&app.installer_url),
-            Some(&app.latest_json_url),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            check_url(url)?;
-        }
-        if let Some(links) = &app.links {
-            for url in [links.github.as_deref(), links.youtube.as_deref()]
-                .into_iter()
-                .flatten()
+        for (key, entry) in &app.platforms {
+            let Some((os, arch)) = key.split_once('-') else {
+                return Err(CatalogError::Document);
+            };
+            if !matches!(os, "windows" | "darwin" | "linux")
+                || !matches!(arch, "x86_64" | "aarch64" | "i686" | "armv7")
+                || (os != "windows" && entry.detection.is_some())
             {
-                check_url(url)?;
+                return Err(CatalogError::Document);
             }
-        }
-        if let Some(version) = &app.version {
-            Version::parse(version).map_err(|_| CatalogError::BadVersion)?;
-        }
-        check_date(&app.released_at)?;
-        let mut news_ids = HashSet::new();
-        for item in &app.news {
-            if !valid_id(&item.id) {
-                return Err(CatalogError::BadId);
-            }
-            if !news_ids.insert(&item.id) {
-                return Err(CatalogError::DuplicateNewsId);
-            }
-            check_text(&item.title)?;
-            check_text(&item.text)?;
-            check_date(&item.published_at)?;
+            validate_app(&app.project(entry), 4, None)?;
         }
     }
     Ok(catalog)
+}
+
+/// Project a validated v4 document into the existing flat model for one platform.
+pub fn project_catalog_v4(catalog: &CatalogV4, platform: &str) -> Catalog {
+    Catalog {
+        schema_version: 4,
+        apps: catalog
+            .apps
+            .iter()
+            .filter_map(|app| app.platforms.get(platform).map(|entry| app.project(entry)))
+            .collect(),
+    }
 }
