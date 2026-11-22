@@ -164,7 +164,7 @@ export function LocalAppsView({
             <CollapsibleContent padding="sm" presence="unmount">
               <div className="detail-inner">
                 {row.executable && (
-                  <Text variant="body" foreground="secondary" className="meta local-path">
+                  <Text variant="body" foreground="secondary" className="meta">
                     {row.executable}
                   </Text>
                 )}

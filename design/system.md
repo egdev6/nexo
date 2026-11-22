@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system 6f6e0c5; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system 4a8c093; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 

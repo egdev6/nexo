@@ -338,6 +338,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
             <IconButton
               label={tr('common.back')}
               title={tr('common.back')}
+              // TODO(egdev-design-system#537): app CSS rotates arrow-right until the icon set has a back arrow.
               icon={<Icon name="arrow-right" className="settings__back-icon" />}
               variant="secondary"
               onClick={onClose}
@@ -345,18 +346,19 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
           }
         />
       </div>
-      <Tabs
-        className="settings__tabs"
-        variant="outline"
-        fullWidth
-        label={tr('settings.sections')}
-        items={[
-          { value: 'general', label: tr('settings.general'), content: general },
-          { value: 'appearance', label: tr('settings.appearance'), content: appearance },
-          { value: 'local-apps', label: tr('localApps.heading'), content: localApps },
-          { value: 'about', label: tr('settings.about'), content: about },
-        ]}
-      />
+      <div className="settings__tabs">
+        <Tabs
+          variant="outline"
+          fullWidth
+          label={tr('settings.sections')}
+          items={[
+            { value: 'general', label: tr('settings.general'), content: general },
+            { value: 'appearance', label: tr('settings.appearance'), content: appearance },
+            { value: 'local-apps', label: tr('localApps.heading'), content: localApps },
+            { value: 'about', label: tr('settings.about'), content: about },
+          ]}
+        />
+      </div>
     </section>
   );
 }
