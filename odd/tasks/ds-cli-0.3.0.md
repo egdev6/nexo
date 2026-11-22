@@ -15,12 +15,15 @@ Risk: item 5 (dev dependency / CI gate); item 6 for UI changes made to satisfy D
 
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S1, S2, S4, S6 | parent: `egdev-ds upgrade` + `init`, AGENTS.md at repo root, regenerate design/system.md | pending | |
-| T2 | S3, S5 | classify each finding: existing DS API vs consumer request | pending | |
-| T3 | S3 | resolve findings (API fixes; mitigations with TODO + allowlist after consumer requests exist) | pending | |
+| T1 | S1, S2, S4, S6 | parent: `egdev-ds upgrade` + `init`, AGENTS.md at repo root, regenerate design/system.md | done: `init` at root recognized by a second init ("no changes") | see git log |
+| T2 | S3, S5 | explorer + MCP query (Tabs/Button/Text have no padding/width/wrap API) | done: 6 local (app-owned wrappers / placement / inherited rule), 2 consumer requests (SelectTile columns, back arrow glyph) | — |
+| T3a | S3 | parent inline (worker blocked twice: no DS MCP server available to it) — 6 local fixes | done: doctor 8 → 2, biome 0 errors, 594 tests, tsc | see git log |
+| T3b | S3 | file 2 DS consumer requests + Nexo issues, then TODO + allowlist with real numbers | blocked: user reviews drafts first | |
 | T4 | all | verify: ds:doctor (+ --fail-on-pending), biome ci, tests, tsc, build, visual check of touched screens | pending | |
 
 ## Log
 
 - L1 (2026-11-22, DS session → Nexo): notice quoted in S1-S5; each publishing or repo-modifying step needs Enrique's authorization.
 - L2 (2026-11-22, user): "Hoy, antes del lanzamiento"; AGENTS.md at the repo root.
+- L3 (2026-11-22, user): consumer requests — "Te muestro el texto antes": drafts must be approved before publishing.
+- L4 (2026-11-22, evidence): visual equivalence of the 6 fixes reasoned from computed styles only; real check in Tauri WebView2 is pending for the maintainer (settings tabs, Mis apps menu buttons, update notes, update version row, local app path).
