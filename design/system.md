@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system 4a8c093; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system bb2530b; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -20,9 +20,9 @@ See Typography roles for source-derived font families and sizes; display heading
 Schema: 1.0.0 (schemaVersion)
 | Package | Version | Source |
 | --- | --- | --- |
-| @egdev/effects | 0.2.7 | packages[] · packages/effects/package.json |
+| @egdev/effects | 0.2.8 | packages[] · packages/effects/package.json |
 | @egdev/tokens | 0.6.1 | packages[] · packages/tokens/package.json |
-| @egdev/ui | 0.7.0 | packages[] · packages/ui/package.json |
+| @egdev/ui | 0.7.1 | packages[] · packages/ui/package.json |
 Re-run: `pnpm exec egdev-system-md --write`
 
 ## Typography roles
