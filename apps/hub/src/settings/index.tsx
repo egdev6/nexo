@@ -345,18 +345,19 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
           }
         />
       </div>
-      <Tabs
-        className="settings__tabs"
-        variant="outline"
-        fullWidth
-        label={tr('settings.sections')}
-        items={[
-          { value: 'general', label: tr('settings.general'), content: general },
-          { value: 'appearance', label: tr('settings.appearance'), content: appearance },
-          { value: 'local-apps', label: tr('localApps.heading'), content: localApps },
-          { value: 'about', label: tr('settings.about'), content: about },
-        ]}
-      />
+      <div className="settings__tabs">
+        <Tabs
+          variant="outline"
+          fullWidth
+          label={tr('settings.sections')}
+          items={[
+            { value: 'general', label: tr('settings.general'), content: general },
+            { value: 'appearance', label: tr('settings.appearance'), content: appearance },
+            { value: 'local-apps', label: tr('localApps.heading'), content: localApps },
+            { value: 'about', label: tr('settings.about'), content: about },
+          ]}
+        />
+      </div>
     </section>
   );
 }

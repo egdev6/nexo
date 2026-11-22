@@ -91,8 +91,10 @@ export function AppDetails({
         </Text>
       )}
       {newVersion && (
-        <Text variant="body" foreground="secondary" className="meta update-version">
-          <Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}
+        <Text variant="body" foreground="secondary" className="meta">
+          <span className="update-version">
+            <Badge tone="brand">{t(locale, 'app.newVersion')}</Badge> {versionLink(newVersion)}
+          </span>
         </Text>
       )}
       <AppSocialLinks app={app} className="detail-social" variant="outline" onClick={open} />

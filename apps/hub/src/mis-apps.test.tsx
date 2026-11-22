@@ -481,8 +481,9 @@ it('wraps reported menu actions in a full-width growing DS cluster', async () =>
     const rule = postcss.parse(css).nodes.find((node) => node.type === 'rule' && node.selector === selector);
     return Object.fromEntries(rule?.type === 'rule' ? rule.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value]) : []);
   };
-  expect(declarations('.registry-menu > li')).toMatchObject({ flex: '1 1 auto', 'min-width': '0', 'max-width': '100%' });
-  expect(declarations('.registry-menu__action').width).toBe('100%');
+  expect(declarations('.registry-menu > li')).toMatchObject({ display: 'flex', flex: '1 1 auto', 'min-width': '0', 'max-width': '100%' });
+  // Placement only (DS046): the button grows to fill its app-owned flex item instead of setting its own width.
+  expect(declarations('.registry-menu__action')).toEqual({ flex: '1 1 auto' });
 });
 
 it('runs a reported menu item through the hub, keeps disabled items inert and reports failures', async () => {

@@ -219,10 +219,12 @@ function UpdateControl({
 function UpdateNotes({ app, catalogState }: { app: HubApp; catalogState?: CatalogState }) {
   const notes = availableUpdate(app, catalogState?.catalog)?.notes;
   return notes ? (
-    <Text asChild variant="body" foreground="secondary" className="meta update-notes">
+    <Text asChild variant="body" foreground="secondary" className="meta">
       <div>
-        <strong>{notes.title}</strong>
-        <p>{notes.text}</p>
+        <div className="update-notes">
+          <strong>{notes.title}</strong>
+          <p>{notes.text}</p>
+        </div>
       </div>
     </Text>
   ) : null;
