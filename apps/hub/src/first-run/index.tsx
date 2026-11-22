@@ -18,6 +18,7 @@ export function FirstRun({ onChoose, onPreview }: FirstRunProps) {
       <div className="first-run__legend">
         <span lang="es">{t('es', 'firstRun.languageEs')}</span> <span lang="en">{t('es', 'firstRun.languageEn')}</span>
       </div>
+      {/* TODO(egdev-design-system#536): single column on narrow panels comes from app CSS until SelectTile supports it. */}
       <SelectTile
         className="first-run__choices"
         type="single"
