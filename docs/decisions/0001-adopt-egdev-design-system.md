@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Adapted from [egdev-website ADR 0007](https://github.com/egdev6/egdev-website/blob/main/docs/decisions/0007-adopt-egdev-design-system-packages.md).
+Accepted. Adapted from ADR 0007 of the egdev website (a private repository).
 
 ## Context and decision
 
@@ -56,4 +56,4 @@ The hub and agents share one reviewable, reproducible design-system snapshot. Ve
 ## References
 
 - [Design-system adoption task](../../odd/tasks/ds-adoption.md)
-- Global `egdev-design-system` skill: [`~/.gentle-shell/agent/skills/egdev-design-system/SKILL.md`](file:///home/egdev/.gentle-shell/agent/skills/egdev-design-system/SKILL.md) and its `references/usar.md` use mode.
+- Global `egdev-design-system` agent skill (in the maintainer's local setup) and its `references/usar.md` use mode.

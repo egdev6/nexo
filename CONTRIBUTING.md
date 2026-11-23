@@ -53,7 +53,7 @@ CI runs frontend checks and Rust formatting/lint on Ubuntu, plus native Rust tes
 
 ### Release signing setup (maintainers)
 
-One time, generate a Tauri updater key pair from `apps/hub` with `npx tauri signer generate -w <path>`, choosing a private path outside the repository and a non-empty password. Keep the private key out of the repository. Create the GitHub Actions environment `PROD-release` and set its secrets `TAURI_SIGNING_PRIVATE_KEY` (the private key contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (its password). Put the generated public key in `apps/hub/src-tauri/tauri.conf.json` as `plugins.updater.pubkey`. Updates reach users only after the draft release is published and the repository is public.
+One time, generate a Tauri updater key pair from `apps/hub` with `npx tauri signer generate -w <path>`, choosing a private path outside the repository and a non-empty password. Keep the private key out of the repository. Create the GitHub Actions environment `PROD-release` and set its secrets `TAURI_SIGNING_PRIVATE_KEY` (the private key contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (its password). Put the generated public key in `apps/hub/src-tauri/tauri.conf.json` as `plugins.updater.pubkey`. Updates reach users only after the draft release is published.
 
 ### Design system
 
@@ -131,7 +131,7 @@ CI ejecuta las comprobaciones del frontend y el formato/lint de Rust en Ubuntu, 
 
 ### Configuración de firma de releases (mantenedores)
 
-Una sola vez, generad un par de claves del updater de Tauri desde `apps/hub` con `npx tauri signer generate -w <path>`, eligiendo una ruta privada fuera del repositorio y una contraseña no vacía. Mantened la clave privada fuera del repositorio. Cread el entorno de GitHub Actions `PROD-release` y configurad sus secretos `TAURI_SIGNING_PRIVATE_KEY` (el contenido de la clave privada) y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (su contraseña). Poned la clave pública generada en `apps/hub/src-tauri/tauri.conf.json` como `plugins.updater.pubkey`. Las actualizaciones solo llegan a los usuarios cuando se publica el borrador de la release y el repositorio es público.
+Una sola vez, generad un par de claves del updater de Tauri desde `apps/hub` con `npx tauri signer generate -w <path>`, eligiendo una ruta privada fuera del repositorio y una contraseña no vacía. Mantened la clave privada fuera del repositorio. Cread el entorno de GitHub Actions `PROD-release` y configurad sus secretos `TAURI_SIGNING_PRIVATE_KEY` (el contenido de la clave privada) y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (su contraseña). Poned la clave pública generada en `apps/hub/src-tauri/tauri.conf.json` como `plugins.updater.pubkey`. Las actualizaciones solo llegan a los usuarios cuando se publica el borrador de la release.
 
 ### Design system
 
