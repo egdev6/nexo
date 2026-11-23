@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { createAccentTheme } from '@egdev/tokens/accent';
 
-// Ported from /home/egdev/proyectos/quorb/src/lib/palette.ts:4-64.
+// Ported from egdev6/quorb src/lib/palette.ts (lines 4-64): https://github.com/egdev6/quorb/blob/main/src/lib/palette.ts
 export const DEFAULT_ACCENT = '#ff0036';
 export const ACCENT_PRESETS = ['#ff0036', '#ff7a00', '#ffd400', '#22c55e', '#00c2ff', '#3b82f6', '#8b5cf6', '#ff3fb4'];
 

@@ -10,7 +10,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/github/v/release/egdev6/nexo?style=for-the-badge&labelColor=000000&color=FF0036&label=version)](https://github.com/egdev6/nexo/releases)
+[![Version](https://img.shields.io/github/v/release/egdev6/nexo?style=for-the-badge&labelColor=000000&color=FF0036&label=version)](https://github.com/egdev6/nexo/releases/latest)
 [![Stars](https://img.shields.io/github/stars/egdev6/nexo?style=for-the-badge&labelColor=000000&color=FF0036)](https://github.com/egdev6/nexo/stargazers)
 [![Issues](https://img.shields.io/github/issues/egdev6/nexo?style=for-the-badge&labelColor=000000&color=FF0036)](https://github.com/egdev6/nexo/issues)
 [![License](https://img.shields.io/github/license/egdev6/nexo?style=for-the-badge&labelColor=000000&color=FF0036)](./LICENSE)
@@ -56,7 +56,7 @@ The panel stays open while you work elsewhere. It uses the Windows tray for quic
 
 ### Install
 
-On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [Releases](https://github.com/egdev6/nexo/releases) and run it. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. From 0.2.0 on, Nexo checks for new versions at startup and from **Settings › About**, and installs them after you confirm; earlier versions must be updated by installing the new one over them.
+On Windows 10 or 11, download `Nexo_<version>_x64-setup.exe` from [the latest release](https://github.com/egdev6/nexo/releases/latest) and run it. Installation is per user and does not require administrator rights. The installer is not Windows code-signed, so SmartScreen may ask for confirmation. From 0.2.0 on, Nexo checks for new versions at startup and from **Settings › About**, and installs them after you confirm; earlier versions must be updated by installing the new one over them.
 
 ### Develop
 
