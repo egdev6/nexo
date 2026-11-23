@@ -258,7 +258,6 @@ function ConnectedRow({
   const canShow = !!onOpen && !!official && app.responsive && app.capabilities.includes('show') && !busy && !updateRunning(installs, app.app.id);
   return (
     <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
-      {/* TODO(egdev-design-system#550): the DS-owned actions spacing is below the 44.8px IconButton target rule; no app-side mitigation. */}
       <CollapsibleHeader
         actions={
           <>
@@ -389,7 +388,6 @@ function AppRow({
   const update = availableUpdate(app, catalogState?.catalog);
   return (
     <Collapsible className="app-card" open={open} onOpenChange={onOpenChange}>
-      {/* TODO(egdev-design-system#550): the DS-owned actions spacing is below the 44.8px IconButton target rule; no app-side mitigation. */}
       <CollapsibleHeader
         actions={
           <>

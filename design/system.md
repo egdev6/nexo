@@ -1,4 +1,4 @@
-<!-- Generated from EGDEV design system 3a038fa; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
+<!-- Generated from EGDEV design system dc5900d; regenerate: `node apps/hub/scripts/sync-design-system-md.mjs` (from repository root). -->
 
 ## Composition guide
 
@@ -20,9 +20,9 @@ See Typography roles for source-derived font families and sizes; display heading
 Schema: 1.0.0 (schemaVersion)
 | Package | Version | Source |
 | --- | --- | --- |
-| @egdev/effects | 0.2.9 | packages[] · packages/effects/package.json |
+| @egdev/effects | 0.2.10 | packages[] · packages/effects/package.json |
 | @egdev/tokens | 0.6.1 | packages[] · packages/tokens/package.json |
-| @egdev/ui | 0.8.0 | packages[] · packages/ui/package.json |
+| @egdev/ui | 0.9.0 | packages[] · packages/ui/package.json |
 Re-run: `pnpm exec egdev-system-md --write`
 
 ## Typography roles
@@ -491,8 +491,6 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · — (native list)
   - BlogGridRow: Wrap one editorial anchor in a native list item. Children: Row slot: supply one editorial ListItem slotted onto an anchor. One editorial ListItem rendered as an anchor. (components[].parts · packages/ui/src/organisms/blog-grid/BlogGrid.tsx)
   - BlogGridRows: Render a semantic list only when rows are present. Children: List slot: supply zero or more keyed BlogGridRow parts. Editorial rows in reading order; an empty collection omits the list. (components[].parts · packages/ui/src/organisms/blog-grid/BlogGrid.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - blogGridRowsVariants base: gap-3 → --spacing-3
-    - blogGridRowsVariants base: p-0 → --spacing-0
     - blogGridVariants base: gap-x-5 → --spacing-5
     - blogGridVariants base: gap-y-0 → --spacing-0
     - blogGridVariants base: [@media(width<=1080px)]:gap-y-5 → --spacing-5
@@ -586,15 +584,6 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · — (native footer an
     - footerGridVariants base: gap-x-10 → --spacing-10
     - footerGridVariants base: gap-y-8 → --spacing-8
     - footerGridVariants base: pt-10 → --spacing-10
-    - footerHeadingVariants base: font-display → --font-display
-    - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
-    - footerLegalVariants base: gap-4 → --spacing-4
-    - footerLegalVariants base: pt-4 → --spacing-4
-    - footerLegalVariants base: text-body-default → --text-body-default
-    - footerListVariants base: p-0 → --spacing-0
-    - footerMottoVariants base: px-0 → --spacing-0
-    - footerMottoVariants base: pt-10 → --spacing-10
-    - footerMottoVariants base: pb-8 → --spacing-8
     - footerVariants base: p-0 → --spacing-0
     - footerVariants base: pb-8 → --spacing-8
     - footerVariants base: font-sans → --font-sans
@@ -669,9 +658,6 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · — (native ordered l
   - NotesBoardList: Consumer-ordered list of linked notes. (components[].parts · packages/ui/src/organisms/notes-board/NotesBoard.tsx)
   - NotesBoardSide: Introduction and optional static topics. (components[].parts · packages/ui/src/organisms/notes-board/NotesBoard.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - notesBoardListVariants base: p-0 → --spacing-0
-    - notesBoardListVariants base: gap-2 → --spacing-2
-    - notesBoardSideVariants base: gap-4 → --spacing-4
     - notesBoardVariants base: gap-10 → --spacing-10
     - notesBoardVariants base: [@media(width<=1080px)]:gap-8 → --spacing-8
   - children: ReactNode; One NotesBoardSide followed by one NotesBoardList; the consumer owns their contents. (components[] · packages/ui/src/organisms/notes-board/types.ts)
@@ -695,7 +681,7 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · AspectRatio
   - Catalog composition / slots: IconButton, Chip (catalog[] · docs/catalog.json)
   - Composes: AspectRatio (packages/ui/src/organisms/preview-frame/PreviewFrame.tsx), Text (packages/ui/src/organisms/preview-frame/PreviewFrame.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - actionsVariants base: gap-2 → --spacing-2
+    - actionsVariants base: gap-5 → --spacing-5
     - footerVariants base: gap-2 → --spacing-2
     - footerVariants base: font-sans → --font-sans
     - footerVariants base: text-label-default → --text-label-default
@@ -705,7 +691,7 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · AspectRatio
     - rootVariants base: gap-3 → --spacing-3
     - safeAreaVariants base: rounded-lg → --radius-lg
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'lg' }) · packages/ui/src/organisms/preview-frame/usePreviewFrame.ts; see Surface anatomy
-  - actions: ReactNode; Consumer-owned trailing controls. (components[] · packages/ui/src/organisms/preview-frame/types.ts)
+  - actions: ReactNode; Consumer-owned trailing controls. The action gap clears adjacent md/md targets under default tokens; supply extra clearance for sm/md (gap-6) and sm/sm (gap-7). Nested groups and nearby controls also need clearance; see IconButton size. (components[] · packages/ui/src/organisms/preview-frame/types.ts)
   - children: ReactNode; Decorative, non-interactive canvas content. (components[] · packages/ui/src/organisms/preview-frame/types.ts)
   - figureCaption: string; Visible native figure caption. (components[] · packages/ui/src/organisms/preview-frame/types.ts)
   - footer: ReactNode; Consumer-owned lower bar. (components[] · packages/ui/src/organisms/preview-frame/types.ts)
@@ -809,7 +795,7 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · ScrollArea
     - sidebarContentVariants base: px-3 → --spacing-3
     - sidebarContentVariants base: pb-4 → --spacing-4
     - sidebarContentVariants header=false: pt-4 → --spacing-4
-    - sidebarFooterVariants base: gap-2 → --spacing-2
+    - sidebarFooterVariants base: gap-5 → --spacing-5
     - sidebarFooterVariants base: px-4 → --spacing-4
     - sidebarFooterVariants base: py-3 → --spacing-3
     - sidebarFooterVariants base: font-sans → --font-sans
@@ -825,7 +811,7 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · ScrollArea
     - surfaceVariants({ tone: 'surface-0', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/sidebar/useSidebar.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/sidebar/useSidebar.ts; see Surface anatomy
   - children: ReactNode; In-flow content, including independently labelled NavLists. (components[] · packages/ui/src/organisms/sidebar/types.ts)
-  - footer: ReactNode; Optional pinned utility and metadata content, not navigation. (components[] · packages/ui/src/organisms/sidebar/types.ts)
+  - footer: ReactNode; Optional pinned utility and metadata content, not navigation. The footer gap clears adjacent md/md targets under default tokens; supply extra clearance for sm/md (gap-6) and sm/sm (gap-7). The footer does not wrap; reserve sufficient space from nearby controls and clipping. See IconButton size for target spacing. (components[] · packages/ui/src/organisms/sidebar/types.ts)
   - product: ProductIdentity; Optional product name and consumer artwork, optionally linked to its home. Blank names omit the header. (components[] · packages/ui/src/organisms/sidebar/types.ts)
 ### TabBar
 catalog[] · docs/catalog.json · @egdev/ui · organism · — (native navigation)
@@ -855,12 +841,12 @@ catalog[] · docs/catalog.json · @egdev/ui · organism · — (native navigatio
 - TopBar (components[] · packages/ui/src/organisms/top-bar/types.ts)
   - Catalog composition / slots: Consumer-supplied brand, search, end, user and mobile parts; Surface recipe (catalog[] · docs/catalog.json)
   - Composes: No public JSX composition statically extracted.
-  - TopBarBrand: Consumer-supplied leading identity; a home link is customary but not required. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
-  - TopBarEnd: Consumer-supplied trailing content, visible in both layouts. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
-  - TopBarMobileTrigger: Consumer-supplied mobile dialog trigger. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
-  - TopBarSearchCompact: Compact search launcher. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
-  - TopBarSearchFull: Full-width search launcher. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
-  - TopBarUserMenu: Consumer-supplied account control. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
+  - TopBarBrand: Consumer-supplied leading identity; a home link is customary but not required. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, including between parts: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
+  - TopBarEnd: Consumer-supplied trailing content, visible in both layouts. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, including between parts: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
+  - TopBarMobileTrigger: Consumer-supplied mobile dialog trigger. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, including between parts: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
+  - TopBarSearchCompact: Compact search launcher. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, including between parts: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
+  - TopBarSearchFull: Full-width search launcher. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, including between parts: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
+  - TopBarUserMenu: Consumer-supplied account control. Children: Consumer-owned part content; the end accepts arbitrary nodes, while controls retain their own semantics. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, including between parts: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Consumer-supplied content. (components[].parts · packages/ui/src/organisms/top-bar/TopBar.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - topBarLinkVariants base: font-sans → --font-sans
     - topBarLinkVariants base: text-body-large → --text-body-large
@@ -905,12 +891,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · AlertDialog
   - AlertDialogContent: Labelled modal with required consequence and actions. (components[].parts · packages/ui/src/molecules/alert-dialog/AlertDialog.tsx)
   - AlertDialogTrigger: Optional disclosure control. (components[].parts · packages/ui/src/molecules/alert-dialog/AlertDialog.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - alertDialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - alertDialogHeadVariants base: px-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pt-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pb-[var(--space-4)] → --space-4
-    - alertDialogIconVariants base: text-[var(--color-status-danger)] → --color-status-danger
-    - alertDialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
+    - No statically extracted anatomy.
   - children: ReactNode; Trigger and Content. (components[] · packages/ui/src/molecules/alert-dialog/types.ts)
   - defaultOpen: boolean; Initial uncontrolled visibility. (components[] · packages/ui/src/molecules/alert-dialog/types.ts)
   - onOpenChange: ((open: boolean) => void); Requested visibility changes. (components[] · packages/ui/src/molecules/alert-dialog/types.ts)
@@ -929,8 +910,6 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
     - articleFeatureTitleVariants base: text-heading-small → --text-heading-small
     - articleFeatureVariants base: gap-4 → --spacing-4
     - articleFeatureVariants base: focus-visible:shadow-focus → --shadow-focus
-    - articleFeatureWordVariants base: px-4 → --spacing-4
-    - articleFeatureWordVariants base: text-title-display → --text-title-display
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'none' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
   - actionLabel: string; Visible text of the card's action affordance. Paint and text only: it never becomes a nested link. Whitespace-only renders nothing. (components[] · packages/ui/src/molecules/article-feature/types.ts)
@@ -1017,14 +996,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Collapsible
   - CollapsibleHeader: Optional row placing independently owned actions outside the Trigger. Children: Optional unpainted row. className supports outer margin, width and parent placement only, merged last; no ref, role, tabIndex, inline appearance or asChild API. One Trigger or a native heading containing one Trigger. (components[].parts · packages/ui/src/molecules/collapsible/Collapsible.tsx)
   - CollapsibleTrigger: Native button; the React 18-compatible bridge connects only this public part's ref. (components[].parts · packages/ui/src/molecules/collapsible/Collapsible.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - collapsibleActionsVariants base: gap-2 → --spacing-2
-    - collapsibleContentVariants base: p-4 → --spacing-4
-    - collapsibleContentVariants base: font-sans → --font-sans
-    - collapsibleContentVariants base: text-body-default → --text-body-default
-    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
-    - collapsibleHeaderVariants base: gap-2 → --spacing-2
-    - collapsibleTriggerVariants base: text-start → unresolved
-    - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
+    - No statically extracted anatomy.
   - children: ReactNode; One named Trigger/Content pair; nested Roots are independent. (components[] · packages/ui/src/molecules/collapsible/types.ts)
   - defaultOpen: boolean; Initial visibility only; unavailable in controlled mode, where open is authoritative. Initial visibility only; later changes do not reset the native state. (components[] · packages/ui/src/molecules/collapsible/types.ts)
   - disabled: boolean; Disable only Trigger activation, retaining visibility and enabled body controls. (components[] · packages/ui/src/molecules/collapsible/types.ts)
@@ -1124,22 +1096,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Dialog
   - DialogContent: Modal panel with an owned title and optional description. A connected, positioned, non-scrolling host bounds container-scoped paint; without one the portal uses body. A custom host does not localize Radix modality, which remains document-wide. Render after the host ref is ready and close before replacing or removing it. Viewport scope under a host is subject to ancestor clipping and fixed-position containing blocks. (components[].parts · packages/ui/src/molecules/dialog/Dialog.tsx)
   - DialogTrigger: Optional native or slotted disclosure button. (components[].parts · packages/ui/src/molecules/dialog/Dialog.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
-    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
-    - dialogDescriptionVariants base: text-body-default → --text-body-default
-    - dialogFootVariants base: px-[var(--space-6)] → --space-6
-    - dialogFootVariants base: py-[var(--space-4)] → --space-4
-    - dialogFootVariants base: gap-[var(--space-3)] → --space-3
-    - dialogHeadVariants base: py-[var(--space-4)] → --space-4
-    - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
-    - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
-    - dialogOverlayLayout flush=true: p-0 → --spacing-0
-    - dialogStatusVariants base: text-label-default → --text-label-default
-    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
-    - dialogTitleVariants base: font-display → --font-display
-    - dialogTitleVariants base: text-heading-small → --text-heading-small
+    - No statically extracted anatomy.
   - children: ReactNode; Composed Trigger and Content. (components[] · packages/ui/src/molecules/dialog/types.ts)
   - defaultOpen: boolean; Initial uncontrolled visibility. (components[] · packages/ui/src/molecules/dialog/types.ts)
   - onOpenChange: ((open: boolean) => void); Requested visibility changes. (components[] · packages/ui/src/molecules/dialog/types.ts)
@@ -1201,33 +1158,6 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Slot
   - ListItemTitle: Editorial row title; level picks the native heading rank h2–h6 independently of typography. Children: Editorial title zone: renders a real h2–h6 chosen by level, forwards native heading attributes for that element and merges className last for local placement. No ref, own role or tab stop. One heading text node; the consumer supplies a rank that fits the surrounding outline. (components[].parts · packages/ui/src/molecules/list-item/ListItem.tsx)
   - ListItemTrailing: Optional editorial trailing zone: a decorative icon or readable text such as a duration. Children: Compound div attributes. className supports local alignment, placement and width constraints, not appearance, hidden content or reordering. No ref, own role or tab stop is exposed. (components[].parts · packages/ui/src/molecules/list-item/ListItem.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - listItemPartVariants part=body: gap-3 → --spacing-3
-    - listItemPartVariants part=body: group-data-[variant=editorial]/list-item:gap-2 → --spacing-2
-    - listItemPartVariants part=body: group-data-[variant=editorial-divided]/list-item:gap-2 → --spacing-2
-    - listItemPartVariants part=leading: [&_time]:font-display → --font-display
-    - listItemPartVariants part=leading: [&_time]:text-display-stat → --text-display-stat
-    - listItemPartVariants part=leading: group-data-[size=sm]/list-item:[&_time]:text-display-stat-sm → --text-display-stat-sm
-    - listItemPartVariants part=leading: [&_time>small]:font-display → --font-display
-    - listItemPartVariants part=leading: [&_time>small]:text-label-eyebrow → --text-label-eyebrow
-    - listItemPartVariants part=title: font-sans → --font-sans
-    - listItemPartVariants part=title: text-body-large → --text-body-large
-    - listItemPartVariants part=title: group-data-[size=sm]/list-item:text-body-default → --text-body-default
-    - listItemPartVariants part=trailing: gap-2 → --spacing-2
-    - listItemPartVariants part=trailing: font-display → --font-display
-    - listItemPartVariants part=trailing: text-display-stat-sm → --text-display-stat-sm
-    - listItemPartVariants part=content: font-sans → --font-sans
-    - listItemPartVariants part=content: text-body-default → --text-body-default
-    - listItemPartVariants part=content: group-data-[variant=compact]/list-item:text-label-default → --text-label-default
-    - listItemPartVariants part=footer: pt-3 → --spacing-3
-    - listItemPartVariants part=footer: gap-2 → --spacing-2
-    - listItemPartVariants part=meta: gap-2 → --spacing-2
-    - listItemPartVariants part=meta: font-sans → --font-sans
-    - listItemPartVariants part=meta: text-label-default → --text-label-default
-    - listItemPartVariants part=meta: group-data-[variant=editorial]/list-item:font-display → --font-display
-    - listItemPartVariants part=meta: group-data-[variant=editorial]/list-item:text-label-eyebrow → --text-label-eyebrow
-    - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
-    - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
-    - listItemPartVariants part=actions: gap-5 → --spacing-5
     - listItemVariants base: gap-3 → --spacing-3
     - listItemVariants base: p-4 → --spacing-4
     - listItemVariants base: rounded-lg → --radius-lg
@@ -1260,11 +1190,6 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Slot
 catalog[] · docs/catalog.json · @egdev/ui · molecule · DropdownMenu
 - Menu (components[] · packages/ui/src/molecules/menu/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - accountMenuRecipeVariants part=trigger: cn(         surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'full' }),         'group inline-flex items-center gap-1 min-h-10 pointer-coarse:min-h-11 pl-1 pr-1.5 border-border-hairline-strong text-fg-secondary cursor-pointer hover:bg-surface-2 hover:border-border-brand hover:text-fg-default aria-expanded:bg-surface-2 aria-expanded:border-border-brand aria-expanded:text-fg-default focus-visible:outline-none focus-visible:shadow-focus transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] motion-reduce:transition-none'       ) → unresolved
-    - accountMenuRecipeVariants part=name: font-sans → --font-sans
-    - accountMenuRecipeVariants part=name: text-label-default → --text-label-default
-    - accountMenuRecipeVariants part=description: font-sans → --font-sans
-    - accountMenuRecipeVariants part=description: text-label-default → --text-label-default
     - menuHeaderVariants base: gap-3 → --spacing-3
     - menuHeaderVariants base: p-2.5 → --spacing
     - menuHeaderVariants base: pb-3 → --spacing-3
@@ -1438,21 +1363,6 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
     - nowCardBadgeVariants base: px-6 → --spacing-6
     - nowCardBadgeVariants base: pt-6 → --spacing-6
     - nowCardBadgeVariants base: pb-3 → --spacing-3
-    - nowCardBodyVariants base: gap-2 → --spacing-2
-    - nowCardBodyVariants base: p-6 → --spacing-6
-    - nowCardBodyVariants base: text-body-large → --text-body-large
-    - nowCardBodyVariants size=sm: p-4 → --spacing-4
-    - nowCardBodyVariants size=sm: text-body-default → --text-body-default
-    - nowCardDetailValueVariants base: [&_b]:font-(weight:--text-title-section--font-weight) → --text-title-section--font-weight
-    - nowCardDetailVariants base: font-display → --font-display
-    - nowCardDetailVariants base: text-meta → --text-meta
-    - nowCardFootVariants base: gap-2 → --spacing-2
-    - nowCardFootVariants base: shadow-none → unresolved
-    - nowCardFootVariants base: rounded-b-xl → --radius-xl
-    - nowCardFootVariants base: px-6 → --spacing-6
-    - nowCardFootVariants base: py-3 → --spacing-3
-    - nowCardFootVariants size=sm: px-5 → --spacing-5
-    - nowCardFootVariants size=sm: py-2 → --spacing-2
     - nowCardHeadingVariants base: px-6 → --spacing-6
     - nowCardHeadingVariants base: text-heading-small → --text-heading-small
     - nowCardHeadingVariants size=sm: px-4 → --spacing-4
@@ -1490,19 +1400,9 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 catalog[] · docs/catalog.json · @egdev/ui · molecule · —
 - Panel (components[] · packages/ui/src/molecules/panel/types.ts)
   - PanelBody: Transparent main-content zone; controls retain their native or Radix behavior. Children: Required transparent main-content zone; child controls own their behavior. Free flow content and independently labelled consumer controls. (components[].parts · packages/ui/src/molecules/panel/Panel.tsx)
-  - PanelFooter: Supplied supplementary metadata/utility zone, not a footer landmark. Children: Supplementary metadata/utility zone, not a page-footer landmark. Supplied metadata and related utility controls. Omit the part when absent. (components[].parts · packages/ui/src/molecules/panel/Panel.tsx)
-  - PanelHeader: Supplied identity/context, without generated heading semantics. Children: Supplied identity/context zone; no generated heading or landmark. Meaningful supplied header content. Omit the part itself when it is not needed. (components[].parts · packages/ui/src/molecules/panel/Panel.tsx)
+  - PanelFooter: Supplied supplementary metadata/utility zone, not a footer landmark. Children: Supplementary metadata/utility zone, not a page-footer landmark. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, in both axes: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Supplied metadata and related utility controls. Omit the part when absent. (components[].parts · packages/ui/src/molecules/panel/Panel.tsx)
+  - PanelHeader: Supplied identity/context, without generated heading semantics. Children: Supplied identity/context zone; no generated heading or landmark. Adjacent md IconButtons need consumer-provided spacing of at least gap-5 under default tokens, in both axes: leave one spacing token beyond their combined target outsets. See IconButton size in packages/ui/src/atoms/icon-button/types.ts. Meaningful supplied header content. Omit the part itself when it is not needed. (components[].parts · packages/ui/src/molecules/panel/Panel.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: p-4 → --spacing-4
-    - panelBodyVariants base: rounded-none → --radius-none
-    - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: p-4 → --spacing-4
-    - panelFooterVariants base: rounded-none → --radius-none
-    - panelFooterVariants variant=banded: shadow-none → unresolved
-    - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: p-4 → --spacing-4
-    - panelHeaderVariants base: rounded-none → --radius-none
     - panelVariants base: gap-0 → --spacing-0
     - panelVariants base: p-0 → --spacing-0
     - panelVariants base: font-sans → --font-sans
@@ -1525,10 +1425,7 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · Popover
   - PopoverContent: Internally portalled named dialog on the existing Surface overlay treatment. Children: Named dialog. className supports outer dimensions, margins and alignment only, not Material paint. Consumer-owned body, field labels and visible Close action; no generated heading or form. (components[].parts · packages/ui/src/molecules/popover/Popover.tsx)
   - PopoverTrigger: Named button that toggles the associated dialog; optionally compose an existing Button. (components[].parts · packages/ui/src/molecules/popover/Popover.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - popoverButtonVariants base: rounded-md → --radius-md
-    - popoverButtonVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
-    - popoverContentVariants base: font-sans → --font-sans
-    - popoverContentVariants base: text-body-default → --text-body-default
+    - No statically extracted anatomy.
   - children: ReactNode; One Trigger and one Content; use Close for explicit dismissal. (components[] · packages/ui/src/molecules/popover/types.ts)
   - defaultOpen: boolean; Initial uncontrolled visibility, read once. (components[] · packages/ui/src/molecules/popover/types.ts)
   - modal: boolean; Contain focus, pointer interaction and assistive-technology access while open. Do not change modality while open. Non-modal Tab still cycles within Content. (components[] · packages/ui/src/molecules/popover/types.ts)
@@ -1544,17 +1441,12 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
   - ProjectCardTags: Ordered technology labels rendered as one static Chip per list item. Children: Ordered technology labels rendered as one static Chip per list item. (components[].parts · packages/ui/src/molecules/project-card/ProjectCard.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - projectCardBodyVariants base: text-body-large → --text-body-large
-    - projectCardCodeVariants base: font-mono → --font-mono
-    - projectCardCodeVariants base: text-code → --text-code
     - projectCardEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
-    - projectCardFootVariants base: gap-3 → --spacing-3
     - projectCardHeadingVariants size=md: text-heading-small → --text-heading-small
     - projectCardHeadingVariants size=sm: text-body-large → --text-body-large
     - projectCardIndexVariants base: text-transparent → unresolved
     - projectCardIndexVariants size=md: text-title-display → --text-title-display
     - projectCardIndexVariants size=sm: text-title-section → --text-title-section
-    - projectCardTagsVariants base: gap-1.5 → --spacing
-    - projectCardTagsVariants base: p-0 → --spacing-0
     - projectCardUpperContentVariants base: gap-4 → --spacing-4
     - projectCardUpperVariants base: rounded-xl → --radius-xl
     - projectCardUpperVariants base: gap-4 → --spacing-4
@@ -1756,18 +1648,6 @@ catalog[] · docs/catalog.json · @egdev/ui · molecule · —
   - TerminalCardBar: Title bar with the decorative terminal glyph, the supplied path and an optional shell. Children: Title bar showing the current path and, optionally, the shell name on the trailing edge. No ref or asChild API; className supports local layout only. The path text shown after the decorative glyph; plain text, `span` or `code`. Controls are not acceptable bar content. (components[].parts · packages/ui/src/molecules/terminal-card/TerminalCard.tsx)
   - TerminalCardList: Ordered definition pairs as a two-column `dl`; carets stay decorative and unannounced. Children: Ordered definition pairs rendered as `dl` > `dt`/`dd`. No controls, no links and no nested lists. No ref or asChild API; className supports local layout only. (components[].parts · packages/ui/src/molecules/terminal-card/TerminalCard.tsx)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - terminalCardBarVariants base: rounded-t-xl → --radius-xl
-    - terminalCardBarVariants base: gap-2 → --spacing-2
-    - terminalCardBarVariants base: px-4 → --spacing-4
-    - terminalCardBarVariants base: py-2.5 → --spacing
-    - terminalCardListVariants base: gap-x-4 → --spacing-4
-    - terminalCardListVariants base: gap-y-1.5 → --spacing
-    - terminalCardListVariants base: px-4 → --spacing-4
-    - terminalCardListVariants base: py-3 → --spacing-3
-    - terminalCardListVariants base: font-mono → --font-mono
-    - terminalCardListVariants base: text-body-default → --text-body-default
-    - terminalCardShellVariants base: font-sans → --font-sans
-    - terminalCardShellVariants base: text-label-default → --text-label-default
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/terminal-card/useTerminalCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/terminal-card/useTerminalCard.ts; see Surface anatomy
   - children: ReactNode; `TerminalCardBar` and `TerminalCardList` in that order, as direct children. (components[] · packages/ui/src/molecules/terminal-card/types.ts)
@@ -2634,12 +2514,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
     - headingVariants variant=display: text-title-display → --text-title-display
     - headingVariants variant=inverse: text-title-display → --text-title-display
     - headingVariants variant=compact: text-heading-small → --text-heading-small
-    - textBodyVariants base: font-sans → --font-sans
-    - textBodyVariants base: [&_strong]:[font-weight:var(--text-heading-small--font-weight)] → --text-heading-small--font-weight
-    - textBodyVariants variant=body: text-body-default → --text-body-default
-    - textBodyVariants variant=body-large: text-body-large → --text-body-large
-    - textBodyVariants variant=lede: text-body-muted → --text-body-muted
-    - textVariants base: font-display → --font-display
   - accent: string; One optional trailing highlighted run of the phrase. Empty or whitespace-only text renders no accent; non-empty text is preserved exactly. No separator is inserted: supply whitespace in children. Compact headings use their children rather than a trailing accent. (components[] · packages/ui/src/primitives/text/types.ts)
   - accentBreak: boolean; Whether the accent starts on its own line (block) or continues inline. No effect without an accent. Accent layout is unavailable on compact headings. (components[] · packages/ui/src/primitives/text/types.ts)
   - children: ReactNode; Heading text; its full visible copy, including the accent, is the accessible name. (components[] · packages/ui/src/primitives/text/types.ts)
@@ -2649,13 +2523,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · Slot
   - variant: enum; Named visual recipe, independent of the heading level. Compact uppercase display-family heading, independent of native rank. (components[] · packages/ui/src/primitives/text/types.ts)
 - Text (components[] · packages/ui/src/primitives/text/types.ts)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - headingVariants base: font-display → --font-display
-    - headingVariants variant=section: text-title-section → --text-title-section
-    - headingVariants variant=hero: text-title-hero → --text-title-hero
-    - headingVariants variant=show: text-title-show → --text-title-show
-    - headingVariants variant=display: text-title-display → --text-title-display
-    - headingVariants variant=inverse: text-title-display → --text-title-display
-    - headingVariants variant=compact: text-heading-small → --text-heading-small
     - textBodyVariants base: font-sans → --font-sans
     - textBodyVariants base: [&_strong]:[font-weight:var(--text-heading-small--font-weight)] → --text-heading-small--font-weight
     - textBodyVariants variant=body: text-body-default → --text-body-default
@@ -2680,21 +2547,11 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### AlertDialogAction
 - AlertDialogAction (components[] · packages/ui/src/molecules/alert-dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - alertDialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - alertDialogHeadVariants base: px-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pt-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pb-[var(--space-4)] → --space-4
-    - alertDialogIconVariants base: text-[var(--color-status-danger)] → --color-status-danger
-    - alertDialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
+    - No statically extracted anatomy.
 ### AlertDialogCancel
 - AlertDialogCancel (components[] · packages/ui/src/molecules/alert-dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - alertDialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - alertDialogHeadVariants base: px-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pt-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pb-[var(--space-4)] → --space-4
-    - alertDialogIconVariants base: text-[var(--color-status-danger)] → --color-status-danger
-    - alertDialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
+    - No statically extracted anatomy.
 ### AlertDialogContent
 - AlertDialogContent (components[] · packages/ui/src/molecules/alert-dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
@@ -2707,24 +2564,10 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### AlertDialogTrigger
 - AlertDialogTrigger (components[] · packages/ui/src/molecules/alert-dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - alertDialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - alertDialogHeadVariants base: px-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pt-[var(--space-6)] → --space-6
-    - alertDialogHeadVariants base: pb-[var(--space-4)] → --space-4
-    - alertDialogIconVariants base: text-[var(--color-status-danger)] → --color-status-danger
-    - alertDialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
+    - No statically extracted anatomy.
 ### ArticleFeatureCover
 - ArticleFeatureCover (components[] · packages/ui/src/molecules/article-feature/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - articleFeatureActionVariants base: gap-1.5 → --spacing
-    - articleFeatureActionVariants base: text-label-default → --text-label-default
-    - articleFeatureDescriptionVariants base: text-body-default → --text-body-default
-    - articleFeatureMetaVariants base: gap-2 → --spacing-2
-    - articleFeatureMetaVariants base: font-display → --font-display
-    - articleFeatureMetaVariants base: text-meta → --text-meta
-    - articleFeatureTitleVariants base: text-heading-small → --text-heading-small
-    - articleFeatureVariants base: gap-4 → --spacing-4
-    - articleFeatureVariants base: focus-visible:shadow-focus → --shadow-focus
     - articleFeatureWordVariants base: px-4 → --spacing-4
     - articleFeatureWordVariants base: text-title-display → --text-title-display
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/article-feature/useArticleFeature.ts; see Surface anatomy
@@ -2732,131 +2575,51 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### BlogGridArchive
 - BlogGridArchive (components[] · packages/ui/src/organisms/blog-grid/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - blogGridRowsVariants base: gap-3 → --spacing-3
-    - blogGridRowsVariants base: p-0 → --spacing-0
-    - blogGridVariants base: gap-x-5 → --spacing-5
-    - blogGridVariants base: gap-y-0 → --spacing-0
-    - blogGridVariants base: [@media(width<=1080px)]:gap-y-5 → --spacing-5
+    - No statically extracted anatomy.
 ### BlogGridFeature
 - BlogGridFeature (components[] · packages/ui/src/organisms/blog-grid/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - blogGridRowsVariants base: gap-3 → --spacing-3
-    - blogGridRowsVariants base: p-0 → --spacing-0
-    - blogGridVariants base: gap-x-5 → --spacing-5
-    - blogGridVariants base: gap-y-0 → --spacing-0
-    - blogGridVariants base: [@media(width<=1080px)]:gap-y-5 → --spacing-5
+    - No statically extracted anatomy.
 ### BlogGridRow
 - BlogGridRow (components[] · packages/ui/src/organisms/blog-grid/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - blogGridRowsVariants base: gap-3 → --spacing-3
-    - blogGridRowsVariants base: p-0 → --spacing-0
-    - blogGridVariants base: gap-x-5 → --spacing-5
-    - blogGridVariants base: gap-y-0 → --spacing-0
-    - blogGridVariants base: [@media(width<=1080px)]:gap-y-5 → --spacing-5
+    - No statically extracted anatomy.
 ### BlogGridRows
 - BlogGridRows (components[] · packages/ui/src/organisms/blog-grid/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - blogGridRowsVariants base: gap-3 → --spacing-3
     - blogGridRowsVariants base: p-0 → --spacing-0
-    - blogGridVariants base: gap-x-5 → --spacing-5
-    - blogGridVariants base: gap-y-0 → --spacing-0
-    - blogGridVariants base: [@media(width<=1080px)]:gap-y-5 → --spacing-5
 ### CollapsibleContent
 - CollapsibleContent (components[] · packages/ui/src/molecules/collapsible/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - collapsibleActionsVariants base: gap-2 → --spacing-2
     - collapsibleContentVariants base: p-4 → --spacing-4
     - collapsibleContentVariants base: font-sans → --font-sans
     - collapsibleContentVariants base: text-body-default → --text-body-default
     - collapsibleContentVariants padding=sm: p-2 → --spacing-2
-    - collapsibleHeaderVariants base: gap-2 → --spacing-2
-    - collapsibleTriggerVariants base: text-start → unresolved
-    - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
 ### CollapsibleHeader
 - CollapsibleHeader (components[] · packages/ui/src/molecules/collapsible/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - collapsibleActionsVariants base: gap-2 → --spacing-2
-    - collapsibleContentVariants base: p-4 → --spacing-4
-    - collapsibleContentVariants base: font-sans → --font-sans
-    - collapsibleContentVariants base: text-body-default → --text-body-default
-    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
-    - collapsibleHeaderVariants base: gap-2 → --spacing-2
-    - collapsibleTriggerVariants base: text-start → unresolved
-    - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
+    - collapsibleActionsVariants base: gap-5 → --spacing-5
+    - collapsibleHeaderVariants base: gap-3 → --spacing-3
 ### CollapsibleTrigger
 - CollapsibleTrigger (components[] · packages/ui/src/molecules/collapsible/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - collapsibleActionsVariants base: gap-2 → --spacing-2
-    - collapsibleContentVariants base: p-4 → --spacing-4
-    - collapsibleContentVariants base: font-sans → --font-sans
-    - collapsibleContentVariants base: text-body-default → --text-body-default
-    - collapsibleContentVariants padding=sm: p-2 → --spacing-2
-    - collapsibleHeaderVariants base: gap-2 → --spacing-2
     - collapsibleTriggerVariants base: text-start → unresolved
     - collapsibleTriggerVariants base: data-[state=open]:rounded-b-none → --radius-none
 ### CommunityCardAction
 - CommunityCardAction (components[] · packages/ui/src/molecules/community-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - communityCardBandVariants base: rounded-t-xl → --radius-xl
-    - communityCardBodyVariants base: gap-4 → --spacing-4
-    - communityCardBodyVariants base: p-6 → --spacing-6
-    - communityCardBodyVariants base: text-body-default → --text-body-default
-    - communityCardBodyVariants base: min-[48rem]:p-8 → --spacing-8
-    - communityCardEyebrowVariants base: gap-2.5 → --spacing
-    - communityCardEyebrowVariants base: font-display → --font-display
-    - communityCardEyebrowVariants base: text-body-default → --text-body-default
-    - communityCardEyebrowVariants base: font-(weight:--text-label-eyebrow--font-weight) → --text-label-eyebrow--font-weight
-    - communityCardTitleVariants base: font-display → --font-display
-    - communityCardTitleVariants base: text-title-section → --text-title-section
-    - communityCardTopRowVariants base: gap-3 → --spacing-3
-    - communityCardTopRowVariants base: px-6 → --spacing-6
-    - communityCardTopRowVariants base: py-4 → --spacing-4
-    - communityCardTopRowVariants base: min-[48rem]:px-8 → --spacing-8
-    - communityCardTopRowVariants base: min-[48rem]:py-5 → --spacing-5
-    - communityCardVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
 ### CommunityCardMark
 - CommunityCardMark (components[] · packages/ui/src/molecules/community-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - communityCardBandVariants base: rounded-t-xl → --radius-xl
-    - communityCardBodyVariants base: gap-4 → --spacing-4
-    - communityCardBodyVariants base: p-6 → --spacing-6
-    - communityCardBodyVariants base: text-body-default → --text-body-default
-    - communityCardBodyVariants base: min-[48rem]:p-8 → --spacing-8
-    - communityCardEyebrowVariants base: gap-2.5 → --spacing
-    - communityCardEyebrowVariants base: font-display → --font-display
-    - communityCardEyebrowVariants base: text-body-default → --text-body-default
-    - communityCardEyebrowVariants base: font-(weight:--text-label-eyebrow--font-weight) → --text-label-eyebrow--font-weight
-    - communityCardTitleVariants base: font-display → --font-display
-    - communityCardTitleVariants base: text-title-section → --text-title-section
-    - communityCardTopRowVariants base: gap-3 → --spacing-3
-    - communityCardTopRowVariants base: px-6 → --spacing-6
-    - communityCardTopRowVariants base: py-4 → --spacing-4
-    - communityCardTopRowVariants base: min-[48rem]:px-8 → --spacing-8
-    - communityCardTopRowVariants base: min-[48rem]:py-5 → --spacing-5
-    - communityCardVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/community-card/useCommunityCard.ts; see Surface anatomy
 ### DialogClose
 - DialogClose (components[] · packages/ui/src/molecules/dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
-    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
-    - dialogDescriptionVariants base: text-body-default → --text-body-default
-    - dialogFootVariants base: px-[var(--space-6)] → --space-6
-    - dialogFootVariants base: py-[var(--space-4)] → --space-4
-    - dialogFootVariants base: gap-[var(--space-3)] → --space-3
-    - dialogHeadVariants base: py-[var(--space-4)] → --space-4
-    - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
-    - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
-    - dialogOverlayLayout flush=true: p-0 → --spacing-0
-    - dialogStatusVariants base: text-label-default → --text-label-default
-    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
-    - dialogTitleVariants base: font-display → --font-display
-    - dialogTitleVariants base: text-heading-small → --text-heading-small
+    - No statically extracted anatomy.
 ### DialogContent
 - DialogContent (components[] · packages/ui/src/molecules/dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
@@ -2879,112 +2642,33 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### DialogTrigger
 - DialogTrigger (components[] · packages/ui/src/molecules/dialog/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - dialogBodyVariants bodyPadding=default: p-[var(--space-6)] → --space-6
-    - dialogBodyVariants bodyPadding=compact: p-[var(--space-3)] → --space-3
-    - dialogDescriptionVariants base: text-body-default → --text-body-default
-    - dialogFootVariants base: px-[var(--space-6)] → --space-6
-    - dialogFootVariants base: py-[var(--space-4)] → --space-4
-    - dialogFootVariants base: gap-[var(--space-3)] → --space-3
-    - dialogHeadVariants base: py-[var(--space-4)] → --space-4
-    - dialogHeadVariants base: ps-[var(--space-6)] → --space-6
-    - dialogHeadVariants base: pe-[calc(var(--space-4)+var(--space-12))] → --space-4, --space-12
-    - dialogHeadVariants base: gap-[var(--space-2)] → --space-2
-    - dialogOverlayLayout base: p-[var(--space-6)] → --space-6
-    - dialogOverlayLayout flush=true: p-0 → --spacing-0
-    - dialogStatusVariants base: text-label-default → --text-label-default
-    - dialogTitleRowVariants base: gap-[var(--space-3)] → --space-3
-    - dialogTitleVariants base: font-display → --font-display
-    - dialogTitleVariants base: text-heading-small → --text-heading-small
+    - No statically extracted anatomy.
 ### FooterBrand
 - FooterBrand (components[] · packages/ui/src/organisms/footer/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - footerGridVariants base: gap-x-10 → --spacing-10
-    - footerGridVariants base: gap-y-8 → --spacing-8
-    - footerGridVariants base: pt-10 → --spacing-10
-    - footerHeadingVariants base: font-display → --font-display
-    - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
-    - footerLegalVariants base: gap-4 → --spacing-4
-    - footerLegalVariants base: pt-4 → --spacing-4
-    - footerLegalVariants base: text-body-default → --text-body-default
-    - footerListVariants base: p-0 → --spacing-0
-    - footerMottoVariants base: px-0 → --spacing-0
-    - footerMottoVariants base: pt-10 → --spacing-10
-    - footerMottoVariants base: pb-8 → --spacing-8
-    - footerVariants base: p-0 → --spacing-0
-    - footerVariants base: pb-8 → --spacing-8
-    - footerVariants base: font-sans → --font-sans
+    - No statically extracted anatomy.
 ### FooterLegal
 - FooterLegal (components[] · packages/ui/src/organisms/footer/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - footerGridVariants base: gap-x-10 → --spacing-10
-    - footerGridVariants base: gap-y-8 → --spacing-8
-    - footerGridVariants base: pt-10 → --spacing-10
-    - footerHeadingVariants base: font-display → --font-display
-    - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
     - footerLegalVariants base: gap-4 → --spacing-4
     - footerLegalVariants base: pt-4 → --spacing-4
     - footerLegalVariants base: text-body-default → --text-body-default
-    - footerListVariants base: p-0 → --spacing-0
-    - footerMottoVariants base: px-0 → --spacing-0
-    - footerMottoVariants base: pt-10 → --spacing-10
-    - footerMottoVariants base: pb-8 → --spacing-8
-    - footerVariants base: p-0 → --spacing-0
-    - footerVariants base: pb-8 → --spacing-8
-    - footerVariants base: font-sans → --font-sans
 ### FooterMotto
 - FooterMotto (components[] · packages/ui/src/organisms/footer/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - footerGridVariants base: gap-x-10 → --spacing-10
-    - footerGridVariants base: gap-y-8 → --spacing-8
-    - footerGridVariants base: pt-10 → --spacing-10
-    - footerHeadingVariants base: font-display → --font-display
-    - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
-    - footerLegalVariants base: gap-4 → --spacing-4
-    - footerLegalVariants base: pt-4 → --spacing-4
-    - footerLegalVariants base: text-body-default → --text-body-default
-    - footerListVariants base: p-0 → --spacing-0
     - footerMottoVariants base: px-0 → --spacing-0
     - footerMottoVariants base: pt-10 → --spacing-10
     - footerMottoVariants base: pb-8 → --spacing-8
-    - footerVariants base: p-0 → --spacing-0
-    - footerVariants base: pb-8 → --spacing-8
-    - footerVariants base: font-sans → --font-sans
 ### FooterNavigation
 - FooterNavigation (components[] · packages/ui/src/organisms/footer/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - footerGridVariants base: gap-x-10 → --spacing-10
-    - footerGridVariants base: gap-y-8 → --spacing-8
-    - footerGridVariants base: pt-10 → --spacing-10
     - footerHeadingVariants base: font-display → --font-display
     - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
-    - footerLegalVariants base: gap-4 → --spacing-4
-    - footerLegalVariants base: pt-4 → --spacing-4
-    - footerLegalVariants base: text-body-default → --text-body-default
     - footerListVariants base: p-0 → --spacing-0
-    - footerMottoVariants base: px-0 → --spacing-0
-    - footerMottoVariants base: pt-10 → --spacing-10
-    - footerMottoVariants base: pb-8 → --spacing-8
-    - footerVariants base: p-0 → --spacing-0
-    - footerVariants base: pb-8 → --spacing-8
-    - footerVariants base: font-sans → --font-sans
 ### FooterSocial
 - FooterSocial (components[] · packages/ui/src/organisms/footer/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - footerGridVariants base: gap-x-10 → --spacing-10
-    - footerGridVariants base: gap-y-8 → --spacing-8
-    - footerGridVariants base: pt-10 → --spacing-10
-    - footerHeadingVariants base: font-display → --font-display
-    - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
-    - footerLegalVariants base: gap-4 → --spacing-4
-    - footerLegalVariants base: pt-4 → --spacing-4
-    - footerLegalVariants base: text-body-default → --text-body-default
-    - footerListVariants base: p-0 → --spacing-0
-    - footerMottoVariants base: px-0 → --spacing-0
-    - footerMottoVariants base: pt-10 → --spacing-10
-    - footerMottoVariants base: pb-8 → --spacing-8
-    - footerVariants base: p-0 → --spacing-0
-    - footerVariants base: pb-8 → --spacing-8
-    - footerVariants base: font-sans → --font-sans
+    - No statically extracted anatomy.
 ### HomeTemplateAnchor
 - HomeTemplateAnchor (components[] · packages/effects/src/home-template/types.ts · @egdev/effects)
   - Visual anatomy (source classes; unresolved is not a guessed value):
@@ -3019,27 +2703,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemBody
@@ -3072,27 +2735,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemContent
@@ -3125,27 +2767,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemFooter
@@ -3178,27 +2799,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemLeading
@@ -3231,27 +2831,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemMedia
@@ -3284,27 +2863,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemMeta
@@ -3337,27 +2895,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemTitle
@@ -3390,27 +2927,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### ListItemTrailing
@@ -3443,75 +2959,34 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:font-display → --font-display
     - listItemPartVariants part=meta: group-data-[variant=editorial-divided]/list-item:text-label-eyebrow → --text-label-eyebrow
     - listItemPartVariants part=actions: gap-5 → --spacing-5
-    - listItemVariants base: gap-3 → --spacing-3
-    - listItemVariants base: p-4 → --spacing-4
-    - listItemVariants base: rounded-lg → --radius-lg
-    - listItemVariants base: font-sans → --font-sans
-    - listItemVariants base: data-[variant=compact]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=compact]:gap-2 → --spacing-2
-    - listItemVariants base: data-[variant=compact]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=row]:p-3 → --spacing-3
-    - listItemVariants base: data-[variant=row]:rounded-md → --radius-md
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:shadow-none → unresolved
-    - listItemVariants base: data-[variant=editorial-divided]:data-[state=default]:rounded-none → --radius-none
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:ps-[calc(var(--space-4)+var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[state=default]:data-[variant=editorial-divided]:[&:is(a)]:hover:pe-[calc(var(--space-4)-var(--space-2))] → --space-4, --space-2
-    - listItemVariants base: data-[variant=editorial]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[variant=editorial-divided]:[&:is(a)]:focus-visible:shadow-focus → --shadow-focus
-    - listItemVariants base: data-[state=new]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-2)] → --shadow-edge-strong, --shadow-elev-2
-    - listItemVariants base: data-[state=done]:shadow-none → unresolved
-    - listItemVariants base: data-[state=off]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:shadow-none → unresolved
-    - listItemVariants base: data-[state=empty]:text-label-default → --text-label-default
-    - listItemVariants base: data-[state=empty]:focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'lg' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/list-item/useListItem.ts; see Surface anatomy
 ### LiveBandField
 - LiveBandField (components[] · packages/ui/src/organisms/live-band/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - liveBandFieldVariants base: gap-10 → --spacing-10
-    - liveBandRowsVariants base: p-0 → --spacing-0
-    - liveBandStreamsVariants base: gap-7 → --spacing-7
-    - liveBandVodVariants base: focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ padding: 'none' }) · packages/ui/src/organisms/live-band/useLiveBand.ts; see Surface anatomy
 ### LiveBandList
 - LiveBandList (components[] · packages/ui/src/organisms/live-band/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - liveBandFieldVariants base: gap-10 → --spacing-10
-    - liveBandRowsVariants base: p-0 → --spacing-0
-    - liveBandStreamsVariants base: gap-7 → --spacing-7
-    - liveBandVodVariants base: focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ padding: 'none' }) · packages/ui/src/organisms/live-band/useLiveBand.ts; see Surface anatomy
 ### LiveBandRow
 - LiveBandRow (components[] · packages/ui/src/organisms/live-band/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - liveBandFieldVariants base: gap-10 → --spacing-10
-    - liveBandRowsVariants base: p-0 → --spacing-0
-    - liveBandStreamsVariants base: gap-7 → --spacing-7
-    - liveBandVodVariants base: focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ padding: 'none' }) · packages/ui/src/organisms/live-band/useLiveBand.ts; see Surface anatomy
 ### LiveBandRows
 - LiveBandRows (components[] · packages/ui/src/organisms/live-band/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - liveBandFieldVariants base: gap-10 → --spacing-10
     - liveBandRowsVariants base: p-0 → --spacing-0
-    - liveBandStreamsVariants base: gap-7 → --spacing-7
-    - liveBandVodVariants base: focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ padding: 'none' }) · packages/ui/src/organisms/live-band/useLiveBand.ts; see Surface anatomy
 ### LiveBandStreams
 - LiveBandStreams (components[] · packages/ui/src/organisms/live-band/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - liveBandFieldVariants base: gap-10 → --spacing-10
-    - liveBandRowsVariants base: p-0 → --spacing-0
     - liveBandStreamsVariants base: gap-7 → --spacing-7
-    - liveBandVodVariants base: focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ padding: 'none' }) · packages/ui/src/organisms/live-band/useLiveBand.ts; see Surface anatomy
 ### LiveBandVod
 - LiveBandVod (components[] · packages/ui/src/organisms/live-band/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - liveBandFieldVariants base: gap-10 → --spacing-10
-    - liveBandRowsVariants base: p-0 → --spacing-0
-    - liveBandStreamsVariants base: gap-7 → --spacing-7
     - liveBandVodVariants base: focus-visible:shadow-focus → --shadow-focus
     - surfaceVariants({ padding: 'none' }) · packages/ui/src/organisms/live-band/useLiveBand.ts; see Surface anatomy
 ### NotesBoardList
@@ -3519,91 +2994,31 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - notesBoardListVariants base: p-0 → --spacing-0
     - notesBoardListVariants base: gap-2 → --spacing-2
-    - notesBoardSideVariants base: gap-4 → --spacing-4
-    - notesBoardVariants base: gap-10 → --spacing-10
-    - notesBoardVariants base: [@media(width<=1080px)]:gap-8 → --spacing-8
 ### NotesBoardSide
 - NotesBoardSide (components[] · packages/ui/src/organisms/notes-board/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - notesBoardListVariants base: p-0 → --spacing-0
-    - notesBoardListVariants base: gap-2 → --spacing-2
     - notesBoardSideVariants base: gap-4 → --spacing-4
-    - notesBoardVariants base: gap-10 → --spacing-10
-    - notesBoardVariants base: [@media(width<=1080px)]:gap-8 → --spacing-8
 ### NowCardBody
 - NowCardBody (components[] · packages/ui/src/molecules/now-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - nowCardBadgeVariants base: px-6 → --spacing-6
-    - nowCardBadgeVariants base: pt-6 → --spacing-6
-    - nowCardBadgeVariants base: pb-3 → --spacing-3
     - nowCardBodyVariants base: gap-2 → --spacing-2
     - nowCardBodyVariants base: p-6 → --spacing-6
     - nowCardBodyVariants base: text-body-large → --text-body-large
     - nowCardBodyVariants size=sm: p-4 → --spacing-4
     - nowCardBodyVariants size=sm: text-body-default → --text-body-default
-    - nowCardDetailValueVariants base: [&_b]:font-(weight:--text-title-section--font-weight) → --text-title-section--font-weight
-    - nowCardDetailVariants base: font-display → --font-display
-    - nowCardDetailVariants base: text-meta → --text-meta
-    - nowCardFootVariants base: gap-2 → --spacing-2
-    - nowCardFootVariants base: shadow-none → unresolved
-    - nowCardFootVariants base: rounded-b-xl → --radius-xl
-    - nowCardFootVariants base: px-6 → --spacing-6
-    - nowCardFootVariants base: py-3 → --spacing-3
-    - nowCardFootVariants size=sm: px-5 → --spacing-5
-    - nowCardFootVariants size=sm: py-2 → --spacing-2
-    - nowCardHeadingVariants base: px-6 → --spacing-6
-    - nowCardHeadingVariants base: text-heading-small → --text-heading-small
-    - nowCardHeadingVariants size=sm: px-4 → --spacing-4
-    - nowCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - nowCardHeadingVariants badge=true: pt-0 → --spacing-0
-    - nowCardHeadingVariants badge=false: pt-6 → --spacing-6
-    - nowCardVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'surface-0', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/now-card/useNowCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/now-card/useNowCard.ts; see Surface anatomy
 ### NowCardDetail
 - NowCardDetail (components[] · packages/ui/src/molecules/now-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - nowCardBadgeVariants base: px-6 → --spacing-6
-    - nowCardBadgeVariants base: pt-6 → --spacing-6
-    - nowCardBadgeVariants base: pb-3 → --spacing-3
-    - nowCardBodyVariants base: gap-2 → --spacing-2
-    - nowCardBodyVariants base: p-6 → --spacing-6
-    - nowCardBodyVariants base: text-body-large → --text-body-large
-    - nowCardBodyVariants size=sm: p-4 → --spacing-4
-    - nowCardBodyVariants size=sm: text-body-default → --text-body-default
     - nowCardDetailValueVariants base: [&_b]:font-(weight:--text-title-section--font-weight) → --text-title-section--font-weight
     - nowCardDetailVariants base: font-display → --font-display
     - nowCardDetailVariants base: text-meta → --text-meta
-    - nowCardFootVariants base: gap-2 → --spacing-2
-    - nowCardFootVariants base: shadow-none → unresolved
-    - nowCardFootVariants base: rounded-b-xl → --radius-xl
-    - nowCardFootVariants base: px-6 → --spacing-6
-    - nowCardFootVariants base: py-3 → --spacing-3
-    - nowCardFootVariants size=sm: px-5 → --spacing-5
-    - nowCardFootVariants size=sm: py-2 → --spacing-2
-    - nowCardHeadingVariants base: px-6 → --spacing-6
-    - nowCardHeadingVariants base: text-heading-small → --text-heading-small
-    - nowCardHeadingVariants size=sm: px-4 → --spacing-4
-    - nowCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - nowCardHeadingVariants badge=true: pt-0 → --spacing-0
-    - nowCardHeadingVariants badge=false: pt-6 → --spacing-6
-    - nowCardVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'surface-0', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/now-card/useNowCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/now-card/useNowCard.ts; see Surface anatomy
 ### NowCardFooter
 - NowCardFooter (components[] · packages/ui/src/molecules/now-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - nowCardBadgeVariants base: px-6 → --spacing-6
-    - nowCardBadgeVariants base: pt-6 → --spacing-6
-    - nowCardBadgeVariants base: pb-3 → --spacing-3
-    - nowCardBodyVariants base: gap-2 → --spacing-2
-    - nowCardBodyVariants base: p-6 → --spacing-6
-    - nowCardBodyVariants base: text-body-large → --text-body-large
-    - nowCardBodyVariants size=sm: p-4 → --spacing-4
-    - nowCardBodyVariants size=sm: text-body-default → --text-body-default
-    - nowCardDetailValueVariants base: [&_b]:font-(weight:--text-title-section--font-weight) → --text-title-section--font-weight
-    - nowCardDetailVariants base: font-display → --font-display
-    - nowCardDetailVariants base: text-meta → --text-meta
     - nowCardFootVariants base: gap-2 → --spacing-2
     - nowCardFootVariants base: shadow-none → unresolved
     - nowCardFootVariants base: rounded-b-xl → --radius-xl
@@ -3611,13 +3026,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - nowCardFootVariants base: py-3 → --spacing-3
     - nowCardFootVariants size=sm: px-5 → --spacing-5
     - nowCardFootVariants size=sm: py-2 → --spacing-2
-    - nowCardHeadingVariants base: px-6 → --spacing-6
-    - nowCardHeadingVariants base: text-heading-small → --text-heading-small
-    - nowCardHeadingVariants size=sm: px-4 → --spacing-4
-    - nowCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - nowCardHeadingVariants badge=true: pt-0 → --spacing-0
-    - nowCardHeadingVariants badge=false: pt-6 → --spacing-6
-    - nowCardVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'surface-0', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/now-card/useNowCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/now-card/useNowCard.ts; see Surface anatomy
 ### PanelBody
@@ -3626,81 +3034,30 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - panelBodyVariants base: gap-4 → --spacing-4
     - panelBodyVariants base: p-4 → --spacing-4
     - panelBodyVariants base: rounded-none → --radius-none
-    - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: p-4 → --spacing-4
-    - panelFooterVariants base: rounded-none → --radius-none
-    - panelFooterVariants variant=banded: shadow-none → unresolved
-    - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: p-4 → --spacing-4
-    - panelHeaderVariants base: rounded-none → --radius-none
-    - panelVariants base: gap-0 → --spacing-0
-    - panelVariants base: p-0 → --spacing-0
-    - panelVariants base: font-sans → --font-sans
-    - panelVariants base: text-body-default → --text-body-default
-    - panelVariants tone=inherit: shadow-none → unresolved
-    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
-    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
-    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
-    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
 ### PanelFooter
 - PanelFooter (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: p-4 → --spacing-4
-    - panelBodyVariants base: rounded-none → --radius-none
     - panelFooterVariants base: gap-3 → --spacing-3
     - panelFooterVariants base: p-4 → --spacing-4
     - panelFooterVariants base: rounded-none → --radius-none
     - panelFooterVariants variant=banded: shadow-none → unresolved
-    - panelHeaderVariants base: gap-3 → --spacing-3
-    - panelHeaderVariants base: p-4 → --spacing-4
-    - panelHeaderVariants base: rounded-none → --radius-none
-    - panelVariants base: gap-0 → --spacing-0
-    - panelVariants base: p-0 → --spacing-0
-    - panelVariants base: font-sans → --font-sans
-    - panelVariants base: text-body-default → --text-body-default
-    - panelVariants tone=inherit: shadow-none → unresolved
-    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
-    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
-    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
-    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
 ### PanelHeader
 - PanelHeader (components[] · packages/ui/src/molecules/panel/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - panelBodyVariants base: gap-4 → --spacing-4
-    - panelBodyVariants base: p-4 → --spacing-4
-    - panelBodyVariants base: rounded-none → --radius-none
-    - panelFooterVariants base: gap-3 → --spacing-3
-    - panelFooterVariants base: p-4 → --spacing-4
-    - panelFooterVariants base: rounded-none → --radius-none
-    - panelFooterVariants variant=banded: shadow-none → unresolved
     - panelHeaderVariants base: gap-3 → --spacing-3
     - panelHeaderVariants base: p-4 → --spacing-4
     - panelHeaderVariants base: rounded-none → --radius-none
-    - panelVariants base: gap-0 → --spacing-0
-    - panelVariants base: p-0 → --spacing-0
-    - panelVariants base: font-sans → --font-sans
-    - panelVariants base: text-body-default → --text-body-default
-    - panelVariants tone=inherit: shadow-none → unresolved
-    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-ss-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
-    - panelVariants {"tone":"['surface-1', 'overlay']","accentEdge":"start"}: before:rounded-es-[calc(var(--radius-xl)-var(--border-width))] → --radius-xl, --border-width
-    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-ss-xl → --radius-xl
-    - panelVariants {"tone":"inherit","accentEdge":"start"}: before:rounded-es-xl → --radius-xl
     - surfaceVariants({ tone: bandTone, elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/panel/usePanel.ts; see Surface anatomy
 ### PopoverClose
 - PopoverClose (components[] · packages/ui/src/molecules/popover/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - popoverButtonVariants base: rounded-md → --radius-md
     - popoverButtonVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
-    - popoverContentVariants base: font-sans → --font-sans
-    - popoverContentVariants base: text-body-default → --text-body-default
 ### PopoverContent
 - PopoverContent (components[] · packages/ui/src/molecules/popover/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - popoverButtonVariants base: rounded-md → --radius-md
-    - popoverButtonVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
     - popoverContentVariants base: font-sans → --font-sans
     - popoverContentVariants base: text-body-default → --text-body-default
 ### PopoverTrigger
@@ -3708,130 +3065,38 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - popoverButtonVariants base: rounded-md → --radius-md
     - popoverButtonVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
-    - popoverContentVariants base: font-sans → --font-sans
-    - popoverContentVariants base: text-body-default → --text-body-default
 ### ProjectCardBackdrop
 - ProjectCardBackdrop (components[] · packages/ui/src/molecules/project-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - projectCardBodyVariants base: text-body-large → --text-body-large
-    - projectCardCodeVariants base: font-mono → --font-mono
-    - projectCardCodeVariants base: text-code → --text-code
-    - projectCardEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
-    - projectCardFootVariants base: gap-3 → --spacing-3
-    - projectCardHeadingVariants size=md: text-heading-small → --text-heading-small
-    - projectCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - projectCardIndexVariants base: text-transparent → unresolved
-    - projectCardIndexVariants size=md: text-title-display → --text-title-display
-    - projectCardIndexVariants size=sm: text-title-section → --text-title-section
-    - projectCardTagsVariants base: gap-1.5 → --spacing
-    - projectCardTagsVariants base: p-0 → --spacing-0
-    - projectCardUpperContentVariants base: gap-4 → --spacing-4
-    - projectCardUpperVariants base: rounded-xl → --radius-xl
-    - projectCardUpperVariants base: gap-4 → --spacing-4
-    - projectCardVariants base: gap-4 → --spacing-4
-    - projectCardVariants variant=featured: shadow-[var(--shadow-hot)] → --shadow-hot
-    - projectCardVariants size=sm: gap-3 → --spacing-3
-    - projectCardVariants size=sm: p-3 → --spacing-3
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'sm', radius: 'md' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
 ### ProjectCardCode
 - ProjectCardCode (components[] · packages/ui/src/molecules/project-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - projectCardBodyVariants base: text-body-large → --text-body-large
     - projectCardCodeVariants base: font-mono → --font-mono
     - projectCardCodeVariants base: text-code → --text-code
-    - projectCardEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
-    - projectCardFootVariants base: gap-3 → --spacing-3
-    - projectCardHeadingVariants size=md: text-heading-small → --text-heading-small
-    - projectCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - projectCardIndexVariants base: text-transparent → unresolved
-    - projectCardIndexVariants size=md: text-title-display → --text-title-display
-    - projectCardIndexVariants size=sm: text-title-section → --text-title-section
-    - projectCardTagsVariants base: gap-1.5 → --spacing
-    - projectCardTagsVariants base: p-0 → --spacing-0
-    - projectCardUpperContentVariants base: gap-4 → --spacing-4
-    - projectCardUpperVariants base: rounded-xl → --radius-xl
-    - projectCardUpperVariants base: gap-4 → --spacing-4
-    - projectCardVariants base: gap-4 → --spacing-4
-    - projectCardVariants variant=featured: shadow-[var(--shadow-hot)] → --shadow-hot
-    - projectCardVariants size=sm: gap-3 → --spacing-3
-    - projectCardVariants size=sm: p-3 → --spacing-3
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'sm', radius: 'md' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
 ### ProjectCardFooter
 - ProjectCardFooter (components[] · packages/ui/src/molecules/project-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - projectCardBodyVariants base: text-body-large → --text-body-large
-    - projectCardCodeVariants base: font-mono → --font-mono
-    - projectCardCodeVariants base: text-code → --text-code
-    - projectCardEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
     - projectCardFootVariants base: gap-3 → --spacing-3
-    - projectCardHeadingVariants size=md: text-heading-small → --text-heading-small
-    - projectCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - projectCardIndexVariants base: text-transparent → unresolved
-    - projectCardIndexVariants size=md: text-title-display → --text-title-display
-    - projectCardIndexVariants size=sm: text-title-section → --text-title-section
-    - projectCardTagsVariants base: gap-1.5 → --spacing
-    - projectCardTagsVariants base: p-0 → --spacing-0
-    - projectCardUpperContentVariants base: gap-4 → --spacing-4
-    - projectCardUpperVariants base: rounded-xl → --radius-xl
-    - projectCardUpperVariants base: gap-4 → --spacing-4
-    - projectCardVariants base: gap-4 → --spacing-4
-    - projectCardVariants variant=featured: shadow-[var(--shadow-hot)] → --shadow-hot
-    - projectCardVariants size=sm: gap-3 → --spacing-3
-    - projectCardVariants size=sm: p-3 → --spacing-3
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'sm', radius: 'md' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
 ### ProjectCardMark
 - ProjectCardMark (components[] · packages/ui/src/molecules/project-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - projectCardBodyVariants base: text-body-large → --text-body-large
-    - projectCardCodeVariants base: font-mono → --font-mono
-    - projectCardCodeVariants base: text-code → --text-code
-    - projectCardEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
-    - projectCardFootVariants base: gap-3 → --spacing-3
-    - projectCardHeadingVariants size=md: text-heading-small → --text-heading-small
-    - projectCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - projectCardIndexVariants base: text-transparent → unresolved
-    - projectCardIndexVariants size=md: text-title-display → --text-title-display
-    - projectCardIndexVariants size=sm: text-title-section → --text-title-section
-    - projectCardTagsVariants base: gap-1.5 → --spacing
-    - projectCardTagsVariants base: p-0 → --spacing-0
-    - projectCardUpperContentVariants base: gap-4 → --spacing-4
-    - projectCardUpperVariants base: rounded-xl → --radius-xl
-    - projectCardUpperVariants base: gap-4 → --spacing-4
-    - projectCardVariants base: gap-4 → --spacing-4
-    - projectCardVariants variant=featured: shadow-[var(--shadow-hot)] → --shadow-hot
-    - projectCardVariants size=sm: gap-3 → --spacing-3
-    - projectCardVariants size=sm: p-3 → --spacing-3
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'sm', radius: 'md' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
 ### ProjectCardTags
 - ProjectCardTags (components[] · packages/ui/src/molecules/project-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - projectCardBodyVariants base: text-body-large → --text-body-large
-    - projectCardCodeVariants base: font-mono → --font-mono
-    - projectCardCodeVariants base: text-code → --text-code
-    - projectCardEyebrowVariants base: text-label-eyebrow → --text-label-eyebrow
-    - projectCardFootVariants base: gap-3 → --spacing-3
-    - projectCardHeadingVariants size=md: text-heading-small → --text-heading-small
-    - projectCardHeadingVariants size=sm: text-body-large → --text-body-large
-    - projectCardIndexVariants base: text-transparent → unresolved
-    - projectCardIndexVariants size=md: text-title-display → --text-title-display
-    - projectCardIndexVariants size=sm: text-title-section → --text-title-section
     - projectCardTagsVariants base: gap-1.5 → --spacing
     - projectCardTagsVariants base: p-0 → --spacing-0
-    - projectCardUpperContentVariants base: gap-4 → --spacing-4
-    - projectCardUpperVariants base: rounded-xl → --radius-xl
-    - projectCardUpperVariants base: gap-4 → --spacing-4
-    - projectCardVariants base: gap-4 → --spacing-4
-    - projectCardVariants variant=featured: shadow-[var(--shadow-hot)] → --shadow-hot
-    - projectCardVariants size=sm: gap-3 → --spacing-3
-    - projectCardVariants size=sm: p-3 → --spacing-3
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'md', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'well', padding: 'sm', radius: 'md' }) · packages/ui/src/molecules/project-card/useProjectCard.ts; see Surface anatomy
@@ -3885,12 +3150,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
     - terminalCardBarVariants base: gap-2 → --spacing-2
     - terminalCardBarVariants base: px-4 → --spacing-4
     - terminalCardBarVariants base: py-2.5 → --spacing
-    - terminalCardListVariants base: gap-x-4 → --spacing-4
-    - terminalCardListVariants base: gap-y-1.5 → --spacing
-    - terminalCardListVariants base: px-4 → --spacing-4
-    - terminalCardListVariants base: py-3 → --spacing-3
-    - terminalCardListVariants base: font-mono → --font-mono
-    - terminalCardListVariants base: text-body-default → --text-body-default
     - terminalCardShellVariants base: font-sans → --font-sans
     - terminalCardShellVariants base: text-label-default → --text-label-default
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/terminal-card/useTerminalCard.ts; see Surface anatomy
@@ -3898,18 +3157,12 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### TerminalCardList
 - TerminalCardList (components[] · packages/ui/src/molecules/terminal-card/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - terminalCardBarVariants base: rounded-t-xl → --radius-xl
-    - terminalCardBarVariants base: gap-2 → --spacing-2
-    - terminalCardBarVariants base: px-4 → --spacing-4
-    - terminalCardBarVariants base: py-2.5 → --spacing
     - terminalCardListVariants base: gap-x-4 → --spacing-4
     - terminalCardListVariants base: gap-y-1.5 → --spacing
     - terminalCardListVariants base: px-4 → --spacing-4
     - terminalCardListVariants base: py-3 → --spacing-3
     - terminalCardListVariants base: font-mono → --font-mono
     - terminalCardListVariants base: text-body-default → --text-body-default
-    - terminalCardShellVariants base: font-sans → --font-sans
-    - terminalCardShellVariants base: text-label-default → --text-label-default
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'xl' }) · packages/ui/src/molecules/terminal-card/useTerminalCard.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/molecules/terminal-card/useTerminalCard.ts; see Surface anatomy
 ### ToastProvider
@@ -3925,86 +3178,26 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### TopBarBrand
 - TopBarBrand (components[] · packages/ui/src/organisms/top-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - topBarLinkVariants base: font-sans → --font-sans
-    - topBarLinkVariants base: text-body-large → --text-body-large
-    - topBarLinkVariants base: aria-[current=page]:font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - topBarListVariants base: gap-8 → --spacing-8
-    - topBarListVariants base: p-0 → --spacing-0
-    - topBarRowVariants base: gap-4 → --spacing-4
-    - topBarRowVariants base: px-[var(--gutter)] → --gutter
-    - topBarVariants base: data-[state=transparent]:shadow-none → unresolved
-    - topBarVariants base: data-[state=glass]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - topBarVariants initialBackground=transparent: shadow-none → unresolved
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/top-bar/useTopBar.ts; see Surface anatomy
 ### TopBarEnd
 - TopBarEnd (components[] · packages/ui/src/organisms/top-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - topBarLinkVariants base: font-sans → --font-sans
-    - topBarLinkVariants base: text-body-large → --text-body-large
-    - topBarLinkVariants base: aria-[current=page]:font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - topBarListVariants base: gap-8 → --spacing-8
-    - topBarListVariants base: p-0 → --spacing-0
-    - topBarRowVariants base: gap-4 → --spacing-4
-    - topBarRowVariants base: px-[var(--gutter)] → --gutter
-    - topBarVariants base: data-[state=transparent]:shadow-none → unresolved
-    - topBarVariants base: data-[state=glass]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - topBarVariants initialBackground=transparent: shadow-none → unresolved
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/top-bar/useTopBar.ts; see Surface anatomy
 ### TopBarMobileTrigger
 - TopBarMobileTrigger (components[] · packages/ui/src/organisms/top-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - topBarLinkVariants base: font-sans → --font-sans
-    - topBarLinkVariants base: text-body-large → --text-body-large
-    - topBarLinkVariants base: aria-[current=page]:font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - topBarListVariants base: gap-8 → --spacing-8
-    - topBarListVariants base: p-0 → --spacing-0
-    - topBarRowVariants base: gap-4 → --spacing-4
-    - topBarRowVariants base: px-[var(--gutter)] → --gutter
-    - topBarVariants base: data-[state=transparent]:shadow-none → unresolved
-    - topBarVariants base: data-[state=glass]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - topBarVariants initialBackground=transparent: shadow-none → unresolved
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/top-bar/useTopBar.ts; see Surface anatomy
 ### TopBarSearchCompact
 - TopBarSearchCompact (components[] · packages/ui/src/organisms/top-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - topBarLinkVariants base: font-sans → --font-sans
-    - topBarLinkVariants base: text-body-large → --text-body-large
-    - topBarLinkVariants base: aria-[current=page]:font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - topBarListVariants base: gap-8 → --spacing-8
-    - topBarListVariants base: p-0 → --spacing-0
-    - topBarRowVariants base: gap-4 → --spacing-4
-    - topBarRowVariants base: px-[var(--gutter)] → --gutter
-    - topBarVariants base: data-[state=transparent]:shadow-none → unresolved
-    - topBarVariants base: data-[state=glass]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - topBarVariants initialBackground=transparent: shadow-none → unresolved
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/top-bar/useTopBar.ts; see Surface anatomy
 ### TopBarSearchFull
 - TopBarSearchFull (components[] · packages/ui/src/organisms/top-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - topBarLinkVariants base: font-sans → --font-sans
-    - topBarLinkVariants base: text-body-large → --text-body-large
-    - topBarLinkVariants base: aria-[current=page]:font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - topBarListVariants base: gap-8 → --spacing-8
-    - topBarListVariants base: p-0 → --spacing-0
-    - topBarRowVariants base: gap-4 → --spacing-4
-    - topBarRowVariants base: px-[var(--gutter)] → --gutter
-    - topBarVariants base: data-[state=transparent]:shadow-none → unresolved
-    - topBarVariants base: data-[state=glass]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - topBarVariants initialBackground=transparent: shadow-none → unresolved
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/top-bar/useTopBar.ts; see Surface anatomy
 ### TopBarUserMenu
 - TopBarUserMenu (components[] · packages/ui/src/organisms/top-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - topBarLinkVariants base: font-sans → --font-sans
-    - topBarLinkVariants base: text-body-large → --text-body-large
-    - topBarLinkVariants base: aria-[current=page]:font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - topBarListVariants base: gap-8 → --spacing-8
-    - topBarListVariants base: p-0 → --spacing-0
-    - topBarRowVariants base: gap-4 → --spacing-4
-    - topBarRowVariants base: px-[var(--gutter)] → --gutter
-    - topBarVariants base: data-[state=transparent]:shadow-none → unresolved
-    - topBarVariants base: data-[state=glass]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - topBarVariants initialBackground=transparent: shadow-none → unresolved
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/top-bar/useTopBar.ts; see Surface anatomy
 ### appShellVariants
 - appShellVariants (components[] · packages/ui/src/templates/app-shell/types.ts · @egdev/ui)
@@ -4074,30 +3267,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### calendarGridVariants
 - calendarGridVariants (components[] · packages/ui/src/organisms/calendar-grid/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - calendarGridAddVariants base: rounded-md → --radius-md
-    - calendarGridAddVariants base: focus-visible:shadow-focus → --shadow-focus
-    - calendarGridDayNumberVariants base: font-display → --font-display
-    - calendarGridDayNumberVariants base: text-heading-small → --text-heading-small
-    - calendarGridDayVariants base: gap-2 → --spacing-2
-    - calendarGridDayVariants base: p-2 → --spacing-2
-    - calendarGridDayVariants base: rounded-lg → --radius-lg
-    - calendarGridEntryListVariants base: p-0 → --spacing-0
-    - calendarGridEntryListVariants base: gap-2 → --spacing-2
-    - calendarGridHeaderRowVariants base: gap-2 → --spacing-2
-    - calendarGridHeaderVariants base: gap-2 → --spacing-2
-    - calendarGridHeaderVariants base: pt-1 → --spacing-1
-    - calendarGridHeaderVariants base: px-0.5 → --spacing
-    - calendarGridHeaderVariants base: pb-2 → --spacing-2
-    - calendarGridLinkVariants base: rounded-sm → --radius-sm
-    - calendarGridLinkVariants base: focus-visible:shadow-focus → --shadow-focus
-    - calendarGridListVariants base: p-0 → --spacing-0
-    - calendarGridListVariants base: gap-2 → --spacing-2
-    - calendarGridMetaVariants base: text-label-default → --text-label-default
-    - calendarGridTodayVariants base: font-display → --font-display
-    - calendarGridTodayVariants base: text-meta → --text-meta
     - calendarGridVariants base: font-sans → --font-sans
-    - calendarGridWeekdayVariants base: font-display → --font-display
-    - calendarGridWeekdayVariants base: text-meta → --text-meta
 ### chipVariants
 - chipVariants (components[] · packages/ui/src/atoms/chip/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
@@ -4131,21 +3301,8 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### footerHeadingVariants
 - footerHeadingVariants (components[] · packages/ui/src/organisms/footer/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - footerGridVariants base: gap-x-10 → --spacing-10
-    - footerGridVariants base: gap-y-8 → --spacing-8
-    - footerGridVariants base: pt-10 → --spacing-10
     - footerHeadingVariants base: font-display → --font-display
     - footerHeadingVariants base: text-label-eyebrow → --text-label-eyebrow
-    - footerLegalVariants base: gap-4 → --spacing-4
-    - footerLegalVariants base: pt-4 → --spacing-4
-    - footerLegalVariants base: text-body-default → --text-body-default
-    - footerListVariants base: p-0 → --spacing-0
-    - footerMottoVariants base: px-0 → --spacing-0
-    - footerMottoVariants base: pt-10 → --spacing-10
-    - footerMottoVariants base: pb-8 → --spacing-8
-    - footerVariants base: p-0 → --spacing-0
-    - footerVariants base: pb-8 → --spacing-8
-    - footerVariants base: font-sans → --font-sans
 ### labelVariants
 - labelVariants (components[] · packages/ui/src/primitives/label/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
@@ -4155,25 +3312,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### menuVariants
 - menuVariants (components[] · packages/ui/src/molecules/menu/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - accountMenuRecipeVariants part=trigger: cn(         surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'full' }),         'group inline-flex items-center gap-1 min-h-10 pointer-coarse:min-h-11 pl-1 pr-1.5 border-border-hairline-strong text-fg-secondary cursor-pointer hover:bg-surface-2 hover:border-border-brand hover:text-fg-default aria-expanded:bg-surface-2 aria-expanded:border-border-brand aria-expanded:text-fg-default focus-visible:outline-none focus-visible:shadow-focus transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] motion-reduce:transition-none'       ) → unresolved
-    - accountMenuRecipeVariants part=name: font-sans → --font-sans
-    - accountMenuRecipeVariants part=name: text-label-default → --text-label-default
-    - accountMenuRecipeVariants part=description: font-sans → --font-sans
-    - accountMenuRecipeVariants part=description: text-label-default → --text-label-default
-    - menuHeaderVariants base: gap-3 → --spacing-3
-    - menuHeaderVariants base: p-2.5 → --spacing
-    - menuHeaderVariants base: pb-3 → --spacing-3
-    - menuItemVariants base: gap-3 → --spacing-3
-    - menuItemVariants base: px-3 → --spacing-3
-    - menuItemVariants base: py-2.25 → --spacing
-    - menuItemVariants base: rounded-md → --radius-md
-    - menuItemVariants base: text-label-default → --text-label-default
-    - menuLabelVariants base: px-3 → --spacing-3
-    - menuLabelVariants base: pt-2 → --spacing-2
-    - menuLabelVariants base: pb-1 → --spacing-1
-    - menuLabelVariants base: font-display → --font-display
-    - menuLabelVariants base: text-meta → --text-meta
-    - menuShortcutVariants base: pl-3 → --spacing-3
     - menuVariants base: p-2 → --spacing-2
     - menuVariants base: font-sans → --font-sans
     - surfaceVariants({ tone: 'surface-1', elevation: 1, padding: 'none', radius: 'full' }) · packages/ui/src/molecules/menu/types.ts; see Surface anatomy
@@ -4183,49 +3321,16 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
   - Visual anatomy (source classes; unresolved is not a guessed value):
     - moduleRailVariants base: gap-2 → --spacing-2
     - moduleRailVariants base: py-4 → --spacing-4
-    - railLinkVariants base: rounded-md → --radius-md
-    - railLinkVariants base: focus-visible:shadow-focus → --shadow-focus
-    - railListVariants base: gap-2 → --spacing-2
-    - railListVariants base: p-0 → --spacing-0
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/module-rail/useModuleRail.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-3', elevation: 1, padding: 'none', radius: 'md' }) · packages/ui/src/organisms/module-rail/useModuleRail.ts; see Surface anatomy
 ### navListVariants
 - navListVariants (components[] · packages/ui/src/molecules/nav-list/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - navListCaptionVariants base: gap-2 → --spacing-2
-    - navListCaptionVariants base: px-[calc(var(--space-1)*2.5)] → --space-1
-    - navListCaptionVariants base: font-display → --font-display
-    - navListCaptionVariants base: text-nav-group → --text-nav-group
-    - navListCaptionVariants base: font-[var(--text-label-eyebrow--font-weight)] → --text-label-eyebrow--font-weight
-    - navListCountVariants base: font-mono → --font-mono
-    - navListCountVariants base: text-nav-count → --text-nav-count
-    - navListCountVariants base: font-[var(--text-label-default--font-weight)] → --text-label-default--font-weight
-    - navListLinkVariants base: rounded-md → --radius-md
-    - navListLinkVariants base: gap-[calc(var(--space-1)*3.125)] → --space-1
-    - navListLinkVariants base: px-[calc(var(--space-1)*2.5)] → --space-1
-    - navListLinkVariants base: py-[calc(var(--space-1)*2.1875)] → --space-1
-    - navListLinkVariants base: font-sans → --font-sans
-    - navListLinkVariants base: text-nav-row → --text-nav-row
-    - navListLinkVariants base: font-[var(--text-body-muted--font-weight)] → --text-body-muted--font-weight
-    - navListListVariants base: p-0 → --spacing-0
-    - navListListVariants base: gap-0 → --spacing-0
-    - navListMarkerVariants base: rounded-md → --radius-md
-    - navListMetadataVariants base: gap-2 → --spacing-2
-    - navListTriggerVariants base: gap-2 → --spacing-2
-    - navListTriggerVariants base: px-[calc(var(--space-1)*2.5)] → --space-1
-    - navListTriggerVariants base: py-[calc(var(--space-1)*1.5625)] → --space-1
-    - navListTriggerVariants base: rounded-md → --radius-md
-    - navListTriggerVariants base: text-left → unresolved
-    - navListTriggerVariants base: font-display → --font-display
-    - navListTriggerVariants base: text-nav-group → --text-nav-group
-    - navListTriggerVariants base: font-[var(--text-label-eyebrow--font-weight)] → --text-label-eyebrow--font-weight
-    - navListTriggerVariants base: focus-visible:shadow-focus → --shadow-focus
     - navListVariants base: font-sans → --font-sans
     - surfaceVariants({ tone: 'surface-2', elevation: 0, padding: 'none', radius: 'md' }) · packages/ui/src/molecules/nav-list/useNavList.ts; see Surface anatomy
 ### noticeVariants
 - noticeVariants (components[] · packages/ui/src/molecules/notice/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - noticeActionsVariants base: gap-2 → --spacing-2
     - noticeAppearanceVariants base: gap-3 → --spacing-3
     - noticeAppearanceVariants base: px-4 → --spacing-4
     - noticeAppearanceVariants base: py-3 → --spacing-3
@@ -4240,8 +3345,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### progressBarVariants
 - progressBarVariants (components[] · packages/ui/src/atoms/progress-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - progressBarFillVariants size=lg: rounded-[inherit] → unresolved
-    - progressBarFillVariants size=lg: shadow-edge-strong → --shadow-edge-strong
     - progressBarVariants size=lg: rounded-full → --radius-full
     - progressBarVariants size=lg: shadow-well → --shadow-well
     - progressBarVariants edge=true: rounded-none → --radius-none
@@ -4265,42 +3368,15 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### sidebarVariants
 - sidebarVariants (components[] · packages/ui/src/organisms/sidebar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - sidebarContentVariants base: px-3 → --spacing-3
-    - sidebarContentVariants base: pb-4 → --spacing-4
-    - sidebarContentVariants header=false: pt-4 → --spacing-4
-    - sidebarFooterVariants base: gap-2 → --spacing-2
-    - sidebarFooterVariants base: px-4 → --spacing-4
-    - sidebarFooterVariants base: py-3 → --spacing-3
-    - sidebarFooterVariants base: font-sans → --font-sans
-    - sidebarFooterVariants base: text-label-default → --text-label-default
-    - sidebarHeaderVariants base: gap-3 → --spacing-3
-    - sidebarHeaderVariants base: px-4 → --spacing-4
-    - sidebarHeaderVariants base: pt-5 → --spacing-5
-    - sidebarHeaderVariants base: pb-4 → --spacing-4
-    - sidebarNameVariants base: font-display → --font-display
-    - sidebarNameVariants base: text-heading-small → --text-heading-small
-    - sidebarScrollbarVariants base: p-0.5 → --spacing
-    - sidebarThumbVariants base: rounded-full → --radius-full
     - surfaceVariants({ tone: 'surface-0', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/sidebar/useSidebar.ts; see Surface anatomy
     - surfaceVariants({ tone: 'surface-1', elevation: 0, padding: 'none', radius: 'none' }) · packages/ui/src/organisms/sidebar/useSidebar.ts; see Surface anatomy
 ### sliderVariants
 - sliderVariants (components[] · packages/ui/src/atoms/slider/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - sliderThumbVariants base: rounded-full → --radius-full
-    - sliderThumbVariants base: shadow-[var(--shadow-elev-1)] → --shadow-elev-1
-    - sliderThumbVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
-    - sliderTrackVariants base: rounded-full → --radius-full
-    - sliderTrackVariants base: shadow-[var(--shadow-well)] → --shadow-well
+    - No statically extracted anatomy.
 ### statVariants
 - statVariants (components[] · packages/ui/src/atoms/stat/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - statDeltaVariants base: font-sans → --font-sans
-    - statDeltaVariants base: text-label-default → --text-label-default
-    - statLabelVariants base: font-display → --font-display
-    - statLabelVariants base: text-meta → --text-meta
-    - statValueVariants base: font-display → --font-display
-    - statValueVariants size=md: text-display-stat → --text-display-stat
-    - statValueVariants size=sm: text-display-stat-sm → --text-display-stat-sm
     - statVariants base: rounded-lg → --radius-lg
     - statVariants base: shadow-[var(--shadow-edge),var(--shadow-elev-1)] → --shadow-edge, --shadow-elev-1
     - statVariants base: data-[state=highlighted]:shadow-[var(--shadow-edge),var(--shadow-glow-base)] → --shadow-edge, --shadow-glow-base
@@ -4341,14 +3417,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### tabBarVariants
 - tabBarVariants (components[] · packages/ui/src/organisms/tab-bar/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - tabBarLinkVariants base: gap-1 → --spacing-1
-    - tabBarLinkVariants base: py-2 → --spacing-2
-    - tabBarLinkVariants base: px-1 → --spacing-1
-    - tabBarLinkVariants base: rounded-md → --radius-md
-    - tabBarLinkVariants base: text-label-default → --text-label-default
-    - tabBarLinkVariants base: aria-[current=page]:before:rounded-full → --radius-full
-    - tabBarLinkVariants base: focus-visible:shadow-focus → --shadow-focus
-    - tabBarListVariants base: p-0 → --spacing-0
     - tabBarVariants base: pt-1.5 → --spacing
     - tabBarVariants base: px-2 → --spacing-2
     - tabBarVariants base: pb-[max(var(--space-5),env(safe-area-inset-bottom))] → --space-5
@@ -4357,38 +3425,6 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### tabsVariants
 - tabsVariants (components[] · packages/ui/src/molecules/tabs/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - tabsCountVariants base: px-1.5 → --spacing
-    - tabsCountVariants base: rounded-full → --radius-full
-    - tabsCountVariants base: shadow-edge → --shadow-edge
-    - tabsCountVariants base: text-label-default → --text-label-default
-    - tabsListVariants variant=underline: gap-1 → --spacing-1
-    - tabsListVariants variant=segmented: gap-0.5 → --spacing
-    - tabsListVariants variant=segmented: p-0.75 → --spacing
-    - tabsListVariants variant=outline: gap-0.5 → --spacing
-    - tabsListVariants variant=outline: p-0.75 → --spacing
-    - tabsListVariants {"variant":"['segmented', 'outline']","fullWidth":"true"}: p-1.5 → --spacing
-    - tabsListVariants {"variant":"['segmented', 'outline']","fullWidth":"true"}: [&::-webkit-scrollbar-thumb]:rounded-full → --radius-full
-    - tabsPanelVariants base: pt-4 → --spacing-4
-    - tabsTriggerVariants base: gap-2 → --spacing-2
-    - tabsTriggerVariants base: font-sans → --font-sans
-    - tabsTriggerVariants base: text-label-default → --text-label-default
-    - tabsTriggerVariants variant=underline: after:rounded-full → --radius-full
-    - tabsTriggerVariants variant=underline: data-[state=active]:after:shadow-[var(--shadow-state-indicator)] → --shadow-state-indicator
-    - tabsTriggerVariants variant=segmented: px-3 → --spacing-3
-    - tabsTriggerVariants variant=segmented: rounded-[calc(var(--radius-md)---spacing(0.75))] → --radius-md, --spacing
-    - tabsTriggerVariants variant=segmented: data-[state=active]:shadow-[var(--shadow-edge-strong),var(--shadow-elev-1)] → --shadow-edge-strong, --shadow-elev-1
-    - tabsTriggerVariants variant=segmented: data-[state=active]:before:rounded-[inherit] → unresolved
-    - tabsTriggerVariants variant=segmented: focus-visible:shadow-focus → --shadow-focus
-    - tabsTriggerVariants variant=segmented: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
-    - tabsTriggerVariants variant=outline: px-3 → --spacing-3
-    - tabsTriggerVariants variant=outline: rounded-[calc(var(--radius-md)---spacing(0.75))] → --radius-md, --spacing
-    - tabsTriggerVariants variant=outline: data-[state=active]:shadow-[var(--shadow-edge-strong)] → --shadow-edge-strong
-    - tabsTriggerVariants variant=outline: focus-visible:shadow-focus → --shadow-focus
-    - tabsTriggerVariants variant=outline: data-[state=active]:focus-visible:shadow-focus → --shadow-focus
-    - tabsTriggerVariants {"variant":"underline","size":"md"}: px-3 → --spacing-3
-    - tabsTriggerVariants {"variant":"underline","size":"sm"}: px-2 → --spacing-2
-    - tabsTriggerVariants {"variant":"['segmented', 'outline']","labelWrap":"true"}: text-start → unresolved
-    - tabsTriggerVariants {"variant":"['segmented', 'outline']","labelWrap":"true"}: py-1 → --spacing-1
     - tabsVariants base: gap-0 → --spacing-0
     - surfaceVariants({ tone: 'well', padding: 'none', radius: 'md' }) · packages/ui/src/molecules/tabs/useTabs.ts; see Surface anatomy
 ### tooltipVariants
@@ -4403,13 +3439,7 @@ catalog[] · docs/catalog.json · @egdev/ui · primitive · VisuallyHidden
 ### useToast
 - useToast (components[] · packages/ui/src/molecules/toast/types.ts · @egdev/ui)
   - Visual anatomy (source classes; unresolved is not a guessed value):
-    - toastRootVariants base: pe-2 → --spacing-2
-    - toastRootVariants base: shadow-[var(--shadow-edge-strong),var(--shadow-elev-3)] → --shadow-edge-strong, --shadow-elev-3
-    - toastRootVariants danger=true: before:rounded-[inherit] → unresolved
-    - toastViewportVariants base: gap-2 → --spacing-2
-    - toastViewportVariants base: p-0 → --spacing-0
-    - toastViewportVariants base: focus-visible:shadow-[var(--shadow-focus)] → --shadow-focus
-    - toastViewportVariants base: rounded-lg → --radius-lg
+    - No statically extracted anatomy.
 Not exported:
 - LiveBand (catalog[] · docs/catalog.json)
 - GaugeDock (catalog[] · docs/catalog.json)
