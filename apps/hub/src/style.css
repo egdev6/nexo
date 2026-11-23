@@ -27,7 +27,8 @@ body[data-flyout-sliding] > :not(#root) { visibility: hidden !important; }
 .heading p { margin: 0 auto 0 0; color: var(--color-fg-secondary); font-size: var(--text-label-default); }
 .n-mark { display: block; width: var(--space-6); height: var(--space-6); flex: none; }
 .head-actions, .actions { display: flex; gap: var(--space-2); }
-.head-actions { margin-left: auto; }
+/* Adjacent IconButtons: leave a visible gap one token above their two extended 44.8px targets (DS rule, ui 0.8.0). */
+.head-actions { margin-left: auto; gap: var(--space-5); }
 .main-tabs-frame { --menu-band-gutter: var(--space-6); position: relative; flex: 1; min-height: 0; padding: var(--space-4) var(--menu-band-gutter) 0; overflow: hidden; overscroll-behavior: contain; isolation: isolate; }
 /* The band follows the accessible tablist without overriding DS internals. */
 .main-tabs-frame::before { content: ''; position: absolute; inset: 0 0 auto; height: calc(var(--menu-band-bottom, 0px) + var(--space-4)); z-index: -1; background: var(--color-surface-0); pointer-events: none; }

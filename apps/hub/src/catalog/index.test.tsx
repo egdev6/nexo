@@ -140,7 +140,7 @@ it('opens only present social links through the native policy for official and s
   const pizarra = screen.getByRole('article', { name: 'Pizarra' });
   const social = within(pizarra).getByRole('list', { name: 'Enlaces sociales' });
   expect(social.classList.contains('flex-wrap')).toBe(true);
-  expect(social.classList.contains('gap-2')).toBe(true);
+  expect(social.classList.contains('gap-5')).toBe(true);
   expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
   expect(social.parentElement?.classList.contains('detail-social')).toBe(false);
   for (const link of within(social).getAllByRole('link')) {
