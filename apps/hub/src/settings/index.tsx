@@ -335,14 +335,7 @@ export function SettingsView({ settings, onChange, onClose, autostart, languageP
           title={tr('common.settings')}
           lede={tr('settings.subtitle')}
           leadingAction={
-            <IconButton
-              label={tr('common.back')}
-              title={tr('common.back')}
-              // TODO(egdev-design-system#537): app CSS rotates arrow-right until the icon set has a back arrow.
-              icon={<Icon name="arrow-right" className="settings__back-icon" />}
-              variant="secondary"
-              onClick={onClose}
-            />
+            <IconButton label={tr('common.back')} title={tr('common.back')} icon={<Icon name="arrow-left" />} variant="secondary" onClick={onClose} />
           }
         />
       </div>
