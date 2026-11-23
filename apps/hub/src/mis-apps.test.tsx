@@ -265,7 +265,7 @@ it('shows version links, badge-first update, social links and plugin close in de
   const details = card('Official');
   const social = details.getByRole('list', { name: 'Enlaces sociales' });
   expect(social.classList.contains('flex-wrap')).toBe(true);
-  expect(social.classList.contains('gap-2')).toBe(true);
+  expect(social.classList.contains('gap-5')).toBe(true);
   expect(social.parentElement?.classList.contains('eg-cluster')).toBe(true);
   expect(social.parentElement?.classList.contains('detail-social')).toBe(true);
   for (const link of within(social).getAllByRole('link')) {

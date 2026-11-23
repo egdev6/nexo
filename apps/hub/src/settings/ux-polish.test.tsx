@@ -153,7 +153,7 @@ it.each([
   expect(within(card).getByText('Enrique Gómez Navarro (egdev6)')).toBeTruthy();
   const list = within(card).getByRole('list');
   expect(list.classList.contains('flex-wrap')).toBe(true);
-  expect(list.classList.contains('gap-2')).toBe(true);
+  expect(list.classList.contains('gap-5')).toBe(true);
   expect(list.parentElement?.classList.contains('eg-cluster')).toBe(true);
   for (const [name, url] of profiles) {
     const link = within(card).getByRole('link', { name: new RegExp(name, 'i') });
