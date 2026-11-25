@@ -236,6 +236,165 @@ it('projects a native process observation into the official row and refreshes af
   expect(invoke).toHaveBeenCalledWith('close_official_app', { id: 'example-app' });
 });
 
+function mockLiveApp(observe: () => Record<string, unknown>, extra: (command: string) => unknown = () => undefined) {
+  vi.mocked(isTauri).mockReturnValue(true);
+  const app = {
+    ...fullCatalog.apps[0],
+    detection: { windows: { displayName: 'Example App', publisher: 'Example Publisher', executableRelativePath: 'Example.exe' } },
+  };
+  vi.spyOn(catalogLoader, 'loadCatalog').mockResolvedValue({
+    status: 'ready',
+    catalog: { ...parseCatalog({ schemaVersion: 2, apps: [app] }), schemaVersion: 4 },
+  });
+  vi.mocked(invoke).mockImplementation(((command: string) => {
+    if (command === 'get_settings')
+      return Promise.resolve({ state: 'ready', settings: { ...defaultSettings, firstRunComplete: true, showNewsOnOpen: false, sources: [] } });
+    if (command === 'plugin:autostart|is_enabled') return Promise.resolve(false);
+    if (command === 'platform_key') return Promise.resolve('windows-x86_64');
+    if (command === 'read_catalog_v4_cache') return Promise.resolve(JSON.stringify(windowsCatalog([app])));
+    if (command === 'installed_apps') return Promise.resolve([{ id: 'example-app', state: 'installed', version: '9.1.0', canOpen: true, ...observe() }]);
+    const handled = extra(command);
+    return handled === undefined ? Promise.resolve(null) : (handled as Promise<unknown>);
+  }) as typeof invoke);
+}
+const scanCount = () => vi.mocked(invoke).mock.calls.filter(([command]) => command === 'installed_apps').length;
+
+it('keeps installed cards and their status visible while a rescan is in flight', async () => {
+  let hold = false;
+  let release!: () => void;
+  mockLiveApp(() => ({ runningState: 'running' }));
+  const base = vi.mocked(invoke).getMockImplementation();
+  vi.mocked(invoke).mockImplementation(((command: string, args?: unknown) => {
+    if (command === 'installed_apps' && hold)
+      return new Promise<unknown>((resolve) => {
+        release = () => resolve([{ id: 'example-app', state: 'installed', version: '9.1.0', canOpen: true, runningState: 'running' }]);
+      });
+    return base?.(command, args as never);
+  }) as typeof invoke);
+  render(<App />);
+  expect(await screen.findByText('Abierta')).toBeTruthy();
+  hold = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Actualizar apps' }));
+  await waitFor(() => expect(release).toBeTypeOf('function'));
+  expect(screen.getByText('Example App')).toBeTruthy();
+  expect(screen.getByText('Abierta')).toBeTruthy();
+  expect(screen.queryByText('Estado de instalación no disponible todavía.')).toBeNull();
+  await act(async () => release());
+  expect(screen.getByText('Abierta')).toBeTruthy();
+});
+
+it('keeps an opening app pending until a rescan observes it running', async () => {
+  let scansUntilRunning = Number.POSITIVE_INFINITY;
+  mockLiveApp(
+    () => ({ runningState: scanCount() >= scansUntilRunning ? 'running' : 'notRunning' }),
+    (command) => {
+      if (command === 'open_official_app') {
+        scansUntilRunning = scanCount() + 2;
+        return Promise.resolve('Inicio solicitado; no hay confirmación de ejecución');
+      }
+    },
+  );
+  render(<App />);
+  expect(await screen.findByText('Cerrada')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir Example App' }));
+  expect(await screen.findByText('Abriendo…')).toBeTruthy();
+  await waitFor(() => expect(scanCount()).toBeGreaterThanOrEqual(scansUntilRunning - 1));
+  expect(screen.queryByText('Cerrada')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(await screen.findByText('Abierta', {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByText('Abriendo…')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Cerrar Example App' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('keeps a closing app pending until a rescan observes it stopped', async () => {
+  let scansUntilStopped = Number.POSITIVE_INFINITY;
+  mockLiveApp(
+    () => ({ runningState: scanCount() >= scansUntilStopped ? 'notRunning' : 'running' }),
+    (command) => {
+      if (command === 'close_official_app') {
+        scansUntilStopped = scanCount() + 2;
+        return Promise.resolve({ status: 'closed', message: 'Example App se ha cerrado.' });
+      }
+    },
+  );
+  render(<App />);
+  expect(await screen.findByText('Abierta')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
+  expect(await screen.findByText('Cerrando…')).toBeTruthy();
+  expect(screen.queryByText('Abierta')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Cerrar Example App' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(await screen.findByText('Cerrada', {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByText('Cerrando…')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('stops waiting and warns when the state change is never observed', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    mockLiveApp(
+      () => ({ runningState: 'notRunning' }),
+      (command) => (command === 'open_official_app' ? Promise.resolve('Inicio solicitado; no hay confirmación de ejecución') : undefined),
+    );
+    render(<App />);
+    expect(await screen.findByText('Cerrada')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Example App' }));
+    expect(await screen.findByText('Abriendo…')).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(16000);
+    });
+    expect(screen.queryByText('Abriendo…')).toBeNull();
+    expect(screen.getByText('Cerrada')).toBeTruthy();
+    const warning = screen.getByText('No se pudo confirmar el cambio de estado de Example App.').closest('.eg-notice');
+    expect(warning?.getAttribute('data-tone')).toBe('warning');
+    expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('ignores a late failure from an expired request while a newer one is pending', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    const rejects: ((reason: unknown) => void)[] = [];
+    mockLiveApp(
+      () => ({ runningState: 'notRunning' }),
+      (command) =>
+        command === 'open_official_app'
+          ? new Promise((_resolve, reject) => {
+              rejects.push(reject);
+            })
+          : undefined,
+    );
+    render(<App />);
+    expect(await screen.findByText('Cerrada')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Example App' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(16000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Example App' }));
+    expect(await screen.findByText('Abriendo…')).toBeTruthy();
+    await act(async () => rejects[0]('Primer intento fallido'));
+    expect(screen.getByText('Abriendo…')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('clears the pending state and reports the error when opening fails', async () => {
+  mockLiveApp(
+    () => ({ runningState: 'notRunning' }),
+    (command) => (command === 'open_official_app' ? Promise.reject('No se pudo iniciar') : undefined),
+  );
+  render(<App />);
+  expect(await screen.findByText('Cerrada')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir Example App' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('No se pudo iniciar');
+  expect(screen.queryByText('Abriendo…')).toBeNull();
+  expect(screen.getByText('Cerrada')).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
 it('ignores an older installation scan that resolves after a newer refresh', async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   const app = {
