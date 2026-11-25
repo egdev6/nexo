@@ -109,8 +109,12 @@ export function LocalAppsView({
           }
         />
       </div>
-      {listError && <Notice tone="danger" size="sm" summary={t(locale, listError)} />}
-      {message && <Notice tone={message.error ? 'danger' : 'success'} size="sm" summary={t(locale, message.key)} />}
+      {(listError || message) && (
+        <div className="local-apps__notices">
+          {listError && <Notice tone="danger" size="sm" summary={t(locale, listError)} />}
+          {message && <Notice tone={message.error ? 'danger' : 'success'} size="sm" summary={t(locale, message.key)} />}
+        </div>
+      )}
       {rows.map((row) => {
         const other = row.duplicateOf && (lookup.find((item) => item.id === row.duplicateOf)?.name ?? row.duplicateOf);
         return (

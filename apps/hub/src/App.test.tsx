@@ -328,6 +328,55 @@ it('keeps a closing app pending until a rescan observes it stopped', async () =>
   expect((screen.getByRole('button', { name: 'Abrir Example App' }) as HTMLButtonElement).disabled).toBe(false);
 });
 
+it('collapses the expanded row when closing an app from its header action', async () => {
+  mockLiveApp(
+    () => ({ runningState: 'running' }),
+    (command) => (command === 'close_official_app' ? new Promise(() => {}) : undefined),
+  );
+  render(<App />);
+  expect(await screen.findByText('Abierta')).toBeTruthy();
+  const trigger = expandRow('Example App');
+  expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  expect(invoke).toHaveBeenCalledWith('close_official_app', { id: 'example-app' });
+});
+
+it('collapses the expanded connected row when closing it from the inner close button', async () => {
+  let publish!: (snapshot: RegistrySnapshot) => void;
+  vi.mocked(subscribeRegistry).mockImplementation(async (callback) => {
+    publish = callback;
+    return () => {};
+  });
+  mockLiveApp(
+    () => ({ runningState: 'connected' }),
+    (command) => (command === 'close_connected_app' ? new Promise(() => {}) : undefined),
+  );
+  render(<App />);
+  await screen.findByText('Example App');
+  act(() =>
+    publish({
+      revision: 1,
+      apps: [
+        {
+          app: { id: 'example-app', name: 'Example App', version: '2.0.0' },
+          capabilities: ['show', 'quit'],
+          unified: true,
+          responsive: true,
+          generation: 1,
+          menu_revision: 0,
+          menu: [],
+        },
+      ],
+    }),
+  );
+  const trigger = expandRow('Example App');
+  expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar Example App' }));
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  expect(invoke).toHaveBeenCalledWith('close_connected_app', { id: 'example-app' });
+});
+
 it('stops waiting and warns when the state change is never observed', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   try {

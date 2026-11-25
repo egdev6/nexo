@@ -520,6 +520,15 @@ function InstalledPanel({
     open: openRow === id,
     onOpenChange: (open: boolean) => setOpenRow((current) => (open ? id : current === id ? null : current)),
   });
+  /** Closing an app also collapses its row, whichever close control was used. */
+  const collapseThen = (close?: (id: string) => void) =>
+    close &&
+    ((id: string) => {
+      setOpenRow((current) => (current === `official:${id}` || current === `connected:${id}` ? null : current));
+      close(id);
+    });
+  const closeConnected = collapseThen(onClose);
+  const closeProcess = collapseThen(onProcessClose);
   return (
     <>
       {connected.length > 0 && (
@@ -532,7 +541,7 @@ function InstalledPanel({
               key={app.app.id}
               app={app}
               official={apps.find((item) => item.source === 'official' && item.id === app.app.id)}
-              onClose={onClose}
+              onClose={closeConnected}
               onOpen={onOpen}
               onMenuAction={onMenuAction}
               busy={!!pending[app.app.id]}
@@ -563,7 +572,7 @@ function InstalledPanel({
             key={app.id}
             app={app}
             onOpen={onOpen}
-            onClose={onProcessClose}
+            onClose={closeProcess}
             busy={!!pending[app.id]}
             pending={pending[app.id]?.action}
             stale={stale}
