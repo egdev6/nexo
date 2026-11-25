@@ -12,6 +12,7 @@ import {
   IconButton,
   Notice,
   PageHeader,
+  Spinner,
   StatusDot,
   Tabs,
   Text,
@@ -86,6 +87,19 @@ function MainTabsFrame({ children }: { children: ReactNode }) {
 
 /** Rescans after an app leaves the registry, measured from its departure. */
 const DEPARTURE_RESCAN_DELAYS_MS = [2000, 6000];
+/** Rescan cadence while an open or close request waits for the observed state change. */
+const PENDING_RESCAN_INTERVAL_MS = 1500;
+/** How long an open or close request may wait for its observed state change before warning. */
+const PENDING_TIMEOUT_MS = 15000;
+
+type PendingAction = 'opening' | 'closing';
+type PendingEntry = { action: PendingAction; name: string };
+
+/** Whether the observed app state shows the pending action has taken effect. */
+function pendingSettled(action: PendingAction, app: HubApp | undefined, connected: boolean): boolean {
+  if (action === 'opening') return connected || app?.runningState === 'running' || app?.runningState === 'connected';
+  return !connected && app?.runningState !== 'running' && app?.runningState !== 'connected';
+}
 
 function OpenAction({ app, onOpen, busy, stale }: { app: HubApp; onOpen?: (id: string) => void; busy: boolean; stale: boolean }) {
   const locale = useLocale();
@@ -126,8 +140,16 @@ function ProcessCloseAction({ app, onClose, busy, stale }: { app: HubApp; onClos
   );
 }
 
-function Status({ app }: { app: HubApp }) {
+function Status({ app, pending }: { app: HubApp; pending?: PendingAction }) {
   const locale = useLocale();
+  if (pending)
+    return (
+      <Text asChild variant="body" foreground="secondary">
+        <span>
+          <Spinner size="sm" /> {t(locale, pending === 'opening' ? 'appControl.opening' : 'appControl.closing')}
+        </span>
+      </Text>
+    );
   if (app.installationState === 'installed') {
     if (app.runningState === 'running')
       return (
@@ -237,12 +259,14 @@ function ConnectedRow({
   onOpen,
   onMenuAction,
   busy,
+  pending,
   catalogState,
   installs,
   open,
   onOpenChange,
 }: {
   app: RegistryApp;
+  pending?: PendingAction;
   official?: HubApp;
   onClose?: (id: string) => void;
   onOpen?: (id: string) => void;
@@ -279,7 +303,13 @@ function ConnectedRow({
             <AppIcon size="lg" monogram={app.app.name.trim().charAt(0).toUpperCase()} src={official?.iconUrl} />
             <span className="app-info">
               <strong>{app.app.name}</strong>
-              {app.responsive ? (
+              {pending ? (
+                <Text asChild variant="body" foreground="secondary">
+                  <span>
+                    <Spinner size="sm" /> {t(locale, pending === 'opening' ? 'appControl.opening' : 'appControl.closing')}
+                  </span>
+                </Text>
+              ) : app.responsive ? (
                 <span>
                   <StatusDot state="running" /> {t(locale, 'app.connected')}
                 </span>
@@ -317,7 +347,8 @@ function ConnectedRow({
                 size="sm"
                 variant="secondary"
                 aria-label={t(locale, 'appControl.closeFor', { name: app.app.name })}
-                disabled={busy}
+                disabled={busy && pending !== 'closing'}
+                loading={pending === 'closing'}
                 onClick={() => onClose(app.app.id)}
               >
                 {t(locale, 'common.close')}
@@ -368,6 +399,7 @@ function AppRow({
   onOpen,
   onClose,
   busy,
+  pending,
   stale,
   catalogState,
   installs,
@@ -378,6 +410,7 @@ function AppRow({
   onOpen?: (id: string) => void;
   onClose?: (id: string) => void;
   busy: boolean;
+  pending?: PendingAction;
   stale: boolean;
   catalogState?: CatalogState;
   installs: CatalogInstalls;
@@ -405,7 +438,7 @@ function AppRow({
             <AppIcon size="lg" monogram={app.name.trim().charAt(0).toUpperCase()} src={app.iconUrl} />
             <span className="app-info">
               <strong>{app.name}</strong>
-              <Status app={app} />
+              <Status app={app} pending={pending} />
             </span>
           </span>
         </CollapsibleTrigger>
@@ -455,7 +488,7 @@ function InstalledPanel({
   onProcessClose,
   onOpen,
   onMenuAction,
-  actionBusy,
+  pending,
   stale,
   hideLocalApps,
   localCycle,
@@ -471,7 +504,7 @@ function InstalledPanel({
   onMenuAction?: (app: RegistryApp, itemId: string) => void;
   onProcessClose?: (id: string) => void;
   onOpen?: (id: string) => void;
-  actionBusy: boolean;
+  pending: Readonly<Record<string, PendingEntry>>;
   stale: boolean;
   hideLocalApps: boolean;
   localCycle?: number;
@@ -487,6 +520,15 @@ function InstalledPanel({
     open: openRow === id,
     onOpenChange: (open: boolean) => setOpenRow((current) => (open ? id : current === id ? null : current)),
   });
+  /** Closing an app also collapses its row, whichever close control was used. */
+  const collapseThen = (close?: (id: string) => void) =>
+    close &&
+    ((id: string) => {
+      setOpenRow((current) => (current === `official:${id}` || current === `connected:${id}` ? null : current));
+      close(id);
+    });
+  const closeConnected = collapseThen(onClose);
+  const closeProcess = collapseThen(onProcessClose);
   return (
     <>
       {connected.length > 0 && (
@@ -499,10 +541,11 @@ function InstalledPanel({
               key={app.app.id}
               app={app}
               official={apps.find((item) => item.source === 'official' && item.id === app.app.id)}
-              onClose={onClose}
+              onClose={closeConnected}
               onOpen={onOpen}
               onMenuAction={onMenuAction}
-              busy={actionBusy}
+              busy={!!pending[app.app.id]}
+              pending={pending[app.app.id]?.action}
               catalogState={catalogState}
               installs={installs}
               {...disclosure(`connected:${app.app.id}`)}
@@ -529,8 +572,9 @@ function InstalledPanel({
             key={app.id}
             app={app}
             onOpen={onOpen}
-            onClose={onProcessClose}
-            busy={actionBusy}
+            onClose={closeProcess}
+            busy={!!pending[app.id]}
+            pending={pending[app.id]?.action}
             stale={stale}
             catalogState={catalogState}
             installs={installs}
@@ -638,35 +682,81 @@ export function FlyoutPanel({
   useContentBackdrop(panelRef, native && hasBackdrop, motion.phase, motion.generation, shown.blur, shown.opacity);
   const [registry, setRegistry] = useState<RegistrySnapshot>({ revision: 0, apps: [] });
   const [registryFailed, setRegistryFailed] = useState(false);
-  const [actionBusy, setActionBusy] = useState(false);
+  const [pending, setPending] = useState<Readonly<Record<string, PendingEntry>>>({});
+  const pendingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const pendingToken = useRef(0);
+  /** Latest request token per app; a response superseded by a newer request is ignored. */
+  const pendingTokens = useRef(new Map<string, number>());
   const [actionMessage, setActionMessage] = useState<{
     error: boolean;
     warning?: boolean;
     text: string;
     localize?: boolean;
-    key?: 'appControl.quitAccepted';
+    key?: 'appControl.quitAccepted' | 'appControl.confirmTimeout';
+    params?: Record<string, string>;
   } | null>(null);
-  function openApp(id: string) {
-    setActionBusy(true);
+  const observed = useRef({ apps, registry });
+  observed.current = { apps, registry };
+  function endPending(id: string) {
+    clearTimeout(pendingTimers.current.get(id));
+    pendingTimers.current.delete(id);
+    setPending((current) => {
+      if (!current[id]) return current;
+      const { [id]: _done, ...rest } = current;
+      return rest;
+    });
+  }
+  /** Starts waiting for an app's state change and returns a check that the request is still the latest one. */
+  function startPending(id: string, action: PendingAction): () => boolean {
+    const name =
+      observed.current.apps.find((app) => app.id === id)?.name ?? observed.current.registry.apps.find((entry) => entry.app.id === id)?.app.name ?? id;
+    const token = ++pendingToken.current;
+    pendingTokens.current.set(id, token);
+    clearTimeout(pendingTimers.current.get(id));
+    pendingTimers.current.set(
+      id,
+      setTimeout(() => {
+        endPending(id);
+        setActionMessage({ error: false, warning: true, text: '', key: 'appControl.confirmTimeout', params: { name } });
+      }, PENDING_TIMEOUT_MS),
+    );
+    setPending((current) => ({ ...current, [id]: { action, name } }));
     setActionMessage(null);
+    return () => pendingTokens.current.get(id) === token;
+  }
+  /** Ends the wait when the app state cannot be observed, so no confirmation could ever arrive. */
+  function endPendingIfUnobservable(id: string) {
+    const { apps: currentApps, registry: currentRegistry } = observed.current;
+    const connected = currentRegistry.apps.some((entry) => entry.app.id === id);
+    if (!connected && currentApps.find((app) => app.id === id)?.runningState === 'unknown') endPending(id);
+  }
+  function openApp(id: string) {
+    const latest = startPending(id, 'opening');
     void openOfficialApp(id)
-      .then((text) => setActionMessage({ error: false, text, localize: true }))
-      .catch((error) => setActionMessage({ error: true, text: String(error), localize: true }))
-      .finally(() => {
-        setActionBusy(false);
-        onAppsRefresh?.();
-      });
+      .then((text) => {
+        if (!latest()) return;
+        setActionMessage({ error: false, text, localize: true });
+        endPendingIfUnobservable(id);
+      })
+      .catch((error) => {
+        if (!latest()) return;
+        endPending(id);
+        setActionMessage({ error: true, text: String(error), localize: true });
+      })
+      .finally(() => onAppsRefresh?.());
   }
   function closeApp(id: string) {
-    setActionBusy(true);
-    setActionMessage(null);
+    const latest = startPending(id, 'closing');
     void closeConnectedApp(id)
-      .then(() => setActionMessage({ error: false, text: '', key: 'appControl.quitAccepted' }))
-      .catch((error) => setActionMessage({ error: true, text: String(error) }))
-      .finally(() => {
-        setActionBusy(false);
-        onAppsRefresh?.();
-      });
+      .then(() => {
+        if (latest()) setActionMessage({ error: false, text: '', key: 'appControl.quitAccepted' });
+      })
+      .catch((error) => {
+        if (!latest()) return;
+        endPending(id);
+        setActionMessage({ error: true, text: String(error) });
+      })
+      .finally(() => onAppsRefresh?.());
   }
   function runMenuItem(app: RegistryApp, itemId: string) {
     setActionMessage(null);
@@ -675,19 +765,52 @@ export function FlyoutPanel({
     );
   }
   function closeProcessApp(id: string) {
-    setActionBusy(true);
-    setActionMessage(null);
+    const latest = startPending(id, 'closing');
     void closeOfficialApp(id)
-      .then((result) => setActionMessage({ error: false, warning: result.status === 'stillRunning', text: result.message }))
-      .catch((error) => setActionMessage({ error: true, text: String(error), localize: true }))
-      .finally(() => {
-        setActionBusy(false);
-        onAppsRefresh?.();
-      });
+      .then((result) => {
+        if (!latest()) return;
+        if (result.status === 'stillRunning') endPending(id);
+        else endPendingIfUnobservable(id);
+        setActionMessage({ error: false, warning: result.status === 'stillRunning', text: result.message });
+      })
+      .catch((error) => {
+        if (!latest()) return;
+        endPending(id);
+        setActionMessage({ error: true, text: String(error), localize: true });
+      })
+      .finally(() => onAppsRefresh?.());
   }
   const installed = apps.filter(isInstalled);
   const installedCount = installed.length;
   const sampleInstalled = installed.some((app) => app.source !== 'official');
+
+  // Settle each pending request once the observed state shows it took effect.
+  useEffect(() => {
+    const connected = new Set(registry.apps.map((entry) => entry.app.id));
+    for (const [id, entry] of Object.entries(pending))
+      if (
+        pendingSettled(
+          entry.action,
+          apps.find((app) => app.id === id),
+          connected.has(id),
+        )
+      )
+        endPending(id);
+  });
+  // No event reports a process start or exit, so rescan while a request waits for its effect.
+  const waiting = Object.keys(pending).length > 0;
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => refreshAppsRef.current?.(), PENDING_RESCAN_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [waiting]);
+  useEffect(() => {
+    const timers = pendingTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -888,7 +1011,11 @@ export function FlyoutPanel({
               size="sm"
               tone={actionMessage.error ? 'danger' : actionMessage.warning ? 'warning' : 'success'}
               summary={
-                actionMessage.key ? t(locale, actionMessage.key) : actionMessage.localize ? localizeAppReason(locale, actionMessage.text) : actionMessage.text
+                actionMessage.key
+                  ? t(locale, actionMessage.key, actionMessage.params)
+                  : actionMessage.localize
+                    ? localizeAppReason(locale, actionMessage.text)
+                    : actionMessage.text
               }
             />
           )}
@@ -1010,7 +1137,7 @@ export function FlyoutPanel({
                         onMenuAction={onAppsRefresh ? runMenuItem : undefined}
                         onProcessClose={onAppsRefresh ? closeProcessApp : undefined}
                         onOpen={onAppsRefresh ? openApp : undefined}
-                        actionBusy={actionBusy}
+                        pending={pending}
                         stale={catalogState?.stale === true || (!!catalogState && catalogState.status !== 'ready' && catalogState.status !== 'empty')}
                         hideLocalApps={settings.hideLocalApps}
                         localCycle={visibility?.visible ? visibility.cycle : undefined}
@@ -1085,7 +1212,7 @@ export default function App(props: FlyoutProps) {
   function refreshApps() {
     if (!liveCatalog || !catalogState.catalog || catalogState.reason === 'cache') return;
     const id = ++scanId.current;
-    setInstallations(null);
+    // Keep the last observation on screen while rescanning; clearing it would blank every card.
     void scanInstallations()
       .then((result) => {
         if (id === scanId.current) setInstallations(result);

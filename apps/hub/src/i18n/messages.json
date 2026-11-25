@@ -100,7 +100,10 @@
       "refresh": "Actualizar apps",
       "connectedAbove": "Las apps instaladas conectadas aparecen arriba.",
       "closeWithoutPlugin": "Para cerrar una app sin plugin, hazlo desde la propia app.",
-      "quitAccepted": "Solicitud de cierre aceptada; la salida no está confirmada."
+      "quitAccepted": "Solicitud de cierre aceptada; la salida no está confirmada.",
+      "opening": "Abriendo…",
+      "closing": "Cerrando…",
+      "confirmTimeout": "No se pudo confirmar el cambio de estado de {name}."
     },
     "settings": {
       "fontCredit": "Tipografía Barlow · SIL Open Font License 1.1",
@@ -495,7 +498,10 @@
       "refresh": "Refresh apps",
       "connectedAbove": "Connected installed apps are shown above.",
       "closeWithoutPlugin": "To close an app without the plugin, close it from within the app.",
-      "quitAccepted": "Close request accepted; exit is not confirmed."
+      "quitAccepted": "Close request accepted; exit is not confirmed.",
+      "opening": "Opening…",
+      "closing": "Closing…",
+      "confirmTimeout": "Could not confirm the state change for {name}."
     },
     "settings": {
       "fontCredit": "Barlow typeface · SIL Open Font License 1.1",
